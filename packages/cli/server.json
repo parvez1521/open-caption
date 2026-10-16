@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Ishaan-Gpt/captionseasy",
+  "description": "99 designed animated caption looks for AI video editors: list, inspect and build styled captions.",
+  "repository": {
+    "url": "https://github.com/Ishaan-Gpt/Captions-Easy",
+    "source": "github",
+    "subfolder": "packages/cli"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "captionseasy",
+      "version": "0.1.1",
+      "transport": { "type": "stdio" },
+      "packageArguments": [{ "type": "positional", "value": "mcp" }]
+    }
+  ]
+}

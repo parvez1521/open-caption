@@ -295,6 +295,21 @@ export function useStudio(projectId: string) {
     [persist],
   );
 
+  /** A new video replaced the old one: its captions are gone on the server, drop them here too (no save, no undo). */
+  const resetDoc = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    docRef.current = null;
+    revisionRef.current = 0;
+    dirtyRef.current = false;
+    past.current = [];
+    future.current = [];
+    lastKey.current = null;
+    setConflict(null);
+    setSaveState("saved");
+    setDocState(null);
+  }, []);
+
   const rename = useCallback(
     async (title: string) => {
       await studioService.savePatch(projectId, { title });
@@ -307,11 +322,11 @@ export function useStudio(projectId: string) {
     () => ({
       query, data, doc, style, settings, lookId, saveState, conflict,
       canUndo: past.current.length > 0, canRedo: future.current.length > 0,
-      edit, undo, redo, resolveConflict, chooseLook, patchStyle, patchSettings, rename,
+      edit, undo, redo, resolveConflict, chooseLook, patchStyle, patchSettings, rename, resetDoc,
       refetch: () => qc.invalidateQueries({ queryKey: ["studio", projectId] }),
       saveNow,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [query, data, doc, style, settings, lookId, saveState, conflict, edit, undo, redo, resolveConflict, chooseLook, patchStyle, patchSettings, rename, saveNow],
+    [query, data, doc, style, settings, lookId, saveState, conflict, edit, undo, redo, resolveConflict, chooseLook, patchStyle, patchSettings, rename, resetDoc, saveNow],
   );
 }

@@ -1,0 +1,65 @@
+{
+  "name": "captionseasy-transcribe",
+  "version": "0.1.0",
+  "description": "Transcription add-on for captionseasy: local Whisper speech-to-text with word timestamps (transformers.js + onnxruntime-node, prebuilt, no compiler). Free, offline after the first model download.",
+  "license": "MIT",
+  "author": "Ishaan Gupta",
+  "bugs": {
+    "url": "https://github.com/Ishaan-Gpt/Captions-Easy/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/Ishaan-Gpt/Captions-Easy/tree/main/packages/cli-transcribe#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ishaan-Gpt/Captions-Easy.git",
+    "directory": "packages/cli-transcribe"
+  },
+  "keywords": [
+    "captionseasy",
+    "captions",
+    "video",
+    "whisper",
+    "speech-to-text",
+    "transcription",
+    "word-timestamps"
+  ],
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ../cli/scripts/build.mjs transcribe",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.0",
+    "@remotion/renderer": "4.0.484"
+  },
+  "devDependencies": {
+    "@capseasy/companion": "workspace:*",
+    "@capseasy/shared": "workspace:*",
+    "@motion-ai/caption-engine": "workspace:*",
+    "@types/node": "^20",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.9",
+    "tsx": "^4.19.0"
+  }
+}

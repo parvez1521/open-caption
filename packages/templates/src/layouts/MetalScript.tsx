@@ -2,7 +2,7 @@ import React from "react";
 import { random } from "remotion";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { applyCasing, withAlpha } from "@motion-ai/caption-engine/core";
-import { combineMotion, easeFn, effectiveIntensity, exitStyle, progress } from "../motion";
+import { combineMotion, easeFn, effectiveIntensity, exitStyle, progress, showAt } from "../motion";
 import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 import { clipTextCss, innerFill } from "./Glow";
@@ -39,7 +39,7 @@ const capsWords = (words: Word[], style: CaptionStyleV2): CapsWord[] => {
   return words.map((w) => {
     const chars = [...displayText(w, style)];
     const gap = letterGap(chars.length);
-    return { word: w, letters: chars.map((ch, i) => ({ ch, start: w.startMs - LEAD_MS + i * gap, n: n++ })) };
+    return { word: w, letters: chars.map((ch, i) => ({ ch, start: showAt(w) - LEAD_MS + i * gap, n: n++ })) };
   });
 };
 
@@ -165,7 +165,7 @@ const ScriptWord: React.FC<{ word: Word; text: string; style: CaptionStyleV2; si
   const padX = 0.4 * size;
   const padY = 0.35 * size;
   const box: React.CSSProperties = { display: "inline-block", position: "relative", whiteSpace: "pre", padding: `${padY}px ${padX}px`, margin: `${-padY}px ${gap - padX}px ${-padY}px ${-padX}px`, ...font };
-  const start = word.startMs - 60;
+  const start = showAt(word) - 60;
   if (!settled && timeMs < start) return <span style={{ ...box, opacity: 0 }}>{text}</span>;
   const dur = Math.min(650, Math.max(380, word.endMs - word.startMs + 220));
   const p = settled ? 1 : progress(timeMs - start, dur, easeFn("inOutCubic"));

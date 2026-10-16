@@ -1,7 +1,7 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { applyCasing, darken, lighten, withAlpha } from "@motion-ai/caption-engine/core";
-import { combineMotion, effectiveIntensity, exitStyle, progress, SPRINGS, springMs } from "../motion";
+import { combineMotion, effectiveIntensity, exitStyle, progress, showAt, SPRINGS, springMs } from "../motion";
 import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 
@@ -196,15 +196,18 @@ interface WordProps {
   last: boolean;
   /** ms before the word's start that it begins to rise (anticipation) */
   lead?: number;
+  /** when the word appears (default: its scheduled reveal) */
+  at?: number;
 }
 
-const GlowWord: React.FC<WordProps> = ({ piece, style, look, size, sc, timeMs, fps, intensity, settled, last, lead = 70 }) => {
+const GlowWord: React.FC<WordProps> = ({ piece, style, look, size, sc, timeMs, fps, intensity, settled, last, lead = 70, at }) => {
   const w = piece.word;
+  const from = (at ?? showAt(w)) - lead;
   const font = fontCss(style, piece.accent, size, sc);
   const gap = last ? 0 : gapPx(style, size, sc);
   // before it is spoken the word keeps its place (invisible) so the line never shifts as words arrive
-  if (!settled && timeMs < w.startMs - lead) return <span style={{ display: "inline-block", whiteSpace: "pre", opacity: 0, marginRight: gap, ...font }}>{piece.text}</span>;
-  const enter = riseIn(timeMs - (w.startMs - lead), intensity, size, settled);
+  if (!settled && timeMs < from) return <span style={{ display: "inline-block", whiteSpace: "pre", opacity: 0, marginRight: gap, ...font }}>{piece.text}</span>;
+  const enter = riseIn(timeMs - from, intensity, size, settled);
   const rot = piece.accent && style.hero.rotate ? ` rotate(${style.hero.rotate}deg)` : "";
   // letters track in from wider spacing; the extra width is taken back from the margins so neighbours stay put
   const spread = enter.tracking * [...piece.text].length;
@@ -261,7 +264,7 @@ export const GlowFlowLayout: React.FC<PageRenderProps> = ({ page, timeMs, style,
         {lines.map((l, li) => (
           <div key={li} style={{ display: "flex", alignItems: "baseline", justifyContent: "center", whiteSpace: "pre" }}>
             {l.map((pc, i) => (
-              <GlowWord key={pc.word.id} piece={pc} style={style} look={pc.accent ? accent : body} size={pc.accent ? size * accentScale : size} sc={sc} timeMs={timeMs} fps={canvas.fps} intensity={intensity} settled={settled} last={i === l.length - 1} />
+              <GlowWord key={pc.word.id} piece={pc} style={style} look={pc.accent ? accent : body} size={pc.accent ? size * accentScale : size} sc={sc} timeMs={timeMs} fps={canvas.fps} intensity={intensity} settled={settled} last={i === l.length - 1} at={pc.accent ? page.startMs : undefined} />
             ))}
           </div>
         ))}
@@ -306,7 +309,7 @@ export const GlowDuoLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, 
     pieces.length ? (
       <div key={key} style={{ position: "relative", zIndex: z, display: "flex", alignItems: "baseline", justifyContent: "center", whiteSpace: "pre", marginTop: mt, lineHeight: style.lineHeight }}>
         {pieces.map((pc, i) => (
-          <GlowWord key={pc.word.id} piece={pc} style={style} look={look} size={size} sc={sc} timeMs={timeMs} fps={canvas.fps} intensity={intensity} settled={settled} last={i === pieces.length - 1} />
+          <GlowWord key={pc.word.id} piece={pc} style={style} look={look} size={size} sc={sc} timeMs={timeMs} fps={canvas.fps} intensity={intensity} settled={settled} last={i === pieces.length - 1} at={pc.word.id === words[hero]?.id ? page.startMs : undefined} />
         ))}
       </div>
     ) : null;
@@ -348,11 +351,11 @@ export const GlowBehindLayout: React.FC<PageRenderProps> = ({ page, timeMs, styl
   const sw = rowWidth(small, style, smallBase, smallBase, sc, measure);
   const smallSize = sw > box.width ? smallBase * (box.width / sw) : smallBase;
 
-  // the giant word: visible from the card start at a whisper, lands fully when spoken
-  const local = timeMs - heroWord.startMs;
+  // the giant word lands with the card, alongside the line in front of it
+  const local = timeMs - page.startMs;
   const land = settled ? 1 : progress(local, 900);
   const pre = settled ? 1 : progress(timeMs - page.startMs, 600);
-  const spoken = settled || timeMs >= heroWord.startMs;
+  const spoken = settled || timeMs >= page.startMs;
   const k = intensity;
   const heroOpacity = spoken ? 0.35 + 0.65 * land : 0.22 * pre;
   const heroScale = spoken ? 1 + (1 - land) * 0.16 * k : 1.16 + (1 - pre) * 0.06;

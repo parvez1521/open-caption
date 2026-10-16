@@ -55,6 +55,37 @@ export function visibleWords(doc: CaptionDoc, settings: ProjectSettings): Word[]
     .map((w) => (off ? { ...w, startMs: Math.max(0, w.startMs + off), endMs: Math.max(1, w.endMs + off) } : w));
 }
 
+/** Time (ms) an audience needs to read a card of these words. */
+export function readMs(words: Word[]): number {
+  const chars = words.reduce((n, w) => n + shown(w).length, 0);
+  return Math.min(2200, 350 + words.length * 160 + chars * 18);
+}
+
+/** share of a card by which every word must have appeared, leaving the rest of the card to read it whole */
+const REVEAL_BY = 0.4;
+/** a word starts appearing at the latest half-way through the previous word, never later than when it is spoken */
+const STEP_MIN_MS = 70;
+const STEP_MAX_MS = 220;
+
+/**
+ * Reveal schedule for one card: words overlap (the next one starts appearing half-way through the previous) and the
+ * whole card has appeared by REVEAL_BY of its duration, so the last word never lands just as the card is replaced.
+ * Returns new word objects with `revealMs` set; the active-word highlight still follows startMs (speech).
+ */
+function withReveal(words: Word[], startMs: number, endMs: number): Word[] {
+  const raw: number[] = [];
+  words.forEach((w, i) => {
+    if (i === 0) return raw.push(startMs);
+    const prev = words[i - 1]!;
+    const step = Math.min(STEP_MAX_MS, Math.max(STEP_MIN_MS, (prev.endMs - prev.startMs) / 2));
+    raw.push(Math.max(startMs, Math.min(w.startMs, raw[i - 1]! + step)));
+  });
+  const span = raw[raw.length - 1]! - startMs;
+  const budget = (endMs - startMs) * REVEAL_BY;
+  const k = span > budget && span > 0 ? budget / span : 1;
+  return words.map((w, i) => ({ ...w, revealMs: Math.round(startMs + (raw[i]! - startMs) * k) }));
+}
+
 /**
  * doc + settings -> non-overlapping pages. Pure and deterministic; memoize at the call site.
  * Order of rules: manual break -> no-break -> sentence end -> pause -> word/line limits -> min duration -> clamp.
@@ -109,19 +140,21 @@ export function derivePages(doc: CaptionDoc, settings: ProjectSettings, opts: De
     const first = g[0]!;
     const last = g[g.length - 1]!;
     const nextStart = merged[i + 1]?.[0]?.startMs;
-    let end = last.endMs + settings.holdMs;
-    if (settings.gapBehavior === "hold" && nextStart != null && nextStart - last.endMs <= bridge) end = nextStart;
+    let end = Math.max(last.endMs + settings.holdMs, first.startMs + readMs(g));
+    if (settings.gapBehavior === "hold" && nextStart != null && nextStart - last.endMs <= bridge) end = Math.max(end, nextStart);
     if (nextStart != null) end = Math.min(end, nextStart);
     end = Math.max(end, Math.min(last.endMs, nextStart ?? last.endMs), first.startMs + 1);
 
     const meta = doc.cards[first.id];
     const heroIndex = pickHeroIndex(g);
+    const shownWords = withReveal(g, first.startMs, end);
     return {
       id: first.id,
+      index: i,
       startMs: first.startMs,
       endMs: end,
-      words: g,
-      lines: breakLines(g, settings, opts),
+      words: shownWords,
+      lines: breakLines(shownWords, settings, opts),
       heroIndex,
       emotion: meta?.emotion ?? detectEmotion(g.map(shown).join(" ")),
       emotionSource: meta?.emotionSource ?? (meta?.emotion ? undefined : "heuristic"),

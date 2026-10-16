@@ -9,6 +9,8 @@ export interface LookSeed {
   /** partial style; completed with the template's defaults by the registry */
   style: Partial<CaptionStyleV2>;
   settings: Partial<ProjectSettings>;
+  /** gallery traits ("Caps", "Box highlight"); pack looks carry their own */
+  tags?: string[];
 }
 
 const outline = (width: number, color = "#000000") => ({ enabled: true, width, color });
@@ -56,7 +58,7 @@ export const NEW_LOOKS: LookSeed[] = [
   { id: "outline_fill", name: "Outline Fill", description: "Hollow outlined words that fill in as they're spoken", category: "Viral", templateId: "sentence_highlight",
     style: { fontId: "Archivo Black", fontWeight: 400, fontSize: 60, casing: "upper", templateOptions: { reveal: "all" }, fill: { type: "solid", color: "transparent" }, stroke: outline(3, "#FFFFFF"), active: { effect: "outline-fill", color: "#FFFFFF", scale: 1.04, boxRadius: 12 } }, settings: { maxWordsPerCard: 3 } },
   { id: "bold_pill", name: "Bold Pill", description: "White words on a dark pill, spoken word in lime", category: "Viral", templateId: "boxed_word",
-    style: { fontId: "Montserrat", fontWeight: 800, fontSize: 50, casing: "none", background: { type: "pill", color: "#111111", opacity: 0.85, padding: 16, radius: 100, blur: 0 }, active: { effect: "color", color: "#B6FF3B", scale: 1, boxRadius: 12 } }, settings: { maxWordsPerCard: 4 } },
+    style: { fontId: "Montserrat", fontWeight: 800, fontSize: 50, casing: "none", background: { type: "pill", color: "#2A2A35", opacity: 0.92, padding: 16, radius: 100, blur: 0 }, active: { effect: "color", color: "#B6FF3B", scale: 1, boxRadius: 12 } }, settings: { maxWordsPerCard: 4 } },
 
   // ---------- Fun
   { id: "comic_burst", name: "Comic Burst", description: "Comic-book Bangers with a red drop shadow and a big tilt", category: "Fun", templateId: "word_by_word",
@@ -74,7 +76,7 @@ export const NEW_LOOKS: LookSeed[] = [
 
   // ---------- Clean
   { id: "minimal_pro", name: "Minimal Pro", description: "Calm Inter; upcoming words dimmed, soft blur pill", category: "Clean", templateId: "sentence_highlight",
-    style: { fontId: "Inter", fontWeight: 600, fontSize: 48, templateOptions: { reveal: "all" }, inactiveOpacity: 0.45, active: { effect: "scale-up", color: "#FFFFFF", scale: 1.04, boxRadius: 12 }, background: { type: "pill", color: "#000000", opacity: 0.35, padding: 16, radius: 100, blur: 14 }, entrance: { type: "fade", durationMs: 160, stagger: "none", easing: "outCubic" } }, settings: { maxWordsPerCard: 6 } },
+    style: { fontId: "Inter", fontWeight: 600, fontSize: 48, templateOptions: { reveal: "all" }, inactiveOpacity: 0.45, active: { effect: "scale-up", color: "#FFFFFF", scale: 1.04, boxRadius: 12 }, background: { type: "pill", color: "#FFFFFF", opacity: 0.16, padding: 16, radius: 100, blur: 14 }, entrance: { type: "fade", durationMs: 160, stagger: "none", easing: "outCubic" } }, settings: { maxWordsPerCard: 6 } },
   { id: "netflix_sub", name: "Subtitle", description: "Film-style white subtitles with a soft shadow, no motion", category: "Clean", templateId: "subtitle_bar",
     style: { fontId: "Inter", fontWeight: 500, fontSize: 42, shadows: [{ x: 0, y: 2, blur: 6, color: "rgba(0,0,0,0.9)" }], background: { type: "bar", color: "#000000", opacity: 0, padding: 12, radius: 0, blur: 0 }, entrance: { type: "none", durationMs: 0, stagger: "none", easing: "linear" } }, settings: { maxWordsPerCard: 12, maxLines: 2, maxCharsPerLine: 42 } },
   { id: "lower_third", name: "Broadcast", description: "News-style lower third with an accent strip", category: "Clean", templateId: "subtitle_bar",
@@ -92,7 +94,7 @@ export const NEW_LOOKS: LookSeed[] = [
   { id: "motivational", name: "Motivational", description: "Tall Bebas Neue with wide tracking, one word at a time", category: "Cinematic", templateId: "word_by_word",
     style: { fontId: "Bebas Neue", fontWeight: 400, fontSize: 90, letterSpacing: 6, casing: "upper", shadows: soft, active: { effect: "none", color: "#FFFFFF", scale: 1, boxRadius: 12 } }, settings: { maxWordsPerCard: 1 } },
   { id: "film_noir", name: "Noir", description: "Playfair on a dark band, blurs into focus", category: "Cinematic", templateId: "subtitle_bar",
-    style: { fontId: "Playfair Display", fontWeight: 700, fontSize: 46, background: { type: "bar", color: "#000000", opacity: 0.45, padding: 16, radius: 0, blur: 0 }, maxWidth: 1, entrance: { type: "blur-in", durationMs: 350, stagger: "none", easing: "outCubic" } }, settings: { maxWordsPerCard: 8, maxLines: 2 } },
+    style: { fontId: "Playfair Display", fontWeight: 700, fontSize: 46, background: { type: "bar", color: "#2B2B2E", opacity: 0.88, padding: 16, radius: 0, blur: 0 }, maxWidth: 1, entrance: { type: "blur-in", durationMs: 350, stagger: "none", easing: "outCubic" } }, settings: { maxWordsPerCard: 8, maxLines: 2 } },
   { id: "kinetic_mix", name: "Kinetic", description: "Stacked words; the key word huge, tilted and yellow", category: "Cinematic", templateId: "kinetic",
     style: {}, settings: { maxWordsPerCard: 5 } },
 
@@ -104,7 +106,7 @@ export const NEW_LOOKS: LookSeed[] = [
   { id: "neon_sign", name: "Neon", description: "Glowing Tilt Neon tubes in pink and cyan", category: "Retro", templateId: "sentence_highlight",
     style: { fontId: "Tilt Neon", fontWeight: 400, fontSize: 60, fill: { type: "solid", color: "#FFD6F5" }, glow: { enabled: true, color: "#FF2BD6", radius: 14, intensity: 1 }, active: { effect: "glow", color: "#00F0FF", scale: 1.05, boxRadius: 12 } }, settings: { maxWordsPerCard: 3 } },
   { id: "terminal", name: "Terminal", description: "Green monospace typed out with a blinking cursor", category: "Tech", templateId: "typewriter",
-    style: { fontId: "JetBrains Mono", fontWeight: 700, fontSize: 48, fill: { type: "solid", color: "#00FF66" }, glow: { enabled: true, color: "#00FF66", radius: 8, intensity: 0.5 }, background: { type: "box", color: "#000000", opacity: 0.55, padding: 16, radius: 8, blur: 0 } }, settings: { maxWordsPerCard: 6 } },
+    style: { fontId: "JetBrains Mono", fontWeight: 700, fontSize: 48, fill: { type: "solid", color: "#00FF66" }, glow: { enabled: true, color: "#00FF66", radius: 8, intensity: 0.5 }, background: { type: "box", color: "#0E2C1B", opacity: 0.92, padding: 16, radius: 8, blur: 0 } }, settings: { maxWordsPerCard: 6 } },
   { id: "gaming_hud", name: "Gaming HUD", description: "Russo One caps with a violet box on the spoken word", category: "Tech", templateId: "boxed_word",
     style: { fontId: "Russo One", fontWeight: 400, fontSize: 54, casing: "upper", stroke: outline(3, "#0B0B1A"), active: { effect: "box", color: "#FFFFFF", boxColor: "#7C3AED", scale: 1.08, boxRadius: 6 } }, settings: { maxWordsPerCard: 3 } },
 

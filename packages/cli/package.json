@@ -1,0 +1,101 @@
+{
+  "name": "captionseasy",
+  "version": "0.1.1",
+  "description": "Designed, animated captions for developers and AI agents. Bring your words, get styled captions: 99 caption looks, validated caption props and Remotion components, a CLI and an MCP server. Zero dependencies; rendering and local transcription are optional add-ons. Runs 100% locally, free.",
+  "license": "MIT",
+  "author": "Ishaan Gupta",
+  "bugs": {
+    "url": "https://github.com/Ishaan-Gpt/Captions-Easy/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/Ishaan-Gpt/Captions-Easy/tree/main/packages/cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ishaan-Gpt/Captions-Easy.git",
+    "directory": "packages/cli"
+  },
+  "keywords": [
+    "captions",
+    "subtitles",
+    "animated-captions",
+    "video",
+    "remotion",
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "video-editing",
+    "tiktok-captions",
+    "karaoke",
+    "cli"
+  ],
+  "bin": {
+    "captionseasy": "dist/cli.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./remotion": {
+      "types": "./dist/remotion.d.ts",
+      "import": "./dist/remotion.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SKILL.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "node scripts/build.mjs core",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "dev": "tsx src/bin.ts"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "remotion": "^4.0.484"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "remotion": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@capseasy/companion": "workspace:*",
+    "@capseasy/compositions": "workspace:*",
+    "@capseasy/shared": "workspace:*",
+    "@capseasy/templates": "workspace:*",
+    "@motion-ai/caption-engine": "workspace:*",
+    "@remotion/bundler": "4.0.484",
+    "@remotion/layout-utils": "4.0.484",
+    "@remotion/google-fonts": "4.0.484",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "captionseasy-render": "workspace:*",
+    "captionseasy-transcribe": "workspace:*",
+    "env-paths": "^3.0.0",
+    "esbuild": "^0.28.1",
+    "react": "19.2.4",
+    "remotion": "4.0.484",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.9",
+    "zod": "^3.23.8"
+  },
+  "mcpName": "io.github.Ishaan-Gpt/captionseasy"
+}

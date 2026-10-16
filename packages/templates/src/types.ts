@@ -28,7 +28,9 @@ export interface PageRenderProps {
   settled?: boolean;
 }
 
-export type LayoutId = "sentence" | "word" | "stack3" | "karaoke" | "typewriter" | "bar" | "bubble" | "highlighter" | "kinetic" | "glow-flow" | "glow-duo" | "glow-behind" | "metal-script";
+export type CoreLayoutId = "sentence" | "word" | "stack3" | "karaoke" | "typewriter" | "bar" | "bubble" | "highlighter" | "kinetic" | "glow-flow" | "glow-duo" | "glow-behind" | "metal-script";
+/** pack layouts (src/pack) name themselves "pack-*" */
+export type LayoutId = CoreLayoutId | `pack-${string}`;
 
 export interface EmotionModifier {
   /** replaces the highlight colour when emotion reactivity is high */
@@ -64,6 +66,10 @@ export interface TemplateDefinition {
   capabilities: TemplateCapabilities;
   /** Google font families this template always needs, on top of the style's fonts */
   fonts: string[];
+  /** the layout draws the key (hero) word in its own size/font, so the hero scale and font controls apply */
+  heroDrawn?: boolean;
+  /** the layout is composed for exactly this many words per card (e.g. a 2-word bubble, a 5-word composition) */
+  fixedWordsPerCard?: number;
   /** per-template overrides of the default emotion styling */
   emotionMap?: Partial<Record<Emotion, EmotionModifier>>;
   Page: React.FC<PageRenderProps>;
@@ -77,6 +83,8 @@ export interface LookDefinition {
   templateId: string;
   style: CaptionStyleV2;
   settings: Partial<ProjectSettings>;
+  /** permanent number shown after the name ("Karaoke Fill #3"); see looks/numbers.ts */
+  number?: number;
   /** short traits shown under the gallery preview ("Caps", "Box highlight") */
   tags?: string[];
   legacy?: boolean;

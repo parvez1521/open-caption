@@ -41,8 +41,9 @@ export const Stack3Layout: React.FC<PageRenderProps & { skinId: string }> = ({ p
   const heroLeft = (box.width - heroWidth) / 2;
   const splash = skin.splash && style.templateOptions.layoutMode !== "centre";
 
-  const heroVisible = timeMs >= (hero?.startMs ?? 0);
-  const heroPop = settled || !hero ? 1 : springMs(timeMs, hero.startMs, canvas.fps, { ...SPRINGS.snappy, damping: 15, stiffness: 260 });
+  // the hero lands with the card, not after the body words before it (they arrive alongside it)
+  const heroVisible = timeMs >= page.startMs;
+  const heroPop = settled || !hero ? 1 : springMs(timeMs, page.startMs, canvas.fps, { ...SPRINGS.snappy, damping: 15, stiffness: 260 });
   const lineGap = style.fontSize * sc * skin.lineGapScale * (style.lineHeight / 1.15);
 
   const skinBody = skin.bodyCss ? skin.bodyCss(style) : {};

@@ -3,6 +3,7 @@ import { cancelRender, continueRender, delayRender } from "remotion";
 import { fontStack, getFontEntry } from "./fontCatalog";
 
 type GoogleFontModule = {
+  getInfo?: () => { fonts: Record<string, Record<string, unknown>> };
   loadFont: (style?: string, options?: { weights?: string[]; subsets?: string[]; ignoreTooManyRequestsWarning?: boolean }) => {
     fontFamily: string;
     waitUntilDone: () => Promise<void>;
@@ -15,47 +16,78 @@ type GoogleFontModule = {
  */
 const LOADERS: Record<string, () => Promise<unknown>> = {
   Anton: () => import("@remotion/google-fonts/Anton"),
+  "Alex Brush": () => import("@remotion/google-fonts/AlexBrush"),
+  "Alfa Slab One": () => import("@remotion/google-fonts/AlfaSlabOne"),
+  Allura: () => import("@remotion/google-fonts/Allura"),
+  Arimo: () => import("@remotion/google-fonts/Arimo"),
   "Archivo Black": () => import("@remotion/google-fonts/ArchivoBlack"),
   "Baloo 2": () => import("@remotion/google-fonts/Baloo2"),
   Bangers: () => import("@remotion/google-fonts/Bangers"),
+  "Barlow Semi Condensed": () => import("@remotion/google-fonts/BarlowSemiCondensed"),
   "Bebas Neue": () => import("@remotion/google-fonts/BebasNeue"),
   "Bodoni Moda": () => import("@remotion/google-fonts/BodoniModa"),
   Caveat: () => import("@remotion/google-fonts/Caveat"),
+  Chewy: () => import("@remotion/google-fonts/Chewy"),
   Cinzel: () => import("@remotion/google-fonts/Cinzel"),
   "Comic Neue": () => import("@remotion/google-fonts/ComicNeue"),
   "Cormorant Garamond": () => import("@remotion/google-fonts/CormorantGaramond"),
+  "Dancing Script": () => import("@remotion/google-fonts/DancingScript"),
   "DM Sans": () => import("@remotion/google-fonts/DMSans"),
+  "DM Serif Display": () => import("@remotion/google-fonts/DMSerifDisplay"),
+  Fraunces: () => import("@remotion/google-fonts/Fraunces"),
+  "Fontdiner Swanky": () => import("@remotion/google-fonts/FontdinerSwanky"),
   Fredoka: () => import("@remotion/google-fonts/Fredoka"),
+  Galindo: () => import("@remotion/google-fonts/Galindo"),
+  "Great Vibes": () => import("@remotion/google-fonts/GreatVibes"),
   Inter: () => import("@remotion/google-fonts/Inter"),
+  "IBM Plex Mono": () => import("@remotion/google-fonts/IBMPlexMono"),
+  "Instrument Sans": () => import("@remotion/google-fonts/InstrumentSans"),
   "Instrument Serif": () => import("@remotion/google-fonts/InstrumentSerif"),
   "JetBrains Mono": () => import("@remotion/google-fonts/JetBrainsMono"),
+  Jost: () => import("@remotion/google-fonts/Jost"),
+  "Josefin Sans": () => import("@remotion/google-fonts/JosefinSans"),
+  Kanit: () => import("@remotion/google-fonts/Kanit"),
   "Kaushan Script": () => import("@remotion/google-fonts/KaushanScript"),
+  Lato: () => import("@remotion/google-fonts/Lato"),
   Lexend: () => import("@remotion/google-fonts/Lexend"),
   "Libre Baskerville": () => import("@remotion/google-fonts/LibreBaskerville"),
   "Lilita One": () => import("@remotion/google-fonts/LilitaOne"),
   "Luckiest Guy": () => import("@remotion/google-fonts/LuckiestGuy"),
   Manrope: () => import("@remotion/google-fonts/Manrope"),
+  Merriweather: () => import("@remotion/google-fonts/Merriweather"),
   Montserrat: () => import("@remotion/google-fonts/Montserrat"),
   Mukta: () => import("@remotion/google-fonts/Mukta"),
   "Noto Color Emoji": () => import("@remotion/google-fonts/NotoColorEmoji"),
   Nunito: () => import("@remotion/google-fonts/Nunito"),
+  Oswald: () => import("@remotion/google-fonts/Oswald"),
   Outfit: () => import("@remotion/google-fonts/Outfit"),
   Pacifico: () => import("@remotion/google-fonts/Pacifico"),
+  "Passero One": () => import("@remotion/google-fonts/PasseroOne"),
+  "Passion One": () => import("@remotion/google-fonts/PassionOne"),
   "Permanent Marker": () => import("@remotion/google-fonts/PermanentMarker"),
   "Playfair Display": () => import("@remotion/google-fonts/PlayfairDisplay"),
+  "Plus Jakarta Sans": () => import("@remotion/google-fonts/PlusJakartaSans"),
   Poppins: () => import("@remotion/google-fonts/Poppins"),
   Righteous: () => import("@remotion/google-fonts/Righteous"),
   "Roboto Condensed": () => import("@remotion/google-fonts/RobotoCondensed"),
+  Roboto: () => import("@remotion/google-fonts/Roboto"),
+  "Rubik Microbe": () => import("@remotion/google-fonts/RubikMicrobe"),
   "Rubik Mono One": () => import("@remotion/google-fonts/RubikMonoOne"),
   "Russo One": () => import("@remotion/google-fonts/RussoOne"),
+  Satisfy: () => import("@remotion/google-fonts/Satisfy"),
   Sora: () => import("@remotion/google-fonts/Sora"),
   "Space Mono": () => import("@remotion/google-fonts/SpaceMono"),
+  // premium looks, part B
+  "Big Shoulders": () => import("@remotion/google-fonts/BigShoulders"),
+  "Inter Tight": () => import("@remotion/google-fonts/InterTight"),
+  "Space Grotesk": () => import("@remotion/google-fonts/SpaceGrotesk"),
+  Unbounded: () => import("@remotion/google-fonts/Unbounded"),
   "Tilt Neon": () => import("@remotion/google-fonts/TiltNeon"),
   VT323: () => import("@remotion/google-fonts/VT323"),
 };
 
 /** families whose looks set words in true italics (not the browser's slanted fake) */
-const ITALIC_FAMILIES = new Set(["Instrument Serif", "Playfair Display", "Cormorant Garamond", "Bodoni Moda"]);
+const ITALIC_FAMILIES = new Set(["Instrument Serif", "Playfair Display", "Cormorant Garamond", "Bodoni Moda", "Merriweather", "Kanit", "Josefin Sans", "Montserrat", "Lato", "Fraunces", "Jost"]);
 
 export const KNOWN_FONTS = Object.keys(LOADERS).filter((f) => f !== "Noto Color Emoji");
 export const EMOJI_FONT = "Noto Color Emoji";
@@ -63,6 +95,7 @@ export const EMOJI_FONT = "Noto Color Emoji";
 const started = new Map<string, Promise<void>>();
 
 const WANT = [400, 500, 600, 700, 800, 900];
+const CAPTION_WEIGHTS = ["300", "400", "500", "600", "700", "800", "900"];
 
 /** Weights to fetch: the caption range the family offers, else whatever it has (display faces are often 400 only). */
 function pickWeights(available: number[]): number[] {
@@ -114,21 +147,22 @@ export function loadFontFamily(family: string): Promise<void> {
   const p = (async () => {
     if (loader) {
       const mod = (await loader()) as GoogleFontModule;
-      let loaded: ReturnType<GoogleFontModule["loadFont"]>;
-      try {
-        loaded = mod.loadFont("normal", { weights: ["400", "600", "700", "800", "900"], subsets: ["latin"], ignoreTooManyRequestsWarning: true });
-      } catch {
-        // requested weights not offered by this family: load its defaults
-        loaded = mod.loadFont(undefined, { subsets: ["latin"], ignoreTooManyRequestsWarning: true });
-      }
-      await loaded.waitUntilDone();
-      if (ITALIC_FAMILIES.has(family)) {
+      // every caption weight the family really offers (300 thin to 900 black); asking for a missing one throws
+      const info = mod.getInfo?.().fonts;
+      const weightsOf = (style: string) => {
+        const have = Object.keys(info?.[style] ?? {});
+        return have.length ? CAPTION_WEIGHTS.filter((w) => have.includes(w)) : CAPTION_WEIGHTS;
+      };
+      const load = async (style: "normal" | "italic") => {
         try {
-          await mod.loadFont("italic", { weights: ["400", "600", "700", "800", "900"], subsets: ["latin"], ignoreTooManyRequestsWarning: true }).waitUntilDone();
+          await mod.loadFont(style, { weights: weightsOf(style), subsets: ["latin"], ignoreTooManyRequestsWarning: true }).waitUntilDone();
         } catch {
-          await mod.loadFont("italic", { subsets: ["latin"], ignoreTooManyRequestsWarning: true }).waitUntilDone();
+          // requested weights not offered by this family: load its defaults
+          await mod.loadFont(style, { subsets: ["latin"], ignoreTooManyRequestsWarning: true }).waitUntilDone();
         }
-      }
+      };
+      await load("normal");
+      if (ITALIC_FAMILIES.has(family) && info?.italic) await load("italic");
       return;
     }
     if (!entry || !hasDom()) return; // a font from this device (or unknown): the system draws it or falls back

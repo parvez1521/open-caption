@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FoldHorizontal, Link2, Magnet, Maximize2, Plus, Scissors, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import type { Page, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
@@ -12,6 +12,8 @@ interface Props {
   words: Word[];
   durationMs: number;
   timeMs: number;
+  /** exact playback time, read every animation frame so the playhead glides instead of stepping with `timeMs` */
+  getTimeMs?: () => number;
   /** while playing, the view scrolls with the playhead so the words being said are always on screen */
   playing?: boolean;
   videoId?: string | null;
@@ -56,7 +58,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -102,16 +104,78 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, pl
   const width = Math.ceil(total * pxPerMs);
   const x = (ms: number) => ms * pxPerMs;
 
-  // follow the playhead: while playing it stays a third of the way in and the words scroll past under it;
-  // when paused, a seek outside the view brings it back in
-  useEffect(() => {
+  // the playhead is moved straight on the DOM (transform), every animation frame while playing or scrubbing, so it
+  // glides continuously instead of jumping with the ~15 Hz time feed
+  const headRef = useRef<HTMLDivElement>(null);
+  const scrubbing = useRef<HTMLElement | null>(null);
+  const placeHead = useCallback((ms: number) => {
+    if (headRef.current) headRef.current.style.transform = `translateX(${(ms * pxPerMs).toFixed(2)}px)`;
+  }, [pxPerMs]);
+  const dragRef = useRef(drag);
+  useEffect(() => { dragRef.current = drag; }, [drag]);
+
+  // paused: follow the time feed; a seek outside the view brings it back in
+  useLayoutEffect(() => {
+    if (playing || scrubbing.current) return;
+    placeHead(timeMs);
     const el = scrollRef.current;
     if (!el || drag) return;
     const px = x(timeMs);
     const view = el.clientWidth - LABEL_W;
-    if (playing || px < el.scrollLeft || px > el.scrollLeft + view - 40) el.scrollLeft = Math.max(0, px - view / 3);
+    if (px < el.scrollLeft || px > el.scrollLeft + view - 40) el.scrollLeft = Math.max(0, px - view / 3);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeMs, pxPerMs, playing]);
+  }, [timeMs, pxPerMs, playing, placeHead]);
+
+  // playing: read the player's clock every frame; the view scrolls smoothly so the playhead stays a third of the way in
+  const feed = useRef({ ms: timeMs, at: 0 });
+  useEffect(() => { feed.current = { ms: timeMs, at: performance.now() }; }, [timeMs]);
+  useEffect(() => {
+    if (!playing) return;
+    let raf = 0;
+    const tick = () => {
+      const f = feed.current;
+      const ms = Math.min(total, getTimeMs ? getTimeMs() : f.ms + (performance.now() - f.at));
+      placeHead(ms);
+      const el = scrollRef.current;
+      if (el && !dragRef.current && !scrubbing.current) el.scrollLeft = Math.max(0, ms * pxPerMs - (el.clientWidth - LABEL_W) / 3);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, getTimeMs, placeHead, pxPerMs, total, LABEL_W]);
+
+  // press and drag on the ruler or any track to scrub: the playhead follows the pointer, seeks are batched per frame
+  const pendingSeek = useRef<number | null>(null);
+  const seekRaf = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(seekRaf.current), []);
+  const scrubTo = (el: HTMLElement, clientX: number) => {
+    const r = el.getBoundingClientRect();
+    const ms = Math.max(0, Math.min(total, (clientX - r.left) / pxPerMs));
+    placeHead(ms);
+    pendingSeek.current = ms;
+    if (!seekRaf.current) seekRaf.current = requestAnimationFrame(() => {
+      seekRaf.current = 0;
+      if (pendingSeek.current !== null) onSeek(pendingSeek.current);
+      pendingSeek.current = null;
+    });
+  };
+  const scrub = {
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.button !== 0 || renaming) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      scrubbing.current = e.currentTarget;
+      scrubTo(e.currentTarget, e.clientX);
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      if (scrubbing.current === e.currentTarget) scrubTo(e.currentTarget, e.clientX);
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+      if (scrubbing.current !== e.currentTarget) return;
+      scrubbing.current = null;
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    },
+    onPointerCancel: () => { scrubbing.current = null; },
+  };
 
   const ticks = useMemo(() => {
     const steps = [100, 250, 500, 1000, 2000, 5000, 10000, 30000, 60000];
@@ -183,11 +247,6 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, pl
     setDrag(null);
   };
 
-  const seekFromEvent = (e: React.MouseEvent) => {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    onSeek(Math.max(0, Math.min(total, (e.clientX - r.left) / pxPerMs)));
-  };
-
   const addWord = () => {
     const id = onAddWord(timeMs);
     if (id) { setMode("word"); setRenaming(id); }
@@ -250,14 +309,14 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, pl
           </div>
 
           {/* ruler */}
-          <div className="relative cursor-pointer border-b border-st-line bg-st-panel" onClick={seekFromEvent}>
+          <div className="relative cursor-ew-resize touch-none border-b border-st-line bg-st-panel" {...scrub}>
             {ticks.map((t) => (
               <div key={t} className="absolute top-0 h-full border-l border-st-line pl-1 text-[10px] tabular-nums text-st-faint" style={{ left: x(t) }}>{fmtTime(t)}</div>
             ))}
           </div>
 
           {/* captions: words or lines */}
-          <div className={trackRow} onClick={(e) => { onSelect(null); seekFromEvent(e); }}>
+          <div className={trackRow} {...scrub} onClick={() => onSelect(null)}>
             {blocks.map((b) => {
               const live = drag?.key === b.key ? { s: drag.s, e: drag.e } : { s: b.s, e: b.e };
               const wpx = Math.max(3, x(live.e) - x(live.s) - 1);
@@ -300,7 +359,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, pl
           </div>
 
           {/* video */}
-          <div className={trackRow} onClick={seekFromEvent}>
+          <div className={`${trackRow} cursor-ew-resize`} {...scrub}>
             <div className="absolute inset-y-1 left-0 flex overflow-hidden rounded-md bg-obsidian ring-1 ring-st-ink/20" style={{ width: x(total) }}>
               {Array.from({ length: tiles }, (_, i) => {
                 const at = ((i + 0.5) * tileW) / pxPerMs;
@@ -313,12 +372,12 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, pl
           </div>
 
           {/* audio waveform */}
-          <div className="relative bg-st-em/10" onClick={seekFromEvent}>
+          <div className="relative cursor-ew-resize bg-st-em/10" {...scrub}>
             <Waveform peaks={peaks} width={width} />
             {waveState !== "ready" ? <span className="absolute left-2 top-1 text-[10px] text-st-faint">{waveState === "loading" ? "Loading audio…" : waveState === "unavailable" ? "Waveform unavailable for this file" : ""}</span> : null}
           </div>
 
-          <div className="pointer-events-none absolute top-0 bottom-0 z-10 w-0.5 bg-st-ink" style={{ left: LABEL_W + x(timeMs) }}>
+          <div ref={headRef} className="pointer-events-none absolute top-0 bottom-0 z-10 w-0.5 bg-st-ink will-change-transform" style={{ left: LABEL_W }}>
             <div className="absolute -left-[5px] -top-0.5 h-3 w-3 rounded-sm bg-st-ink" />
           </div>
         </div>

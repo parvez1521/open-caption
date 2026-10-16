@@ -49,7 +49,7 @@ export function controlVisible(id: ControlId, t: TemplateDefinition, s: CaptionS
     case "effectStrength": return SCALED_EFFECTS.has(s.active.effect);
     // only the stack and kinetic layouts draw the hero word in its own size/font; elsewhere "hero" is a colour
     case "heroScale": case "heroFont":
-      return c.hero && (t.layout === "stack3" || t.layout === "kinetic" || t.layout === "glow-duo" || t.layout === "glow-behind" || t.layout === "metal-script" || (t.layout === "glow-flow" && s.templateOptions.accentHero === true));
+      return c.hero && (t.heroDrawn === true || t.layout === "stack3" || t.layout === "kinetic" || t.layout === "glow-duo" || t.layout === "glow-behind" || t.layout === "metal-script" || (t.layout === "glow-flow" && s.templateOptions.accentHero === true));
     case "outlineWidth": case "outlineColor": return s.stroke.enabled;
     // the bar and the chat bubble ARE their background shape: only its colour/opacity are adjustable
     case "background": return c.background && t.layout !== "bar" && t.layout !== "bubble";

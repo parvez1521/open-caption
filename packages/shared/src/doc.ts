@@ -10,6 +10,9 @@ export const WordSchema = z.object({
   text: z.string(),
   startMs: z.number().nonnegative(),
   endMs: z.number().nonnegative(),
+  /** when the word appears on its card (set by derivePages, never stored): a little ahead of speech so a card is
+   *  fully readable well before the next one replaces it */
+  revealMs: z.number().optional(),
   confidence: z.number().min(0).max(1).optional(),
   hidden: z.boolean().optional(),
   emphasis: z.enum(["none", "strong", "hero"]).optional(),
@@ -62,6 +65,8 @@ export type CaptionDoc = z.infer<typeof CaptionDocSchema>;
 /** A derived on-screen card. Never persisted: always computed from CaptionDoc + settings. */
 export interface Page {
   id: string;
+  /** position of this card in the video (0 = first): layouts that cycle compositions as the video runs use it */
+  index?: number;
   startMs: number;
   endMs: number;
   words: Word[];

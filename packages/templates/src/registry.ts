@@ -1,6 +1,8 @@
 import { CaptionStyleSchema, DEFAULT_WORDS_PER_CARD, type CaptionStyleV2, type ProjectSettings } from "@capseasy/shared";
 import legacyLooks from "./looks/legacy.generated.json";
 import { NEW_LOOKS } from "./looks/new";
+import { isRetiredLook, lookNumber } from "./looks/numbers";
+import { PACK_LOOKS, PACK_SECTIONS } from "./pack";
 import { TEMPLATES } from "./templates";
 import type { LookDefinition, TemplateDefinition } from "./types";
 
@@ -124,6 +126,8 @@ const named = (l: LookDefinition): LookDefinition => ({ ...l, ...DISPLAY[l.id] }
 
 const ALL_LOOKS: LookDefinition[] = [
   ...NEW_LOOKS.filter((l) => CURATED_NEW.has(l.id)).map((l) => named({ ...l, style: resolveStyle({ ...l.style, templateId: l.templateId }) })),
+  // pack looks carry their own gallery name and tags
+  ...PACK_LOOKS.map((l) => ({ ...l, style: resolveStyle({ ...l.style, templateId: l.templateId }) })),
   ...(legacyLooks as unknown as LookDefinition[]).filter((l) => CURATED_LEGACY.has(l.id)).map((l) => named({ ...l, category: "Classic", style: CaptionStyleSchema.parse(deepMerge(deepMerge(l.style, LEGACY_FIXES[l.id]), { emoji: { enabled: EMOJI_ENABLED } })) })),
 ];
 
@@ -131,24 +135,32 @@ const ALL_LOOKS: LookDefinition[] = [
 export const LOOK_SECTIONS: { id: string; label: string; lookIds: string[] }[] = [
   { id: "viral", label: "Viral", lookIds: ["metal_script", "soft_glow", "neon_duo", "serif_behind", "ice_duo", "serif_accent_glow", "staggered_splash", "glow_stack_classic", "vintage_cinematic", "serif_pop_classic", "kinetic_mix"] },
   { id: "popular", label: "Popular", lookIds: ["hormozi_box", "beast_bounce", "comic_burst", "chat_bubble", "explainer", "highlighter_card"] },
-];
+  ...PACK_SECTIONS.filter((s) => s.looks.length).map((s) => ({ id: s.id, label: s.label, lookIds: s.looks.map((l) => l.id) })),
+].map((s) => ({ ...s, lookIds: s.lookIds.filter((id) => !isRetiredLook(id)) })).filter((s) => s.lookIds.length);
 const featured = LOOK_SECTIONS.flatMap((s) => s.lookIds);
 const rank = (id: string) => (featured.includes(id) ? featured.indexOf(id) : featured.length);
-export const LOOKS: LookDefinition[] = [...ALL_LOOKS].sort((a, b) => rank(a.id) - rank(b.id));
+const NUMBERED: LookDefinition[] = [...ALL_LOOKS].sort((a, b) => rank(a.id) - rank(b.id)).map((l) => ({ ...l, number: lookNumber(l.id) }));
+/** the gallery: every look except retired ones (see looks/numbers.ts) */
+export const LOOKS: LookDefinition[] = NUMBERED.filter((l) => !isRetiredLook(l.id));
 
-const looksById = new Map(LOOKS.map((l) => [l.id, l]));
+/** resolves retired looks too, so projects that use one keep rendering */
+const looksById = new Map(NUMBERED.map((l) => [l.id, l]));
 export const getLook = (id: string | null | undefined): LookDefinition | undefined => (id ? looksById.get(id) : undefined);
+export { lookNumber, isRetiredLook, LOOK_NUMBER_ORDER, RETIRED_LOOK_NUMBERS } from "./looks/numbers";
 export const lookCategories = (): string[] => [...new Set(LOOKS.map((l) => l.category))];
 
 /**
  * Switch look: keeps content, replaces styling wholesale (the look is a complete style). Words per card is the
- * creator's choice, not the look's: every look uses DEFAULT_WORDS_PER_CARD except one-word looks, which need 1.
+ * creator's choice, not the look's: every look uses DEFAULT_WORDS_PER_CARD except one-word looks, which need 1, and
+ * layouts composed for an exact count (TemplateDefinition.fixedWordsPerCard).
  * (Pass the current value to keep a creator's own setting when switching between multi-word looks.)
  */
 export function applyLook(look: LookDefinition, currentWordsPerCard?: number): { style: CaptionStyleV2; settings: Partial<ProjectSettings> } {
   const style = resolveStyle(look.style);
-  const oneWord = getTemplate(style.templateId).layout === "word";
+  const tpl = getTemplate(style.templateId);
+  const oneWord = tpl.layout === "word";
   const { maxWordsPerCard: _ignored, ...rest } = look.settings;
   const keep = currentWordsPerCard !== undefined && currentWordsPerCard > 1 ? currentWordsPerCard : DEFAULT_WORDS_PER_CARD;
-  return { style, settings: { ...rest, maxWordsPerCard: oneWord ? 1 : keep } };
+  // layouts composed for an exact word count (a 2-word bubble, a 5-word composition) always get it
+  return { style, settings: { ...rest, maxWordsPerCard: oneWord ? 1 : tpl.fixedWordsPerCard ?? keep } };
 }

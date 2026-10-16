@@ -1,7 +1,7 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { withAlpha } from "@motion-ai/caption-engine/core";
-import { activeEffect, combineMotion, effectiveIntensity, entranceStyle, exitStyle, progress, SPRINGS, springMs, staggerUnit } from "../motion";
+import { activeEffect, combineMotion, effectiveIntensity, entranceStyle, exitStyle, progress, showAt, SPRINGS, springMs, staggerUnit } from "../motion";
 import { fitSize } from "../measure";
 import { backgroundCss, baseTextCss, containerCss, displayText, famCss, firstColor, layoutBox, lineWidth, scaleOf, wordGapCss } from "../text";
 import type { PageRenderProps } from "../types";
@@ -52,14 +52,15 @@ export const TypewriterLayout: React.FC<PageRenderProps> = (p) => {
   const texts = page.lines.map((l) => l.map((w) => displayText(w, style)));
   const { sc, box, size } = fitLines(p, texts, 1, undefined, null);
   const typed = (w: Word, text: string) => {
-    if (timeMs < w.startMs) return "";
+    const at = showAt(w);
+    if (timeMs < at) return "";
     const span = Math.max(60, Math.min(w.endMs - w.startMs, text.length * 45));
-    return text.slice(0, Math.ceil(text.length * Math.min(1, (timeMs - w.startMs) / span)));
+    return text.slice(0, Math.ceil(text.length * Math.min(1, (timeMs - at) / span)));
   };
   // deterministic blink (frame math, not a timer): on for 500 ms, off for 500 ms
   const cursorOn = Math.floor(timeMs / 500) % 2 === 0;
   let cursorPlaced = false;
-  const lastTypingLine = page.lines.findLastIndex((l) => l.some((w) => timeMs >= w.startMs));
+  const lastTypingLine = page.lines.findLastIndex((l) => l.some((w) => timeMs >= showAt(w)));
   const gap = wordGapCss(style, sc, null);
   return (
     <div style={containerCss(box, style.rotation)}>
@@ -214,7 +215,7 @@ export const KineticLayout: React.FC<PageRenderProps> = (p) => {
           const target = style.fontSize * sc * (isHero ? style.hero.scale * 1.2 : 0.9);
           const w = lineWidth(texts, target, rowStyle, sc, measure, null);
           const size = w > box.width ? Math.max(10, target * (box.width / w)) : target;
-          const start = row[0]!.startMs;
+          const start = isHero ? page.startMs : showAt(row[0]!);
           const pop = settled ? 1 : springMs(timeMs, start, canvas.fps, SPRINGS.punch);
           const visible = settled || timeMs >= start;
           const tilt = (isHero ? (style.hero.rotate || -5) : ri % 2 ? 2 : -2) * Math.min(2, intensity);

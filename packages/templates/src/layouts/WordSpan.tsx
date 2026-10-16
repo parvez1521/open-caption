@@ -1,6 +1,6 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
-import { activeEffect, combineMotion, entranceStyle, isLetterAnimator, letterAmounts, letterCss, letterSpeed, letterTrackEm, progress, splitsLetters, staggerDelayMs, staggerUnit, wordReveal } from "../motion";
+import { activeEffect, combineMotion, entranceStyle, isLetterAnimator, letterAmounts, letterCss, letterSpeed, letterTrackEm, progress, showAt, splitsLetters, staggerDelayMs, staggerUnit, wordReveal } from "../motion";
 import type { Canvas } from "../types";
 import { scaleOf, wordGapCss } from "../text";
 
@@ -38,7 +38,7 @@ export const WordSpan: React.FC<WordSpanProps> = ({
   const lettersIn = !settled && stagger?.unit === "char" && isLetterAnimator(style.entrance.type);
   // letter exits take the card out letter by letter, backwards from its end
   const lettersOut = !settled && !!stagger && stagger.pageEndMs !== undefined && isLetterAnimator(style.exit.type);
-  const p = settled || lettersIn ? 1 : wordReveal(timeMs, word.startMs);
+  const p = settled || lettersIn ? 1 : wordReveal(timeMs, showAt(word));
 
   const css: React.CSSProperties = {
     ...baseCss,
@@ -49,7 +49,11 @@ export const WordSpan: React.FC<WordSpanProps> = ({
     transform: `translateY(${(1 - p) * 0.28}em) scale(${0.94 + p * 0.06})`,
   };
   if (word.color) Object.assign(css, { color: word.color, WebkitTextFillColor: word.color, backgroundImage: "none" });
-  else if (word.emphasis === "strong" || word.emphasis === "hero") Object.assign(css, { color: style.active.color, WebkitTextFillColor: style.active.color, backgroundImage: "none" });
+  else if (word.emphasis === "strong" || word.emphasis === "hero") {
+    // box looks: active.color is the text ON the box (often black), so an unboxed key word takes the box colour
+    const key = style.active.effect === "box" ? style.active.boxColor ?? style.active.color : style.active.color;
+    Object.assign(css, { color: key, WebkitTextFillColor: key, backgroundImage: "none" });
+  }
 
   if (pastColor && timeMs >= word.endMs) Object.assign(css, { color: pastColor, WebkitTextFillColor: pastColor, backgroundImage: "none", opacity: 1 });
 

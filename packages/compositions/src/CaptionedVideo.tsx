@@ -1,9 +1,9 @@
 import React, { useMemo } from "react";
-import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from "remotion";
 import { Video as MediaVideo } from "@remotion/media";
 import { CaptionDocSchema, type CaptionStyleV2, ProjectSettingsSchema, type CaptionDoc, type Page, type ProjectSettings } from "@capseasy/shared";
 import { applyFillerFilter, applyProfanity, derivePages } from "@motion-ai/caption-engine/core";
-import { EMOJI_FONT, PageView, famCss, getTemplate, layoutBox, measure, resolveStyle, scaleOf, useFontsReady, wordGapEm, wordGapPx, type Canvas } from "@capseasy/templates";
+import { EMOJI_FONT, PageView, VideoFrameBus, VideoFrameContext, famCss, getTemplate, layoutBox, measure, resolveStyle, scaleOf, useFontsReady, wordGapEm, wordGapPx, type Canvas } from "@capseasy/templates";
 import type { CaptionedVideoInput } from "./props";
 
 /** Doc -> what the audience should see (filters are display-time, so the stored doc is never mutated). */
@@ -58,12 +58,18 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
 
   const pages = useMemo(() => (fontsReady ? computePages(doc, settings, resolved, canvas) : []), [fontsReady, doc, settings, resolved, canvas]);
 
+  // The in-browser exporter redraws the DOM on a canvas and ignores mix-blend-mode, so a look that blends with the
+  // picture (the difference look) composites it itself from the video layer's frames (see templates videoFrame.ts).
+  // Only there: the Player and the server renderer blend natively.
+  const { isClientSideRendering } = useRemotionEnvironment();
+  const frameBus = useMemo(() => (isClientSideRendering && mode === "burn" && src ? new VideoFrameBus() : null), [isClientSideRendering, mode, src]);
+
   return (
     <AbsoluteFill>
       {mode === "burn" && src ? (
         <AbsoluteFill style={{ backgroundColor: "black" }}>
           {videoEngine === "media" ? (
-            <MediaVideo src={src} objectFit="contain" style={{ width: "100%", height: "100%" }} />
+            <MediaVideo src={src} objectFit="contain" style={{ width: "100%", height: "100%" }} onVideoFrame={frameBus?.emit} />
           ) : (
             <OffthreadVideo src={src} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
           )}
@@ -71,15 +77,17 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
       ) : mode === "burn" && backdrop ? (
         <AbsoluteFill style={{ background: backdrop }} />
       ) : null}
-      {pages.map((page) => {
-        const from = Math.floor((page.startMs / 1000) * fps);
-        const duration = Math.max(1, Math.ceil(((page.endMs - page.startMs) / 1000) * fps));
-        return (
-          <Sequence key={page.id} from={from} durationInFrames={duration} layout="none">
-            <PageSequence page={page} fromFrame={from} canvas={canvas} style={resolved} />
-          </Sequence>
-        );
-      })}
+      <VideoFrameContext.Provider value={frameBus}>
+        {pages.map((page) => {
+          const from = Math.floor((page.startMs / 1000) * fps);
+          const duration = Math.max(1, Math.ceil(((page.endMs - page.startMs) / 1000) * fps));
+          return (
+            <Sequence key={page.id} from={from} durationInFrames={duration} layout="none">
+              <PageSequence page={page} fromFrame={from} canvas={canvas} style={resolved} />
+            </Sequence>
+          );
+        })}
+      </VideoFrameContext.Provider>
     </AbsoluteFill>
   );
 };

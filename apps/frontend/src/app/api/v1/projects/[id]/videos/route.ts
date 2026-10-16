@@ -52,6 +52,9 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     probe_json: p ?? null,
   });
   if (error) throw new ApiFailure("INTERNAL", "Could not register the video", error.message);
+  // a new video starts the project over: the old captions belonged to the old video and it is transcribed afresh
+  const { error: docErr } = await user.db.from("caption_documents").delete().eq("project_id", projectId);
+  if (docErr) throw new ApiFailure("INTERNAL", "Could not clear the old captions", docErr.message);
 
   if (body.local) return ok({ videoId, bucket: null, path, uploadUrl: null, token: null, uploadId: newId() }, 201);
   const up = await signedPut(path);

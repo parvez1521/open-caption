@@ -121,28 +121,71 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
         </div>
       </div>
       </div>
-      {compact ? (
-        <div className="flex w-full shrink-0 items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => innerRef.current?.toggle()}
-            aria-label={isPlaying ? "Pause" : "Play"}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-st-ink text-st-panel active:scale-95"
-          >
-            {isPlaying ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="ml-0.5 h-5 w-5" fill="currentColor" />}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={durationInFrames - 1}
-            value={Math.round((nowMs / 1000) * fps)}
-            onChange={(e) => innerRef.current?.seekTo(Number(e.target.value))}
-            aria-label="Seek"
-            className="h-11 min-w-0 flex-1"
-          />
-          <span className="shrink-0 font-mono text-xs tabular-nums text-st-muted">{fmtTime(nowMs)} / {fmtTime(durationMs)}</span>
-        </div>
-      ) : null}
+      {compact ? <Transport player={innerRef} fps={fps} durationMs={durationMs} durationInFrames={durationInFrames} isPlaying={isPlaying} fallbackMs={nowMs} /> : null}
     </div>
   );
 });
+
+/**
+ * Phone transport. The seek bar follows the player every animation frame (not the throttled time feed) and moves with
+ * the finger at once; seeks are batched to one per frame, so scrubbing is continuous instead of stepping.
+ */
+const Transport: React.FC<{ player: React.RefObject<PlayerRef | null>; fps: number; durationMs: number; durationInFrames: number; isPlaying: boolean; fallbackMs: number }> = ({
+  player, fps, durationMs, durationInFrames, isPlaying, fallbackMs,
+}) => {
+  const [frame, setFrame] = useState(() => Math.round((fallbackMs / 1000) * fps));
+  const scrubbing = useRef(false);
+  const pending = useRef<number | null>(null);
+  const raf = useRef(0);
+  useEffect(() => {
+    if (!scrubbing.current) setFrame(Math.round((fallbackMs / 1000) * fps));
+  }, [fallbackMs, fps]);
+  useEffect(() => {
+    if (!isPlaying) return;
+    let id = 0;
+    const tick = () => {
+      const f = player.current?.getCurrentFrame();
+      if (f != null && !scrubbing.current) setFrame(f);
+      id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [isPlaying, player]);
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
+  const seek = (f: number) => {
+    setFrame(f);
+    pending.current = f;
+    if (!raf.current) raf.current = requestAnimationFrame(() => {
+      raf.current = 0;
+      if (pending.current !== null) player.current?.seekTo(pending.current);
+      pending.current = null;
+    });
+  };
+  const ms = (frame / fps) * 1000;
+  return (
+    <div className="flex w-full shrink-0 items-center gap-2.5">
+      <button
+        type="button"
+        onClick={() => player.current?.toggle()}
+        aria-label={isPlaying ? "Pause" : "Play"}
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-st-ink text-st-panel active:scale-95"
+      >
+        {isPlaying ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="ml-0.5 h-5 w-5" fill="currentColor" />}
+      </button>
+      <input
+        type="range"
+        min={0}
+        max={durationInFrames - 1}
+        step={1}
+        value={frame}
+        onPointerDown={() => { scrubbing.current = true; }}
+        onPointerUp={() => { scrubbing.current = false; }}
+        onPointerCancel={() => { scrubbing.current = false; }}
+        onChange={(e) => seek(Number(e.target.value))}
+        aria-label="Seek"
+        className="h-11 min-w-0 flex-1"
+      />
+      <span className="shrink-0 font-mono text-xs tabular-nums text-st-muted">{fmtTime(ms)} / {fmtTime(durationMs)}</span>
+    </div>
+  );
+};

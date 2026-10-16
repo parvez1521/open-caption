@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { CaptionStyleSchema } from "@capseasy/shared";
+import { PACK_LOOKS } from "./pack";
+import { LOOK_NUMBER_ORDER, RETIRED_LOOK_NUMBERS } from "./looks/numbers";
 import { KNOWN_FONTS, FALLBACK_TEMPLATE, LOOKS, LOOK_SECTIONS, TEMPLATE_IDS, applyLook, deepMerge, getLook, getTemplate, lookCategories, resolveStyle } from "./index";
 
 describe("template registry", () => {
   it("ships the 8 legacy templates", () => {
-    expect(TEMPLATE_IDS).toEqual(["staggered_3line", "glow_stack", "cartoon_stack", "serif_pop", "cinematic_emerald", "word_by_word", "sentence_highlight", "sentence_clean", "karaoke", "boxed_word", "typewriter", "subtitle_bar", "chat_bubble", "highlighter", "kinetic", "glow_flow", "glow_duo", "glow_behind", "metal_script"]);
+    expect(TEMPLATE_IDS.slice(0, 19)).toEqual(["staggered_3line", "glow_stack", "cartoon_stack", "serif_pop", "cinematic_emerald", "word_by_word", "sentence_highlight", "sentence_clean", "karaoke", "boxed_word", "typewriter", "subtitle_bar", "chat_bubble", "highlighter", "kinetic", "glow_flow", "glow_duo", "glow_behind", "metal_script"]);
   });
 
   it("every template resolves to a fully valid style", () => {
@@ -23,7 +25,7 @@ describe("template registry", () => {
   });
 
   it("gallery is curated: every look is distinct (no two share template + font + effect + fill kind)", () => {
-    expect(LOOKS.length).toBe(39);
+    expect(LOOKS.length).toBe(39 + PACK_LOOKS.length - RETIRED_LOOK_NUMBERS.size);
     for (const l of LOOKS) expect(l.tags?.length, `${l.id} needs gallery tags`).toBeGreaterThan(0);
     for (const l of LOOKS) expect(l.style.emoji.enabled).toBe(false);
     expect(new Set(LOOKS.map((l) => l.id)).size).toBe(LOOKS.length);
@@ -37,8 +39,25 @@ describe("template registry", () => {
     for (const l of LOOKS) expect(CaptionStyleSchema.safeParse(l.style).success).toBe(true);
     for (const l of LOOKS) expect(KNOWN_FONTS).toContain(l.style.fontId);
     for (const l of LOOKS) expect(TEMPLATE_IDS).toContain(l.templateId);
-    // every template is showcased by at least one look
-    for (const id of TEMPLATE_IDS) expect(LOOKS.some((l) => l.templateId === id), id).toBe(true);
+    const ALL_NUMBERED = LOOK_NUMBER_ORDER.map((id) => getLook(id)).filter((l): l is NonNullable<typeof l> => !!l);
+    // every template is used by at least one look (retired looks count: projects still render with them)
+    for (const id of TEMPLATE_IDS) expect(ALL_NUMBERED.some((l) => l.templateId === id), id).toBe(true);
+  });
+
+  it("every look has a unique permanent number, and the number list only grows", async () => {
+    const { LOOK_NUMBER_ORDER } = await import("./looks/numbers");
+    expect(new Set(LOOK_NUMBER_ORDER).size).toBe(LOOK_NUMBER_ORDER.length);
+    for (const l of LOOKS) expect(l.number, `${l.id} needs a number: append it to looks/numbers.ts`).toBeGreaterThan(0);
+    expect(new Set(LOOKS.map((l) => l.number)).size).toBe(LOOKS.length);
+    // retired looks leave the gallery but keep their number and still resolve
+    const { RETIRED_LOOK_NUMBERS } = await import("./looks/numbers");
+    for (const n of RETIRED_LOOK_NUMBERS) {
+      const id = LOOK_NUMBER_ORDER[n - 1]!;
+      expect(LOOKS.some((l) => l.id === id), `#${n} ${id} is retired`).toBe(false);
+      expect(getLook(id)?.number).toBe(n);
+    }
+    // pinned: renumbering would break what creators already quote
+    expect(getLook("metal_script")?.number).toBe(1);
   });
 
   it("applyLook returns the look's style and timing settings", () => {
@@ -58,7 +77,7 @@ describe("template registry", () => {
   it("words per card defaults to 3 for every multi-word look and survives look switches", () => {
     for (const look of LOOKS) {
       const oneWord = getTemplate(look.templateId).layout === "word";
-      expect(applyLook(look).settings.maxWordsPerCard, look.id).toBe(oneWord ? 1 : 3);
+      expect(applyLook(look).settings.maxWordsPerCard, look.id).toBe(oneWord ? 1 : getTemplate(look.templateId).fixedWordsPerCard ?? 3);
     }
     // a creator's own choice is kept when switching between multi-word looks, reset after a one-word look
     expect(applyLook(getLook("karaoke_fill")!, 6).settings.maxWordsPerCard).toBe(6);

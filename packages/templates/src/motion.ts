@@ -257,6 +257,9 @@ export function exitStyle(style: CaptionStyleV2, msUntilEnd: number, settled?: b
   }
 }
 
+/** When a word appears on its card: derivePages schedules it a little ahead of speech (overlapping its neighbours). */
+export const showAt = (w: { startMs: number; revealMs?: number }) => w.revealMs ?? w.startMs;
+
 /** Progressive per-word reveal used by "progressive" reveal mode (legacy behaviour). */
 export const wordReveal = (timeMs: number, startMs: number) => progress(timeMs - startMs, 130);
 
@@ -304,7 +307,8 @@ export function activeEffect(
       const w = settled ? 100 : progress(timeMs - word.startMs, 200) * 100;
       return { css: {}, behind: { css: { left: "-0.12em", top: "12%", height: "78%", width: `calc(${w}% + 0.24em)`, backgroundColor: withAlpha(color, 0.85), borderRadius: "0.12em", zIndex: -1 } } };
     }
-    case "box": return { grow: 1 + (a.scale - 1) * sp, css: { transform: `scale(${1 + (a.scale - 1) * sp})` }, behind: { css: { left: "-0.22em", right: "-0.22em", top: "6%", bottom: "2%", backgroundColor: a.boxColor ?? color, borderRadius: a.boxRadius * sc, zIndex: -1 } } };
+    // active.color is the text ON the box
+    case "box": return { grow: 1 + (a.scale - 1) * sp, css: { color, WebkitTextFillColor: color, backgroundImage: "none", transform: `scale(${1 + (a.scale - 1) * sp})` }, behind: { css: { left: "-0.22em", right: "-0.22em", top: "6%", bottom: "2%", backgroundColor: a.boxColor ?? color, borderRadius: a.boxRadius * sc, zIndex: -1 } } };
     case "fill-sweep": {
       const p = settled ? 100 : t * 100;
       return { css: { backgroundImage: `linear-gradient(90deg, ${color} ${p}%, currentColor ${p}%)`, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" } };

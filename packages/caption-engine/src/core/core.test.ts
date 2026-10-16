@@ -4,7 +4,7 @@ import {
   autoEmoji, clearAutoEmoji, emojiFor,
   applyFillerFilter, applyProfanity, breakLines, contrastRatio, derivePages, detectEmotion, findReplace, fromWhisperVerboseJson,
   fromWhisperCaptions, importSubtitles, insertWordAfter, legacyStyleToV2, legacyTranscriptToDoc, mergeWithPrevious, normalizeTokens,
-  pageAt, pickHeroIndex, retimeWord, setHidden, setWordText, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
+  pageAt, pickHeroIndex, readMs, retimeWord, setHidden, setWordText, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
 } from "./index";
 
 const mk = (text: string, startMs: number, endMs: number, id = text + startMs): Word => ({ id, text, startMs, endMs });
@@ -91,7 +91,23 @@ describe("derivePages", () => {
     const hold = derivePages(docOf(words), settings({ maxWordsPerCard: 1, gapBehavior: "hold", holdMs: 100 }));
     const clear = derivePages(docOf(words), settings({ maxWordsPerCard: 1, gapBehavior: "clear", holdMs: 100 }));
     expect(hold[0]!.endMs).toBe(1000);
-    expect(clear[0]!.endMs).toBe(300);
+    // clear: the card leaves in the gap, but only once it has been up long enough to read
+    expect(clear[0]!.endMs).toBe(readMs([words[0]!]));
+    expect(clear[0]!.endMs).toBeLessThan(1000);
+  });
+
+  it("reveals every word of a card well before it ends, overlapping the next with the previous", () => {
+    const words = [mk("one", 0, 300), mk("two", 300, 600), mk("three", 600, 900), mk("four", 900, 1200)];
+    const [p] = derivePages(docOf(words), settings({ maxWordsPerCard: 4, maxCharsPerLine: 40, gapBehavior: "clear", holdMs: 0 }));
+    const at = p!.words.map((w) => w.revealMs!);
+    expect(at[0]).toBe(p!.startMs);
+    // each word starts appearing no later than half-way through the previous one, and never after it is spoken
+    for (let i = 1; i < at.length; i++) {
+      expect(at[i]!).toBeGreaterThanOrEqual(at[i - 1]!);
+      expect(at[i]!).toBeLessThanOrEqual(Math.min(p!.words[i]!.startMs, at[i - 1]! + 150));
+    }
+    // the whole card is on screen for most of its life
+    expect(at[at.length - 1]! - p!.startMs).toBeLessThanOrEqual((p!.endMs - p!.startMs) * 0.4 + 1);
   });
 
   it("respects manual breaks and merges (noBreakAfter)", () => {

@@ -15,7 +15,7 @@ const LivePreview = dynamic(() => import("./LivePreview").then((m) => m.LivePrev
 const INK = "#1A1A1A";
 export const GITHUB_URL = "https://github.com/Ishaan-Gpt/Captions-Easy";
 /** Product Hunt badge: set NEXT_PUBLIC_PRODUCT_HUNT_POST_ID (and _SLUG) on Vercel once the launch is scheduled; hidden until then. */
-const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID;
+const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID || "1272016";
 const PH_SLUG = process.env.NEXT_PUBLIC_PRODUCT_HUNT_SLUG || "captionseasy";
 
 function GitHubMark({ className = "h-4 w-4" }: { className?: string }) {
@@ -148,11 +148,6 @@ export function Hero() {
 
       <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-5 text-center">
         <div data-hero="eyebrow" className="flex flex-wrap items-center justify-center gap-2.5">
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" className="inline-flex h-[42px] items-center gap-2 rounded-full border border-[#1A1A1A]/15 bg-white/70 px-4 text-sm font-semibold text-[#1A1A1A] backdrop-blur-md transition hover:border-[#1A1A1A]/40 hover:bg-white">
-            <GitHubMark />
-            Open source on GitHub
-            <span aria-hidden className="text-[#FFA946]">★</span>
-          </a>
           {PH_POST_ID ? (
             <a href={`https://www.producthunt.com/posts/${PH_SLUG}?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-${PH_SLUG}`} target="_blank" rel="noopener noreferrer" className="inline-flex transition hover:scale-[1.02]">
               {/* eslint-disable-next-line @next/next/no-img-element */}

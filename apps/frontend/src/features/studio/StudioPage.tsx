@@ -26,7 +26,6 @@ import { Timeline } from "./Timeline";
 import { UploadPanel } from "./UploadPanel";
 import { SignupGate } from "./SignupGate";
 import { projectsService } from "@/services/projects";
-import { ReattachPanel } from "@/features/upload/ReattachPanel";
 import { useDeviceVideo } from "@/features/upload/useDeviceVideo";
 import { useCompatCopy } from "@/features/upload/useCompatCopy";
 import { etaText } from "./ProcessingPanel";
@@ -173,6 +172,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     setTimeMs(ms);
   }, [fps]);
 
+  const getPlayerMs = useCallback(() => ((playerRef.current?.getCurrentFrame() ?? 0) / fps) * 1000, [fps]);
+
   const input = useMemo(
     () => (doc && style ? { src: video?.url ?? null, media: { width, height, fps, durationMs, rotation: 0 }, doc, style, settings, mode: "burn" as const } : null),
     [doc, style, settings, video?.url, width, height, fps, durationMs],
@@ -209,8 +210,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   }
   if (!data) return <FullScreen>This project could not be found. <Link className="ml-2 font-semibold text-st-text underline decoration-st-or decoration-2 underline-offset-4" href="/dashboard">Back to projects</Link></FullScreen>;
 
-  const hasEditor = Boolean(doc && style && input);
   const noVideoYet = !video || video.status === "uploading";
+  // the project's video isn't on this device (another device, cleared storage): add a video and caption it afresh
+  const videoGone = !noVideoYet && device.status === "missing";
+  const hasEditor = Boolean(doc && style && input) && !videoGone;
   const save = SAVE_LABEL[s.saveState];
 
   // ---------- building blocks shared by both layouts
@@ -310,16 +313,17 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     />
   ) : null;
 
-  const reattach = !noVideoYet && !replacing && device.status === "missing" ? (
-    <ReattachPanel filename={video?.filename ?? null} durationMs={video?.durationMs ?? null} onPick={device.attach} onReplace={() => setReplacing(true)} />
-  ) : null;
-  const stage = reattach ?? player ?? (noVideoYet || replacing ? (
+  const stage = player ?? (noVideoYet || replacing || videoGone ? (
     <UploadPanel
       projectId={projectId}
       limits={data.limits}
       language={data.project.language ?? null}
-      onUploaded={() => { setReplacing(false); void s.refetch(); }}
-      note={replacing ? "Choose the new video. Captions will be generated for it." : video?.status === "uploading" ? "The last upload didn't finish. Choose your video again." : undefined}
+      onUploaded={() => { setReplacing(false); s.resetDoc(); void s.refetch(); }}
+      note={
+        videoGone ? "This project's video isn't on this device anymore. Add a video and fresh captions will be written for it."
+          : replacing ? "Choose the new video. Captions will be generated for it."
+          : video?.status === "uploading" ? "The last upload didn't finish. Choose your video again." : undefined
+      }
     />
   ) : (
     <ProcessingPanel projectId={projectId} job={data.job} canTranscribe={data.canTranscribe} onChanged={() => void s.refetch()} onReplaceVideo={() => setReplacing(true)} videoId={video?.id ?? null} local={!!data.video?.local} language={data.project.language ?? null} />
@@ -400,6 +404,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       words={doc.words}
       durationMs={durationMs}
       timeMs={timeMs}
+      getTimeMs={getPlayerMs}
       playing={playing}
       selectedId={selectedId}
       peaks={wave.peaks}

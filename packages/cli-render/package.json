@@ -1,0 +1,67 @@
+{
+  "name": "captionseasy-render",
+  "version": "0.1.0",
+  "description": "Rendering add-on for captionseasy: burns CaptionsEasy captions into a video (MP4) or exports a transparent overlay (.mov ProRes 4444 / .webm VP9) with Remotion, locally.",
+  "license": "MIT",
+  "author": "Ishaan Gupta",
+  "bugs": {
+    "url": "https://github.com/Ishaan-Gpt/Captions-Easy/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/Ishaan-Gpt/Captions-Easy/tree/main/packages/cli-render#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ishaan-Gpt/Captions-Easy.git",
+    "directory": "packages/cli-render"
+  },
+  "keywords": [
+    "captionseasy",
+    "captions",
+    "video",
+    "remotion",
+    "render",
+    "transparent-video"
+  ],
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node ../cli/scripts/build.mjs render",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@remotion/renderer": "4.0.484"
+  },
+  "devDependencies": {
+    "@capseasy/companion": "workspace:*",
+    "@capseasy/shared": "workspace:*",
+    "@motion-ai/caption-engine": "workspace:*",
+    "@types/node": "^20",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.9",
+    "tsx": "^4.19.0",
+    "@capseasy/compositions": "workspace:*",
+    "@capseasy/templates": "workspace:*",
+    "@remotion/bundler": "4.0.484",
+    "captionseasy-transcribe": "workspace:*"
+  }
+}

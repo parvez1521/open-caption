@@ -6,6 +6,7 @@ import { WordLayout } from "./layouts/Word";
 import { BarLayout, BubbleLayout, HighlighterLayout, KaraokeLayout, KineticLayout, TypewriterLayout } from "./layouts/Extra";
 import { GlowBehindLayout, GlowDuoLayout, GlowFlowLayout } from "./layouts/Glow";
 import { MetalScriptLayout } from "./layouts/MetalScript";
+import { PACK_TEMPLATES } from "./pack";
 import type { PageRenderProps, TemplateCapabilities, TemplateDefinition } from "./types";
 
 const ALL_EFFECTS = ACTIVE_EFFECTS;
@@ -168,6 +169,8 @@ export const TEMPLATES: TemplateDefinition[] = [
     settingsDefaults: { maxWordsPerCard: 3 },
     capabilities: caps({ alignment: false, weight: false, background: false, activeEffects: ["none"], entrances: OWN_MOTION }), fonts: ["Anton", "Pacifico"], Page: MetalScriptLayout,
   },
+  // the pack: 64 more looks, with their own layouts (src/pack)
+  ...PACK_TEMPLATES,
 ];
 
 export const TEMPLATE_IDS = TEMPLATES.map((t) => t.id);
