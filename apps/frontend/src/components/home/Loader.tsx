@@ -110,23 +110,23 @@ export function Loader({ onDone }: { onDone: () => void }) {
   return (
     <div className="ce-intro pointer-events-none fixed inset-0 z-[100]" aria-hidden>
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div data-sheet className="pointer-events-auto absolute inset-0 bg-[#FFFFEB]">
+      <div data-sheet className="pointer-events-auto absolute inset-0 bg-[#1E1E1B]">
         {/* curved lip under the sheet: the edge you see as it slides away */}
-        <div className="absolute left-[-10%] top-full h-[16vh] w-[120%] rounded-b-[50%] bg-[#FFFFEB]" />
+        <div className="absolute left-[-10%] top-full h-[16vh] w-[120%] rounded-b-[50%] bg-[#1E1E1B]" />
         <div className="absolute inset-0 overflow-hidden">
           {/* the same soft glows as the hero, so the reveal feels continuous */}
-          <div className="absolute -left-32 top-10 h-[420px] w-[420px] rounded-full bg-[#F0D7FF]/70 blur-3xl" />
+          <div className="absolute -left-32 top-10 h-[420px] w-[420px] rounded-full bg-[#252B26]/70 blur-3xl" />
           <div className="absolute -right-24 bottom-10 h-[380px] w-[380px] rounded-full bg-[#FFA946]/25 blur-3xl" />
 
           <div data-inner className="relative grid h-full place-items-center px-6">
             <div className="flex flex-col items-center">
               <div className="flex items-end gap-3 sm:gap-4">
                 <div data-bars className="flex h-[52px] items-end gap-[6px] sm:h-[64px]">
-                  {["#1A1A1A", "#FFA946", "#34D399"].map((c, i) => (
+                  {["#FFFFEB", "#FFA946", "#34D399"].map((c, i) => (
                     <span key={c} data-bar className="block w-[10px] rounded-full sm:w-3" style={{ background: c, height: ["62%", "100%", "80%"][i] }} />
                   ))}
                 </div>
-                <div className="overflow-hidden pb-1 text-[44px] font-extrabold leading-none tracking-[-0.04em] text-[#1A1A1A] sm:text-[64px]">
+                <div className="overflow-hidden pb-1 text-[44px] font-extrabold leading-none tracking-[-0.04em] text-[#FFFFEB] sm:text-[64px]">
                   {"Captions".split("").map((ch, i) => (
                     <span key={`m${i}`} data-char style={{ animationDelay: `${100 + i * 24}ms` }}>
                       {ch}
@@ -141,14 +141,14 @@ export function Loader({ onDone }: { onDone: () => void }) {
               </div>
 
               {/* the hero line, played as a caption: a highlight wipes onto each word as it's "spoken" */}
-              <div className="mt-7 flex items-center gap-[14px] text-[18px] font-extrabold uppercase tracking-[-0.01em] text-[#1A1A1A] sm:mt-9 sm:text-[22px]">
+              <div className="mt-7 flex items-center gap-[14px] text-[18px] font-extrabold uppercase tracking-[-0.01em] text-[#FFFFEB] sm:mt-9 sm:text-[22px]">
                 {WORDS.map((w, i) => {
                   const last = i === WORDS.length - 1;
                   return (
                     <span key={w} data-w className="relative inline-block" style={{ animationDelay: `${WORD_AT(i)}ms` }}>
                       <span
                         data-hl
-                        className={`absolute -inset-x-[6px] -inset-y-[4px] rounded-[10px] ${last ? "last bg-[#34D399]" : "bg-[#F0D7FF]"}`}
+                        className={`absolute -inset-x-[6px] -inset-y-[4px] rounded-[10px] ${last ? "last bg-[#34D399]" : "bg-[#252B26]"}`}
                         style={{ animationDelay: last ? `${WORD_AT(i)}ms` : `${WORD_AT(i)}ms, ${WORD_AT(i + 1)}ms` }}
                       />
                       <span data-wt={last ? undefined : ""} className="relative" style={last ? undefined : { animationDelay: `${WORD_AT(i + 1)}ms` }}>
@@ -162,12 +162,12 @@ export function Loader({ onDone }: { onDone: () => void }) {
           </div>
 
           {/* progress: one hairline across the bottom, a big quiet counter above its left end */}
-          <div data-foot className="absolute bottom-7 left-6 font-extrabold leading-none tracking-[-0.05em] text-[#1A1A1A]/[0.14] tabular-nums sm:bottom-9 sm:left-10">
+          <div data-foot className="absolute bottom-7 left-6 font-extrabold leading-none tracking-[-0.05em] text-[#FFFFEB]/[0.14] tabular-nums sm:bottom-9 sm:left-10">
             <span data-count className="text-[72px] sm:text-[120px]" />
             <span className="ml-1 align-top text-[22px] sm:text-[34px]">%</span>
           </div>
-          <div data-foot className="absolute bottom-5 left-6 right-6 h-px bg-[#1A1A1A]/10 sm:bottom-6 sm:left-10 sm:right-10">
-            <div data-line className="h-full bg-gradient-to-r from-[#FFA946] via-[#1A1A1A] to-[#34D399]" />
+          <div data-foot className="absolute bottom-5 left-6 right-6 h-px bg-[#FFFFEB]/10 sm:bottom-6 sm:left-10 sm:right-10">
+            <div data-line className="h-full bg-gradient-to-r from-[#FFA946] via-[#FFFFEB] to-[#34D399]" />
           </div>
         </div>
       </div>

@@ -37,23 +37,23 @@ export function Section1Productivity() {
       </div>
 
       {/* word inspector */}
-      <div className="absolute left-[322px] top-[84px] w-[204px] rounded-2xl border border-[#1A1A1A]/8 bg-white/85 p-4 shadow-[0_18px_40px_-20px_rgba(26,26,26,0.35)] backdrop-blur">
+      <div className="absolute left-[322px] top-[84px] w-[204px] rounded-2xl border border-[#FFFFEB]/8 bg-white/85 p-4 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.35)] backdrop-blur">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1A1A1A]/45">Now speaking</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/45">Now speaking</span>
           <span className="flex h-2 w-2 rounded-full bg-[#34D399] shadow-[0_0_0_4px_rgba(52,211,153,0.2)]" />
         </div>
         <div className="mt-2 truncate text-[30px] font-bold leading-tight tracking-[-0.02em]">{cur?.text.replace(/[.,!?]$/, "") ?? "…"}</div>
         <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-[11px]">
-          <div className="rounded-lg bg-[#1A1A1A]/[0.04] px-2 py-1.5">
-            <div className="text-[#1A1A1A]/40">start</div>
+          <div className="rounded-lg bg-[#FFFFEB]/[0.04] px-2 py-1.5">
+            <div className="text-[#FFFFEB]/40">start</div>
             <div className="font-semibold">{fmt(cur?.startMs ?? 0)}</div>
           </div>
-          <div className="rounded-lg bg-[#1A1A1A]/[0.04] px-2 py-1.5">
-            <div className="text-[#1A1A1A]/40">end</div>
+          <div className="rounded-lg bg-[#FFFFEB]/[0.04] px-2 py-1.5">
+            <div className="text-[#FFFFEB]/40">end</div>
             <div className="font-semibold">{fmt(cur?.endMs ?? 0)}</div>
           </div>
         </div>
-        <div className="mt-2 flex items-center justify-between font-mono text-[11px] text-[#1A1A1A]/50">
+        <div className="mt-2 flex items-center justify-between font-mono text-[11px] text-[#FFFFEB]/50">
           <span>{cur ? cur.endMs - cur.startMs : 0} ms</span>
           <span>{words.length} words · {(dur / 1000).toFixed(1)} s</span>
         </div>
@@ -65,15 +65,15 @@ export function Section1Productivity() {
       </div>
 
       {/* timeline */}
-      <div className="absolute bottom-[44px] left-[34px] right-[34px] rounded-2xl border border-[#1A1A1A]/8 bg-white/90 px-4 pb-4 pt-3 shadow-[0_18px_40px_-24px_rgba(26,26,26,0.35)]">
+      <div className="absolute bottom-[44px] left-[34px] right-[34px] rounded-2xl border border-[#FFFFEB]/8 bg-white/90 px-4 pb-4 pt-3 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.35)]">
         <div className="flex items-center justify-between text-[11px]">
-          <span className="font-semibold uppercase tracking-[0.14em] text-[#1A1A1A]/45">Captions track</span>
-          <span className="font-mono text-[#1A1A1A]/50">{fmt(t)}</span>
+          <span className="font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/45">Captions track</span>
+          <span className="font-mono text-[#FFFFEB]/50">{fmt(t)}</span>
         </div>
-        <div className="relative mt-2 h-[14px] border-b border-[#1A1A1A]/10">
+        <div className="relative mt-2 h-[14px] border-b border-[#FFFFEB]/10">
           {Array.from({ length: Math.floor(dur / 1000) + 1 }, (_, s) => (
-            <span key={s} className="absolute bottom-0 font-mono text-[9px] text-[#1A1A1A]/35" style={{ left: `${((s * 1000) / dur) * 100}%` }}>
-              <span className="absolute bottom-0 h-[5px] w-px bg-[#1A1A1A]/25" />
+            <span key={s} className="absolute bottom-0 font-mono text-[9px] text-[#FFFFEB]/35" style={{ left: `${((s * 1000) / dur) * 100}%` }}>
+              <span className="absolute bottom-0 h-[5px] w-px bg-[#FFFFEB]/25" />
               <span className="ml-1">{s}s</span>
             </span>
           ))}
@@ -89,9 +89,9 @@ export function Section1Productivity() {
                 style={{
                   left: `calc(${(w.startMs / dur) * 100}% + 1px)`,
                   width: `calc(${((w.endMs - w.startMs) / dur) * 100}% - 2px)`,
-                  background: on ? EMERALD : past ? "rgba(26,26,26,0.07)" : "#FFFFEB",
-                  borderColor: on ? "#10B981" : "rgba(26,26,26,0.12)",
-                  color: on ? "#06281C" : "rgba(26,26,26,0.7)",
+                  background: on ? EMERALD : past ? "rgba(0,0,0,0.07)" : "#FFFFEB",
+                  borderColor: on ? "#10B981" : "rgba(0,0,0,0.12)",
+                  color: on ? "#06281C" : "rgba(0,0,0,0.7)",
                   boxShadow: on ? "0 6px 16px -6px rgba(16,185,129,0.8)" : undefined,
                 }}
               >

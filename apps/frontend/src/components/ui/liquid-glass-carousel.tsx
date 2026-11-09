@@ -1585,14 +1585,14 @@ export function LiquidGlassCarousel({
       <WebGLErrorBoundary
         fallback={
           <WebGLFallback
-            className="absolute inset-0 bg-[#FFFFEB]"
+            className="absolute inset-0 bg-[#1E1E1B]"
             message="This carousel needs WebGL, which is unavailable in this browser."
           />
         }
       >
         {failed ? (
           <WebGLFallback
-            className="absolute inset-0 bg-[#FFFFEB]"
+            className="absolute inset-0 bg-[#1E1E1B]"
             message="This carousel needs WebGL, which is unavailable in this browser."
           />
         ) : (
@@ -1604,21 +1604,21 @@ export function LiquidGlassCarousel({
         ref={titleRef}
         className="pointer-events-none absolute left-1/2 top-[4.5%] z-10 m-0 -translate-x-1/2 text-center opacity-0"
       >
-        <span className="inline-block rounded-full border border-[#1A1A1A]/10 bg-[#FFFFEB]/90 px-4 py-1.5 font-styled text-sm sm:text-base font-bold tracking-tight text-[#1A1A1A] shadow-sm backdrop-blur-md">
+        <span className="inline-block rounded-full border border-[#FFFFEB]/10 bg-[#1E1E1B]/90 px-4 py-1.5 font-styled text-sm sm:text-base font-bold tracking-tight text-[#FFFFEB] shadow-sm backdrop-blur-md">
           {current?.title} {current?.category ? `· ${current.category}` : ""}
         </span>
       </div>
 
       <p
         ref={counterRef}
-        className="pointer-events-none absolute bottom-[6%] left-1/2 z-10 m-0 -translate-x-1/2 text-center text-[13px] font-medium tabular-nums tracking-[-0.02em] text-[#1A1A1A]/70 opacity-0 sm:text-[15px]"
+        className="pointer-events-none absolute bottom-[6%] left-1/2 z-10 m-0 -translate-x-1/2 text-center text-[13px] font-medium tabular-nums tracking-[-0.02em] text-[#FFFFEB]/70 opacity-0 sm:text-[15px]"
       >
         {pad(active + 1)} / {pad(items.length)}
       </p>
 
       <div
         ref={cursorRef}
-        className="pointer-events-none absolute left-0 top-0 z-20 rounded-full bg-[#1A1A1A] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#FFFFEB] shadow-md"
+        className="pointer-events-none absolute left-0 top-0 z-20 rounded-full bg-[#262622] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#FFFFEB] shadow-md"
       >
         Drag / View
       </div>
@@ -1627,7 +1627,7 @@ export function LiquidGlassCarousel({
         type="button"
         onClick={() => engineRef.current?.closeFocus()}
         aria-label="Close focused project"
-        className="absolute right-[4%] top-[4.5%] z-20 rounded-full border border-[#1A1A1A]/20 bg-[#FFFFEB]/90 px-3.5 py-1.5 text-xs font-bold text-[#1A1A1A] shadow-sm backdrop-blur-md transition hover:bg-white active:scale-95"
+        className="absolute right-[4%] top-[4.5%] z-20 rounded-full border border-[#FFFFEB]/20 bg-[#1E1E1B]/90 px-3.5 py-1.5 text-xs font-bold text-[#FFFFEB] shadow-sm backdrop-blur-md transition hover:bg-white active:scale-95"
         style={{
           opacity: focused ? 1 : 0,
           pointerEvents: focused ? "auto" : "none",

@@ -230,7 +230,7 @@ export const WorksWheel = React.forwardRef<WorksWheelRef, WorksWheelProps>(({
     <section
       aria-label={label}
       className={cn(
-        "relative h-full min-h-[30rem] sm:min-h-[36rem] w-full overflow-hidden select-none bg-transparent text-[#1A1A1A]",
+        "relative h-full min-h-[30rem] sm:min-h-[36rem] w-full overflow-hidden select-none bg-transparent text-[#FFFFEB]",
         className,
       )}
       {...props}
@@ -241,7 +241,7 @@ export const WorksWheel = React.forwardRef<WorksWheelRef, WorksWheelProps>(({
         role="listbox"
         aria-label={label}
         aria-activedescendant={`works-wheel-${active}`}
-        className="focus-visible:outline-[#1A1A1A] absolute inset-0 cursor-grab touch-pan-y outline-none focus-visible:outline-2 focus-visible:-outline-offset-4 active:cursor-grabbing"
+        className="focus-visible:outline-[#FFFFEB] absolute inset-0 cursor-grab touch-pan-y outline-none focus-visible:outline-2 focus-visible:-outline-offset-4 active:cursor-grabbing"
         style={{ perspective: `${metrics.depth}px` }}
         onPointerDown={(event) => {
           if (scrollDriven) return;
@@ -290,7 +290,7 @@ export const WorksWheel = React.forwardRef<WorksWheelRef, WorksWheelProps>(({
                     marginTop: -metrics.cardH / 2,
                   }}
                 >
-                  <span className="relative block size-full overflow-hidden rounded-xl sm:rounded-2xl border border-[#1A1A1A]/10 bg-[#1A1A1A] shadow-[0_24px_50px_-20px_rgba(26,26,26,0.5)] transition-all duration-300 group-hover:border-[#1A1A1A]/40 group-hover:shadow-[0_30px_60px_-20px_rgba(26,26,26,0.65)]">
+                  <span className="relative block size-full overflow-hidden rounded-xl sm:rounded-2xl border border-[#FFFFEB]/10 bg-[#1E1E1B] shadow-[0_24px_50px_-20px_rgba(0,0,0,0.5)] transition-all duration-300 group-hover:border-[#FFFFEB]/40 group-hover:shadow-[0_30px_60px_-20px_rgba(0,0,0,0.65)]">
                     {item.video ? (
                       <video
                         src={item.video}
@@ -319,7 +319,7 @@ export const WorksWheel = React.forwardRef<WorksWheelRef, WorksWheelProps>(({
       {/* Ring center title and front-card title */}
       <div
         ref={labelRef}
-        className="pointer-events-none absolute inset-0 grid place-items-center tracking-tight font-styled font-bold text-[#1A1A1A]"
+        className="pointer-events-none absolute inset-0 grid place-items-center tracking-tight font-styled font-bold text-[#FFFFEB]"
         style={{ fontSize: metrics.title }}
       >
         <span className="text-center px-4">
@@ -332,11 +332,11 @@ export const WorksWheel = React.forwardRef<WorksWheelRef, WorksWheelProps>(({
         className="pointer-events-none absolute top-1/2 left-[5%] sm:left-[8%] -translate-y-1/2 tracking-tight opacity-0 max-w-[280px] sm:max-w-[420px]"
         style={{ fontSize: metrics.title }}
       >
-        <span className="font-styled font-bold text-[#1A1A1A] block leading-tight">
+        <span className="font-styled font-bold text-[#FFFFEB] block leading-tight">
           {items[active]?.title}
         </span>
         {items[active]?.category && (
-          <span className="text-xs sm:text-sm font-mono text-[#0F3D2E] font-bold block mt-1 uppercase tracking-wider">
+          <span className="text-xs sm:text-sm font-mono text-[#34D399] font-bold block mt-1 uppercase tracking-wider">
             {items[active]?.category}
           </span>
         )}
@@ -356,10 +356,10 @@ export const WorksWheel = React.forwardRef<WorksWheelRef, WorksWheelProps>(({
               }}
               className={cn(
                 "cursor-pointer transition-colors outline-none",
-                scrollDriven ? "cursor-default" : "hover:text-[#1A1A1A]",
+                scrollDriven ? "cursor-default" : "hover:text-[#FFFFEB]",
                 i === active
-                  ? "text-[#1A1A1A] font-bold underline decoration-[#FFA946] decoration-2 underline-offset-4"
-                  : "text-[#1A1A1A]/45",
+                  ? "text-[#FFFFEB] font-bold underline decoration-[#FFA946] decoration-2 underline-offset-4"
+                  : "text-[#FFFFEB]/45",
               )}
             >
               {item.title}

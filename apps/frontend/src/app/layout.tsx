@@ -68,7 +68,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: introScript(process.env.NODE_ENV !== "production") }} />
       </head>
       <body
-        className="h-full bg-major text-obsidian font-sans selection:bg-side selection:text-obsidian"
+        className="h-full bg-major text-obsidian font-sans selection:bg-emerald-accent selection:text-[#141412]"
         suppressHydrationWarning
       >
         <QueryProvider>{children}</QueryProvider>

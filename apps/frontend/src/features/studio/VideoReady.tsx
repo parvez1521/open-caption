@@ -22,10 +22,10 @@ function canShareFile(file: File) {
 
 /** Text-only share links, for browsers that can't pass the file on (they attach the downloaded video themselves). */
 const LINKS = [
-  { name: "WhatsApp", href: (t: string) => `https://wa.me/?text=${encodeURIComponent(t)}`, cls: "bg-st-em text-obsidian" },
+  { name: "WhatsApp", href: (t: string) => `https://wa.me/?text=${encodeURIComponent(t)}`, cls: "bg-st-em text-[#141412]" },
   { name: "Telegram", href: () => `https://t.me/share/url?url=${encodeURIComponent(CANONICAL_APP)}&text=${encodeURIComponent("I made this video using CaptionsEasy ✨")}`, cls: "bg-st-lav text-obsidian" },
   { name: "X", href: (t: string) => `https://x.com/intent/post?text=${encodeURIComponent(t)}`, cls: "bg-obsidian text-major" },
-  { name: "Facebook", href: () => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(CANONICAL_APP)}`, cls: "bg-st-or text-obsidian" },
+  { name: "Facebook", href: () => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(CANONICAL_APP)}`, cls: "bg-st-or text-[#141412]" },
 ];
 
 interface Props {
@@ -67,7 +67,7 @@ export const VideoReady: React.FC<Props> = ({ blob, filename, detail, onDownload
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-obsidian/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div role="dialog" aria-label="Your video is ready" onClick={(e) => e.stopPropagation()} className="flex max-h-[94dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:rounded-2xl">
         <div className="flex items-center justify-between px-5 pt-4">
           <h2 className="text-lg font-semibold">Your video is ready 🎉</h2>
@@ -75,7 +75,7 @@ export const VideoReady: React.FC<Props> = ({ blob, filename, detail, onDownload
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
           {detail ? <p className="text-xs text-st-muted">{detail}</p> : null}
-          <video src={url} controls autoPlay muted loop playsInline className="mx-auto mt-3 max-h-[42dvh] w-auto max-w-full rounded-xl bg-obsidian" />
+          <video src={url} controls autoPlay muted loop playsInline className="mx-auto mt-3 max-h-[42dvh] w-auto max-w-full rounded-xl bg-[#0B0B0A]" />
 
           <div className="mt-4 grid gap-2">
             {fileShare ? (

@@ -13,7 +13,7 @@ import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/br
 const CyclingPreview = dynamic(() => import("./LivePreview").then((m) => m.CyclingPreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#0F3D2E]" /> });
 const LivePreview = dynamic(() => import("./LivePreview").then((m) => m.LivePreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#1f2b27]" /> });
 
-const INK = "#1A1A1A";
+const INK = "#FFFFEB";
 export const GITHUB_URL = "https://github.com/Ishaan-Gpt/Captions-Easy";
 /** Product Hunt badge: set NEXT_PUBLIC_PRODUCT_HUNT_POST_ID (and _SLUG) on Vercel once the launch is scheduled; hidden until then. */
 const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID || "";
@@ -61,47 +61,47 @@ export function Nav() {
   const signedIn = useSignedIn();
   return (
     <div data-nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
-      <header className="mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border border-[#1A1A1A]/10 bg-[#FFFFEB]/85 px-4 py-2.5 shadow-[0_8px_30px_-12px_rgba(26,26,26,0.25)] backdrop-blur-md">
+      <header className="mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border border-[#FFFFEB]/10 bg-[#1E1E1B]/85 px-4 py-2.5 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.25)] backdrop-blur-md">
         <Link href="/" aria-label={`${BRAND_NAME} home`} className="transition-transform duration-200 hover:scale-105">
           <Logo />
         </Link>
-        <nav className="hidden items-center gap-6 whitespace-nowrap text-sm font-semibold text-[#1A1A1A]/80 lg:flex xl:gap-7">
+        <nav className="hidden items-center gap-6 whitespace-nowrap text-sm font-semibold text-[#FFFFEB]/80 lg:flex xl:gap-7">
           {NAV_LINKS.map(([label, href]) => (
-            <a key={href} href={href} className="group relative py-1 transition-colors duration-200 hover:text-[#1A1A1A]">
+            <a key={href} href={href} className="group relative py-1 transition-colors duration-200 hover:text-[#FFFFEB]">
               {label}
               <span className="absolute inset-x-0 -bottom-0.5 h-[2px] origin-left scale-x-0 rounded-full bg-[#FFA946] transition-transform duration-300 group-hover:scale-x-100" />
             </a>
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="CaptionsEasy on GitHub (open source)" title="Open source on GitHub" className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#1A1A1A]/15 px-2.5 text-sm font-semibold text-[#1A1A1A]/80 transition hover:border-[#1A1A1A]/40 hover:text-[#1A1A1A]">
+          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="CaptionsEasy on GitHub (open source)" title="Open source on GitHub" className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#FFFFEB]/15 px-2.5 text-sm font-semibold text-[#FFFFEB]/80 transition hover:border-[#FFFFEB]/40 hover:text-[#FFFFEB]">
             <GitHubMark /><span className="hidden xl:inline">Star</span>
           </a>
-          <Link href={signedIn ? "/dashboard" : "/login"} className="hidden whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-[#1A1A1A]/80 transition hover:text-[#1A1A1A] sm:block">{signedIn ? "Dashboard" : "Sign in"}</Link>
+          <Link href={signedIn ? "/dashboard" : "/login"} className="hidden whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-[#FFFFEB]/80 transition hover:text-[#FFFFEB] sm:block">{signedIn ? "Dashboard" : "Sign in"}</Link>
           {/* phones: this moves into the menu */}
           <div className="conic-glow-pill hidden rounded-full p-[1px] sm:block">
-            <Link href="/start" onPointerEnter={warmModel} onClick={warmModel} className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[#1A1A1A]/30 bg-[#F0D7FF] px-4 py-2 text-sm font-bold text-[#1A1A1A] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            <Link href="/start" onPointerEnter={warmModel} onClick={warmModel} className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-4 py-2 text-sm font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
               Start free <span aria-hidden>→</span>
             </Link>
           </div>
-          <button onClick={() => setOpen((v) => !v)} aria-label="Menu" aria-expanded={open} className="grid h-10 w-10 place-items-center rounded-xl border border-[#1A1A1A]/15 lg:hidden">
+          <button onClick={() => setOpen((v) => !v)} aria-label="Menu" aria-expanded={open} className="grid h-10 w-10 place-items-center rounded-xl border border-[#FFFFEB]/15 lg:hidden">
             <span className="relative block h-3 w-4">
-              <span className={`absolute left-0 top-0 h-[2px] w-4 bg-[#1A1A1A] transition ${open ? "translate-y-[5px] rotate-45" : ""}`} />
-              <span className={`absolute bottom-0 left-0 h-[2px] w-4 bg-[#1A1A1A] transition ${open ? "-translate-y-[5px] -rotate-45" : ""}`} />
+              <span className={`absolute left-0 top-0 h-[2px] w-4 bg-[#FFFFEB] transition ${open ? "translate-y-[5px] rotate-45" : ""}`} />
+              <span className={`absolute bottom-0 left-0 h-[2px] w-4 bg-[#FFFFEB] transition ${open ? "-translate-y-[5px] -rotate-45" : ""}`} />
             </span>
           </button>
         </div>
       </header>
       {open ? (
-        <nav className="animate-fade-in-up mx-auto mt-2 grid max-w-6xl gap-1 rounded-2xl border border-[#1A1A1A]/10 bg-[#FFFFEB] p-3 shadow-lg lg:hidden">
+        <nav className="animate-fade-in-up mx-auto mt-2 grid max-w-6xl gap-1 rounded-2xl border border-[#FFFFEB]/10 bg-[#1E1E1B] p-3 shadow-lg lg:hidden">
           {NAV_LINKS.map(([label, href]) => (
-            <a key={href} href={href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-base font-semibold text-[#1A1A1A] hover:bg-[#E4E4D0]/60">{label}</a>
+            <a key={href} href={href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-base font-semibold text-[#FFFFEB] hover:bg-[#262622]/60">{label}</a>
           ))}
-          <div className="mt-2 grid gap-2 border-t border-[#1A1A1A]/10 pt-3 sm:hidden">
-            <Link href="/start" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-full border border-[#1A1A1A]/30 bg-[#F0D7FF] px-5 py-3.5 text-base font-bold text-[#1A1A1A] active:scale-[0.98]">
+          <div className="mt-2 grid gap-2 border-t border-[#FFFFEB]/10 pt-3 sm:hidden">
+            <Link href="/start" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-5 py-3.5 text-base font-bold text-[#FFFFEB] active:scale-[0.98]">
               Start free <span aria-hidden>→</span>
             </Link>
-            <Link href={signedIn ? "/dashboard" : "/login"} onClick={() => setOpen(false)} className="rounded-full px-5 py-3 text-center text-base font-semibold text-[#1A1A1A]/70">{signedIn ? "Dashboard" : "Sign in"}</Link>
+            <Link href={signedIn ? "/dashboard" : "/login"} onClick={() => setOpen(false)} className="rounded-full px-5 py-3 text-center text-base font-semibold text-[#FFFFEB]/70">{signedIn ? "Dashboard" : "Sign in"}</Link>
           </div>
         </nav>
       ) : null}
@@ -144,7 +144,7 @@ export function Hero() {
   usePauseOffscreen(reel);
   return (
     <section className="relative flex min-h-[100svh] w-full flex-col overflow-hidden pt-[max(6.5rem,12vh)]">
-      <div data-parallax="0.25" aria-hidden className="pointer-events-none absolute -left-40 top-16 h-[520px] w-[520px] rounded-full bg-[#F0D7FF]/60 blur-3xl" />
+      <div data-parallax="0.25" aria-hidden className="pointer-events-none absolute -left-40 top-16 h-[520px] w-[520px] rounded-full bg-[#252B26]/60 blur-3xl" />
       <div data-parallax="0.4" aria-hidden className="pointer-events-none absolute -right-32 top-48 h-[440px] w-[440px] rounded-full bg-[#FFA946]/25 blur-3xl" />
 
       <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-5 text-center">
@@ -157,25 +157,25 @@ export function Hero() {
           ) : null}
         </div>
 
-        <h1 className="font-styled mt-5 text-[clamp(2.7rem,min(6.4vw,9.5vh),5.6rem)] font-bold leading-[0.9] tracking-[-0.05em] text-[#1A1A1A]">
+        <h1 className="font-styled mt-5 text-[clamp(2.7rem,min(6.4vw,9.5vh),5.6rem)] font-bold leading-[0.9] tracking-[-0.05em] text-[#FFFFEB]">
           <span className="inline-block overflow-hidden pb-[0.06em]">
             <span data-hero="word" className="inline-block mr-3 sm:mr-4">Don&rsquo;t edit,</span>
             <span data-hero="word2" className="font-accent gradient-text-sweep inline-block pr-[0.06em] text-[1.1em] font-normal italic tracking-[-0.025em]">just upload.</span>
           </span>
         </h1>
 
-        <p data-hero="sub" className="mx-auto mt-5 max-w-2xl text-[15px] sm:text-[17px] leading-relaxed text-[#1A1A1A]/70 px-4 font-medium">
+        <p data-hero="sub" className="mx-auto mt-5 max-w-2xl text-[15px] sm:text-[17px] leading-relaxed text-[#FFFFEB]/70 px-4 font-medium">
           Animated captions for your Shorts, Reels and TikToks, made right in your browser. 20+ viral looks, every word editable, no install and no watermark.
         </p>
 
 
         <div data-hero="cta" className="mt-7 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
           <div className="conic-glow-pill w-full rounded-full p-[1px] sm:w-auto">
-            <Link href="/start" onPointerEnter={warmModel} onClick={warmModel} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#1A1A1A]/30 bg-[#F0D7FF] px-8 py-4 text-base font-bold text-[#1A1A1A] shadow-sm transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] sm:w-auto">
+            <Link href="/start" onPointerEnter={warmModel} onClick={warmModel} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-8 py-4 text-base font-bold text-[#FFFFEB] shadow-sm transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] sm:w-auto">
               Caption your first video free <span aria-hidden>→</span>
             </Link>
           </div>
-          <a href="#how" className="w-full rounded-full border border-[#1A1A1A]/15 bg-[#FFFFEB]/80 px-7 py-4 text-base font-semibold text-[#1A1A1A]/80 backdrop-blur-md transition hover:bg-[#FFFFEB] hover:text-[#1A1A1A] sm:w-auto">
+          <a href="#how" className="w-full rounded-full border border-[#FFFFEB]/15 bg-[#1E1E1B]/80 px-7 py-4 text-base font-semibold text-[#FFFFEB]/80 backdrop-blur-md transition hover:bg-[#1E1E1B] hover:text-[#FFFFEB] sm:w-auto">
             See how it works
           </a>
         </div>
@@ -201,7 +201,7 @@ export function Hero() {
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#FFFFEB]" />
       </div>
       <div className="mx-auto flex w-full max-w-6xl justify-end px-5 pb-3">
-        <a href="/credits" className="inline-flex min-h-8 items-center text-[11px] text-[#1A1A1A]/40 hover:text-[#1A1A1A]/75">
+        <a href="/credits" className="inline-flex min-h-8 items-center text-[11px] text-[#FFFFEB]/40 hover:text-[#FFFFEB]/75">
           Clips: Wikimedia Commons, CC BY / BY-SA
         </a>
       </div>
@@ -213,7 +213,7 @@ export function Marquee() {
   const items = ["TikTok", "Instagram Reels", "YouTube Shorts", "YouTube", "LinkedIn", "Podcasts", "Hinglish", "Premiere Pro", "DaVinci Resolve", "Final Cut Pro"];
   const row = [...items, ...items];
   return (
-    <div className="relative -rotate-1 border-y border-[#1A1A1A] bg-[#1A1A1A] py-4 text-[#FFFFEB]">
+    <div className="relative -rotate-1 border-y border-[#FFFFEB]/15 bg-[#262622] py-4 text-[#FFFFEB]">
       <div className="overflow-hidden">
         <div className="animate-marquee-slow gap-10 pr-10">
           {row.map((t, i) => (
@@ -229,14 +229,14 @@ export function Marquee() {
 
 function UploadArtifact() {
   return (
-    <div className="rounded-2xl border border-dashed border-[#1A1A1A]/20 bg-white/90 p-5 shadow-sm">
+    <div className="rounded-2xl border border-dashed border-[#FFFFEB]/20 bg-white/90 p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
-        <span className="font-mono text-xs text-[#1A1A1A]/60">drop your clip here</span>
-        <span className="rounded-full bg-[#FFFFEB] border border-[#1A1A1A]/10 px-3 py-1 font-mono text-[11px] font-semibold text-[#0F3D2E]">
+        <span className="font-mono text-xs text-[#FFFFEB]/60">drop your clip here</span>
+        <span className="rounded-full bg-[#1E1E1B] border border-[#FFFFEB]/10 px-3 py-1 font-mono text-[11px] font-semibold text-[#34D399]">
           take-07_final.mp4
         </span>
       </div>
-      <div className="mt-4 h-2 rounded-full bg-[#1A1A1A]/5 overflow-hidden">
+      <div className="mt-4 h-2 rounded-full bg-[#FFFFEB]/5 overflow-hidden">
         <div className="h-full w-[72%] rounded-full bg-gradient-to-r from-[#FFA946] to-[#34D399]" />
       </div>
     </div>
@@ -250,11 +250,11 @@ function TranscriptArtifact() {
     ["00:03.65", "so make them unmistakable."],
   ];
   return (
-    <div className="rounded-2xl bg-white/90 border border-[#1A1A1A]/10 divide-y divide-[#1A1A1A]/5 shadow-sm overflow-hidden">
+    <div className="rounded-2xl bg-white/90 border border-[#FFFFEB]/10 divide-y divide-[#FFFFEB]/5 shadow-sm overflow-hidden">
       {rows.map(([t, text], i) => (
-        <div key={t} className={`flex items-baseline gap-4 px-5 py-3 ${i === 1 ? "bg-[#F0D7FF]/30" : ""}`}>
-          <span className="font-mono text-[11px] text-[#1A1A1A]/50 shrink-0">{t}</span>
-          <span className={`text-[13px] ${i === 1 ? "text-[#1A1A1A] font-bold" : "text-[#1A1A1A]/75"}`}>
+        <div key={t} className={`flex items-baseline gap-4 px-5 py-3 ${i === 1 ? "bg-[#252B26]/30" : ""}`}>
+          <span className="font-mono text-[11px] text-[#FFFFEB]/50 shrink-0">{t}</span>
+          <span className={`text-[13px] ${i === 1 ? "text-[#FFFFEB] font-bold" : "text-[#FFFFEB]/75"}`}>
             {text}
           </span>
         </div>
@@ -265,20 +265,20 @@ function TranscriptArtifact() {
 
 function StyleArtifact() {
   return (
-    <div className="rounded-2xl bg-white/90 border border-[#1A1A1A]/10 p-5 space-y-4 shadow-sm">
+    <div className="rounded-2xl bg-white/90 border border-[#FFFFEB]/10 p-5 space-y-4 shadow-sm">
       <div className="flex flex-wrap gap-2">
         {["Hormozi Box", "Karaoke Fill", "Beast Bounce", "Emerald"].map((n, i) => (
           <span
             key={n}
             className={`rounded-full px-3.5 py-1 text-[11px] font-bold transition ${
-              i === 0 ? "bg-[#1A1A1A] text-[#FFFFEB]" : "bg-[#FFFFEB] border border-[#1A1A1A]/10 text-[#1A1A1A]/70"
+              i === 0 ? "bg-[#262622] text-[#FFFFEB]" : "bg-[#1E1E1B] border border-[#FFFFEB]/10 text-[#FFFFEB]/70"
             }`}
           >
             {n}
           </span>
         ))}
       </div>
-      <div className="relative h-20 rounded-xl bg-[#1A1A1A] overflow-hidden flex items-center justify-center">
+      <div className="relative h-20 rounded-xl bg-[#262622] overflow-hidden flex items-center justify-center">
         <div className="w-[68%] h-[56%] border-2 border-dashed border-[#FFA946] rounded-lg flex items-center justify-center bg-[#FFA946]/10">
           <span className="font-styled text-xs font-bold text-[#FFFFEB]">caption box · drag me</span>
         </div>
@@ -289,17 +289,17 @@ function StyleArtifact() {
 
 function RenderArtifact() {
   return (
-    <div className="rounded-2xl bg-white/90 border border-[#1A1A1A]/10 p-5 space-y-3.5 shadow-sm">
-      <div className="flex items-center justify-between font-mono text-[11px] text-[#1A1A1A]/60">
+    <div className="rounded-2xl bg-white/90 border border-[#FFFFEB]/10 p-5 space-y-3.5 shadow-sm">
+      <div className="flex items-center justify-between font-mono text-[11px] text-[#FFFFEB]/60">
         <span>remotion render · 1080×1920 · 60fps</span>
-        <span className="text-[#0F3D2E] font-semibold">100% ready</span>
+        <span className="text-[#34D399] font-semibold">100% ready</span>
       </div>
-      <div className="h-2 rounded-full bg-[#1A1A1A]/5 overflow-hidden">
+      <div className="h-2 rounded-full bg-[#FFFFEB]/5 overflow-hidden">
         <div className="h-full w-full rounded-full bg-[#34D399]" />
       </div>
       <div className="flex items-center justify-between pt-1">
-        <span className="font-styled text-xs font-bold text-[#1A1A1A]">Export burned-in MP4</span>
-        <span className="rounded-full bg-[#1A1A1A] text-[#FFFFEB] px-3.5 py-1 text-xs font-bold shadow-sm">
+        <span className="font-styled text-xs font-bold text-[#FFFFEB]">Export burned-in MP4</span>
+        <span className="rounded-full bg-[#FFFFEB] text-[#141412] px-3.5 py-1 text-xs font-bold shadow-sm">
           Download MP4
         </span>
       </div>
@@ -339,8 +339,8 @@ export function HowItWorks() {
     <section id="how" className="relative px-4 py-24 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
-          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#1A1A1A] sm:text-6xl">
-            From camera roll to <em className="font-normal italic text-[#0F3D2E]">captioned</em> in four moves.
+          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-6xl">
+            From camera roll to <em className="font-normal italic text-[#34D399]">captioned</em> in four moves.
           </h2>
         </div>
 
@@ -351,13 +351,13 @@ export function HowItWorks() {
                 <div className="lg:col-span-5 lg:pl-12 relative">
                   <span
                     aria-hidden
-                    className="hidden lg:grid place-items-center absolute left-0 top-1.5 w-8 h-8 rounded-full bg-[#1A1A1A] text-[#FFFFEB] font-styled font-bold text-xs shadow-sm ring-4 ring-[#FFFFEB]"
+                    className="hidden lg:grid place-items-center absolute left-0 top-1.5 w-8 h-8 rounded-full bg-[#FFFFEB] text-[#141412] font-styled font-bold text-xs shadow-sm ring-4 ring-[#141412]"
                   >
                     {s.n}
                   </span>
-                  <p className="font-styled italic text-[#0F3D2E] text-base">Step {s.n}</p>
-                  <h3 className="mt-1 font-styled text-2xl font-bold text-[#1A1A1A]">{s.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#1A1A1A]/70 max-w-md">{s.body}</p>
+                  <p className="font-styled italic text-[#34D399] text-base">Step {s.n}</p>
+                  <h3 className="mt-1 font-styled text-2xl font-bold text-[#FFFFEB]">{s.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#FFFFEB]/70 max-w-md">{s.body}</p>
                 </div>
                 <div className="lg:col-span-7">
                   {s.artifact}
@@ -375,17 +375,17 @@ export function HowItWorks() {
 
 function TimingArtifact() {
   return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#1A1A1A]/10 bg-[#1A1A1A]/5 overflow-hidden flex flex-col justify-end group-hover:bg-[#1A1A1A]/10 transition-colors">
+    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex flex-col justify-end group-hover:bg-[#FFFFEB]/10 transition-colors">
       <div className="absolute inset-0 flex items-center justify-center opacity-20">
          <div className="flex items-end gap-[2px] h-16">
             {[2, 4, 3, 6, 8, 5, 3, 2, 5, 9, 7, 4, 2, 5, 8, 6, 4, 3, 5, 7, 4, 2, 3, 5, 2].map((h, i) => (
-              <div key={i} className="w-1.5 bg-[#1A1A1A] rounded-t-full" style={{ height: `${h * 10}%` }} />
+              <div key={i} className="w-1.5 bg-[#FFFFEB] rounded-t-full" style={{ height: `${h * 10}%` }} />
             ))}
          </div>
       </div>
-      <div className="relative z-10 w-full h-10 border-t border-[#1A1A1A]/20 bg-white/50 backdrop-blur-sm flex items-center px-4">
+      <div className="relative z-10 w-full h-10 border-t border-[#FFFFEB]/20 bg-white/50 backdrop-blur-sm flex items-center px-4">
         <div className="h-full w-2/5 bg-[#FFA946]/30 border-x-2 border-[#FFA946] flex items-center justify-center cursor-ew-resize hover:bg-[#FFA946]/50 transition-colors">
-          <span className="text-[10px] sm:text-xs font-bold text-[#1A1A1A] select-none">SYL-LA-BLE</span>
+          <span className="text-[10px] sm:text-xs font-bold text-[#FFFFEB] select-none">SYL-LA-BLE</span>
         </div>
       </div>
     </div>
@@ -394,8 +394,8 @@ function TimingArtifact() {
 
 function EmotionArtifact() {
   return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#1A1A1A]/10 bg-[#1A1A1A]/5 overflow-hidden flex items-center justify-center group-hover:bg-[#1A1A1A]/10 transition-colors">
-      <div className="font-styled text-3xl font-black italic text-[#1A1A1A] origin-bottom transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
+    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex items-center justify-center group-hover:bg-[#FFFFEB]/10 transition-colors">
+      <div className="font-styled text-3xl font-black italic text-[#FFFFEB] origin-bottom transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
         SERIOUSLY.
       </div>
       <div className="absolute top-3 right-3 flex gap-1.5">
@@ -409,9 +409,9 @@ function EmotionArtifact() {
 
 function PopArtifact() {
   return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#1A1A1A]/10 bg-white/50 overflow-hidden flex items-center justify-center px-6">
-      <div className="text-base font-semibold text-[#1A1A1A]/60 text-center leading-relaxed">
-        The word that matters gets <span className="inline-block px-3 py-1 mt-1 rounded-lg bg-[#34D399] text-[#1A1A1A] font-bold text-lg shadow-sm rotate-[-2deg] scale-110 group-hover:rotate-2 group-hover:scale-125 transition-transform duration-300">its own box</span> automatically.
+    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-white/50 overflow-hidden flex items-center justify-center px-6">
+      <div className="text-base font-semibold text-[#FFFFEB]/60 text-center leading-relaxed">
+        The word that matters gets <span className="inline-block px-3 py-1 mt-1 rounded-lg bg-[#34D399] text-[#FFFFEB] font-bold text-lg shadow-sm rotate-[-2deg] scale-110 group-hover:rotate-2 group-hover:scale-125 transition-transform duration-300">its own box</span> automatically.
       </div>
     </div>
   );
@@ -419,20 +419,20 @@ function PopArtifact() {
 
 function PrivateArtifact() {
   return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#1A1A1A]/10 bg-[#1A1A1A]/5 overflow-hidden flex flex-col items-center justify-center gap-2 group-hover:bg-[#34D399]/15 transition-colors">
-      <div className="font-styled text-2xl font-bold text-[#1A1A1A] group-hover:scale-105 transition-transform">0 MB uploaded</div>
-      <span className="font-mono text-[10px] uppercase text-[#1A1A1A]/50 tracking-widest bg-white/60 px-2 py-0.5 rounded">Made on your device</span>
+    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex flex-col items-center justify-center gap-2 group-hover:bg-[#34D399]/15 transition-colors">
+      <div className="font-styled text-2xl font-bold text-[#FFFFEB] group-hover:scale-105 transition-transform">0 MB uploaded</div>
+      <span className="font-mono text-[10px] uppercase text-[#FFFFEB]/50 tracking-widest bg-white/60 px-2 py-0.5 rounded">Made on your device</span>
     </div>
   );
 }
 
 function ExportArtifact() {
   return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#1A1A1A]/10 bg-[#1A1A1A]/5 overflow-hidden flex items-center justify-center gap-3 px-2 group-hover:bg-[#1A1A1A]/10 transition-colors">
+    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex items-center justify-center gap-3 px-2 group-hover:bg-[#FFFFEB]/10 transition-colors">
        {['MP4', 'SRT'].map((ext, i) => (
-         <div key={ext} className="flex flex-col items-center justify-center w-14 h-16 bg-white rounded-xl shadow-sm border border-[#1A1A1A]/10 relative group-hover:-translate-y-3 transition-transform duration-300" style={{ transitionDelay: `${i * 75}ms` }}>
-            <div className="absolute top-0 right-0 w-4 h-4 bg-[#1A1A1A]/5 rounded-bl-xl" />
-            <span className="font-mono text-xs font-bold text-[#1A1A1A] mt-2">{ext}</span>
+         <div key={ext} className="flex flex-col items-center justify-center w-14 h-16 bg-white rounded-xl shadow-sm border border-[#FFFFEB]/10 relative group-hover:-translate-y-3 transition-transform duration-300" style={{ transitionDelay: `${i * 75}ms` }}>
+            <div className="absolute top-0 right-0 w-4 h-4 bg-[#FFFFEB]/5 rounded-bl-xl" />
+            <span className="font-mono text-xs font-bold text-[#FFFFEB] mt-2">{ext}</span>
          </div>
        ))}
     </div>
@@ -441,11 +441,11 @@ function ExportArtifact() {
 
 function LanguageArtifact() {
   return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#1A1A1A]/10 bg-[#1A1A1A]/5 overflow-hidden flex flex-col items-center justify-center group-hover:bg-[#F0D7FF]/30 transition-colors">
+    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex flex-col items-center justify-center group-hover:bg-[#252B26]/30 transition-colors">
        <div className="flex flex-col items-center space-y-1 group-hover:scale-105 transition-transform">
-         <span className="font-sans text-base text-[#1A1A1A]/50 line-through decoration-[#1A1A1A]/30">क्या हाल है?</span>
-         <span className="font-sans text-2xl font-bold text-[#1A1A1A]">Kya haal hai?</span>
-         <span className="font-mono text-[10px] uppercase text-[#1A1A1A]/40 tracking-widest mt-2 bg-white/50 px-2 py-0.5 rounded">Hinglish, as you type it</span>
+         <span className="font-sans text-base text-[#FFFFEB]/50 line-through decoration-[#FFFFEB]/30">क्या हाल है?</span>
+         <span className="font-sans text-2xl font-bold text-[#FFFFEB]">Kya haal hai?</span>
+         <span className="font-mono text-[10px] uppercase text-[#FFFFEB]/40 tracking-widest mt-2 bg-white/50 px-2 py-0.5 rounded">Hinglish, as you type it</span>
        </div>
     </div>
   );
@@ -453,17 +453,17 @@ function LanguageArtifact() {
 
 function BrandArtifact() {
   return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#1A1A1A]/10 bg-white/50 overflow-hidden flex items-center justify-center gap-5 group-hover:bg-white/80 transition-colors">
+    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-white/50 overflow-hidden flex items-center justify-center gap-5 group-hover:bg-white/80 transition-colors">
       <div className="flex flex-col gap-3">
         <div className="flex gap-1.5">
-           <div className="w-6 h-6 rounded-full bg-[#1A1A1A] shadow-sm hover:scale-110 transition-transform cursor-pointer" />
+           <div className="w-6 h-6 rounded-full bg-[#FFFFEB] shadow-sm hover:scale-110 transition-transform cursor-pointer" />
            <div className="w-6 h-6 rounded-full bg-[#FFA946] shadow-sm hover:scale-110 transition-transform cursor-pointer" />
            <div className="w-6 h-6 rounded-full bg-[#34D399] shadow-sm hover:scale-110 transition-transform cursor-pointer" />
         </div>
-        <div className="text-[11px] font-mono font-bold text-[#1A1A1A]/60 bg-[#1A1A1A]/5 px-2 py-0.5 rounded text-center">Inter · 800</div>
+        <div className="text-[11px] font-mono font-bold text-[#FFFFEB]/60 bg-[#FFFFEB]/5 px-2 py-0.5 rounded text-center">Inter · 800</div>
       </div>
-      <div className="h-12 w-px bg-[#1A1A1A]/10" />
-      <div className="font-sans font-black text-xl text-[#1A1A1A] italic group-hover:scale-105 transition-transform">
+      <div className="h-12 w-px bg-[#FFFFEB]/10" />
+      <div className="font-sans font-black text-xl text-[#FFFFEB] italic group-hover:scale-105 transition-transform">
         YOUR<br/><span className="text-[#FFA946]">LOOK.</span>
       </div>
     </div>
@@ -472,9 +472,9 @@ function BrandArtifact() {
 
 function UndoArtifact() {
   return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#1A1A1A]/10 bg-[#1A1A1A]/5 overflow-hidden flex items-center justify-center group-hover:bg-[#1A1A1A]/10 transition-colors">
-      <div className="w-16 h-16 rounded-full border-[3px] border-[#1A1A1A]/15 border-t-[#1A1A1A] flex items-center justify-center group-hover:-rotate-[360deg] transition-transform duration-700 ease-in-out">
-         <svg className="w-6 h-6 text-[#1A1A1A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex items-center justify-center group-hover:bg-[#FFFFEB]/10 transition-colors">
+      <div className="w-16 h-16 rounded-full border-[3px] border-[#FFFFEB]/15 border-t-[#FFFFEB] flex items-center justify-center group-hover:-rotate-[360deg] transition-transform duration-700 ease-in-out">
+         <svg className="w-6 h-6 text-[#FFFFEB]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
          </svg>
       </div>
@@ -498,7 +498,7 @@ export function Features() {
     <section id="features" className="px-4 py-24 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#1A1A1A] sm:text-6xl">
+          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-6xl">
             A caption studio, <em className="font-normal italic">not a subtitle box.</em>
           </h2>
         </div>
@@ -507,12 +507,12 @@ export function Features() {
             <article
               key={f.t}
               data-feature
-              className={`group relative overflow-hidden rounded-[2rem] border border-[#1A1A1A]/10 p-7 transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(26,26,26,0.6)] flex flex-col justify-between ${f.k === "wide" ? "lg:col-span-2" : ""} ${i === 0 ? "bg-[#1A1A1A] text-[#FFFFEB]" : i === 5 ? "bg-[#F0D7FF]" : "bg-white/70"}`}
+              className={`group relative overflow-hidden rounded-[2rem] border border-[#FFFFEB]/10 p-7 transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(0,0,0,0.6)] flex flex-col justify-between ${f.k === "wide" ? "lg:col-span-2" : ""} ${i === 0 ? "bg-[#262622] text-[#FFFFEB]" : i === 5 ? "bg-[#252B26]" : "bg-white/70"}`}
             >
               <div className="relative z-10">
-                <span className={`absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ${i % 3 === 0 ? "bg-[#FFA946]" : i % 3 === 1 ? "bg-[#34D399]" : "bg-[#1A1A1A]/30"}`} />
+                <span className={`absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ${i % 3 === 0 ? "bg-[#FFA946]" : i % 3 === 1 ? "bg-[#34D399]" : "bg-[#FFFFEB]/30"}`} />
                 <h3 className="font-styled text-2xl font-bold">{f.t}</h3>
-                <p className={`mt-2.5 text-sm sm:text-base leading-relaxed ${i === 0 ? "text-[#FFFFEB]/70" : "text-[#1A1A1A]/70"}`}>{f.d}</p>
+                <p className={`mt-2.5 text-sm sm:text-base leading-relaxed ${i === 0 ? "text-[#FFFFEB]/70" : "text-[#FFFFEB]/70"}`}>{f.d}</p>
               </div>
               
               {/* Feature Artifact */}
@@ -553,7 +553,7 @@ function BrowserCard() {
 export function Privacy() {
   return (
     <section id="privacy" className="px-4 pb-24 sm:pb-32">
-      <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] bg-[#1A1A1A] px-6 py-14 text-[#FFFFEB] sm:px-14 sm:py-20 shadow-2xl">
+      <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] border border-[#FFFFEB]/12 bg-[#1E1E1B] px-6 py-14 text-[#FFFFEB] sm:px-14 sm:py-20 shadow-2xl">
         <div aria-hidden className="absolute -bottom-24 -left-24 h-80 w-80 rounded-full bg-[#FFA946]/15 blur-3xl" />
         <div aria-hidden className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-[#34D399]/10 blur-3xl" />
         
@@ -587,19 +587,19 @@ export function Pricing() {
     <section id="pricing" className="px-4 pb-24 sm:pb-32">
       <div className="mx-auto max-w-5xl">
         <div data-reveal className="text-center">
-          <h2 className="font-styled text-4xl font-bold tracking-tight text-[#1A1A1A] sm:text-6xl">Free while you grow.</h2>
+          <h2 className="font-styled text-4xl font-bold tracking-tight text-[#FFFFEB] sm:text-6xl">Free while you grow.</h2>
         </div>
         <div className="mt-12 grid gap-5 md:grid-cols-2">
           {tiers.map((t) => (
-            <article key={t.name} data-tier className={`relative rounded-[2rem] border p-8 ${t.hi ? "border-[#1A1A1A] bg-[#0F3D2E] text-[#FFFFEB] shadow-[8px_8px_0_#1A1A1A]" : "border-[#1A1A1A]/15 bg-white/70"}`}>
+            <article key={t.name} data-tier className={`relative rounded-[2rem] border p-8 ${t.hi ? "border-[#FFFFEB] bg-[#0F3D2E] text-[#FFFFEB] shadow-[8px_8px_0_rgba(0,0,0,0.55)]" : "border-[#FFFFEB]/15 bg-white/70"}`}>
               <h3 className="font-styled text-2xl font-bold">{t.name}</h3>
-              <p className="mt-4 font-styled text-5xl font-bold">{t.price}<span className={`ml-2 text-base font-normal ${t.hi ? "text-[#FFFFEB]/60" : "text-[#1A1A1A]/50"}`}>{t.note}</span></p>
+              <p className="mt-4 font-styled text-5xl font-bold">{t.price}<span className={`ml-2 text-base font-normal ${t.hi ? "text-[#FFFFEB]/60" : "text-[#FFFFEB]/50"}`}>{t.note}</span></p>
               <ul className="mt-6 space-y-3">
                 {t.items.map((it) => (
-                  <li key={it} className="flex gap-3"><span className={t.hi ? "text-[#34D399]" : "text-[#0F3D2E]"}>✓</span><span className={t.hi ? "text-[#FFFFEB]/85" : "text-[#1A1A1A]/75"}>{it}</span></li>
+                  <li key={it} className="flex gap-3"><span className={t.hi ? "text-[#34D399]" : "text-[#34D399]"}>✓</span><span className={t.hi ? "text-[#FFFFEB]/85" : "text-[#FFFFEB]/75"}>{it}</span></li>
                 ))}
               </ul>
-              <Link href={t.href} className={`mt-8 inline-flex w-full justify-center rounded-2xl border px-5 py-3 font-bold transition hover:scale-[1.02] ${t.hi ? "border-[#FFFFEB] bg-[#FFFFEB] text-[#1A1A1A]" : "border-[#1A1A1A] bg-[#F0D7FF] text-[#1A1A1A]"}`}>{t.cta}</Link>
+              <Link href={t.href} className={`mt-8 inline-flex w-full justify-center rounded-2xl border px-5 py-3 font-bold transition hover:scale-[1.02] ${t.hi ? "border-[#FFFFEB] bg-[#1E1E1B] text-[#FFFFEB]" : "border-[#FFFFEB] bg-[#252B26] text-[#FFFFEB]"}`}>{t.cta}</Link>
             </article>
           ))}
         </div>
@@ -638,37 +638,37 @@ const CONTROLS = [
 
 export function Control() {
   return (
-    <section id="control" className="px-4 py-24 sm:py-32 border-t border-[#1A1A1A]/10">
+    <section id="control" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div data-reveal className="lg:col-span-4">
           <div className="lg:sticky lg:top-28">
-            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#1A1A1A] sm:text-5xl">
-              Automatic, <em className="font-normal italic text-[#0F3D2E]">until you disagree.</em>
+            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+              Automatic, <em className="font-normal italic text-[#34D399]">until you disagree.</em>
             </h2>
-            <p className="mt-4 text-sm leading-relaxed text-[#1A1A1A]/70 max-w-sm">
+            <p className="mt-4 text-sm leading-relaxed text-[#FFFFEB]/70 max-w-sm">
               AI creates the baseline in seconds. You keep frame-by-frame control over every word, break, position, and motion curve.
             </p>
           </div>
         </div>
 
         <div className="lg:col-span-8">
-          <div className="divide-y divide-[#1A1A1A]/10 border-t border-b border-[#1A1A1A]/10">
+          <div className="divide-y divide-[#FFFFEB]/10 border-t border-b border-[#FFFFEB]/10">
             {CONTROLS.map((c) => (
               <div
                 key={c.tag}
                 data-reveal
                 className="group grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-6 py-6 items-baseline transition-colors hover:bg-white/60 sm:px-4 sm:-mx-4 rounded-2xl"
               >
-                <span className="sm:col-span-3 font-mono text-xs uppercase tracking-wider text-[#0F3D2E] font-semibold">
-                  <span className="rounded-full bg-[#F0D7FF]/60 px-2.5 py-1 text-[11px] text-[#1A1A1A]">
+                <span className="sm:col-span-3 font-mono text-xs uppercase tracking-wider text-[#34D399] font-semibold">
+                  <span className="rounded-full bg-[#252B26]/60 px-2.5 py-1 text-[11px] text-[#FFFFEB]">
                     {c.tag}
                   </span>
                 </span>
                 <div className="sm:col-span-9">
-                  <h3 className="font-styled text-lg font-bold text-[#1A1A1A] group-hover:text-[#0F3D2E] transition-colors">
+                  <h3 className="font-styled text-lg font-bold text-[#FFFFEB] group-hover:text-[#34D399] transition-colors">
                     {c.title}
                   </h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[#1A1A1A]/70 max-w-[54ch]">
+                  <p className="mt-1.5 text-sm leading-relaxed text-[#FFFFEB]/70 max-w-[54ch]">
                     {c.body}
                   </p>
                 </div>
@@ -689,13 +689,13 @@ export function Faq() {
     <section id="faq" className="px-4 pb-24 sm:pb-32">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="text-center mb-12">
-          <h2 className="font-styled text-5xl sm:text-6xl font-normal italic text-[#1A1A1A]">
+          <h2 className="font-styled text-5xl sm:text-6xl font-normal italic text-[#FFFFEB]">
             Good questions.
           </h2>
         </div>
 
         {/* Outer Split Container Card */}
-        <div data-reveal className="bg-white/60 rounded-3xl p-5 sm:p-8 border border-[#1A1A1A]/10 shadow-[0_20px_50px_-35px_rgba(26,26,26,0.3)] backdrop-blur">
+        <div data-reveal className="bg-white/60 rounded-3xl p-5 sm:p-8 border border-[#FFFFEB]/10 shadow-[0_20px_50px_-35px_rgba(0,0,0,0.3)] backdrop-blur">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
             
             {/* Left Column: Questions List Card */}
@@ -736,27 +736,27 @@ export function Faq() {
             <div className="lg:col-span-6 flex flex-col justify-between p-2 sm:p-4">
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="font-mono text-xs uppercase tracking-wider text-[#0F3D2E] font-bold">
+                  <span className="font-mono text-xs uppercase tracking-wider text-[#34D399] font-bold">
                     Answer
                   </span>
-                  <span className="text-xs text-[#1A1A1A]/40 font-mono">
+                  <span className="text-xs text-[#FFFFEB]/40 font-mono">
                     Instant clarification
                   </span>
                 </div>
 
                 {/* Active Question Title Repeated */}
-                <h4 className="font-styled text-lg sm:text-xl font-bold text-[#1A1A1A] mb-4 leading-snug">
+                <h4 className="font-styled text-lg sm:text-xl font-bold text-[#FFFFEB] mb-4 leading-snug">
                   {FAQS[activeIdx].q}
                 </h4>
 
                 {/* Answer Bubble Card */}
-                <div className="bg-[#FFFFEB] p-6 sm:p-7 rounded-2xl border border-[#1A1A1A]/10 shadow-sm text-sm sm:text-base text-[#1A1A1A]/85 leading-relaxed">
+                <div className="bg-[#1E1E1B] p-6 sm:p-7 rounded-2xl border border-[#FFFFEB]/10 shadow-sm text-sm sm:text-base text-[#FFFFEB]/85 leading-relaxed">
                   {FAQS[activeIdx].a}
                 </div>
               </div>
 
               {/* Bottom Brand Mark Accent */}
-              <div className="mt-6 pt-4 border-t border-[#1A1A1A]/5 flex items-center justify-between text-xs text-[#1A1A1A]/50">
+              <div className="mt-6 pt-4 border-t border-[#FFFFEB]/5 flex items-center justify-between text-xs text-[#FFFFEB]/50">
                 <span className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-[#34D399]" />
                   {BRAND_NAME}
@@ -781,7 +781,7 @@ export function ClosingCta() {
         <p className="relative mx-auto mt-5 max-w-lg text-[#FFFFEB]/70 text-base sm:text-lg leading-relaxed">Your next video deserves captions people actually watch. Start free, in under a minute.</p>
         <div className="relative mt-9 inline-block">
           <div className="conic-glow-pill rounded-full p-[1px]">
-            <Link href="/start" className="flex items-center gap-2 rounded-full border border-[#1A1A1A]/30 bg-[#F0D7FF] px-8 py-4 text-base sm:text-lg font-bold text-[#1A1A1A] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            <Link href="/start" className="flex items-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-8 py-4 text-base sm:text-lg font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
               Create free captions <span aria-hidden>→</span>
             </Link>
           </div>
@@ -830,22 +830,22 @@ const FOOTER_COLUMNS = [
 
 export function Footer() {
   return (
-    <footer className="relative overflow-hidden border-t border-[#1A1A1A]/10 bg-[#FFFFEB] pt-20 pb-10 text-[#1A1A1A]">
+    <footer className="relative overflow-hidden border-t border-[#FFFFEB]/10 bg-[#1E1E1B] pt-20 pb-10 text-[#FFFFEB]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         
         {/* 4 Column Footer Links Grid */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4 lg:gap-16 pb-16">
           {FOOTER_COLUMNS.map((col) => (
             <div key={col.title} className="space-y-4">
-              <h4 className="font-mono text-xs font-bold uppercase tracking-widest text-[#1A1A1A]/50">
+              <h4 className="font-mono text-xs font-bold uppercase tracking-widest text-[#FFFFEB]/50">
                 {col.title}
               </h4>
-              <ul className="space-y-0.5 text-sm text-[#1A1A1A]/75 lg:space-y-2.5">
+              <ul className="space-y-0.5 text-sm text-[#FFFFEB]/75 lg:space-y-2.5">
                 {col.links.map((link) => (
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      className="inline-flex min-h-10 items-center transition-colors hover:text-[#0F3D2E] hover:underline underline-offset-4 lg:min-h-0"
+                      className="inline-flex min-h-10 items-center transition-colors hover:text-[#34D399] hover:underline underline-offset-4 lg:min-h-0"
                     >
                       {link.label}
                     </Link>
@@ -857,24 +857,24 @@ export function Footer() {
         </div>
 
         {/* Giant CaptionsEasy Bottom Logo matching Image 1 */}
-        <div className="pt-10 sm:pt-14 border-t border-[#1A1A1A]/10 flex items-center justify-between overflow-hidden select-none">
+        <div className="pt-10 sm:pt-14 border-t border-[#FFFFEB]/10 flex items-center justify-between overflow-hidden select-none">
           <Link href="/" className="group flex items-center gap-3 sm:gap-5 w-full">
             {/* Audio Wave Icon Bars with subtle rhythmic bounce */}
             <div className="flex items-center gap-1.5 sm:gap-2.5 h-12 sm:h-20 md:h-28 lg:h-36 shrink-0">
-              <span className="w-1.5 sm:w-3 lg:w-4 bg-[#1A1A1A] h-1/2 rounded-full animate-wave-bar-1 transition-transform group-hover:scale-y-110" />
+              <span className="w-1.5 sm:w-3 lg:w-4 bg-[#FFFFEB] h-1/2 rounded-full animate-wave-bar-1 transition-transform group-hover:scale-y-110" />
               <span className="w-1.5 sm:w-3 lg:w-4 bg-[#FFA946] h-full rounded-full animate-wave-bar-2 transition-transform group-hover:scale-y-105" />
               <span className="w-1.5 sm:w-3 lg:w-4 bg-[#34D399] h-4/5 rounded-full animate-wave-bar-3 transition-transform group-hover:scale-y-110" />
             </div>
 
             {/* Giant CaptionsEasy Typography */}
-            <span className="font-styled font-black text-4xl sm:text-7xl md:text-8xl lg:text-[130px] leading-none tracking-tighter text-[#1A1A1A] transition-transform duration-300 group-hover:translate-x-1">
-              {BRAND_WORDMARK_LEAD}<span className="font-serif font-normal italic text-[#1A1A1A]">{BRAND_WORDMARK_ACCENT}</span>
+            <span className="font-styled font-black text-4xl sm:text-7xl md:text-8xl lg:text-[130px] leading-none tracking-tighter text-[#FFFFEB] transition-transform duration-300 group-hover:translate-x-1">
+              {BRAND_WORDMARK_LEAD}<span className="font-serif font-normal italic text-[#FFFFEB]">{BRAND_WORDMARK_ACCENT}</span>
             </span>
           </Link>
         </div>
 
         {/* Bottom Legal Copyright */}
-        <div className="mt-8 pt-6 border-t border-[#1A1A1A]/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#1A1A1A]/60">
+        <div className="mt-8 pt-6 border-t border-[#FFFFEB]/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#FFFFEB]/60">
           <span>© {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.</span>
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#34D399] animate-pulse" />

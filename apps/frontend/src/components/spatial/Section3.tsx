@@ -39,24 +39,24 @@ export function Section3() {
 
       <div className="absolute left-[336px] top-[70px] w-[192px]">
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1A1A1A]/45">Cards</span>
-          <span className="font-mono text-[10px] text-[#1A1A1A]/40">{pages.length ? `${idx + 1} / ${pages.length}` : "…"}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/45">Cards</span>
+          <span className="font-mono text-[10px] text-[#FFFFEB]/40">{pages.length ? `${idx + 1} / ${pages.length}` : "…"}</span>
         </div>
-        <div className="relative h-[322px] overflow-hidden rounded-2xl border border-[#1A1A1A]/8 bg-white/85 [mask-image:linear-gradient(to_bottom,black_80%,transparent)]">
+        <div className="relative h-[322px] overflow-hidden rounded-2xl border border-[#FFFFEB]/8 bg-white/85 [mask-image:linear-gradient(to_bottom,black_80%,transparent)]">
           <div className="transition-transform duration-500 ease-out" style={{ transform: `translateY(${-shift}px)` }}>
             {pages.map((p, k) => {
               const on = k === idx;
               return (
-                <div key={p.id} className="flex items-center gap-2 px-3 transition-colors duration-200" style={{ height: ROW, background: on ? "rgba(255,169,70,0.16)" : undefined, borderBottom: "1px solid rgba(26,26,26,0.06)" }}>
-                  <span className="w-[36px] shrink-0 font-mono text-[9.5px] text-[#1A1A1A]/40">{fmt(p.startMs).slice(3)}</span>
+                <div key={p.id} className="flex items-center gap-2 px-3 transition-colors duration-200" style={{ height: ROW, background: on ? "rgba(255,169,70,0.16)" : undefined, borderBottom: "1px solid rgba(0,0,0,0.06)" }}>
+                  <span className="w-[36px] shrink-0 font-mono text-[9.5px] text-[#FFFFEB]/40">{fmt(p.startMs).slice(3)}</span>
                   <span className="flex min-w-0 flex-wrap items-center gap-1">
                     {p.words.map((w, j) =>
                       j === p.heroIndex ? (
-                        <span key={w.id} className="rounded-md px-1.5 py-0.5 text-[12px] font-bold uppercase text-[#1A1A1A]" style={{ background: on ? "#FFA946" : "rgba(255,169,70,0.35)" }}>
+                        <span key={w.id} className="rounded-md px-1.5 py-0.5 text-[12px] font-bold uppercase text-[#FFFFEB]" style={{ background: on ? "#FFA946" : "rgba(255,169,70,0.35)" }}>
                           {w.text.replace(/[.,!?]$/, "")}
                         </span>
                       ) : (
-                        <span key={w.id} className="text-[12px] text-[#1A1A1A]/60">
+                        <span key={w.id} className="text-[12px] text-[#FFFFEB]/60">
                           {w.text.replace(/[.,!?]$/, "")}
                         </span>
                       ),
@@ -75,7 +75,7 @@ export function Section3() {
         </div>
       </div>
 
-      <div className="absolute bottom-[46px] left-[36px] right-[34px] rounded-2xl bg-[#1A1A1A] px-4 py-3 text-[#FFFFEB]">
+      <div className="absolute bottom-[46px] left-[36px] right-[34px] rounded-2xl bg-[#262622] px-4 py-3 text-[#FFFFEB]">
         <div className="flex items-center justify-between">
           <span className="text-[13px]">
             <span className="text-[#FFFFEB]/55">This card&apos;s hero:</span>{" "}

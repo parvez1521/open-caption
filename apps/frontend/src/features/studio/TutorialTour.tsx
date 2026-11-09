@@ -82,7 +82,7 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   return (
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Studio tour">
       {/* dim + input shield: covers everything, swallows every click so the doc can't be edited mid-tour */}
-      <div className="absolute inset-0" style={{ background: rect ? "transparent" : "rgba(26,26,26,0.55)" }} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <div className="absolute inset-0" style={{ background: rect ? "transparent" : "rgba(0,0,0,0.55)" }} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         {rect ? (
           <div
             aria-hidden
@@ -92,7 +92,7 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
               left: rect.left - PAD,
               width: rect.width + PAD * 2,
               height: rect.height + PAD * 2,
-              boxShadow: "0 0 0 9999px rgba(26,26,26,0.55)",
+              boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
               border: "2px solid #34D399",
               pointerEvents: "none",
             }}
@@ -100,33 +100,33 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         ) : null}
       </div>
 
-      <div className="rounded-2xl border border-[#1A1A1A]/15 bg-[#FFFFEB] p-5 shadow-[0_18px_50px_-12px_rgba(26,26,26,0.45)]" style={cardStyle}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1A1A1A]/50">
+      <div className="rounded-2xl border border-[#FFFFEB]/15 bg-[#1E1E1B] p-5 shadow-[0_18px_50px_-12px_rgba(0,0,0,0.45)]" style={cardStyle}>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/50">
           Step {index + 1} of {total}
         </p>
-        <h2 className="mt-1.5 font-display text-lg font-bold text-[#1A1A1A]">{step.title}</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-[#1A1A1A]/70">{step.body}</p>
+        <h2 className="mt-1.5 font-display text-lg font-bold text-[#FFFFEB]">{step.title}</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-[#FFFFEB]/70">{step.body}</p>
         <div className="mt-3 flex items-center gap-1.5" aria-hidden>
           {TUTORIAL_STEPS.map((s, i) => (
-            <span key={s.id} className={`h-1.5 rounded-full transition-all ${i === index ? "w-5 bg-[#34D399]" : "w-1.5 bg-[#1A1A1A]/20"}`} />
+            <span key={s.id} className={`h-1.5 rounded-full transition-all ${i === index ? "w-5 bg-[#34D399]" : "w-1.5 bg-[#FFFFEB]/20"}`} />
           ))}
         </div>
         <div className="mt-4 flex items-center gap-2">
-          <button type="button" onClick={finish} className="rounded-full px-3 py-2 text-sm font-medium text-[#1A1A1A]/60 transition hover:text-[#1A1A1A]">
+          <button type="button" onClick={finish} className="rounded-full px-3 py-2 text-sm font-medium text-[#FFFFEB]/60 transition hover:text-[#FFFFEB]">
             Skip tour
           </button>
           <span className="flex-1" />
           {!isFirstStep(index) ? (
-            <button type="button" onClick={() => setIndex((i) => stepIndexAfter(i, -1))} className="rounded-full border border-[#1A1A1A]/20 bg-[#FFFFEB] px-4 py-2 text-sm font-semibold text-[#1A1A1A] transition hover:bg-[#E4E4D0]">
+            <button type="button" onClick={() => setIndex((i) => stepIndexAfter(i, -1))} className="rounded-full border border-[#FFFFEB]/20 bg-[#1E1E1B] px-4 py-2 text-sm font-semibold text-[#FFFFEB] transition hover:bg-[#262622]">
               Back
             </button>
           ) : null}
           {isLastStep(index) ? (
-            <button type="button" onClick={finish} className="rounded-full bg-[#1A1A1A] px-4 py-2 text-sm font-semibold text-[#FFFFEB] transition hover:bg-[#1A1A1A]/85">
+            <button type="button" onClick={finish} className="rounded-full bg-[#FFFFEB] px-4 py-2 text-sm font-semibold text-[#141412] transition hover:bg-[#FFFFEB]/85">
               Finish
             </button>
           ) : (
-            <button type="button" onClick={() => setIndex((i) => stepIndexAfter(i, 1))} className="rounded-full bg-[#1A1A1A] px-4 py-2 text-sm font-semibold text-[#FFFFEB] transition hover:bg-[#1A1A1A]/85">
+            <button type="button" onClick={() => setIndex((i) => stepIndexAfter(i, 1))} className="rounded-full bg-[#FFFFEB] px-4 py-2 text-sm font-semibold text-[#141412] transition hover:bg-[#FFFFEB]/85">
               Next
             </button>
           )}

@@ -29,7 +29,7 @@ export const ElementsPanel: React.FC<OverlayPanelProps> = ({ settings, patch, se
               className="flex flex-col items-center gap-1.5 rounded-xl border border-st-line bg-st-panel px-2 py-3 transition hover:bg-st-hover"
               aria-label={`Add ${s.label}`}
             >
-              <OverlayShapeSvg shape={s.id} color="#1A1A1A" size={36} />
+              <OverlayShapeSvg shape={s.id} color="#FFFFEB" size={36} />
               <span className="text-[11px] font-medium leading-tight text-st-text">{s.label}</span>
             </button>
           ))}

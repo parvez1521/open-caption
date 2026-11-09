@@ -80,7 +80,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
   return (
     <div className={`flex h-full w-full items-center justify-center ${compact ? "flex-col gap-2 px-3 pb-2 pt-3" : "p-3"}`}>
       <div className={compact ? "flex min-h-0 w-full flex-1 items-center justify-center" : "contents"}>
-      <div ref={boxRef} className="group relative overflow-hidden rounded-xl bg-obsidian shadow-[0_18px_40px_-18px_rgba(26,26,26,0.45)] ring-1 ring-st-ink/10" style={{ aspectRatio: `${width} / ${height}`, height: "100%", maxWidth: "100%" }}>
+      <div ref={boxRef} className="group relative overflow-hidden rounded-xl bg-[#0B0B0A] shadow-[0_18px_40px_-18px_rgba(0,0,0,0.45)] ring-1 ring-st-ink/10" style={{ aspectRatio: `${width} / ${height}`, height: "100%", maxWidth: "100%" }}>
         <Player
           ref={setRef}
           component={CaptionedVideo as unknown as React.ComponentType<Record<string, unknown>>}
@@ -104,7 +104,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
           title={compact ? "Drag up or down to move captions" : "Drag to move captions"}
           className={compact
             ? `absolute right-0 z-10 flex h-11 w-7 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-l-lg bg-st-panel/85 text-st-ink shadow-md ${dragging ? "cursor-grabbing bg-st-lav" : ""}`
-            : `absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 border-st-lav bg-transparent shadow-[0_0_0_3px_rgba(26,26,26,0.25)] transition ${dragging ? "scale-125 cursor-grabbing opacity-100" : "opacity-0 group-hover:opacity-90 focus:opacity-100"}`}
+            : `absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 border-st-lav bg-transparent shadow-[0_0_0_3px_rgba(0,0,0,0.25)] transition ${dragging ? "scale-125 cursor-grabbing opacity-100" : "opacity-0 group-hover:opacity-90 focus:opacity-100"}`}
           style={compact ? { top: `${position.y * 100}%` } : { left: `${position.x * 100}%`, top: `${position.y * 100}%` }}
           onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setDragging(true); }}
           onPointerMove={(e) => dragging && move(e)}

@@ -19,11 +19,11 @@ export const WordLevelTiming = () => {
 
   return (
     <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-      <div style={{ width: '85%', height: '6px', backgroundColor: 'rgba(26,26,26,0.1)', borderRadius: '3px', position: 'relative' }}>
+      <div style={{ width: '85%', height: '6px', backgroundColor: 'rgba(0,0,0,0.1)', borderRadius: '3px', position: 'relative' }}>
         {/* Timeline markers */}
-        <div style={{ position: 'absolute', left: '20%', top: '-4px', width: '2px', height: '14px', backgroundColor: 'rgba(26,26,26,0.2)' }} />
-        <div style={{ position: 'absolute', left: '50%', top: '-4px', width: '2px', height: '14px', backgroundColor: 'rgba(26,26,26,0.2)' }} />
-        <div style={{ position: 'absolute', left: '80%', top: '-4px', width: '2px', height: '14px', backgroundColor: 'rgba(26,26,26,0.2)' }} />
+        <div style={{ position: 'absolute', left: '20%', top: '-4px', width: '2px', height: '14px', backgroundColor: 'rgba(0,0,0,0.2)' }} />
+        <div style={{ position: 'absolute', left: '50%', top: '-4px', width: '2px', height: '14px', backgroundColor: 'rgba(0,0,0,0.2)' }} />
+        <div style={{ position: 'absolute', left: '80%', top: '-4px', width: '2px', height: '14px', backgroundColor: 'rgba(0,0,0,0.2)' }} />
         
         {/* Moving Word */}
         <div style={{ 
@@ -58,9 +58,9 @@ export const EmotionStyles = () => {
 
   return (
     <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center', flexDirection: 'row', gap: '24px' }}>
-        <div style={{ transform: `scale(${scale1}) rotate(${interpolate(scale1, [0, 1], [-20, 0])}deg)`, backgroundColor: '#fff', borderRadius: '16px', padding: '16px', fontSize: '32px', boxShadow: '0 8px 24px rgba(26,26,26,0.08)' }}>🤣</div>
-        <div style={{ transform: `scale(${scale2}) rotate(${interpolate(scale2, [0, 1], [20, 0])}deg)`, backgroundColor: '#fff', borderRadius: '16px', padding: '16px', fontSize: '42px', boxShadow: '0 12px 32px rgba(26,26,26,0.1)' }}>🔥</div>
-        <div style={{ transform: `scale(${scale3}) rotate(${interpolate(scale3, [0, 1], [-20, 0])}deg)`, backgroundColor: '#fff', borderRadius: '16px', padding: '16px', fontSize: '32px', boxShadow: '0 8px 24px rgba(26,26,26,0.08)' }}>🚀</div>
+        <div style={{ transform: `scale(${scale1}) rotate(${interpolate(scale1, [0, 1], [-20, 0])}deg)`, backgroundColor: '#fff', borderRadius: '16px', padding: '16px', fontSize: '32px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>🤣</div>
+        <div style={{ transform: `scale(${scale2}) rotate(${interpolate(scale2, [0, 1], [20, 0])}deg)`, backgroundColor: '#fff', borderRadius: '16px', padding: '16px', fontSize: '42px', boxShadow: '0 12px 32px rgba(0,0,0,0.1)' }}>🔥</div>
+        <div style={{ transform: `scale(${scale3}) rotate(${interpolate(scale3, [0, 1], [-20, 0])}deg)`, backgroundColor: '#fff', borderRadius: '16px', padding: '16px', fontSize: '32px', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>🚀</div>
     </AbsoluteFill>
   );
 };
@@ -73,11 +73,11 @@ export const KeywordPop = () => {
 
   return (
     <AbsoluteFill style={{ justifyContent: 'center', alignItems: 'center' }}>
-       <div style={{ display: 'flex', gap: '8px', fontSize: '28px', fontWeight: 'bold', fontFamily: 'sans-serif', color: 'rgba(26,26,26,0.8)' }}>
+       <div style={{ display: 'flex', gap: '8px', fontSize: '28px', fontWeight: 'bold', fontFamily: 'sans-serif', color: 'rgba(0,0,0,0.8)' }}>
           <span>Watch</span>
           <span>this</span>
           <span style={{ 
-            color: highlight > 0.5 ? '#fff' : 'rgba(26,26,26,0.8)',
+            color: highlight > 0.5 ? '#fff' : 'rgba(0,0,0,0.8)',
             backgroundColor: highlight > 0.5 ? '#34D399' : 'transparent',
             padding: '2px 12px',
             borderRadius: '12px',
@@ -102,7 +102,7 @@ export const ProResTransparency = () => {
       {/* Moving Checkerboard Background representing transparency */}
       <div style={{
          position: 'absolute', inset: -40,
-         backgroundImage: 'repeating-linear-gradient(45deg, rgba(26,26,26,0.03) 25%, transparent 25%, transparent 75%, rgba(26,26,26,0.03) 75%, rgba(26,26,26,0.03)), repeating-linear-gradient(45deg, rgba(26,26,26,0.03) 25%, #ffffff 25%, #ffffff 75%, rgba(26,26,26,0.03) 75%, rgba(26,26,26,0.03))',
+         backgroundImage: 'repeating-linear-gradient(45deg, rgba(0,0,0,0.03) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03)), repeating-linear-gradient(45deg, rgba(0,0,0,0.03) 25%, #ffffff 25%, #ffffff 75%, rgba(0,0,0,0.03) 75%, rgba(0,0,0,0.03))',
          backgroundPosition: `0 ${gridY}px, 10px ${10 + gridY}px`,
          backgroundSize: '20px 20px',
       }} />

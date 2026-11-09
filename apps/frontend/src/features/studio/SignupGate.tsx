@@ -41,7 +41,7 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
   // this branch can never flip between renders of a mounted gate.)
   if (!isSupabaseConfigured()) {
     return (
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-obsidian/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
         <div role="dialog" aria-label="No account needed" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
           <h2 className="text-lg font-semibold">No account needed to export</h2>
           <p className="mt-1 text-sm text-st-muted">Accounts are coming soon — no sign-up needed to make captions. Your export is made right in your browser.</p>
@@ -56,7 +56,7 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-obsidian/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div role="dialog" aria-label="Create your free account" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
         <h2 className="text-lg font-semibold">Create a free account to export</h2>
         <p className="mt-1 text-sm text-st-muted">One tap with Google. Everything you&apos;ve made stays exactly as it is.</p>

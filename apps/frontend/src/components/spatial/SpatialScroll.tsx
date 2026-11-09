@@ -17,7 +17,7 @@ const MIDS = [1, 2, 3].map((k) => HOLD * k + MOVE * (k - 0.5));
 function ShowcaseHeading({ className = "" }: { className?: string }) {
   return (
     <div className={`pointer-events-none text-center ${className}`}>
-      <h2 className="text-[30px] font-bold leading-[1.05] tracking-[-0.03em] text-[#1A1A1A] sm:text-[40px]">
+      <h2 className="text-[30px] font-bold leading-[1.05] tracking-[-0.03em] text-[#FFFFEB] sm:text-[40px]">
         Four reasons it feels <em className="font-accent font-normal">effortless.</em>
       </h2>
     </div>
@@ -93,7 +93,7 @@ export function SpatialScroll() {
     // The key matters: without it React reuses this div when the layout switches to mobile and tries to remove
     // the (moved) section from it -> "removeChild: the node to be removed is not a child of this node".
     <div key="desktop" className="mb-24 sm:mb-36">
-      <section ref={wrapperRef} className="relative w-screen h-screen overflow-hidden bg-[#FFFFEB]">
+      <section ref={wrapperRef} className="relative w-screen h-screen overflow-hidden bg-[#1E1E1B]">
         <ShowcaseHeading className="absolute inset-x-0 top-[3.5vh] z-40" />
 
         <div ref={canvasRef} className="absolute top-0 left-0 w-[200vw] h-[200vh] flex flex-wrap will-change-transform">

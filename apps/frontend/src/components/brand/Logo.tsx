@@ -12,7 +12,7 @@ import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/br
  */
 export function Logo({
   variant = "full",
-  tone = "dark",
+  tone = "light",
   height = 28,
   className = "",
 }: {

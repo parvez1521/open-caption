@@ -133,11 +133,11 @@ export default function LoginPage() {
       disabled={loading}
       className={`w-full rounded-xl py-3 px-3 font-semibold text-[14px] transition duration-150 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2.5 ${
         mode === "google"
-          ? "bg-neutral-900 text-white hover:bg-neutral-800 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]"
-          : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50/90 hover:border-neutral-300 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+          ? "bg-[#FFFFEB] text-[#141412] hover:bg-[#E4E4D6] shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]"
+          : "border border-sand-200 bg-[#1E1E1B] text-sand-700 hover:bg-[#232320] hover:border-sand-300 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
       }`}
     >
-      <span className={mode === "google" ? "rounded-full bg-white p-1" : ""}>
+      <span className={mode === "google" ? "rounded-full bg-[#FFFFEB] p-1" : ""}>
         <GoogleIcon />
       </span>
       <span className="truncate">Continue with Google</span>
@@ -152,16 +152,16 @@ export default function LoginPage() {
     return (
       <AuthShell
         title={`Sign in to ${BRAND_NAME}`}
-        subtitle={<p className="text-[13.5px] text-neutral-600">Accounts are coming soon — no sign-up needed to make captions.</p>}
+        subtitle={<p className="text-[13.5px] text-sand-600">Accounts are coming soon — no sign-up needed to make captions.</p>}
       >
         <div className="space-y-4">
           <Link
             href="/start"
-            className="block w-full rounded-xl bg-neutral-900 py-3 px-3 text-center font-semibold text-[14px] text-white shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)] transition duration-150 hover:bg-neutral-800"
+            className="block w-full rounded-xl bg-[#FFFFEB] py-3 px-3 text-center font-semibold text-[14px] text-[#141412] shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)] transition duration-150 hover:bg-[#E4E4D6]"
           >
             Continue as guest
           </Link>
-          <p className="text-center text-[12px] text-neutral-500">
+          <p className="text-center text-[12px] text-sand-500">
             Free. No card. By continuing you agree to the{" "}
             <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
           </p>
@@ -174,19 +174,19 @@ export default function LoginPage() {
     return (
       <AuthShell
         title={`Sign in to ${BRAND_NAME}`}
-        subtitle={<p className="text-[13.5px] text-neutral-600">New here? Continue with Google and your free account is ready in one tap.</p>}
+        subtitle={<p className="text-[13.5px] text-sand-600">New here? Continue with Google and your free account is ready in one tap.</p>}
       >
         <div className="space-y-4">
           {error && <ErrorNote>{error}</ErrorNote>}
           {googleButton}
-          <p className="text-center text-[12px] text-neutral-500">
+          <p className="text-center text-[12px] text-sand-500">
             Free. No card. By continuing you agree to the{" "}
             <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
           </p>
           <button
             type="button"
             onClick={() => switchTo("email")}
-            className="w-full text-center text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition cursor-pointer py-1"
+            className="w-full text-center text-[13px] font-medium text-sand-500 hover:text-[#FFFFEB] transition cursor-pointer py-1"
           >
             Already have an email account? Sign in with email
           </button>
@@ -198,7 +198,7 @@ export default function LoginPage() {
   return (
     <AuthShell
       title="Sign in with email"
-      subtitle={<p className="text-[13.5px] text-neutral-600">For accounts made with an email and password.</p>}
+      subtitle={<p className="text-[13.5px] text-sand-600">For accounts made with an email and password.</p>}
     >
       <div className="space-y-4">
         {error && <ErrorNote>{error}</ErrorNote>}
@@ -230,7 +230,7 @@ export default function LoginPage() {
           <div className="flex justify-end pt-0.5 pb-1">
             <Link
               href="/forgot-password"
-              className="text-[13px] font-medium text-blue-600 hover:text-blue-700 hover:underline transition"
+              className="text-[13px] font-medium text-emerald-accent hover:text-emerald-accent hover:underline transition"
             >
               Forgot password?
             </Link>
@@ -242,8 +242,8 @@ export default function LoginPage() {
         </form>
 
         <div className="relative py-2 flex items-center justify-center">
-          <div className="w-full border-t border-neutral-200" />
-          <span className="absolute bg-white px-3 text-[12px] font-medium text-neutral-400 lowercase">or</span>
+          <div className="w-full border-t border-sand-200" />
+          <span className="absolute bg-major px-3 text-[12px] font-medium text-sand-500 lowercase">or</span>
         </div>
 
         {googleButton}
@@ -251,7 +251,7 @@ export default function LoginPage() {
         <button
           type="button"
           onClick={() => switchTo("google")}
-          className="w-full text-center text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition cursor-pointer py-1"
+          className="w-full text-center text-[13px] font-medium text-sand-500 hover:text-[#FFFFEB] transition cursor-pointer py-1"
         >
           New to {BRAND_NAME}? Create your account with Google
         </button>

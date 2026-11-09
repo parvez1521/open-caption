@@ -133,7 +133,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
             checked={allSelected}
             onChange={() => (allSelected ? onClearCardSelection() : onSelectAllCards())}
             aria-label="Select all caption lines"
-            className="h-4 w-4 shrink-0 cursor-pointer accent-[#1A1A1A]"
+            className="h-4 w-4 shrink-0 cursor-pointer accent-[#34D399]"
           />
           <span className="text-xs font-medium text-st-muted">
             {selectedPages.length > 0 ? `${selectedPages.length} selected` : "Select lines to adjust them together"}
@@ -158,7 +158,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                   checked={selectedCards.has(page.id)}
                   onChange={() => onToggleCard(page.id)}
                   aria-label={`Select caption line at ${fmtTime(page.startMs)}`}
-                  className="h-4 w-4 shrink-0 cursor-pointer accent-[#1A1A1A]"
+                  className="h-4 w-4 shrink-0 cursor-pointer accent-[#34D399]"
                 />
                 <button onClick={() => onSeek(page.startMs)} className="-my-1 py-1 pr-2 font-mono text-[11px] text-st-faint hover:text-st-text">{fmtTime(page.startMs)}</button>
               </span>
@@ -169,7 +169,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                   key={w.id}
                   onClick={() => { onSelect(w.id); onSeek(w.startMs + 1); }}
                   className={`rounded-md px-2 py-1.5 text-sm transition lg:px-1.5 lg:py-0.5 ${
-                    w.id === selectedId ? "bg-st-ink text-st-panel" : page.id === currentPageId && timeMs >= w.startMs && timeMs < w.endMs ? "bg-st-or text-st-ink" : matchIds.has(w.id) ? "bg-st-or/40 text-st-text" : "bg-st-raised text-st-text hover:bg-st-hover"
+                    w.id === selectedId ? "bg-st-ink text-st-panel" : page.id === currentPageId && timeMs >= w.startMs && timeMs < w.endMs ? "bg-st-or text-[#141412]" : matchIds.has(w.id) ? "bg-st-or/40 text-st-text" : "bg-st-raised text-st-text hover:bg-st-hover"
                   } ${i === page.heroIndex ? "font-bold underline decoration-st-or decoration-2 underline-offset-2" : ""} ${lowConfidence(w.confidence) ? "border-b border-dashed border-st-or" : ""}`}
                   title={lowConfidence(w.confidence) ? "Low confidence: worth double-checking" : undefined}
                 >
@@ -197,7 +197,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
       </div>
 
       {selectedPages.length > 0 ? (
-        <div className="sticky bottom-0 space-y-2 border-t border-st-line bg-st-panel p-3 shadow-[0_-8px_20px_-14px_rgba(26,26,26,0.4)]" role="group" aria-label="Selected lines actions">
+        <div className="sticky bottom-0 space-y-2 border-t border-st-line bg-st-panel p-3 shadow-[0_-8px_20px_-14px_rgba(0,0,0,0.4)]" role="group" aria-label="Selected lines actions">
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold text-st-text">{selectedPages.length} selected · {selectedWordIds.length} word{selectedWordIds.length === 1 ? "" : "s"}</p>
             <button onClick={onClearCardSelection} className="text-xs font-medium text-st-muted hover:text-st-text">Clear selection</button>

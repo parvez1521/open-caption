@@ -97,27 +97,27 @@ export default function StartPage() {
   }, [router]);
 
   return (
-    <div className="grid min-h-[100svh] place-items-center bg-[#FFFFEB] px-6 text-center">
+    <div className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center">
       {notConfigured ? (
         <div className="flex max-w-sm flex-col items-center gap-4">
           <LogoWave height={40} />
-          <p className="text-[15px] font-semibold text-[#1A1A1A]">Accounts are coming soon — no sign-up needed to make captions.</p>
-          <p className="text-[13px] font-medium text-[#1A1A1A]/70">We&apos;re finishing the studio setup. Check back shortly — your clips and captions will be made right in your browser, free.</p>
-          <a href="/" className="mt-2 rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-semibold text-[#FFFFEB]">
+          <p className="text-[15px] font-semibold text-[#FFFFEB]">Accounts are coming soon — no sign-up needed to make captions.</p>
+          <p className="text-[13px] font-medium text-[#FFFFEB]/70">We&apos;re finishing the studio setup. Check back shortly — your clips and captions will be made right in your browser, free.</p>
+          <a href="/" className="mt-2 rounded-full bg-[#FFFFEB] px-5 py-2.5 text-sm font-semibold text-[#141412]">
             Back to home
           </a>
         </div>
       ) : failed ? (
         <div>
-          <p className="text-[15px] font-semibold text-[#1A1A1A]">We couldn&apos;t open your studio.</p>
-          <button onClick={() => router.replace("/dashboard")} className="mt-4 rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-semibold text-[#FFFFEB]">
+          <p className="text-[15px] font-semibold text-[#FFFFEB]">We couldn&apos;t open your studio.</p>
+          <button onClick={() => router.replace("/dashboard")} className="mt-4 rounded-full bg-[#FFFFEB] px-5 py-2.5 text-sm font-semibold text-[#141412]">
             Go to your dashboard
           </button>
         </div>
       ) : (
         <div className="flex flex-col items-center gap-4">
           <LogoWave height={40} />
-          <p className="text-[13px] font-semibold text-[#1A1A1A]/70">Opening your studio…</p>
+          <p className="text-[13px] font-semibold text-[#FFFFEB]/70">Opening your studio…</p>
         </div>
       )}
     </div>

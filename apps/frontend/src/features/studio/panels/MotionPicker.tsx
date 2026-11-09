@@ -70,7 +70,7 @@ export const MotionPicker: React.FC<Props> = ({ label, kind, value, groups, onCh
       </div>
       {open && typeof document !== "undefined"
         ? createPortal(
-            <div className="fixed inset-0 z-50 flex items-end justify-center bg-obsidian/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setOpen(false)}>
+            <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setOpen(false)}>
               <div role="dialog" aria-label={label} onClick={(e) => e.stopPropagation()} className="flex max-h-[88dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl">
                 <div className="flex items-center justify-between border-b border-st-line px-5 py-4">
                   <h2 className="text-lg font-semibold">{label}</h2>

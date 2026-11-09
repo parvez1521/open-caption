@@ -133,7 +133,7 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
   if (phase === "connected" && connected) {
     return (
       <div className="flex items-center gap-2.5 rounded-xl bg-st-em/15 px-3 py-2.5 text-sm text-st-text">
-        <span className="grid h-6 w-6 place-items-center rounded-full bg-st-em text-xs font-bold text-obsidian">✓</span>
+        <span className="grid h-6 w-6 place-items-center rounded-full bg-st-em text-xs font-bold text-[#141412]">✓</span>
         <span>
           <b>{connected.name}</b> is connected. Exports and transcriptions now run on it automatically.
         </span>
@@ -180,7 +180,7 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
             <li className="flex gap-2.5"><Step n={2} /> <span>Paste this line and press Enter:</span></li>
           </ol>
           <div className="mt-2 flex items-stretch gap-2">
-            <code className="min-w-0 flex-1 select-all overflow-x-auto whitespace-nowrap rounded-lg bg-obsidian px-3 py-2 font-mono text-xs text-major">{command}</code>
+            <code className="min-w-0 flex-1 select-all overflow-x-auto whitespace-nowrap rounded-lg bg-[#0B0B0A] px-3 py-2 font-mono text-xs text-[#FFFFEB]">{command}</code>
             <button onClick={() => void copy()} className="shrink-0 rounded-lg bg-st-lav px-3 text-xs font-semibold text-obsidian">{copied ? "Copied" : "Copy"}</button>
           </div>
           <Waiting />

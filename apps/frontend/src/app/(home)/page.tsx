@@ -9,7 +9,7 @@ import { ClosingCta, Control, Faq, Features, Footer, Hero, HowItWorks, Nav, Pric
 
 const SpatialScroll = dynamic(
   () => import("@/components/spatial/SpatialScroll").then((m) => m.SpatialScroll),
-  { ssr: false, loading: () => <div className="h-screen w-full bg-[#FFFFEB]" /> }
+  { ssr: false, loading: () => <div className="h-screen w-full bg-[#141412]" /> }
 );
 
 export default function LandingPage() {
@@ -77,7 +77,7 @@ export default function LandingPage() {
   }, [ready]);
 
   return (
-    <main ref={root} className="relative min-h-screen overflow-x-clip bg-[#FFFFEB] font-sans text-[#1A1A1A]">
+    <main ref={root} className="relative min-h-screen overflow-x-clip bg-[#141412] font-sans text-[#FFFFEB]">
       <Loader onDone={onLoaderDone} />
       <Nav />
       <Hero />
@@ -87,7 +87,7 @@ export default function LandingPage() {
       {/* the heavy showcase (live players) mounts after the intro, so the intro and hero entrance get the main thread */}
       {/* the #looks anchor lives outside the late-mounting showcase, so nav and footer links always land */}
       <div id="looks" className="scroll-mt-20">
-        {ready ? <SpatialScroll /> : <div className="h-screen w-full bg-[#FFFFEB]" />}
+        {ready ? <SpatialScroll /> : <div className="h-screen w-full bg-[#141412]" />}
       </div>
       <Privacy />
       {/* <Pricing /> */}

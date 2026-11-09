@@ -1,60 +1,67 @@
 @import "tailwindcss";
 
 @theme {
-  /* Exact User Color System */
-  --color-major: #FFFFEB;
+  /* DARK Color System (owner 2026-11-09: full dark site).
+     Surfaces are warm-neutral near-blacks; cream #FFFFEB is now the primary TEXT colour.
+     Emerald #34D399 and orange #FFA946 stay the brand accents. Lavender survives only as a
+     small accent token (--color-side / selection), never as a large surface: studio selection
+     surfaces use the dark tinted --color-st-lav scale instead. */
+  --color-major: #141412;
   --color-side: #F0D7FF;
   --color-emerald-accent: #34D399;
   --color-orange-accent: #FFA946;
-  --color-obsidian: #1A1A1A;
-  --color-muted-beige: #E4E4D0;
+  --color-obsidian: #FFFFEB;
+  --color-muted-beige: #262622;
 
-  /* Legacy compatibility aliases for workspace dashboard */
-  --color-bg-dark: #1A1A1A;
-  --color-bg-panel: #FFFFEB;
-  --color-bg-panel-light: #F0D7FF;
-  --color-border-grey: #E4E4D0;
-  --color-text-grey: #1A1A1A;
+  /* Legacy compatibility aliases for workspace dashboard (inverted pairs:
+     ink/obsidian are now the light foreground, dune-white/major the dark page background,
+     so existing bg-ink text-dune-white style pairings keep AA contrast). */
+  --color-bg-dark: #0E0E0D;
+  --color-bg-panel: #1C1C1A;
+  --color-bg-panel-light: #262622;
+  --color-border-grey: #2E2E2A;
+  --color-text-grey: #D8D8CC;
   --color-brand-orange: #FFA946;
-  --color-dune-white: #FFFFEB;
-  --color-ink: #1A1A1A;
+  --color-dune-white: #141412;
+  --color-ink: #FFFFEB;
 
-  /* Everything below is derived ONLY from the six colours above: cream, lavender, emerald, orange,
-     obsidian, beige (and mixes of cream/beige with obsidian). Pure white is remapped to cream so
-     stray `bg-white` / `text-white` classes stay on-palette. */
-  --color-white: #FFFFEB;
+  /* Pure white is remapped to the elevated dark surface so stray `bg-white` classes
+     (dashboard cards, modals, inputs) land on-palette in the dark theme, while
+     `text-white` spots that sit on coloured/dark buttons are fixed per-component. */
+  --color-white: #1E1E1B;
 
-  /* Warm neutral scale (cream -> beige -> obsidian), used by dashboard, settings, auth, pair pages */
-  --color-sand-50: #FFFFEB;
-  --color-sand-100: #F4F4E0;
-  --color-sand-200: #E4E4D0;
-  --color-sand-300: #D2D2BF;
-  --color-sand-400: #A9A99C;
-  --color-sand-500: #8C8C83;
-  --color-sand-600: #6E6E67;
-  --color-sand-700: #4C4C47;
-  --color-sand-800: #33332F;
-  --color-sand-900: #1A1A1A;
+  /* Warm neutral scale INVERTED (dark -> light), used by dashboard, settings, auth, pair pages.
+     sand-50/100 are backgrounds, sand-200/300 borders, sand-500+ are text steps on dark. */
+  --color-sand-50: #141412;
+  --color-sand-100: #1C1C1A;
+  --color-sand-200: #2A2A27;
+  --color-sand-300: #3A3A35;
+  --color-sand-400: #8A8A82;
+  --color-sand-500: #9A9A90;
+  --color-sand-600: #B0B0A6;
+  --color-sand-700: #C9C9BE;
+  --color-sand-800: #E4E4D6;
+  --color-sand-900: #FFFFEB;
 
-  /* Studio (editor) palette: LIGHT. Cream panels on a beige-tinted stage, obsidian type, lavender selection,
-     orange for "now" (the spoken word / live caption), emerald for on / success. */
-  --color-st-bg: #F4F4E0;
-  --color-st-panel: #FFFFEB;
-  --color-st-raised: #F4F4E0;
-  --color-st-hover: #E4E4D0;
-  --color-st-line: #E4E4D0;
-  --color-st-text: #1A1A1A;
-  --color-st-muted: #5F5F59;
-  --color-st-faint: #8C8C83;
-  --color-st-lav: #F0D7FF;
-  --color-st-lav-strong: #E3CCF1;
+  /* Studio (editor) palette: DARK. Near-black stage, elevated panels, cream type,
+     dark-tinted selection surface, orange for "now", emerald for on / success. */
+  --color-st-bg: #131311;
+  --color-st-panel: #1C1C1A;
+  --color-st-raised: #232320;
+  --color-st-hover: #2A2A26;
+  --color-st-line: #2E2E2A;
+  --color-st-text: #FFFFEB;
+  --color-st-muted: #B4B4AA;
+  --color-st-faint: #8F8F86;
+  --color-st-lav: #252B26;
+  --color-st-lav-strong: #333D34;
   --color-st-em: #34D399;
   --color-st-or: #FFA946;
-  --color-st-ink: #1A1A1A;
+  --color-st-ink: #FFFFEB;
 
   /* Elevation + motion tokens used across dashboard/auth/landing */
-  --shadow-sand-soft: 0 1px 2px rgba(31, 31, 26, 0.04), 0 8px 24px -12px rgba(31, 31, 26, 0.18);
-  --shadow-sand-deep: 0 2px 4px rgba(31, 31, 26, 0.06), 0 24px 64px -24px rgba(31, 31, 26, 0.35);
+  --shadow-sand-soft: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px -12px rgba(0, 0, 0, 0.55);
+  --shadow-sand-deep: 0 2px 4px rgba(0, 0, 0, 0.4), 0 24px 64px -24px rgba(0, 0, 0, 0.7);
   --animate-fade-in-up: fade-in-up 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-subtle-float: subtle-float 6s ease-in-out infinite;
   --animate-caption-pop: caption-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
@@ -70,19 +77,19 @@
 }
 
 :root {
-  --background: #FFFFEB;
-  --foreground: #1A1A1A;
+  --background: #141412;
+  --foreground: #FFFFEB;
 }
 
 html {
   scroll-behavior: smooth;
-  background-color: #FFFFEB;
-  color: #1A1A1A;
+  background-color: #141412;
+  color: #FFFFEB;
 }
 
 body {
-  background-color: #FFFFEB;
-  color: #1A1A1A;
+  background-color: #141412;
+  color: #FFFFEB;
   font-family: var(--font-normal-sys), sans-serif;
   overflow-x: hidden;
 }
@@ -140,7 +147,7 @@ em,
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: conic-gradient(from var(--angle), #FFA946, #34D399, #F0D7FF, #1A1A1A, #FFA946);
+  background: conic-gradient(from var(--angle), #FFA946, #34D399, #F0D7FF, #FFFFEB, #FFA946);
   animation: rotate-conic 3s linear infinite;
   z-index: -1;
 }
@@ -169,7 +176,7 @@ em,
 }
 
 .gradient-text-sweep {
-  background: linear-gradient(90deg, #1A1A1A, #FFA946, #34D399, #1A1A1A);
+  background: linear-gradient(90deg, #FFFFEB, #FFA946, #34D399, #FFFFEB);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -216,12 +223,12 @@ html.lenis, html.lenis body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #FFFFEB;
+  background: #141412;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #F0D7FF;
-  border: 2px solid #1A1A1A;
+  background: #3A3A35;
+  border: 2px solid #141412;
   border-radius: 6px;
 }
 
@@ -233,7 +240,7 @@ html.lenis, html.lenis body {
 @keyframes subtle-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 @keyframes caption-pop { 0% { opacity: 0; transform: scale(0.85); } 100% { opacity: 1; transform: scale(1); } }
 
-/* ---------- Studio (light editor) ---------- */
+/* ---------- Studio (dark editor) ---------- */
 .studio {
   background: var(--color-st-bg);
   color: var(--color-st-text);
@@ -241,8 +248,8 @@ html.lenis, html.lenis body {
 }
 .studio ::-webkit-scrollbar { width: 8px; height: 8px; }
 .studio ::-webkit-scrollbar-track { background: transparent; }
-.studio ::-webkit-scrollbar-thumb { background: #E4E4D0; border: 2px solid var(--color-st-panel); border-radius: 8px; }
-.studio ::-webkit-scrollbar-thumb:hover { background: #D2D2BF; }
+.studio ::-webkit-scrollbar-thumb { background: #3A3A35; border: 2px solid var(--color-st-panel); border-radius: 8px; }
+.studio ::-webkit-scrollbar-thumb:hover { background: #4C4C47; }
 .studio input[type="range"] { accent-color: var(--color-st-em); }
 .studio select option { background: var(--color-st-panel); color: var(--color-st-text); }
 .studio .font-display { font-family: var(--font-normal-sys), sans-serif; letter-spacing: -0.01em; }
@@ -292,7 +299,7 @@ html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused 
 @keyframes ce-skel { from { background-position: -320px 0; } to { background-position: 320px 0; } }
 .skel {
   background-color: var(--color-sand-100);
-  background-image: linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.75) 160px, transparent 320px);
+  background-image: linear-gradient(90deg, transparent 0, rgba(255, 255, 235, 0.09) 160px, transparent 320px);
   background-size: 640px 100%;
   background-repeat: no-repeat;
   animation: ce-skel 1.3s linear infinite;

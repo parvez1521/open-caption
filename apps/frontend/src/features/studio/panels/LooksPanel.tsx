@@ -126,7 +126,7 @@ export const LooksPanel: React.FC<Props> =({ currentLookId, onChoose, currentSty
               key={look.id}
               onClick={() => onChoose(look)}
               aria-pressed={chosen}
-              className={`group block w-full overflow-hidden rounded-2xl border bg-st-panel text-left transition ${chosen ? "border-st-ink shadow-[0_0_0_3px_var(--color-st-lav)]" : "border-st-line hover:border-st-ink/30 hover:shadow-[0_8px_20px_-14px_rgba(26,26,26,0.5)]"}`}
+              className={`group block w-full overflow-hidden rounded-2xl border bg-st-panel text-left transition ${chosen ? "border-st-ink shadow-[0_0_0_3px_var(--color-st-lav)]" : "border-st-line hover:border-st-ink/30 hover:shadow-[0_8px_20px_-14px_rgba(0,0,0,0.5)]"}`}
             >
               <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
                 <span className="truncate text-sm font-bold text-st-text">
@@ -136,7 +136,7 @@ export const LooksPanel: React.FC<Props> =({ currentLookId, onChoose, currentSty
                 {look.category === "My templates" ? (
                   <span role="button" aria-label={`Delete ${look.name}`} onClick={(e) => { e.stopPropagation(); removeLook(look); }} className="rounded px-1 text-xs text-st-faint hover:bg-st-or/30 hover:text-st-text">✕</span>
                 ) : chosen ? (
-                  <span className="rounded-full bg-st-em px-2 py-0.5 text-[10px] font-semibold text-st-ink">In use</span>
+                  <span className="rounded-full bg-st-em px-2 py-0.5 text-[10px] font-semibold text-[#141412]">In use</span>
                 ) : null}
               </div>
               <AnimatedTemplatePreview look={look} poster={<TemplatePoster look={look} />} />

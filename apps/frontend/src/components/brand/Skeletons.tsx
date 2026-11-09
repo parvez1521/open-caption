@@ -83,8 +83,8 @@ export function StudioSkeleton({ label = "Opening your project" }: { label?: str
 
         {/* preview */}
         <section className="grid min-h-[260px] shrink-0 place-items-center border-b border-st-line bg-st-bg p-3 max-lg:h-[44dvh] lg:min-h-0" aria-hidden>
-          <div className="relative grid h-full max-h-full place-items-center overflow-hidden rounded-xl bg-obsidian/90 shadow-[0_18px_40px_-18px_rgba(26,26,26,0.45)]" style={{ aspectRatio: "9 / 16", maxWidth: "100%" }}>
-            <div className="skel absolute inset-0 !bg-obsidian/10 opacity-30" />
+          <div className="relative grid h-full max-h-full place-items-center overflow-hidden rounded-xl bg-[#0B0B0A] shadow-[0_18px_40px_-18px_rgba(0,0,0,0.45)]" style={{ aspectRatio: "9 / 16", maxWidth: "100%" }}>
+            <div className="skel absolute inset-0 !bg-[#FFFFEB]/10 opacity-30" />
             <LogoWave height={44} tone="light" className="relative" />
           </div>
         </section>

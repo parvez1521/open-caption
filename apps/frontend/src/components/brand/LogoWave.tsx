@@ -11,7 +11,7 @@ const BARS = [
 ] as const;
 
 /** tone="light" turns the dark bar cream, for use on dark backgrounds. */
-export function LogoWave({ height = 40, className = "", tone = "dark" }: { height?: number; className?: string; tone?: "dark" | "light" }) {
+export function LogoWave({ height = 40, className = "", tone = "light" }: { height?: number; className?: string; tone?: "dark" | "light" }) {
   const w = Math.max(4, Math.round(height * 0.19));
   return (
     <span className={`ce-wave ${className}`} style={{ height, gap: Math.max(3, Math.round(height * 0.12)) }} role="presentation" aria-hidden>

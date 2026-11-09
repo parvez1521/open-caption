@@ -327,7 +327,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
                   onClick={(e) => { e.stopPropagation(); onSelect(b.firstId); onSeek(live.s + 1); }}
                   onDoubleClick={(e) => { e.stopPropagation(); if (mode === "word") setRenaming(b.firstId); }}
                   title={`${b.text}  ${fmtTime(live.s)} – ${fmtTime(live.e)}${mode === "word" ? "  (double-click to edit)" : ""}`}
-                  className={`absolute top-1 bottom-1 cursor-grab overflow-hidden rounded-md border text-[11px] leading-tight text-st-ink ${b.selected ? "border-st-ink bg-st-lav ring-2 ring-st-ink/20" : b.live ? "border-st-ink/30 bg-st-or" : mode === "line" ? "border-st-ink/15 bg-st-hover hover:bg-st-lav/60" : "border-st-ink/10 bg-st-lav/60 hover:bg-st-lav"}`}
+                  className={`absolute top-1 bottom-1 cursor-grab overflow-hidden rounded-md border text-[11px] leading-tight ${b.selected ? "border-st-ink bg-st-lav text-[#FFFFEB] ring-2 ring-st-ink/20" : b.live ? "border-st-ink/30 bg-st-or text-[#141412]" : mode === "line" ? "border-st-ink/15 bg-st-hover text-[#FFFFEB] hover:bg-st-lav/60" : "border-st-ink/10 bg-st-lav/60 text-[#FFFFEB] hover:bg-st-lav"}`}
                   style={{ left: x(live.s), width: wpx }}
                 >
                   {renaming === b.firstId ? (
@@ -360,14 +360,14 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
 
           {/* video */}
           <div className={`${trackRow} cursor-ew-resize`} {...scrub}>
-            <div className="absolute inset-y-1 left-0 flex overflow-hidden rounded-md bg-obsidian ring-1 ring-st-ink/20" style={{ width: x(total) }}>
+            <div className="absolute inset-y-1 left-0 flex overflow-hidden rounded-md bg-[#0B0B0A] ring-1 ring-st-ink/20" style={{ width: x(total) }}>
               {Array.from({ length: tiles }, (_, i) => {
                 const at = ((i + 0.5) * tileW) / pxPerMs;
                 const f = frames.reduce((a, b) => (Math.abs(b.ms - at) < Math.abs(a.ms - at) ? b : a), frames[0]!);
                 // eslint-disable-next-line @next/next/no-img-element
                 return <img key={i} src={f.src} alt="" draggable={false} className="h-full shrink-0 border-r border-obsidian/60 object-cover" style={{ width: tileW }} />;
               })}
-              <span className="absolute left-1.5 top-1 rounded bg-obsidian/70 px-1.5 text-[10px] leading-4 text-st-panel">{frames.length ? "Video" : "Video (loading frames)"}</span>
+              <span className="absolute left-1.5 top-1 rounded bg-black/70 px-1.5 text-[10px] leading-4 text-[#FFFFEB]">{frames.length ? "Video" : "Video (loading frames)"}</span>
             </div>
           </div>
 
@@ -397,7 +397,7 @@ const Waveform: React.FC<{ peaks: Float32Array | null; width: number }> = ({ pea
     c.height = h;
     const g = c.getContext("2d")!;
     g.clearRect(0, 0, w, h);
-    g.fillStyle = "rgba(26,26,26,0.5)";
+    g.fillStyle = "rgba(0,0,0,0.5)";
     const per = peaks.length / w;
     for (let px = 0; px < w; px++) {
       let m = 0;

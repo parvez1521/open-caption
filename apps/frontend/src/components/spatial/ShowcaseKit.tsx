@@ -16,7 +16,7 @@ import { useIsMobile } from "./useIsMobile";
  * packages/compositions/scripts/hero-clips.ts --data).
  * ─────────────────────────────────────────────────────────────── */
 
-export const INK = "#1A1A1A";
+export const INK = "#FFFFEB";
 export const CREAM = "#FFFFEB";
 export const FPS = 30;
 /** clips are cut to the corridor card shape */
@@ -156,7 +156,7 @@ export function Frame({ children, width, className = "", tilt = 0 }: { children:
   return (
     <div
       className={`relative overflow-hidden rounded-[22px] bg-[#0d0d0d] ${className}`}
-      style={{ width, height: Math.round((width * CLIP_H) / CLIP_W), boxShadow: "0 0 0 6px #1A1A1A, 0 0 0 7px rgba(255,255,255,0.12), 0 30px 60px -18px rgba(26,26,26,0.55)", transform: tilt ? `rotate(${tilt}deg)` : undefined }}
+      style={{ width, height: Math.round((width * CLIP_H) / CLIP_W), boxShadow: "0 0 0 6px #000000, 0 0 0 7px rgba(255,255,255,0.12), 0 30px 60px -18px rgba(0,0,0,0.55)", transform: tilt ? `rotate(${tilt}deg)` : undefined }}
     >
       {children}
     </div>
@@ -194,11 +194,11 @@ const rise = (d: number) => ({
 function Eyebrow({ index, eyebrow, accent }: Pick<ShowcaseProps, "index" | "eyebrow" | "accent">) {
   return (
     <motion.div {...rise(0.05)} className="flex items-center gap-3">
-      <span className="flex h-8 items-center gap-2 rounded-full border border-[#1A1A1A]/10 bg-white/70 px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#1A1A1A]/70">
+      <span className="flex h-8 items-center gap-2 rounded-full border border-[#FFFFEB]/10 bg-white/70 px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/70">
         <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
         {eyebrow}
       </span>
-      <span className="font-mono text-[12px] text-[#1A1A1A]/35">{String(index).padStart(2, "0")} / 04</span>
+      <span className="font-mono text-[12px] text-[#FFFFEB]/35">{String(index).padStart(2, "0")} / 04</span>
     </motion.div>
   );
 }
@@ -226,8 +226,8 @@ function Points({ points, accent, className = "" }: Pick<ShowcaseProps, "points"
               <path d="M2 5.2 4.1 7.3 8 2.8" fill="none" stroke={accent} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "brightness(0.75)" }} />
             </svg>
           </span>
-          <span className="text-[15px] leading-[1.45] text-[#1A1A1A]/72">
-            <b className="font-semibold text-[#1A1A1A]">{p.k}</b> {p.v}
+          <span className="text-[15px] leading-[1.45] text-[#FFFFEB]/72">
+            <b className="font-semibold text-[#FFFFEB]">{p.k}</b> {p.v}
           </span>
         </motion.li>
       ))}
@@ -258,8 +258,8 @@ export function ShowcaseCard({ index, eyebrow, accent, wash, title, titleAccent,
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  const shell = "relative overflow-hidden font-sans text-[#1A1A1A]";
-  const shellStyle = { background: CREAM, boxShadow: "0 0 0 1px rgba(26,26,26,0.07), 0 40px 80px -30px rgba(26,26,26,0.28)" };
+  const shell = "relative overflow-hidden font-sans text-[#FFFFEB]";
+  const shellStyle = { background: CREAM, boxShadow: "0 0 0 1px rgba(0,0,0,0.07), 0 40px 80px -30px rgba(0,0,0,0.28)" };
   const glow = (
     <>
       <div aria-hidden className="absolute inset-0" style={{ background: wash }} />
@@ -272,13 +272,13 @@ export function ShowcaseCard({ index, eyebrow, accent, wash, title, titleAccent,
     const cw = Math.min(vw - 24, 520);
     const z = cw / DEMO_W;
     return (
-      <section className="flex min-h-[100svh] w-screen items-center justify-center bg-[#FFFFEB] py-6">
+      <section className="flex min-h-[100svh] w-screen items-center justify-center bg-[#1E1E1B] py-6">
         <div className={shell} style={{ ...shellStyle, width: cw, borderRadius: 28 }}>
           {glow}
           <div className="relative z-10 px-5 pt-6">
             <Eyebrow index={index} eyebrow={eyebrow} accent={accent} />
             <Title title={title} titleAccent={titleAccent} accent={accent} className="mt-4 text-[34px] leading-[1.04]" />
-            <motion.p {...rise(0.2)} className="mt-3 text-[15px] leading-[1.55] text-[#1A1A1A]/68">
+            <motion.p {...rise(0.2)} className="mt-3 text-[15px] leading-[1.55] text-[#FFFFEB]/68">
               {body}
             </motion.p>
           </div>
@@ -296,7 +296,7 @@ export function ShowcaseCard({ index, eyebrow, accent, wash, title, titleAccent,
       <div className="absolute left-[60px] top-[64px] z-10 flex w-[392px] flex-col">
         <Eyebrow index={index} eyebrow={eyebrow} accent={accent} />
         <Title title={title} titleAccent={titleAccent} accent={accent} className="mt-6 text-[52px] leading-[1.02]" />
-        <motion.p {...rise(0.2)} className="mt-5 text-[17px] leading-[1.6] text-[#1A1A1A]/68">
+        <motion.p {...rise(0.2)} className="mt-5 text-[17px] leading-[1.6] text-[#FFFFEB]/68">
           {body}
         </motion.p>
         <Points points={points} accent={accent} className="mt-7" />
@@ -308,7 +308,7 @@ export function ShowcaseCard({ index, eyebrow, accent, wash, title, titleAccent,
   return (
     <section
       style={{ width: "100vw", height: isMobile ? "auto" : "100vh", display: "flex", alignItems: "center", justifyContent: "center", paddingTop: isMobile ? 0 : HEADER - 24 }}
-      className={isMobile ? "min-h-[100svh] overflow-hidden bg-[#FFFFEB]" : ""}
+      className={isMobile ? "min-h-[100svh] overflow-hidden bg-[#1E1E1B]" : ""}
     >
       {/* zoom, not transform: scale. It scales layout too, so the Players measure the size they are drawn at
           (a transform makes their size observer and their layout disagree, and they re-measure forever) */}
@@ -320,7 +320,7 @@ export function ShowcaseCard({ index, eyebrow, accent, wash, title, titleAccent,
 /** Small frosted label used across the demos. */
 export function Tag({ children, dark = false, className = "" }: { children: React.ReactNode; dark?: boolean; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10.5px] font-medium tracking-wide ${dark ? "bg-[#1A1A1A] text-[#FFFFEB]" : "border border-[#1A1A1A]/10 bg-white/80 text-[#1A1A1A]/70 backdrop-blur"} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10.5px] font-medium tracking-wide ${dark ? "bg-[#262622] text-[#FFFFEB]" : "border border-[#FFFFEB]/10 bg-white/80 text-[#FFFFEB]/70 backdrop-blur"} ${className}`}>
       {children}
     </span>
   );

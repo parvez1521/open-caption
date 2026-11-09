@@ -18,7 +18,7 @@ export function LegalNav() {
               <Link
                 href={p.href}
                 aria-current={on ? "page" : undefined}
-                className={`block whitespace-nowrap rounded-full border px-3 py-2 text-sm transition lg:rounded-lg lg:border-0 lg:px-3 lg:py-2 ${on ? "border-obsidian bg-obsidian text-major lg:bg-side lg:text-obsidian" : "border-obsidian/15 text-obsidian/70 hover:bg-muted-beige/60 hover:text-obsidian"}`}
+                className={`block whitespace-nowrap rounded-full border px-3 py-2 text-sm transition lg:rounded-lg lg:border-0 lg:px-3 lg:py-2 ${on ? "border-obsidian bg-obsidian text-major lg:bg-emerald-accent lg:text-[#141412]" : "border-obsidian/15 text-obsidian/70 hover:bg-muted-beige/60 hover:text-obsidian"}`}
               >
                 {p.title}
               </Link>

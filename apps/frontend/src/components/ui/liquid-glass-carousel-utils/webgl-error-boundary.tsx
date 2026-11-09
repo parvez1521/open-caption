@@ -15,7 +15,7 @@ export function WebGLFallback({
   return (
     <div
       className={cn(
-        "flex h-full w-full items-center justify-center rounded-2xl bg-stone-100 p-6 text-center text-sm font-medium text-stone-600 dark:bg-stone-900 dark:text-stone-400",
+        "flex h-full w-full items-center justify-center rounded-2xl bg-[#1E1E1B] p-6 text-center text-sm font-medium text-sand-600",
         className
       )}
     >

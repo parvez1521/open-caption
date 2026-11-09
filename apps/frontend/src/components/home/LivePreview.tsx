@@ -96,7 +96,7 @@ export function CyclingPreview({ lookIds, intervalMs = 4600, className = "" }: {
   return (
     <div className={`relative ${className}`}>
       <LivePreview key={id} lookId={id} playWhenVisible={false} backdrop={i} className="h-full w-full" text="Don't edit your captions just upload the video" />
-      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-[11px] font-semibold text-white/90 backdrop-blur">
+      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-[11px] font-semibold text-[#FFFFEB]/90 backdrop-blur">
         {getLook(id)?.name}
       </div>
     </div>

@@ -18,19 +18,19 @@ export function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="block text-[13px] font-medium text-neutral-800">
+      <label className="block text-[13px] font-medium text-sand-700">
         {label}
       </label>
       <input
         {...props}
-        className={`w-full rounded-xl border bg-white px-4 py-3 text-[14px] text-neutral-900 placeholder:text-neutral-400 outline-none transition-all duration-150 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 ${
-          error ? "border-red-500 bg-red-50/20" : "border-neutral-200 hover:border-neutral-300"
+        className={`w-full rounded-xl border bg-[#232320] px-4 py-3 text-[14px] text-[#FFFFEB] placeholder:text-sand-500 outline-none transition-all duration-150 focus:border-emerald-accent focus:ring-1 focus:ring-emerald-accent ${
+          error ? "border-red-500 bg-red-500/10" : "border-sand-200 hover:border-sand-300"
         }`}
       />
       {error ? (
-        <p className="text-[12px] text-red-600 font-medium">{error}</p>
+        <p className="text-[12px] text-red-400 font-medium">{error}</p>
       ) : hint ? (
-        <p className="text-[12px] text-neutral-500">{hint}</p>
+        <p className="text-[12px] text-sand-500">{hint}</p>
       ) : null}
     </div>
   );
@@ -49,22 +49,22 @@ export function PasswordField({
   const [visible, setVisible] = useState(false);
   return (
     <div className="space-y-1.5">
-      <label className="block text-[13px] font-medium text-neutral-800">
+      <label className="block text-[13px] font-medium text-sand-700">
         {label}
       </label>
       <div className="relative">
         <input
           {...props}
           type={visible ? "text" : "password"}
-          className={`w-full rounded-xl border bg-white px-4 py-3 pr-12 text-[14px] text-neutral-900 placeholder:text-neutral-400 outline-none transition-all duration-150 focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 ${
-            error ? "border-red-500 bg-red-50/20" : "border-neutral-200 hover:border-neutral-300"
+          className={`w-full rounded-xl border bg-[#232320] px-4 py-3 pr-12 text-[14px] text-[#FFFFEB] placeholder:text-sand-500 outline-none transition-all duration-150 focus:border-emerald-accent focus:ring-1 focus:ring-emerald-accent ${
+            error ? "border-red-500 bg-red-500/10" : "border-sand-200 hover:border-sand-300"
           }`}
         />
         <button
           type="button"
           tabIndex={-1}
           onClick={() => setVisible((v) => !v)}
-          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-neutral-400 hover:text-neutral-700 transition cursor-pointer"
+          className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-sand-500 hover:text-sand-800 transition cursor-pointer"
           aria-label={visible ? "Hide password" : "Show password"}
         >
           {visible ? (
@@ -95,9 +95,9 @@ export function PasswordField({
         </button>
       </div>
       {error ? (
-        <p className="text-[12px] text-red-600 font-medium">{error}</p>
+        <p className="text-[12px] text-red-400 font-medium">{error}</p>
       ) : hint ? (
-        <p className="text-[12px] text-neutral-500">{hint}</p>
+        <p className="text-[12px] text-sand-500">{hint}</p>
       ) : null}
     </div>
   );
@@ -113,10 +113,10 @@ export function SubmitButton({
       type="submit"
       disabled={loading || props.disabled}
       {...props}
-      className="w-full rounded-xl bg-black py-3.5 font-medium text-[14px] text-white transition-all duration-150 hover:bg-neutral-800 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+      className="w-full rounded-xl bg-[#FFFFEB] py-3.5 font-medium text-[14px] text-[#141412] transition-all duration-150 hover:bg-[#E4E4D6] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
     >
       {loading && (
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#141412]/30 border-t-[#141412]" />
       )}
       {children}
     </button>
@@ -127,7 +127,7 @@ export function ErrorNote({ children }: { children: React.ReactNode }) {
   return (
     <div
       role="alert"
-      className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 text-[13px] leading-relaxed text-red-700 font-medium"
+      className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] leading-relaxed text-red-300 font-medium"
     >
       {children}
     </div>
@@ -164,7 +164,7 @@ export default function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-white flex flex-col lg:flex-row font-sans selection:bg-blue-100 selection:text-blue-900">
+    <div className="min-h-screen w-full bg-major flex flex-col lg:flex-row font-sans selection:bg-emerald-accent selection:text-[#141412]">
       {/* Left visual hero section */}
       <div className="relative w-full lg:w-1/2 min-h-[300px] lg:min-h-screen bg-neutral-950 overflow-hidden select-none">
         <Image
@@ -183,7 +183,7 @@ export default function AuthShell({
         <Link
           href="/"
           aria-label="Back to home"
-          className="absolute top-6 left-6 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-white flex items-center justify-center transition duration-200 border border-white/20 shadow-lg group"
+          className="absolute top-6 left-6 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-[#FFFFEB] flex items-center justify-center transition duration-200 border border-[#FFFFEB]/20 shadow-lg group"
         >
           <svg
             className="w-4 h-4 transform group-hover:-translate-x-0.5 transition-transform"
@@ -200,15 +200,15 @@ export default function AuthShell({
       </div>
 
       {/* Right form section */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center px-6 sm:px-12 lg:px-16 py-10 lg:py-12 bg-white">
+      <div className="w-full lg:w-1/2 flex flex-col justify-center items-center px-6 sm:px-12 lg:px-16 py-10 lg:py-12 bg-major">
         <div className="w-full max-w-[420px] mx-auto flex flex-col">
           {/* Header */}
           <div className="mb-7">
-            <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-neutral-900 leading-tight">
+            <h1 className="text-[28px] sm:text-[32px] font-bold tracking-tight text-[#FFFFEB] leading-tight">
               {title}
             </h1>
             {subtitle && (
-              <div className="mt-1.5 text-[14px] text-neutral-600">
+              <div className="mt-1.5 text-[14px] text-sand-600">
                 {subtitle}
               </div>
             )}

@@ -58,8 +58,8 @@ export function Section2() {
 
       <div className="absolute left-[340px] top-[70px] w-[188px]">
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#1A1A1A]/45">Pick a look</span>
-          <span className="font-mono text-[10px] text-[#1A1A1A]/40">{pinned ? "picked" : "auto"}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/45">Pick a look</span>
+          <span className="font-mono text-[10px] text-[#FFFFEB]/40">{pinned ? "picked" : "auto"}</span>
         </div>
         <div className="flex flex-col gap-2">
           {DEMO_LOOKS.map((id, k) => {
@@ -75,14 +75,14 @@ export function Section2() {
                 }}
                 className="group relative flex items-center justify-between overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-[border-color,box-shadow,background-color] duration-200"
                 style={{
-                  background: on ? "#1A1A1A" : "rgba(255,255,235,0.85)",
-                  borderColor: on ? "#1A1A1A" : "rgba(26,26,26,0.1)",
-                  boxShadow: on ? "0 14px 30px -14px rgba(26,26,26,0.6)" : undefined,
+                  background: on ? "#262622" : "rgba(255,255,235,0.05)",
+                  borderColor: on ? "rgba(255,255,235,0.45)" : "rgba(255,255,235,0.1)",
+                  boxShadow: on ? "0 14px 30px -14px rgba(0,0,0,0.6)" : undefined,
                 }}
               >
                 <span className="min-w-0">
-                  <span className={`block truncate text-[13px] font-semibold ${on ? "text-[#FFFFEB]" : "text-[#1A1A1A]"}`}>{look.name}</span>
-                  <span className={`block truncate text-[10.5px] ${on ? "text-[#FFFFEB]/55" : "text-[#1A1A1A]/45"}`}>{look.tags?.join(" · ") ?? look.category}</span>
+                  <span className={`block truncate text-[13px] font-semibold ${on ? "text-[#FFFFEB]" : "text-[#FFFFEB]"}`}>{look.name}</span>
+                  <span className={`block truncate text-[10.5px] ${on ? "text-[#FFFFEB]/55" : "text-[#FFFFEB]/45"}`}>{look.tags?.join(" · ") ?? look.category}</span>
                 </span>
                 {on && !pinned ? (
                   <motion.span key={`bar-${i}`} className="absolute bottom-0 left-0 h-[2px] bg-[#C084FC]" initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 3.4, ease: "linear" }} />
@@ -93,16 +93,16 @@ export function Section2() {
         </div>
       </div>
 
-      <div className="absolute bottom-[46px] left-[36px] right-[34px] flex items-center justify-between rounded-2xl border border-[#1A1A1A]/8 bg-white/80 px-4 py-3 backdrop-blur">
+      <div className="absolute bottom-[46px] left-[36px] right-[34px] flex items-center justify-between rounded-2xl border border-[#FFFFEB]/8 bg-white/80 px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="flex -space-x-1.5">
-            {["#FFA946", "#34D399", "#C084FC", "#1A1A1A"].map((c) => (
+            {["#FFA946", "#34D399", "#C084FC", "#FFFFEB"].map((c) => (
               <span key={c} className="h-5 w-5 rounded-full border-2 border-[#FFFFEB]" style={{ background: c }} />
             ))}
           </div>
-          <span className="text-[13px] text-[#1A1A1A]/70">Same transcript, same timing, new style.</span>
+          <span className="text-[13px] text-[#FFFFEB]/70">Same transcript, same timing, new style.</span>
         </div>
-        <span className="font-mono text-[11px] text-[#1A1A1A]/45">live render</span>
+        <span className="font-mono text-[11px] text-[#FFFFEB]/45">live render</span>
       </div>
     </ShowcaseCard>
   );
