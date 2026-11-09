@@ -1,5 +1,7 @@
 "use client";
 
+// Slice 1 (2026-11-09): first-run coach-mark tour — see tutorial.ts for the steps and seen-flag helpers.
+
 import React, { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { TUTORIAL_STEPS, isFirstStep, isLastStep, markTutorialSeen, stepIndexAfter } from "./tutorial";
 
