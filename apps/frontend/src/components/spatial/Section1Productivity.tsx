@@ -89,9 +89,9 @@ export function Section1Productivity() {
                 style={{
                   left: `calc(${(w.startMs / dur) * 100}% + 1px)`,
                   width: `calc(${((w.endMs - w.startMs) / dur) * 100}% - 2px)`,
-                  background: on ? EMERALD : past ? "rgba(0,0,0,0.07)" : "#FFFFEB",
-                  borderColor: on ? "#10B981" : "rgba(0,0,0,0.12)",
-                  color: on ? "#06281C" : "rgba(0,0,0,0.7)",
+                  background: on ? EMERALD : past ? "rgba(255,255,235,0.10)" : "#FFFFEB",
+                  borderColor: on ? "#10B981" : "rgba(255,255,235,0.14)",
+                  color: on ? "#06281C" : "rgba(255,255,235,0.75)",
                   boxShadow: on ? "0 6px 16px -6px rgba(16,185,129,0.8)" : undefined,
                 }}
               >

@@ -31,7 +31,7 @@ function GitHubMark({ className = "h-4 w-4" }: { className?: string }) {
 const warmModel = () => void import("@/features/transcribe/runtime").then((m) => m.prefetchWhenIdle());
 
 export function Logo({ light = false }: { light?: boolean }) {
-  return <BrandLogo tone={light ? "light" : "dark"} height={28} />;
+  return <BrandLogo tone="light" height={28} />;
 }
 
 const NAV_LINKS = [
@@ -198,7 +198,7 @@ export function Hero() {
           loop
           className="mx-auto w-full"
         />
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#FFFFEB]" />
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#141412]" />
       </div>
       <div className="mx-auto flex w-full max-w-6xl justify-end px-5 pb-3">
         <a href="/credits" className="inline-flex min-h-8 items-center text-[11px] text-[#FFFFEB]/40 hover:text-[#FFFFEB]/75">
