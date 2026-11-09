@@ -14,6 +14,8 @@ const DB = "captionseasy-videos";
 const VIDEOS = "videos";
 const COMPAT = "compat";
 const PROGRESS = "progress";
+/** the studio media bin's store (features/studio/mediaStore.ts) — same database, shared version */
+const ASSETS = "assets";
 
 interface Entry { id: string; file: Blob; name: string; size: number; savedAt: number }
 
@@ -28,10 +30,10 @@ export interface TranscriptProgress {
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 2);
+    const req = indexedDB.open(DB, 3);
     req.onupgradeneeded = () => {
       const db = req.result;
-      for (const name of [VIDEOS, COMPAT, PROGRESS]) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
+      for (const name of [VIDEOS, COMPAT, PROGRESS, ASSETS]) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error ?? new Error("This browser can't store videos (private mode?)."));
