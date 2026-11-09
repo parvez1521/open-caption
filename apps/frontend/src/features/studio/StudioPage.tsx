@@ -24,6 +24,10 @@ const ExportModal = dynamic(() => import("./ExportModal").then((m) => m.ExportMo
 import { CaptionsPanel } from "./panels/CaptionsPanel";
 import { LooksPanel } from "./panels/LooksPanel";
 import { SettingsPanel, StylePanel } from "./panels/StylePanel";
+import { MediaPanel } from "./panels/MediaPanel";
+import { TextPanel } from "./panels/TextPanel";
+import { ElementsPanel } from "./panels/ElementsPanel";
+import { AdjustPanel } from "./panels/AdjustPanel";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
 import { Timeline } from "./Timeline";
@@ -40,12 +44,16 @@ import { useStudio, type SaveState } from "./useStudio";
 import { TutorialTour } from "./TutorialTour";
 import { shouldShowTutorial } from "./tutorial";
 
-type SideTab = "style" | "looks" | "timing";
+type SideTab = "style" | "looks" | "timing" | "media" | "text" | "elements" | "adjust";
 type MobileTab = "captions" | SideTab | "timeline";
 const SIDE_TABS: { id: SideTab; label: string }[] = [
   { id: "style", label: "Style" },
   { id: "looks", label: "Templates" },
   { id: "timing", label: "Timing" },
+  { id: "media", label: "Media" },
+  { id: "text", label: "Text" },
+  { id: "elements", label: "Elements" },
+  { id: "adjust", label: "Adjust" },
 ];
 const MOBILE_TABS: { id: MobileTab; label: string; icon: string }[] = [
   { id: "captions", label: "Captions", icon: "☰" },
@@ -53,6 +61,10 @@ const MOBILE_TABS: { id: MobileTab; label: string; icon: string }[] = [
   { id: "looks", label: "Templates", icon: "✦" },
   { id: "timeline", label: "Timeline", icon: "▭" },
   { id: "timing", label: "Timing", icon: "◷" },
+  { id: "media", label: "Media", icon: "▤" },
+  { id: "text", label: "Text", icon: "T" },
+  { id: "elements", label: "Elements", icon: "◆" },
+  { id: "adjust", label: "Adjust", icon: "◐" },
 ];
 
 const SAVE_LABEL: Record<SaveState, { text: string; dot: string }> = {
@@ -118,6 +130,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const [playing, setPlaying] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -196,7 +209,21 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const getPlayerMs = useCallback(() => ((playerRef.current?.getCurrentFrame() ?? 0) / fps) * 1000, [fps]);
 
   const input = useMemo(
-    () => (doc && style ? { src: video?.url ?? null, media: { width, height, fps, durationMs, rotation: 0 }, doc, style, settings, mode: "burn" as const } : null),
+    () =>
+      doc && style
+        ? {
+            src: video?.url ?? null,
+            media: { width, height, fps, durationMs, rotation: 0 },
+            doc,
+            style,
+            settings,
+            mode: "burn" as const,
+            // editor elements, threaded explicitly as well as via settings: this one object feeds BOTH the
+            // StudioPlayer preview and (as exportInput) the browser MP4 export, so both render identically
+            videoAdjust: settings.videoAdjust,
+            overlays: settings.overlays,
+          }
+        : null,
     [doc, style, settings, video?.url, width, height, fps, durationMs],
   );
   // export reads frames: a video the decoder can't read uses the compatible copy instead
@@ -369,10 +396,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     </div>
   ) : null;
 
+  const overlayPanelProps = { settings, patch: s.patchSettings, selectedId: selectedOverlayId, onSelect: setSelectedOverlayId, getTimeMs: getPlayerMs, durationMs };
   const sidePanel = (t: SideTab) =>
     style ? (
       t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => { if (desktop) setSideTab("looks"); else setMobileTab("looks"); }} />
       : t === "looks" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
+      : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} onRelink={device.attach} />
+      : t === "text" ? <TextPanel {...overlayPanelProps} />
+      : t === "elements" ? <ElementsPanel {...overlayPanelProps} />
+      : t === "adjust" ? <AdjustPanel settings={settings} patch={s.patchSettings} />
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
 
@@ -479,9 +511,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   const properties = (
     <aside aria-label="Properties" className="row-span-2 flex min-h-0 flex-col border-l border-st-line bg-st-panel">
-      <nav className="flex shrink-0 gap-1 border-b border-st-line p-2" role="tablist">
+      <nav className="flex shrink-0 flex-wrap gap-1 border-b border-st-line p-2" role="tablist">
         {SIDE_TABS.map((t) => (
-          <button key={t.id} data-tour={t.id === "looks" ? "templates" : t.id === "style" ? "style" : undefined} role="tab" aria-selected={sideTab === t.id} onClick={() => setSideTab(t.id)} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${sideTab === t.id ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-raised hover:text-st-text"}`}>{t.label}</button>
+          <button key={t.id} data-tour={t.id === "looks" ? "templates" : t.id === "style" ? "style" : undefined} role="tab" aria-selected={sideTab === t.id} onClick={() => setSideTab(t.id)} className={`flex-[1_1_30%] rounded-lg py-2 text-sm font-semibold transition ${sideTab === t.id ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-raised hover:text-st-text"}`}>{t.label}</button>
         ))}
       </nav>
       <div key={sideTab} className="st-rise min-h-0 flex-1">{sidePanel(sideTab)}</div>
