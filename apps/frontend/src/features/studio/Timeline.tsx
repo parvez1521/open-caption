@@ -5,6 +5,9 @@ import { FoldHorizontal, Link2, Magnet, Maximize2, Plus, Scissors, SlidersHorizo
 import type { Page, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
 import { formatDelta, pxToMs, toggleIds } from "./dragSelect";
+import { overlayClipsOf, trackOf, type Composition, type OverlayClip } from "./composition";
+import { snapMove, snapValue } from "./snap";
+import { canSplitAtPlayhead } from "./playheadSplit";
 import { PEAKS_PER_SECOND } from "./useWaveform";
 import { useFilmstrip } from "./useFilmstrip";
 
@@ -38,6 +41,14 @@ interface Props {
   onAddWord: (atMs: number) => string | null;
   onSplit: () => void;
   onJoin: () => void;
+  /** Stage-A composition view: the video / captions / text rows render from these tracks */
+  composition?: Composition | null;
+  selectedOverlayId: string | null;
+  onSelectOverlay: (id: string | null) => void;
+  /** commit an overlay block's retime once, on pointer up (one patchSettings update in StudioPage) */
+  onMoveOverlay: (id: string, deltaMs: number) => void;
+  /** split the caption card at the playhead (caption-engine splitCardAt via edit() in StudioPage) */
+  onSplitAtPlayhead: () => void;
   onOpenSettings: () => void;
   /** extra actions for the selected word (key word, emoji, hide, undo/redo) */
   extraTools?: React.ReactNode;
@@ -51,10 +62,9 @@ type Drag = { key: string; firstId: string; lastId: string; kind: "move" | "star
 const LABEL_WIDE = 88;
 const LABEL_NARROW = 58;
 const MIN_MS = 40;
-const SNAP_PX = 7;
 /** fixed track heights: blocks keep editor proportions however tall the panel is (no stretched cards) */
-const ROW = { ruler: 24, captions: 44, video: 52, audio: 44 };
-const ROWS = `${ROW.ruler}px ${ROW.captions}px ${ROW.video}px ${ROW.audio}px`;
+const ROW = { ruler: 24, captions: 44, video: 52, text: 36, audio: 44 };
+const ROWS = `${ROW.ruler}px ${ROW.captions}px ${ROW.video}px ${ROW.text}px ${ROW.audio}px`;
 /** video visible at the default zoom: enough room to read every word (phones ~2.5 s, desktop up to 8 s) */
 const defaultWindowMs = (px: number) => (px < 420 ? Math.max(2000, px * 9) : Math.min(8000, Math.max(3000, px * 15)));
 
@@ -64,7 +74,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -72,6 +82,11 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   const [narrow, setNarrow] = useState(false);
   const LABEL_W = narrow ? LABEL_NARROW : LABEL_WIDE;
   const [drag, setDrag] = useState<Drag | null>(null);
+  /** overlay-block drag: preview the delta only; one patchSettings commit lands on pointer up */
+  const [oDrag, setODrag] = useState<{ id: string; x0: number; s0: number; e0: number; dxMs: number } | null>(null);
+  /** the ms position a drag is currently snapped to (draws the guide line), or null */
+  const [snapGuide, setSnapGuide] = useState<number | null>(null);
+  const guideRef = useRef<number | null>(null);
   const [mode, setModeState] = useState<Mode>("word");
   const [snap, setSnap] = useState(true);
   const [ripple, setRipple] = useState(false);
@@ -193,29 +208,47 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
 
   const visible = useMemo(() => words.filter((w) => !w.hidden), [words]);
 
-  // blocks on the captions track: one per word, or one per caption line (card) spanning its words
+  // overlay blocks + the main video clip, read from the Stage-A composition view
+  const overlayBlocks: OverlayClip[] = useMemo(() => (composition ? overlayClipsOf(composition) : []), [composition]);
+  const mainClipMs = composition ? (trackOf(composition, "video").clips[0]?.durationMs ?? total) : total;
+
+  // blocks on the captions track: one per word, or one per caption line (card) spanning its words —
+  // line mode reads the composition's caption clips (the same derived blocks the view exposes)
   const blocks: Block[] = useMemo(() => {
     if (mode === "word") {
       return visible.map((w) => ({ key: w.id, firstId: w.id, lastId: w.id, wordIds: [w.id], text: w.text, s: w.startMs, e: w.endMs, selected: w.id === selectedId, inSelection: selectedWordIds.has(w.id), live: timeMs >= w.startMs && timeMs < w.endMs }));
+    }
+    if (composition) {
+      return trackOf(composition, "captions").clips.flatMap((c) => {
+        if (c.kind !== "caption" || c.wordIds.length === 0) return [];
+        const firstId = c.wordIds[0]!;
+        const lastId = c.wordIds[c.wordIds.length - 1]!;
+        return [{ key: c.id, firstId, lastId, wordIds: c.wordIds, text: c.text, s: c.startMs, e: c.endMs, selected: c.wordIds.includes(selectedId ?? ""), inSelection: c.wordIds.some((id) => selectedWordIds.has(id)), live: timeMs >= c.startMs && timeMs < c.endMs }];
+      });
     }
     return pages.filter((p) => p.words.length).map((p) => {
       const f = p.words[0]!;
       const l = p.words[p.words.length - 1]!;
       return { key: p.id, firstId: f.id, lastId: l.id, wordIds: p.words.map((w) => w.id), text: p.words.map((w) => w.text).join(" "), s: f.startMs, e: l.endMs, selected: p.words.some((w) => w.id === selectedId), inSelection: p.words.some((w) => selectedWordIds.has(w.id)), live: timeMs >= p.startMs && timeMs < p.endMs };
     });
-  }, [mode, visible, pages, selectedId, selectedWordIds, timeMs]);
+  }, [mode, visible, pages, selectedId, selectedWordIds, timeMs, composition]);
 
   const snapTargets = (skip: string) => {
     const t: number[] = [0, total, timeMs];
     for (const b of blocks) if (b.key !== skip) t.push(b.s, b.e);
     return t;
   };
+  // snapping via the pure helper (snap.ts); a successful snap records its target for the guide line
   const snapTo = (v: number, targets: number[]) => {
-    if (!snap) return v;
-    let best = v;
-    let bd = SNAP_PX / pxPerMs;
-    for (const t of targets) if (Math.abs(t - v) < bd) { bd = Math.abs(t - v); best = t; }
-    return best;
+    const r = snapValue(v, targets, pxPerMs, { enabled: snap });
+    if (r.snappedTo !== null) guideRef.current = r.snappedTo;
+    return r.value;
+  };
+  const overlayTargets = (skipId: string) => {
+    const t: number[] = [0, total, timeMs];
+    for (const c of overlayBlocks) if (c.id !== skipId) t.push(c.startMs, c.endMs);
+    for (const b of blocks) t.push(b.s, b.e);
+    return t;
   };
 
   const beginDrag = (e: React.PointerEvent, b: Block, kind: Drag["kind"]) => {
@@ -240,8 +273,27 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
     if (kind === "move" && !group) onWordSelectionChange(new Set(b.wordIds));
     setDrag({ key: b.key, firstId: b.firstId, lastId: b.lastId, kind, x0: e.clientX, s0: b.s, e0: b.e, min: prev ? prev.e : 0, max: ripple ? total : next ? next.s : total, s: b.s, e: b.e, group, dxMs: 0, px: e.clientX, py: e.clientY });
   };
+  const beginOverlayDrag = (e: React.PointerEvent, c: OverlayClip) => {
+    if (renaming) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    onSelectOverlay(c.id);
+    setODrag({ id: c.id, x0: e.clientX, s0: c.startMs, e0: c.endMs, dxMs: 0 });
+  };
+
   const onMove = (e: React.PointerEvent) => {
+    if (oDrag) {
+      // overlay retime: snap the moved block (playhead + neighbouring edges), clamp at 0, keep duration
+      const len = oDrag.e0 - oDrag.s0;
+      const raw = oDrag.s0 + pxToMs(e.clientX - oDrag.x0, pxPerMs);
+      const snapped = snapMove(raw, len, overlayTargets(oDrag.id), pxPerMs, { enabled: snap });
+      const start = Math.max(0, snapped.startMs);
+      setSnapGuide(start === snapped.startMs ? snapped.snappedTo : null);
+      setODrag({ ...oDrag, dxMs: Math.round(start - oDrag.s0) });
+      return;
+    }
     if (!drag) return;
+    guideRef.current = null;
     if (drag.group) {
       // group retime: preview the delta only — the document is committed once, on pointer up
       setDrag({ ...drag, dxMs: pxToMs(e.clientX - drag.x0, pxPerMs), px: e.clientX, py: e.clientY });
@@ -264,12 +316,20 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
       en = s + len;
     }
     setDrag({ ...drag, s: Math.round(s), e: Math.round(en) });
+    setSnapGuide(guideRef.current);
   };
   const endDrag = () => {
+    if (oDrag) {
+      if (oDrag.dxMs !== 0) onMoveOverlay(oDrag.id, oDrag.dxMs);
+      setODrag(null);
+      setSnapGuide(null);
+      return;
+    }
     if (drag?.group) {
       if (drag.dxMs !== 0) onShiftWords(drag.group, drag.dxMs);
     } else if (drag && (drag.s !== drag.s0 || drag.e !== drag.e0)) onRetimeRun(drag.firstId, drag.lastId, drag.s, drag.e, ripple);
     setDrag(null);
+    setSnapGuide(null);
   };
 
   const addWord = () => {
@@ -312,6 +372,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
         {btn("Caption timing settings", <SlidersHorizontal className={icon} />, onOpenSettings)}
         {sep}
         {btn("Split: start a new line at the selected word", <Scissors className={icon} />, onSplit, { disabled: noSel })}
+        {btn("Split caption at playhead (S)", <Scissors className={icon} />, onSplitAtPlayhead, { disabled: !canSplitAtPlayhead(pages, timeMs) })}
         {btn("Join: merge the selected word's line with the previous one", <FoldHorizontal className={icon} />, onJoin, { disabled: noSel })}
         {extraTools}
         {sep}
@@ -326,10 +387,11 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
 
       <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto" onPointerMove={onMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <div className="relative grid w-max" style={{ gridTemplateColumns: `${LABEL_W}px ${width}px`, gridTemplateRows: rows }}>
-          <div className="sticky left-0 z-20 row-span-4 grid whitespace-nowrap border-r border-st-line bg-st-panel text-[11px] text-st-muted" style={{ gridTemplateRows: rows }}>
+          <div className="sticky left-0 z-20 row-span-5 grid whitespace-nowrap border-r border-st-line bg-st-panel text-[11px] text-st-muted" style={{ gridTemplateRows: rows }}>
             <div />
             <div className="flex items-center gap-1.5 border-b border-st-line px-2 font-semibold text-st-text">𝐈 {narrow ? "Text" : "Captions"}</div>
             <div className="flex items-center gap-1.5 border-b border-st-line px-2 text-st-muted">▶ Video</div>
+            <div className="flex items-center gap-1.5 border-b border-st-line px-2 text-st-muted">T {narrow ? "Text" : "Text / Elements"}</div>
             <div className="flex items-center gap-1.5 px-2 text-st-muted">♫ Audio</div>
           </div>
 
@@ -384,9 +446,9 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
             })}
           </div>
 
-          {/* video */}
+          {/* video: the composition's single main clip */}
           <div className={`${trackRow} cursor-ew-resize`} {...scrub}>
-            <div className="absolute inset-y-1 left-0 flex overflow-hidden rounded-md bg-[#0B0B0A] ring-1 ring-st-ink/20" style={{ width: x(total) }}>
+            <div className="absolute inset-y-1 left-0 flex overflow-hidden rounded-md bg-[#0B0B0A] ring-1 ring-st-ink/20" style={{ width: x(mainClipMs) }}>
               {Array.from({ length: tiles }, (_, i) => {
                 const at = ((i + 0.5) * tileW) / pxPerMs;
                 const f = frames.reduce((a, b) => (Math.abs(b.ms - at) < Math.abs(a.ms - at) ? b : a), frames[0]!);
@@ -395,6 +457,28 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
               })}
               <span className="absolute left-1.5 top-1 rounded bg-black/70 px-1.5 text-[10px] leading-4 text-[#FFFFEB]">{frames.length ? "Video" : "Video (loading frames)"}</span>
             </div>
+          </div>
+
+          {/* text / graphics: overlay items as blocks — click selects (the panel editor follows),
+              drag moves the block; the retime commits once on release via onMoveOverlay */}
+          <div className={trackRow} {...scrub} onClick={() => onSelectOverlay(null)}>
+            {overlayBlocks.map((c) => {
+              const live = oDrag?.id === c.id ? oDrag.dxMs : 0;
+              const wpx = Math.max(3, x(c.endMs) - x(c.startMs) - 1);
+              const label = c.kind === "text" ? c.overlay.text?.trim() || "Text" : c.kind === "image" ? c.overlay.assetName ?? "Image" : c.overlay.shape ?? "Element";
+              return (
+                <div
+                  key={c.id}
+                  onPointerDown={(e) => beginOverlayDrag(e, c)}
+                  onClick={(e) => { e.stopPropagation(); onSelectOverlay(c.id); onSeek(c.startMs + 1); }}
+                  title={`${label}  ${fmtTime(c.startMs)} – ${fmtTime(c.endMs)} (drag to move)`}
+                  className={`absolute top-1 bottom-1 cursor-grab touch-none overflow-hidden rounded-md border px-1.5 text-[11px] leading-tight ${c.id === selectedOverlayId ? "border-st-ink bg-st-lav text-[#FFFFEB] ring-2 ring-st-ink/20" : "border-st-ink/15 bg-st-hover text-[#FFFFEB] hover:bg-st-lav/60"}`}
+                  style={{ left: x(c.startMs) + live * pxPerMs, width: wpx }}
+                >
+                  {wpx > 24 ? <span className="flex h-full items-center truncate font-medium">{label}</span> : null}
+                </div>
+              );
+            })}
           </div>
 
           {/* audio waveform */}
@@ -406,6 +490,11 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
           <div ref={headRef} className="pointer-events-none absolute top-0 bottom-0 z-10 w-0.5 bg-st-ink will-change-transform" style={{ left: LABEL_W }}>
             <div className="absolute -left-[5px] -top-0.5 h-3 w-3 rounded-sm bg-st-ink" />
           </div>
+
+          {/* snap guide: shown while a drag is snapped to the playhead or a neighbouring edge */}
+          {snapGuide !== null ? (
+            <div aria-hidden className="pointer-events-none absolute top-0 bottom-0 z-10 w-px bg-st-em" style={{ left: LABEL_W + x(snapGuide) }} />
+          ) : null}
         </div>
       </div>
 

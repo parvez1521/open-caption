@@ -3,6 +3,7 @@
 import React from "react";
 import type { OverlayItem, ProjectSettings } from "@capseasy/shared";
 import { Button, Section } from "../controls";
+import { overlayItemsOf, type Composition } from "../composition";
 import { OverlayEditor, OverlayRow } from "./OverlayEditor";
 import { makeTextOverlay } from "./overlayItems";
 
@@ -13,11 +14,13 @@ export interface OverlayPanelProps {
   onSelect: (id: string | null) => void;
   getTimeMs: () => number;
   durationMs: number;
+  /** the Stage-A composition view — lists read from it; writes still go through `patch` */
+  composition?: Composition | null;
 }
 
 /** Text: timed text overlays. They render above the video (below the captions) in the preview and the exported MP4. */
-export const TextPanel: React.FC<OverlayPanelProps> = ({ settings, patch, selectedId, onSelect, getTimeMs, durationMs }) => {
-  const texts = settings.overlays.filter((o) => o.kind === "text");
+export const TextPanel: React.FC<OverlayPanelProps> = ({ settings, patch, selectedId, onSelect, getTimeMs, durationMs, composition }) => {
+  const texts = composition ? overlayItemsOf(composition, "text") : settings.overlays.filter((o) => o.kind === "text");
   const selected = texts.find((o) => o.id === selectedId) ?? null;
   const replace = (next: OverlayItem) => patch({ overlays: settings.overlays.map((o) => (o.id === next.id ? next : o)) });
   const add = () => {

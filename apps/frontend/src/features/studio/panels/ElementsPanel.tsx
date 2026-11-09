@@ -4,15 +4,18 @@ import React from "react";
 import type { ProjectSettings } from "@capseasy/shared";
 import { OVERLAY_SHAPE_META, OverlayShapeSvg } from "@capseasy/compositions";
 import { Section } from "../controls";
+import { overlayItemsOf } from "../composition";
 import { OverlayEditor, OverlayRow } from "./OverlayEditor";
 import { makeShapeOverlay } from "./overlayItems";
 import type { OverlayPanelProps } from "./TextPanel";
 
-/** Elements: the app's own shape set. Clicking a shape adds it as a timed overlay that renders in the preview and the exported MP4. */
-export const ElementsPanel: React.FC<OverlayPanelProps> = ({ settings, patch, selectedId, onSelect, getTimeMs, durationMs }) => {
-  const shapes = settings.overlays.filter((o) => o.kind === "shape");
-  const selected = shapes.find((o) => o.id === selectedId) ?? null;
-  const labelOf = (shapeId: string | undefined) => OVERLAY_SHAPE_META.find((s) => s.id === shapeId)?.label ?? "Shape";
+/** Elements: the app's own shape set + placed images from the media bin. Clicking a shape adds it as a timed overlay that renders in the preview and the exported MP4. */
+export const ElementsPanel: React.FC<OverlayPanelProps> = ({ settings, patch, selectedId, onSelect, getTimeMs, durationMs, composition }) => {
+  const shapes = composition ? overlayItemsOf(composition, "shape") : settings.overlays.filter((o) => o.kind === "shape");
+  const images = composition ? overlayItemsOf(composition, "image") : settings.overlays.filter((o) => o.kind === "image");
+  const placed = [...shapes, ...images];
+  const selected = placed.find((o) => o.id === selectedId) ?? null;
+  const labelOf = (o: (typeof placed)[number]) => (o.kind === "image" ? o.assetName ?? "Image" : OVERLAY_SHAPE_META.find((s) => s.id === o.shape)?.label ?? "Shape");
   return (
     <div className="h-full overflow-y-auto">
       <Section title="Elements" hint="Shapes drawn by Open Caption. Pick one to place it over the video at the playhead, for three seconds.">
@@ -35,11 +38,11 @@ export const ElementsPanel: React.FC<OverlayPanelProps> = ({ settings, patch, se
           ))}
         </div>
       </Section>
-      {shapes.length ? (
+      {placed.length ? (
         <Section title="On this video">
           <div className="space-y-1.5">
-            {shapes.map((o) => (
-              <OverlayRow key={o.id} item={o} label={labelOf(o.shape)} selected={o.id === selectedId} onSelect={() => onSelect(o.id === selectedId ? null : o.id)} />
+            {placed.map((o) => (
+              <OverlayRow key={o.id} item={o} label={labelOf(o)} selected={o.id === selectedId} onSelect={() => onSelect(o.id === selectedId ? null : o.id)} />
             ))}
           </div>
         </Section>

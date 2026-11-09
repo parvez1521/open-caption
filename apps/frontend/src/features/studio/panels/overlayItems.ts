@@ -27,6 +27,23 @@ export function makeTextOverlay(playheadMs: number, durationMs: number): Overlay
   };
 }
 
+/** An imported image placed as an overlay: it references the media-bin asset by id (bytes stay in
+ *  IndexedDB); the composition resolves the id to a URL in the browser for preview + export. */
+export function makeImageOverlay(asset: { id: string; name: string }, playheadMs: number, durationMs: number): OverlayItem {
+  return {
+    id: newId(),
+    kind: "image",
+    assetId: asset.id,
+    assetName: asset.name,
+    ...windowAt(playheadMs, durationMs),
+    x: 0.5,
+    y: 0.5,
+    scale: 1,
+    rotation: 0,
+    color: "#FFFFFF",
+  };
+}
+
 export function makeShapeOverlay(shape: OverlayShape, playheadMs: number, durationMs: number): OverlayItem {
   return {
     id: newId(),

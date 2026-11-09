@@ -30,7 +30,10 @@ export const OverlayEditor: React.FC<{
     { label: "Bottom left", x: 0.25, y: 0.75 }, { label: "Bottom centre", x: 0.5, y: 0.75 }, { label: "Bottom right", x: 0.75, y: 0.75 },
   ];
   return (
-    <Section title={item.kind === "text" ? "Selected text" : "Selected element"}>
+    <Section title={item.kind === "text" ? "Selected text" : item.kind === "image" ? "Selected image" : "Selected element"}>
+      {item.kind === "image" ? (
+        <p className="text-sm text-st-text/90">{item.assetName ?? "Image"}<span className="block text-xs text-st-faint">From the media bin (this device). It renders in the preview and the in-browser MP4 export.</span></p>
+      ) : null}
       {item.kind === "text" ? (
         <label className="block text-sm text-st-text/90">
           <span className="mb-1 block">Text</span>
@@ -76,7 +79,7 @@ export const OverlayEditor: React.FC<{
       <Slider label="Scale" value={item.scale} min={0.25} max={4} step={0.05} unit="×" onChange={(v) => set({ scale: v })} />
       <Slider label="Rotation" value={item.rotation} min={-45} max={45} step={1} unit="°" onChange={(v) => set({ rotation: v })} />
       {item.kind === "text" ? <Slider label="Size" value={item.fontSize ?? 64} min={24} max={140} onChange={(v) => set({ fontSize: v })} /> : null}
-      <ColorField label="Colour" value={item.color} onChange={(v) => set({ color: v })} />
+      {item.kind !== "image" ? <ColorField label="Colour" value={item.color} onChange={(v) => set({ color: v })} /> : null}
       <Button tone="danger" onClick={onDelete} className="w-full">Delete</Button>
     </Section>
   );

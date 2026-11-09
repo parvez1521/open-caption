@@ -40,6 +40,10 @@ import { etaText } from "./ProcessingPanel";
 import { getSession, useSessionView } from "@/features/transcribe/session";
 import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError } from "@/services/auth/guest";
 import { useWaveform } from "./useWaveform";
+import { toComposition } from "./composition";
+import { splitWordIdAtPlayhead } from "./playheadSplit";
+import { useMediaAssets } from "./useMediaAssets";
+import { makeImageOverlay } from "./panels/overlayItems";
 import { useStudio, type SaveState } from "./useStudio";
 import { TutorialTour } from "./TutorialTour";
 import { shouldShowTutorial } from "./tutorial";
@@ -197,6 +201,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   }, [fontKey]);
 
   const canvas = useMemo(() => ({ width, height, fps }), [width, height, fps]);
+  // the media bin (device-local assets for this project) — the panel manages it, the composition
+  // rendering below resolves placed image overlays from it
+  const mediaBin = useMediaAssets(projectId);
   const wave = useWaveform(video?.id, video?.url, video?.size);
   const pages = useMemo(() => (doc && style && fontsReady ? computePages(doc, settings, style, canvas) : []), [doc, style, settings, canvas, fontsReady]);
   const currentPage = pages.find((p) => timeMs >= p.startMs && timeMs < p.endMs) ?? null;
@@ -208,6 +215,36 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   }, [fps]);
 
   const getPlayerMs = useCallback(() => ((playerRef.current?.getCurrentFrame() ?? 0) / fps) * 1000, [fps]);
+
+  // Stage-A composition view (read-side only): timeline + panels read tracks/clips from this;
+  // every write still goes through edit() / patchSettings / device.attach — no parallel state.
+  const composition = useMemo(
+    () =>
+      doc && style
+        ? toComposition({
+            media: { videoId: data?.video?.id ?? null, filename: data?.video?.filename ?? null, size: data?.video?.size ?? null, width, height, fps, durationMs },
+            doc,
+            pages,
+            settings,
+            durationMs,
+          })
+        : null,
+    [doc, style, pages, settings, width, height, fps, durationMs, data?.video?.id, data?.video?.filename, data?.video?.size],
+  );
+
+  // resolved URLs for placed image overlays (device-local bytes → object URLs for this session);
+  // threaded into the one input object, so the Player preview and the in-browser export agree
+  const [overlayAssetUrls, setOverlayAssetUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const urls: Record<string, string> = {};
+    for (const o of settings.overlays) {
+      if (o.kind !== "image" || !o.assetId || urls[o.assetId]) continue;
+      const asset = mediaBin.assets.find((a) => a.id === o.assetId);
+      if (asset) urls[o.assetId] = URL.createObjectURL(asset.blob);
+    }
+    setOverlayAssetUrls(urls);
+    return () => Object.values(urls).forEach((u) => URL.revokeObjectURL(u));
+  }, [settings.overlays, mediaBin.assets]);
 
   const input = useMemo(
     () =>
@@ -223,9 +260,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             // StudioPlayer preview and (as exportInput) the browser MP4 export, so both render identically
             videoAdjust: settings.videoAdjust,
             overlays: settings.overlays,
+            overlayAssets: overlayAssetUrls,
           }
         : null,
-    [doc, style, settings, video?.url, width, height, fps, durationMs],
+    [doc, style, settings, video?.url, width, height, fps, durationMs, overlayAssetUrls],
   );
   // export reads frames: a video the decoder can't read uses the compatible copy instead
   const exportInput = useMemo(() => (input && compat.url ? { ...input, src: compat.url } : input), [input, compat.url]);
@@ -248,8 +286,20 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     });
   }, [doc]);
 
+  // split the caption card at the playhead: the word at/after the playhead starts a new card via the
+  // caption-engine's splitCardAt, through edit() — one undo step, autosaves like every caption edit.
+  // No word qualifies (gap, first/last word of a card) → nothing happens, honestly.
+  const splitAtPlayheadRef = useRef<() => void>(() => undefined);
+  splitAtPlayheadRef.current = () => {
+    const wordId = splitWordIdAtPlayhead(pages, getPlayerMs());
+    if (!wordId) return;
+    s.edit((d) => splitCardAt(d, wordId));
+    setSelectedId(wordId);
+  };
+
   // keyboard: space = play/pause, ctrl/cmd+z / shift+z = undo/redo, ctrl/cmd+s = save,
-  // ←/→ = nudge the drag-selected words by 100 ms (Shift+←/→ = 10 ms fine adjust)
+  // S = split the caption card at the playhead, ←/→ = nudge the drag-selected words by 100 ms
+  // (Shift+←/→ = 10 ms fine adjust)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -258,6 +308,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       if (mod && e.key.toLowerCase() === "z") { if (typing && t.tagName !== "BODY") return; e.preventDefault(); e.shiftKey ? s.redo() : s.undo(); }
       else if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); s.redo(); }
       else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); void s.saveNow().catch(() => undefined); }
+      else if (e.key.toLowerCase() === "s" && !typing && !mod && !e.altKey) { e.preventDefault(); splitAtPlayheadRef.current(); }
       else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !typing && !mod && selectedWordIds.size > 0) {
         e.preventDefault();
         const delta = (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 10 : 100);
@@ -415,14 +466,22 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     </div>
   ) : null;
 
-  const overlayPanelProps = { settings, patch: s.patchSettings, selectedId: selectedOverlayId, onSelect: setSelectedOverlayId, getTimeMs: getPlayerMs, durationMs };
+  const overlayPanelProps = { settings, patch: s.patchSettings, selectedId: selectedOverlayId, onSelect: setSelectedOverlayId, getTimeMs: getPlayerMs, durationMs, composition };
+  // place an imported image as a timed overlay, then open its editor in Elements
+  const placeImage = (asset: { id: string; name: string }) => {
+    const item = makeImageOverlay(asset, getPlayerMs(), durationMs);
+    s.patchSettings({ overlays: [...settings.overlays, item] });
+    setSelectedOverlayId(item.id);
+    setSection("elements");
+    setMobileTimeline(false);
+  };
   // panel registry: every rail section maps to its real panel here (same props/state as before the move)
   const renderPanel = (t: PanelId) =>
     t === "captions" ? captions
     : style ? (
       t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} />
       : t === "templates" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
-      : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} onRelink={device.attach} />
+      : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} composition={composition} onRelink={device.attach} assets={mediaBin.assets} importing={mediaBin.importing} onImport={mediaBin.importFiles} onDeleteAsset={mediaBin.remove} onPlaceImage={placeImage} />
       : t === "text" ? <TextPanel {...overlayPanelProps} />
       : t === "elements" ? <ElementsPanel {...overlayPanelProps} />
       : t === "adjust" ? <AdjustPanel settings={settings} patch={s.patchSettings} />
@@ -495,6 +554,20 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onRename={(id, text) => s.edit((d) => setWordText(d, id, text))}
       onAddWord={addWordAt}
       onSplit={() => selected && s.edit((d) => splitCardAt(d, selected.id))}
+      onSplitAtPlayhead={() => splitAtPlayheadRef.current()}
+      composition={composition}
+      selectedOverlayId={selectedOverlayId}
+      onSelectOverlay={setSelectedOverlayId}
+      onMoveOverlay={(id, deltaMs) => {
+        // one patchSettings update per drag: shift both edges by the (≥0-clamped) delta, duration kept
+        s.patchSettings({
+          overlays: settings.overlays.map((o) => {
+            if (o.id !== id) return o;
+            const d = Math.max(-o.startMs, Math.round(deltaMs));
+            return d === 0 ? o : { ...o, startMs: o.startMs + d, endMs: o.endMs + d };
+          }),
+        });
+      }}
       onJoin={() => selected && s.edit((d) => mergeWithPrevious(d, selected.id))}
       onOpenSettings={() => { setSection("timing"); setMobileTimeline(false); }}
       extraTools={extraTools}
