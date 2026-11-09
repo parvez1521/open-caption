@@ -37,18 +37,20 @@ import { getSession, useSessionView } from "@/features/transcribe/session";
 import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError } from "@/services/auth/guest";
 import { useWaveform } from "./useWaveform";
 import { useStudio, type SaveState } from "./useStudio";
+import { TutorialTour } from "./TutorialTour";
+import { shouldShowTutorial } from "./tutorial";
 
 type SideTab = "style" | "looks" | "timing";
 type MobileTab = "captions" | SideTab | "timeline";
 const SIDE_TABS: { id: SideTab; label: string }[] = [
   { id: "style", label: "Style" },
-  { id: "looks", label: "Looks" },
+  { id: "looks", label: "Templates" },
   { id: "timing", label: "Timing" },
 ];
 const MOBILE_TABS: { id: MobileTab; label: string; icon: string }[] = [
   { id: "captions", label: "Captions", icon: "☰" },
   { id: "style", label: "Style", icon: "Aa" },
-  { id: "looks", label: "Looks", icon: "✦" },
+  { id: "looks", label: "Templates", icon: "✦" },
   { id: "timeline", label: "Timeline", icon: "▭" },
   { id: "timing", label: "Timing", icon: "◷" },
 ];
@@ -95,6 +97,19 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   useEffect(() => {
     if (phase === "saved" || phase === "failed" || phase === "stopped") void refetchStudio();
   }, [phase, refetchStudio]);
+  // first-run mini tutorial: the first time generated captions land (the session's "saved" transition,
+  // or the first adopted document with words) and the seen flag is unset, start the tour after a beat
+  const tourCheckedRef = useRef(false);
+  const docForTour = s.doc;
+  useEffect(() => {
+    if (tourCheckedRef.current) return;
+    const landed = phase === "saved" || (docForTour != null && docForTour.words.length > 0);
+    if (!landed) return;
+    tourCheckedRef.current = true;
+    if (!shouldShowTutorial()) return;
+    const t = setTimeout(() => setShowTour(true), 900);
+    return () => clearTimeout(t);
+  }, [phase, docForTour]);
   const desktop = useIsDesktop();
 
   const [sideTab, setSideTab] = useState<SideTab>("style");
@@ -102,6 +117,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const [timeMs, setTimeMs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
+  const [showTour, setShowTour] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [signupNotice, setSignupNotice] = useState<string | null>(null);
@@ -226,7 +243,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-st-or" />
       <span className="min-w-0 flex-1 truncate">
         <b>Writing your captions… {Math.round(liveView.progress * 100)}%</b>
-        <span className="hidden text-st-muted sm:inline"> · {liveView.etaSec != null ? etaText(liveView.etaSec) : "a moment"}. You can pick a look and style now; words unlock when it&apos;s done.</span>
+        <span className="hidden text-st-muted sm:inline"> · {liveView.etaSec != null ? etaText(liveView.etaSec) : "a moment"}. You can pick a template and style now; words unlock when it&apos;s done.</span>
       </span>
       <div className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-st-line sm:block">
         <div className="h-full rounded-full bg-st-em transition-[width] duration-500" style={{ width: `${Math.max(3, liveView.progress * 100)}%` }} />
@@ -289,7 +306,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         >
           🗑
         </Button>
-        <Button tone="primary" disabled={!hasEditor || live} title={live ? "Available when the captions are finished" : undefined} onClick={() => void openExport()} className="!rounded-full !px-4">Export</Button>
+        <Button data-tour="export" tone="primary" disabled={!hasEditor || live} title={live ? "Available when the captions are finished" : undefined} onClick={() => void openExport()} className="!rounded-full !px-4">Export</Button>
       </div>
     </header>
   );
@@ -335,9 +352,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   const heroSupported = style ? getTemplate(style.templateId).layout !== "typewriter" : true;
   const captions = doc && style ? (
-    <div className="flex h-full min-h-0 flex-col">
+    <div data-tour="captions" className="flex h-full min-h-0 flex-col">
       <div className={`min-h-0 flex-1 ${live ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
-        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={setSelectedId} onSeek={seek} edit={s.edit} heroSupported={heroSupported} />
+        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={setSelectedId} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedCards={selectedCards} onToggleCard={(id) => setSelectedCards((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; })} onSelectAllCards={() => setSelectedCards(new Set(pages.map((p) => p.id)))} onClearCardSelection={() => setSelectedCards(new Set())} />
       </div>
       {live && liveView ? (
         // the captions that haven't been written yet: shimmering placeholders with the time left
@@ -354,7 +371,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   const sidePanel = (t: SideTab) =>
     style ? (
-      t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved look" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => { if (desktop) setSideTab("looks"); else setMobileTab("looks"); }} />
+      t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => { if (desktop) setSideTab("looks"); else setMobileTab("looks"); }} />
       : t === "looks" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
@@ -431,6 +448,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   const overlays = (
     <>
+      {showTour ? <TutorialTour onClose={() => setShowTour(false)} /> : null}
       {showSignup ? <SignupGate notice={signupNotice} onClose={() => { setShowSignup(false); setSignupNotice(null); }} onDone={() => { setShowSignup(false); setShowExport(true); }} /> : null}
       {showExport ? <ExportModal projectId={projectId} title={data.project.title} video={{ width, height, durationMs, fps }} renderInput={exportInput} mp4Block={mp4Block} saving={s.saveState === "saving" || s.saveState === "dirty"} flushSave={s.saveNow} onClose={() => setShowExport(false)} /> : null}
       {s.conflict ? (
@@ -463,7 +481,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <aside aria-label="Properties" className="row-span-2 flex min-h-0 flex-col border-l border-st-line bg-st-panel">
       <nav className="flex shrink-0 gap-1 border-b border-st-line p-2" role="tablist">
         {SIDE_TABS.map((t) => (
-          <button key={t.id} role="tab" aria-selected={sideTab === t.id} onClick={() => setSideTab(t.id)} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${sideTab === t.id ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-raised hover:text-st-text"}`}>{t.label}</button>
+          <button key={t.id} data-tour={t.id === "looks" ? "templates" : t.id === "style" ? "style" : undefined} role="tab" aria-selected={sideTab === t.id} onClick={() => setSideTab(t.id)} className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${sideTab === t.id ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-raised hover:text-st-text"}`}>{t.label}</button>
         ))}
       </nav>
       <div key={sideTab} className="st-rise min-h-0 flex-1">{sidePanel(sideTab)}</div>
@@ -484,7 +502,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         {header}
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(380px,1fr)_auto_minmax(320px,24vw)] grid-rows-[minmax(0,42%)_minmax(0,1fr)]">
           {captionsSection}
-          <section aria-label="Preview" className="row-span-2 h-full min-h-0 bg-st-bg" style={{ aspectRatio: `${width} / ${height}`, maxWidth: "46vw" }}>{stage}</section>
+          <section data-tour="preview" aria-label="Preview" className="row-span-2 h-full min-h-0 bg-st-bg" style={{ aspectRatio: `${width} / ${height}`, maxWidth: "46vw" }}>{stage}</section>
           {properties}
           <section aria-label="Timeline section" className="min-h-0 border-r border-st-line">{timeline}</section>
         </div>
@@ -500,7 +518,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         {header}
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(300px,24vw)_minmax(0,1fr)_minmax(320px,23vw)] grid-rows-[minmax(0,1fr)_minmax(250px,38%)]">
           {captionsSection}
-          <section aria-label="Preview" className="min-h-0 border-b border-st-line bg-st-bg">{stage}</section>
+          <section data-tour="preview" aria-label="Preview" className="min-h-0 border-b border-st-line bg-st-bg">{stage}</section>
           {properties}
           <section aria-label="Timeline section" className="col-span-2 min-h-0">{timeline}</section>
         </div>
@@ -513,13 +531,13 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   return (
     <div className="studio flex h-[100dvh] flex-col">
       {header}
-      <section aria-label="Preview" className="h-[44dvh] min-h-[260px] shrink-0 border-b border-st-line bg-st-bg">{stage}</section>
+      <section data-tour="preview" aria-label="Preview" className="h-[44dvh] min-h-[260px] shrink-0 border-b border-st-line bg-st-bg">{stage}</section>
       <div key={mobileTab} className="st-rise min-h-0 flex-1 bg-st-panel">
         {mobileTab === "captions" ? captions : mobileTab === "timeline" ? timeline : sidePanel(mobileTab)}
       </div>
       <nav className="grid shrink-0 grid-cols-5 border-t border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)]" role="tablist" aria-label="Editor sections">
         {MOBILE_TABS.map((t) => (
-          <button key={t.id} role="tab" aria-selected={mobileTab === t.id} onClick={() => setMobileTab(t.id)} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition ${mobileTab === t.id ? "text-st-ink" : "text-st-muted"}`}>
+          <button key={t.id} data-tour={t.id === "looks" ? "templates" : t.id === "style" ? "style" : undefined} role="tab" aria-selected={mobileTab === t.id} onClick={() => setMobileTab(t.id)} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition ${mobileTab === t.id ? "text-st-ink" : "text-st-muted"}`}>
             <span className={`grid h-6 min-w-10 place-items-center rounded-full px-2 text-base leading-none ${mobileTab === t.id ? "bg-st-lav" : ""}`} aria-hidden>{t.icon}</span>
             {t.label}
           </button>

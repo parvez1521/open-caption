@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { CaptionDoc, Page } from "@capseasy/shared";
-import { findMatches, findReplace, importSubtitles, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, splitCardAt } from "@motion-ai/caption-engine/core";
+import { deleteWordsByIds, findMatches, findReplace, importSubtitles, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Button, fmtTime } from "../controls";
 
 
@@ -18,13 +18,29 @@ interface Props {
   edit: (fn: (d: CaptionDoc) => CaptionDoc, opts?: { coalesceKey?: string }) => void;
   /** false for layouts that cannot show a key word differently (typewriter) */
   heroSupported: boolean;
+  /** multi-select: ids of the caption cards (derived pages) ticked for a group adjust */
+  selectedCards: Set<string>;
+  onToggleCard: (pageId: string) => void;
+  onSelectAllCards: () => void;
+  onClearCardSelection: () => void;
 }
 
-export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit, heroSupported }) => {
+export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit, heroSupported, selectedCards, onToggleCard, onSelectAllCards, onClearCardSelection }) => {
   const [find, setFind] = useState("");
   const [replace, setReplace] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const [shiftSec, setShiftSec] = useState("");
+  const [groupMs, setGroupMs] = useState("");
+  const selectedPages = useMemo(() => pages.filter((p) => selectedCards.has(p.id)), [pages, selectedCards]);
+  const selectedWordIds = useMemo(() => selectedPages.flatMap((p) => p.words.map((w) => w.id)), [selectedPages]);
+  const allSelected = pages.length > 0 && selectedPages.length === pages.length;
+  const applyGroupMs = () => {
+    const v = Number.parseFloat(groupMs);
+    if (!Number.isFinite(v) || v === 0 || selectedWordIds.length === 0) return;
+    const ids = selectedWordIds;
+    edit((d) => shiftWordsByIds(d, ids, Math.round(v)));
+    setGroupMs("");
+  };
   const applyShiftInput = () => {
     const v = Number.parseFloat(shiftSec);
     if (!Number.isFinite(v) || v === 0) return;
@@ -110,15 +126,42 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         ) : null}
       </div>
 
+      {pages.length > 0 ? (
+        <div className="flex items-center gap-2 border-b border-st-line bg-st-panel px-3 py-2">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={() => (allSelected ? onClearCardSelection() : onSelectAllCards())}
+            aria-label="Select all caption lines"
+            className="h-4 w-4 shrink-0 cursor-pointer accent-[#1A1A1A]"
+          />
+          <span className="text-xs font-medium text-st-muted">
+            {selectedPages.length > 0 ? `${selectedPages.length} selected` : "Select lines to adjust them together"}
+          </span>
+          {selectedPages.length > 0 ? (
+            <button onClick={onClearCardSelection} className="ml-auto text-xs font-medium text-st-muted hover:text-st-text">Clear selection</button>
+          ) : null}
+        </div>
+      ) : null}
+
       <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto">
         {pages.length === 0 ? <div className="p-6 text-center text-sm text-st-muted">
             <p className="font-semibold text-st-text">No spoken words found</p>
             <p className="mt-1">This video has no speech we could hear. Add captions with <b>Import SRT</b> above, or double-click the captions track in the timeline to type a word at the playhead.</p>
           </div> : null}
         {pages.map((page) => (
-          <div key={page.id} data-page={page.id} className={`border-b border-l-4 border-b-st-line/60 px-3 py-2.5 transition-colors ${page.id === currentPageId ? "border-l-st-or bg-st-lav/35" : "border-l-transparent"}`}>
+          <div key={page.id} data-page={page.id} className={`border-b border-l-4 border-b-st-line/60 px-3 py-2.5 transition-colors ${selectedCards.has(page.id) ? "bg-st-em/10" : page.id === currentPageId ? "border-l-st-or bg-st-lav/35" : "border-l-transparent"}`}>
             <div className="mb-1.5 flex items-center justify-between">
-              <button onClick={() => onSeek(page.startMs)} className="-my-1 py-1 pr-2 font-mono text-[11px] text-st-faint hover:text-st-text">{fmtTime(page.startMs)}</button>
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={selectedCards.has(page.id)}
+                  onChange={() => onToggleCard(page.id)}
+                  aria-label={`Select caption line at ${fmtTime(page.startMs)}`}
+                  className="h-4 w-4 shrink-0 cursor-pointer accent-[#1A1A1A]"
+                />
+                <button onClick={() => onSeek(page.startMs)} className="-my-1 py-1 pr-2 font-mono text-[11px] text-st-faint hover:text-st-text">{fmtTime(page.startMs)}</button>
+              </span>
             </div>
             <div className="flex flex-wrap gap-1.5 lg:gap-1">
               {page.words.map((w, i) => (
@@ -152,6 +195,36 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           </div>
         ) : null}
       </div>
+
+      {selectedPages.length > 0 ? (
+        <div className="sticky bottom-0 space-y-2 border-t border-st-line bg-st-panel p-3 shadow-[0_-8px_20px_-14px_rgba(26,26,26,0.4)]" role="group" aria-label="Selected lines actions">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-st-text">{selectedPages.length} selected · {selectedWordIds.length} word{selectedWordIds.length === 1 ? "" : "s"}</p>
+            <button onClick={onClearCardSelection} className="text-xs font-medium text-st-muted hover:text-st-text">Clear selection</button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[-500, -100, 100, 500].map((ms) => (
+              <Button key={ms} className="!py-1 text-xs" onClick={() => { const ids = selectedWordIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
+                {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
+              </Button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              step="10"
+              value={groupMs}
+              onChange={(e) => setGroupMs(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyGroupMs(); }}
+              placeholder="Custom shift (ms, + later, − earlier)"
+              aria-label="Shift selected lines by this many milliseconds"
+              className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
+            />
+            <Button className="!py-1 text-xs" onClick={applyGroupMs}>Apply shift</Button>
+            <Button tone="danger" className="!py-1 text-xs" onClick={() => { const ids = selectedWordIds; edit((d) => deleteWordsByIds(d, ids)); onClearCardSelection(); onSelect(null); }}>Delete selected</Button>
+          </div>
+        </div>
+      ) : null}
 
       {selected ? (
         <div className="space-y-2 border-t border-st-line bg-st-lav/30 p-3">
