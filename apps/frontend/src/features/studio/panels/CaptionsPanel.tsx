@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { CaptionDoc, Page } from "@capseasy/shared";
 import { deleteWordsByIds, findMatches, findReplace, importSubtitles, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Button, fmtTime } from "../controls";
-
+import { PANEL_PX_PER_MS, formatDelta, isPastThreshold, pxToMs, rangeSelection } from "../dragSelect";
 
 interface Props {
   doc: CaptionDoc;
@@ -18,29 +18,42 @@ interface Props {
   edit: (fn: (d: CaptionDoc) => CaptionDoc, opts?: { coalesceKey?: string }) => void;
   /** false for layouts that cannot show a key word differently (typewriter) */
   heroSupported: boolean;
-  /** multi-select: ids of the caption cards (derived pages) ticked for a group adjust */
-  selectedCards: Set<string>;
-  onToggleCard: (pageId: string) => void;
-  onSelectAllCards: () => void;
-  onClearCardSelection: () => void;
+  /**
+   * Drag selection (owner correction #5): a Set of word ids spanning cards, built by dragging
+   * across word chips. Owned by StudioPage so the timeline track shares the same selection.
+   */
+  selectedWordIds: Set<string>;
+  onWordSelectionChange: (ids: Set<string>) => void;
 }
 
-export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit, heroSupported, selectedCards, onToggleCard, onSelectAllCards, onClearCardSelection }) => {
+/**
+ * An in-progress press on a word chip. It becomes a drag-select (press started on an unselected
+ * word) or a drag-retime (press started on a word that is part of the current selection) once the
+ * pointer passes the threshold; below the threshold it stays a plain click (select/edit the word).
+ * Timing is NEVER written to the document during the drag — the delta is previewed visually and
+ * committed once, on release, through edit() + shiftWordsByIds, so undo/redo and autosave see a
+ * single step.
+ */
+type Gesture =
+  | { kind: "select"; anchorId: string; startX: number; startY: number; active: boolean }
+  | { kind: "retime"; ids: string[]; startX: number; startY: number; active: boolean; dx: number };
+
+export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit, heroSupported, selectedWordIds, onWordSelectionChange }) => {
   const [find, setFind] = useState("");
   const [replace, setReplace] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const [shiftSec, setShiftSec] = useState("");
-  const [groupMs, setGroupMs] = useState("");
-  const selectedPages = useMemo(() => pages.filter((p) => selectedCards.has(p.id)), [pages, selectedCards]);
-  const selectedWordIds = useMemo(() => selectedPages.flatMap((p) => p.words.map((w) => w.id)), [selectedPages]);
-  const allSelected = pages.length > 0 && selectedPages.length === pages.length;
-  const applyGroupMs = () => {
-    const v = Number.parseFloat(groupMs);
-    if (!Number.isFinite(v) || v === 0 || selectedWordIds.length === 0) return;
-    const ids = selectedWordIds;
-    edit((d) => shiftWordsByIds(d, ids, Math.round(v)));
-    setGroupMs("");
-  };
+
+  // the flat visible word order (page order) — drag ranges are computed over this, across cards
+  const flatIds = useMemo(() => pages.flatMap((p) => p.words.map((w) => w.id)), [pages]);
+  const selIds = useMemo(() => flatIds.filter((id) => selectedWordIds.has(id)), [flatIds, selectedWordIds]);
+
+  const gestureRef = useRef<Gesture | null>(null);
+  const suppressClickRef = useRef(false);
+  const [dragDeltaMs, setDragDeltaMs] = useState<number | null>(null);
+  const [dragDx, setDragDx] = useState(0);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+
   const applyShiftInput = () => {
     const v = Number.parseFloat(shiftSec);
     if (!Number.isFinite(v) || v === 0) return;
@@ -52,6 +65,73 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
   const matchIds = useMemo(() => new Set(findMatches(doc, find)), [doc, find]);
   const hidden = useMemo(() => doc.words.filter((w) => w.hidden), [doc.words]);
   const lowConfidence = (c?: number) => c !== undefined && c < 0.5;
+
+  // ---------- drag-select + drag-retime on the word chips
+  const onChipPointerDown = (e: React.PointerEvent, wordId: string) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* capture unsupported: container handlers still receive the moves */
+    }
+    if (selectedWordIds.has(wordId) && selectedWordIds.size > 0) {
+      gestureRef.current = { kind: "retime", ids: [...selectedWordIds], startX: e.clientX, startY: e.clientY, active: false, dx: 0 };
+    } else {
+      gestureRef.current = { kind: "select", anchorId: wordId, startX: e.clientX, startY: e.clientY, active: false };
+    }
+  };
+
+  const onListPointerMove = (e: React.PointerEvent) => {
+    const g = gestureRef.current;
+    if (!g) return;
+    const dx = e.clientX - g.startX;
+    const dy = e.clientY - g.startY;
+    if (g.kind === "select") {
+      if (!g.active) {
+        if (!isPastThreshold(dx, dy)) return;
+        g.active = true;
+      }
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-word-id]");
+      const focusId = el?.dataset.wordId;
+      if (focusId) onWordSelectionChange(rangeSelection(flatIds, g.anchorId, focusId));
+    } else {
+      // retime is a horizontal gesture: it takes over once horizontal movement clearly dominates
+      if (!g.active) {
+        if (!isPastThreshold(dx, dy) || Math.abs(dx) < Math.abs(dy)) return;
+        g.active = true;
+      }
+      g.dx = dx;
+      setDragDx(dx);
+      setDragDeltaMs(pxToMs(dx, PANEL_PX_PER_MS));
+      setDragPos({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const endGesture = () => {
+    const g = gestureRef.current;
+    gestureRef.current = null;
+    if (!g) return;
+    if (g.active) suppressClickRef.current = true;
+    if (g.kind === "retime") {
+      if (g.active) {
+        const delta = pxToMs(g.dx, PANEL_PX_PER_MS);
+        const ids = g.ids;
+        if (delta !== 0) edit((d) => shiftWordsByIds(d, ids, delta));
+      }
+      setDragDx(0);
+      setDragDeltaMs(null);
+      setDragPos(null);
+    }
+  };
+
+  const onChipClick = (wordId: string, startMs: number) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    onSelect(wordId);
+    onSeek(startMs + 1);
+  };
 
   // follow playback: keep the card being spoken in the middle of the list (only this list scrolls, never the page)
   const listRef = useRef<HTMLDivElement>(null);
@@ -127,55 +207,47 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
       </div>
 
       {pages.length > 0 ? (
-        <div className="flex items-center gap-2 border-b border-st-line bg-st-panel px-3 py-2">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={() => (allSelected ? onClearCardSelection() : onSelectAllCards())}
-            aria-label="Select all caption lines"
-            className="h-4 w-4 shrink-0 cursor-pointer accent-[#34D399]"
-          />
-          <span className="text-xs font-medium text-st-muted">
-            {selectedPages.length > 0 ? `${selectedPages.length} selected` : "Select lines to adjust them together"}
-          </span>
-          {selectedPages.length > 0 ? (
-            <button onClick={onClearCardSelection} className="ml-auto text-xs font-medium text-st-muted hover:text-st-text">Clear selection</button>
-          ) : null}
-        </div>
+        <p className="shrink-0 border-b border-st-line px-3 py-2 text-xs text-st-muted">
+          Drag across words to select them, then drag the selection left or right to retime it.
+        </p>
       ) : null}
 
-      <div ref={listRef} className="relative min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={listRef}
+        className="relative min-h-0 flex-1 select-none overflow-y-auto"
+        onPointerMove={onListPointerMove}
+        onPointerUp={endGesture}
+        onPointerCancel={endGesture}
+      >
         {pages.length === 0 ? <div className="p-6 text-center text-sm text-st-muted">
             <p className="font-semibold text-st-text">No spoken words found</p>
             <p className="mt-1">This video has no speech we could hear. Add captions with <b>Import SRT</b> above, or double-click the captions track in the timeline to type a word at the playhead.</p>
           </div> : null}
         {pages.map((page) => (
-          <div key={page.id} data-page={page.id} className={`border-b border-l-4 border-b-st-line/60 px-3 py-2.5 transition-colors ${selectedCards.has(page.id) ? "bg-st-em/10" : page.id === currentPageId ? "border-l-st-or bg-st-lav/35" : "border-l-transparent"}`}>
+          <div key={page.id} data-page={page.id} className={`border-b border-l-4 border-b-st-line/60 px-3 py-2.5 ${page.id === currentPageId ? "border-l-st-or bg-st-lav/35" : "border-l-transparent"}`}>
             <div className="mb-1.5 flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedCards.has(page.id)}
-                  onChange={() => onToggleCard(page.id)}
-                  aria-label={`Select caption line at ${fmtTime(page.startMs)}`}
-                  className="h-4 w-4 shrink-0 cursor-pointer accent-[#34D399]"
-                />
-                <button onClick={() => onSeek(page.startMs)} className="-my-1 py-1 pr-2 font-mono text-[11px] text-st-faint hover:text-st-text">{fmtTime(page.startMs)}</button>
-              </span>
+              <button onClick={() => onSeek(page.startMs)} className="-my-1 py-1 pr-2 font-mono text-[11px] text-st-faint hover:text-st-text">{fmtTime(page.startMs)}</button>
             </div>
             <div className="flex flex-wrap gap-1.5 lg:gap-1">
-              {page.words.map((w, i) => (
-                <button
-                  key={w.id}
-                  onClick={() => { onSelect(w.id); onSeek(w.startMs + 1); }}
-                  className={`rounded-md px-2 py-1.5 text-sm transition lg:px-1.5 lg:py-0.5 ${
-                    w.id === selectedId ? "bg-st-ink text-st-panel" : page.id === currentPageId && timeMs >= w.startMs && timeMs < w.endMs ? "bg-st-or text-[#141412]" : matchIds.has(w.id) ? "bg-st-or/40 text-st-text" : "bg-st-raised text-st-text hover:bg-st-hover"
-                  } ${i === page.heroIndex ? "font-bold underline decoration-st-or decoration-2 underline-offset-2" : ""} ${lowConfidence(w.confidence) ? "border-b border-dashed border-st-or" : ""}`}
-                  title={lowConfidence(w.confidence) ? "Low confidence: worth double-checking" : undefined}
-                >
-                  {w.text}
-                </button>
-              ))}
+              {page.words.map((w, i) => {
+                const inSelection = selectedWordIds.has(w.id);
+                const retiming = dragDeltaMs !== null && inSelection;
+                return (
+                  <button
+                    key={w.id}
+                    data-word-id={w.id}
+                    onPointerDown={(e) => onChipPointerDown(e, w.id)}
+                    onClick={() => onChipClick(w.id, w.startMs)}
+                    style={retiming ? { transform: `translateX(${dragDx}px)` } : undefined}
+                    className={`rounded-md px-2 py-1.5 text-sm lg:px-1.5 lg:py-0.5 [touch-action:pan-y] ${
+                      w.id === selectedId ? "bg-st-ink text-st-panel" : inSelection ? "bg-st-em/30 text-st-text ring-2 ring-inset ring-st-em" : page.id === currentPageId && timeMs >= w.startMs && timeMs < w.endMs ? "bg-st-or text-[#141412]" : matchIds.has(w.id) ? "bg-st-or/40 text-st-text" : "bg-st-raised text-st-text hover:bg-st-hover"
+                    } ${i === page.heroIndex ? "font-bold underline decoration-st-or decoration-2 underline-offset-2" : ""} ${lowConfidence(w.confidence) ? "border-b border-dashed border-st-or" : ""}`}
+                    title={lowConfidence(w.confidence) ? "Low confidence: worth double-checking" : undefined}
+                  >
+                    {w.text}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}
@@ -196,32 +268,28 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         ) : null}
       </div>
 
-      {selectedPages.length > 0 ? (
-        <div className="sticky bottom-0 space-y-2 border-t border-st-line bg-st-panel p-3 shadow-[0_-8px_20px_-14px_rgba(0,0,0,0.4)]" role="group" aria-label="Selected lines actions">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold text-st-text">{selectedPages.length} selected · {selectedWordIds.length} word{selectedWordIds.length === 1 ? "" : "s"}</p>
-            <button onClick={onClearCardSelection} className="text-xs font-medium text-st-muted hover:text-st-text">Clear selection</button>
+      {dragDeltaMs !== null && dragPos ? (
+        <div aria-hidden className="pointer-events-none fixed z-50 rounded-md bg-st-ink px-2 py-1 font-mono text-xs font-semibold text-st-panel shadow-lg" style={{ left: dragPos.x + 14, top: dragPos.y + 16 }}>
+          {formatDelta(dragDeltaMs)}
+        </div>
+      ) : null}
+
+      {selIds.length > 0 ? (
+        <div className="sticky bottom-0 border-t border-st-line bg-st-panel p-3 shadow-[0_-8px_20px_-14px_rgba(0,0,0,0.4)]" role="group" aria-label="Selected words actions">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-st-text">
+              {selIds.length} word{selIds.length === 1 ? "" : "s"} selected
+              {dragDeltaMs !== null ? <span className="ml-2 font-mono text-st-em">{formatDelta(dragDeltaMs)}</span> : null}
+            </p>
+            <button onClick={() => onWordSelectionChange(new Set())} className="text-xs font-medium text-st-muted hover:text-st-text">Clear</button>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {[-500, -100, 100, 500].map((ms) => (
-              <Button key={ms} className="!py-1 text-xs" onClick={() => { const ids = selectedWordIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
+              <Button key={ms} className="!py-1 text-xs" onClick={() => { const ids = selIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
                 {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
               </Button>
             ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              step="10"
-              value={groupMs}
-              onChange={(e) => setGroupMs(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") applyGroupMs(); }}
-              placeholder="Custom shift (ms, + later, − earlier)"
-              aria-label="Shift selected lines by this many milliseconds"
-              className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
-            />
-            <Button className="!py-1 text-xs" onClick={applyGroupMs}>Apply shift</Button>
-            <Button tone="danger" className="!py-1 text-xs" onClick={() => { const ids = selectedWordIds; edit((d) => deleteWordsByIds(d, ids)); onClearCardSelection(); onSelect(null); }}>Delete selected</Button>
+            <Button tone="danger" className="!py-1 text-xs" onClick={() => { const ids = selIds; edit((d) => deleteWordsByIds(d, ids)); onWordSelectionChange(new Set()); onSelect(null); }}>Delete selected</Button>
           </div>
         </div>
       ) : null}

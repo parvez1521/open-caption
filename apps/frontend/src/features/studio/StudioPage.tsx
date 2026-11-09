@@ -8,7 +8,7 @@ import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
 import { CaptionDocSchema } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
-import { insertWordAfter, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, splitCardAt } from "@motion-ai/caption-engine/core";
+import { insertWordAfter, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { EyeOff, Redo2, Star, Undo2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { StudioSkeleton } from "@/components/brand/Skeletons";
@@ -44,27 +44,27 @@ import { useStudio, type SaveState } from "./useStudio";
 import { TutorialTour } from "./TutorialTour";
 import { shouldShowTutorial } from "./tutorial";
 
-type SideTab = "style" | "looks" | "timing" | "media" | "text" | "elements" | "adjust";
-type MobileTab = "captions" | SideTab | "timeline";
-const SIDE_TABS: { id: SideTab; label: string }[] = [
-  { id: "style", label: "Style" },
-  { id: "looks", label: "Templates" },
-  { id: "timing", label: "Timing" },
-  { id: "media", label: "Media" },
-  { id: "text", label: "Text" },
-  { id: "elements", label: "Elements" },
-  { id: "adjust", label: "Adjust" },
-];
-const MOBILE_TABS: { id: MobileTab; label: string; icon: string }[] = [
-  { id: "captions", label: "Captions", icon: "☰" },
-  { id: "style", label: "Style", icon: "Aa" },
-  { id: "looks", label: "Templates", icon: "✦" },
-  { id: "timeline", label: "Timeline", icon: "▭" },
-  { id: "timing", label: "Timing", icon: "◷" },
-  { id: "media", label: "Media", icon: "▤" },
-  { id: "text", label: "Text", icon: "T" },
-  { id: "elements", label: "Elements", icon: "◆" },
-  { id: "adjust", label: "Adjust", icon: "◐" },
+/**
+ * Left-rail tool sections (owner correction #3, full-studio brief §7 layout, first instalment).
+ * The rail is the growth point for the §7 layout: adding a section = one entry here + one entry in
+ * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
+ * and the right inspector slot in beside these, not into a new tab row.
+ */
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust";
+
+const railIcon = (children: React.ReactNode) => (
+  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
+);
+
+const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?: "templates" | "style" }[] = [
+  { id: "media", label: "Media", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M3 16l5-4 4 3 3-2 6 5" /></>) },
+  { id: "captions", label: "Captions", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 10h6M7 14h10" /></>) },
+  { id: "templates", label: "Templates", tour: "templates", icon: railIcon(<><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="8" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" /></>) },
+  { id: "style", label: "Style", tour: "style", icon: railIcon(<text x="12" y="17" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor" stroke="none">Aa</text>) },
+  { id: "text", label: "Text", icon: railIcon(<path d="M5 5h14M12 5v14" />) },
+  { id: "elements", label: "Elements", icon: railIcon(<><circle cx="8" cy="8" r="3.5" /><rect x="13" y="13" width="8" height="8" rx="1" /><path d="M17.5 3.5l3 5h-6z" /></>) },
+  { id: "adjust", label: "Adjust", icon: railIcon(<><path d="M4 8h9M19 8h1M4 16h3M13 16h7" /><circle cx="16" cy="8" r="2" /><circle cx="10" cy="16" r="2" /></>) },
+  { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
 ];
 
 const SAVE_LABEL: Record<SaveState, { text: string; dot: string }> = {
@@ -124,12 +124,13 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   }, [phase, docForTour]);
   const desktop = useIsDesktop();
 
-  const [sideTab, setSideTab] = useState<SideTab>("style");
-  const [mobileTab, setMobileTab] = useState<MobileTab>("captions");
+  const [section, setSection] = useState<PanelId>("captions");
+  const [mobileTimeline, setMobileTimeline] = useState(false);
   const [timeMs, setTimeMs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
+  /** drag selection of caption words (ids, spanning cards), shared by the captions panel + timeline */
+  const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [showTour, setShowTour] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -236,7 +237,19 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         : { reason: `Getting your video ready for export… ${Math.round(compat.progress * 100)}%`, progress: compat.progress }
       : null;
 
-  // keyboard: space = play/pause, ctrl/cmd+z / shift+z = undo/redo, ctrl/cmd+s = save
+  // the drag selection must never point at words that no longer exist (deletes, doc replacement)
+  useEffect(() => {
+    if (!doc) return;
+    setSelectedWordIds((prev) => {
+      if (prev.size === 0) return prev;
+      const ids = new Set(doc.words.map((w) => w.id));
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [doc]);
+
+  // keyboard: space = play/pause, ctrl/cmd+z / shift+z = undo/redo, ctrl/cmd+s = save,
+  // ←/→ = nudge the drag-selected words by 100 ms (Shift+←/→ = 10 ms fine adjust)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -245,11 +258,17 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       if (mod && e.key.toLowerCase() === "z") { if (typing && t.tagName !== "BODY") return; e.preventDefault(); e.shiftKey ? s.redo() : s.undo(); }
       else if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); s.redo(); }
       else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); void s.saveNow().catch(() => undefined); }
+      else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !typing && !mod && selectedWordIds.size > 0) {
+        e.preventDefault();
+        const delta = (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 10 : 100);
+        const ids = [...selectedWordIds];
+        s.edit((d) => shiftWordsByIds(d, ids, delta));
+      }
       else if (e.code === "Space" && !typing) { e.preventDefault(); playerRef.current?.toggle(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [s]);
+  }, [s, selectedWordIds]);
 
   if (s.query.isLoading) return <StudioSkeleton />;
   if (s.query.error instanceof ApiError && s.query.error.status === 401) {
@@ -381,7 +400,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const captions = doc && style ? (
     <div data-tour="captions" className="flex h-full min-h-0 flex-col">
       <div className={`min-h-0 flex-1 ${live ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
-        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={setSelectedId} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedCards={selectedCards} onToggleCard={(id) => setSelectedCards((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; })} onSelectAllCards={() => setSelectedCards(new Set(pages.map((p) => p.id)))} onClearCardSelection={() => setSelectedCards(new Set())} />
+        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={setSelectedId} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={setSelectedWordIds} />
       </div>
       {live && liveView ? (
         // the captions that haven't been written yet: shimmering placeholders with the time left
@@ -397,10 +416,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   ) : null;
 
   const overlayPanelProps = { settings, patch: s.patchSettings, selectedId: selectedOverlayId, onSelect: setSelectedOverlayId, getTimeMs: getPlayerMs, durationMs };
-  const sidePanel = (t: SideTab) =>
-    style ? (
-      t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => { if (desktop) setSideTab("looks"); else setMobileTab("looks"); }} />
-      : t === "looks" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
+  // panel registry: every rail section maps to its real panel here (same props/state as before the move)
+  const renderPanel = (t: PanelId) =>
+    t === "captions" ? captions
+    : style ? (
+      t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} />
+      : t === "templates" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
       : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} onRelink={device.attach} />
       : t === "text" ? <TextPanel {...overlayPanelProps} />
       : t === "elements" ? <ElementsPanel {...overlayPanelProps} />
@@ -467,12 +488,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       waveState={wave.state}
       onSeek={seek}
       onSelect={setSelectedId}
+      selectedWordIds={selectedWordIds}
+      onWordSelectionChange={setSelectedWordIds}
+      onShiftWords={(ids, deltaMs) => s.edit((d) => shiftWordsByIds(d, ids, deltaMs))}
       onRetimeRun={(a, b, st, en, ripple) => s.edit((d) => retimeRun(d, a, b, st, en, ripple))}
       onRename={(id, text) => s.edit((d) => setWordText(d, id, text))}
       onAddWord={addWordAt}
       onSplit={() => selected && s.edit((d) => splitCardAt(d, selected.id))}
       onJoin={() => selected && s.edit((d) => mergeWithPrevious(d, selected.id))}
-      onOpenSettings={() => { if (desktop) setSideTab("timing"); else setMobileTab("timing"); }}
+      onOpenSettings={() => { setSection("timing"); setMobileTimeline(false); }}
       extraTools={extraTools}
       fill={!desktop}
     />
@@ -509,71 +533,80 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     );
   }
 
-  const properties = (
-    <aside aria-label="Properties" className="row-span-2 flex min-h-0 flex-col border-l border-st-line bg-st-panel">
-      <nav className="flex shrink-0 flex-wrap gap-1 border-b border-st-line p-2" role="tablist">
-        {SIDE_TABS.map((t) => (
-          <button key={t.id} data-tour={t.id === "looks" ? "templates" : t.id === "style" ? "style" : undefined} role="tab" aria-selected={sideTab === t.id} onClick={() => setSideTab(t.id)} className={`flex-[1_1_30%] rounded-lg py-2 text-sm font-semibold transition ${sideTab === t.id ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-raised hover:text-st-text"}`}>{t.label}</button>
-        ))}
-      </nav>
-      <div key={sideTab} className="st-rise min-h-0 flex-1">{sidePanel(sideTab)}</div>
+  // ---------- left vertical rail (desktop) — the §7 growth point; the panel column opens beside it
+  const rail = (
+    <nav aria-label="Studio tools" className="flex w-[76px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-st-line bg-st-panel px-2 py-3">
+      {RAIL_SECTIONS.map((sec) => (
+        <button
+          key={sec.id}
+          data-tour={sec.tour}
+          onClick={() => setSection(sec.id)}
+          aria-pressed={section === sec.id}
+          className={`flex flex-col items-center gap-1.5 rounded-xl px-1 py-2.5 ${section === sec.id ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-raised hover:text-st-text"}`}
+        >
+          {sec.icon}
+          <span className="text-[11px] font-medium leading-none">{sec.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+  // the active section's panel, full height; Captions keeps its title row, the rest carry their own
+  const panelColumn = (
+    <aside aria-label="Tool panel" className="flex min-h-0 w-[min(400px,34vw)] min-w-[300px] shrink-0 flex-col border-r border-st-line bg-st-panel">
+      {section === "captions" ? <PanelTitle title="Captions" hint={`${pages.length} cards`} /> : null}
+      <div key={section} className="st-rise min-h-0 flex-1">{renderPanel(section)}</div>
     </aside>
   );
-  const captionsSection = (
-    <section aria-label="Captions" className="flex min-h-0 flex-col border-b border-r border-st-line bg-st-panel">
-      <PanelTitle title="Captions" hint={`${pages.length} cards`} />
-      <div className="min-h-0 flex-1">{captions}</div>
-    </section>
-  );
 
-  // ---------- desktop, PORTRAIT video: captions + timeline stacked on the left, a tall preview in the middle
-  // that uses the full height (like pro short-form editors), properties on the right
-  if (desktop && height > width) {
-    return (
-      <div className="studio flex h-[100dvh] flex-col">
-        {header}
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(380px,1fr)_auto_minmax(320px,24vw)] grid-rows-[minmax(0,42%)_minmax(0,1fr)]">
-          {captionsSection}
-          <section data-tour="preview" aria-label="Preview" className="row-span-2 h-full min-h-0 bg-st-bg" style={{ aspectRatio: `${width} / ${height}`, maxWidth: "46vw" }}>{stage}</section>
-          {properties}
-          <section aria-label="Timeline section" className="min-h-0 border-r border-st-line">{timeline}</section>
-        </div>
-        {overlays}
-      </div>
-    );
-  }
-
-  // ---------- desktop, landscape/square video: captions top-left, preview centre, properties right, timeline across the bottom
+  // ---------- desktop: rail | panel column | centre (preview over timeline). One layout for portrait
+  // and landscape video — the player fits the centre area either way.
   if (desktop) {
     return (
       <div className="studio flex h-[100dvh] flex-col">
         {header}
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(300px,24vw)_minmax(0,1fr)_minmax(320px,23vw)] grid-rows-[minmax(0,1fr)_minmax(250px,38%)]">
-          {captionsSection}
-          <section data-tour="preview" aria-label="Preview" className="min-h-0 border-b border-st-line bg-st-bg">{stage}</section>
-          {properties}
-          <section aria-label="Timeline section" className="col-span-2 min-h-0">{timeline}</section>
+        <div className="flex min-h-0 flex-1">
+          {rail}
+          {panelColumn}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <section data-tour="preview" aria-label="Preview" className="min-h-0 flex-1 bg-st-bg">{stage}</section>
+            <section aria-label="Timeline section" className="h-[min(300px,34%)] min-h-[215px] shrink-0 border-t border-st-line">{timeline}</section>
+          </div>
         </div>
         {overlays}
       </div>
     );
   }
 
-  // ---------- phone / tablet: preview on top, one tool at a time, bottom tab bar
+  // ---------- phone / tablet: preview on top, one panel at a time, and the rail collapsed to a
+  // single-row horizontal icon bar at the bottom (scrolls sideways — never wraps into a second row)
   return (
     <div className="studio flex h-[100dvh] flex-col">
       {header}
-      <section data-tour="preview" aria-label="Preview" className="h-[44dvh] min-h-[260px] shrink-0 border-b border-st-line bg-st-bg">{stage}</section>
-      <div key={mobileTab} className="st-rise min-h-0 flex-1 bg-st-panel">
-        {mobileTab === "captions" ? captions : mobileTab === "timeline" ? timeline : sidePanel(mobileTab)}
+      <section data-tour="preview" aria-label="Preview" className="h-[40dvh] min-h-[250px] shrink-0 border-b border-st-line bg-st-bg">{stage}</section>
+      <div key={mobileTimeline ? "timeline" : section} className="st-rise min-h-0 flex-1 bg-st-panel">
+        {mobileTimeline ? timeline : renderPanel(section)}
       </div>
-      <nav className="grid shrink-0 grid-cols-5 border-t border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)]" role="tablist" aria-label="Editor sections">
-        {MOBILE_TABS.map((t) => (
-          <button key={t.id} data-tour={t.id === "looks" ? "templates" : t.id === "style" ? "style" : undefined} role="tab" aria-selected={mobileTab === t.id} onClick={() => setMobileTab(t.id)} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium transition ${mobileTab === t.id ? "text-st-ink" : "text-st-muted"}`}>
-            <span className={`grid h-6 min-w-10 place-items-center rounded-full px-2 text-base leading-none ${mobileTab === t.id ? "bg-st-lav" : ""}`} aria-hidden>{t.icon}</span>
-            {t.label}
+      <nav className="flex shrink-0 flex-nowrap gap-1 overflow-x-auto border-t border-st-line bg-st-panel px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] [scrollbar-width:none]" aria-label="Editor sections">
+        {RAIL_SECTIONS.map((sec) => (
+          <button
+            key={sec.id}
+            data-tour={sec.tour}
+            onClick={() => { setSection(sec.id); setMobileTimeline(false); }}
+            aria-pressed={!mobileTimeline && section === sec.id}
+            className={`flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 ${!mobileTimeline && section === sec.id ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
+          >
+            {sec.icon}
+            <span className="text-[11px] font-medium leading-none">{sec.label}</span>
           </button>
         ))}
+        <button
+          onClick={() => setMobileTimeline(true)}
+          aria-pressed={mobileTimeline}
+          className={`flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 ${mobileTimeline ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
+        >
+          {railIcon(<><path d="M3 9h18M3 15h18" /><path d="M8 5v14M15 5v14" /></>)}
+          <span className="text-[11px] font-medium leading-none">Timeline</span>
+        </button>
       </nav>
       {overlays}
     </div>

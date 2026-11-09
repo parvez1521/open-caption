@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { FoldHorizontal, Link2, Magnet, Maximize2, Plus, Scissors, SlidersHorizontal, ZoomIn, ZoomOut } from "lucide-react";
 import type { Page, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
+import { formatDelta, pxToMs, toggleIds } from "./dragSelect";
 import { PEAKS_PER_SECOND } from "./useWaveform";
 import { useFilmstrip } from "./useFilmstrip";
 
@@ -25,6 +26,11 @@ interface Props {
   waveState: "idle" | "loading" | "ready" | "unavailable";
   onSeek: (ms: number) => void;
   onSelect: (wordId: string | null) => void;
+  /** drag selection of caption words (owner correction #5), shared with the captions panel */
+  selectedWordIds: Set<string>;
+  onWordSelectionChange: (ids: Set<string>) => void;
+  /** commit a retime of the whole word selection, once, on pointer up (shiftWordsByIds in StudioPage) */
+  onShiftWords: (ids: string[], deltaMs: number) => void;
   /** commit new timing for a run of words (one word, or a whole line), once, on pointer up */
   onRetimeRun: (firstId: string, lastId: string, startMs: number, endMs: number, ripple: boolean) => void;
   onRename: (wordId: string, text: string) => void;
@@ -39,8 +45,8 @@ interface Props {
 }
 
 type Mode = "word" | "line";
-interface Block { key: string; firstId: string; lastId: string; text: string; s: number; e: number; selected: boolean; live: boolean }
-type Drag = { key: string; firstId: string; lastId: string; kind: "move" | "start" | "end"; x0: number; s0: number; e0: number; min: number; max: number; s: number; e: number };
+interface Block { key: string; firstId: string; lastId: string; wordIds: string[]; text: string; s: number; e: number; selected: boolean; inSelection: boolean; live: boolean }
+type Drag = { key: string; firstId: string; lastId: string; kind: "move" | "start" | "end"; x0: number; s0: number; e0: number; min: number; max: number; s: number; e: number; group: string[] | null; dxMs: number; px: number; py: number };
 
 const LABEL_WIDE = 88;
 const LABEL_NARROW = 58;
@@ -58,7 +64,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -190,14 +196,14 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   // blocks on the captions track: one per word, or one per caption line (card) spanning its words
   const blocks: Block[] = useMemo(() => {
     if (mode === "word") {
-      return visible.map((w) => ({ key: w.id, firstId: w.id, lastId: w.id, text: w.text, s: w.startMs, e: w.endMs, selected: w.id === selectedId, live: timeMs >= w.startMs && timeMs < w.endMs }));
+      return visible.map((w) => ({ key: w.id, firstId: w.id, lastId: w.id, wordIds: [w.id], text: w.text, s: w.startMs, e: w.endMs, selected: w.id === selectedId, inSelection: selectedWordIds.has(w.id), live: timeMs >= w.startMs && timeMs < w.endMs }));
     }
     return pages.filter((p) => p.words.length).map((p) => {
       const f = p.words[0]!;
       const l = p.words[p.words.length - 1]!;
-      return { key: p.id, firstId: f.id, lastId: l.id, text: p.words.map((w) => w.text).join(" "), s: f.startMs, e: l.endMs, selected: p.words.some((w) => w.id === selectedId), live: timeMs >= p.startMs && timeMs < p.endMs };
+      return { key: p.id, firstId: f.id, lastId: l.id, wordIds: p.words.map((w) => w.id), text: p.words.map((w) => w.text).join(" "), s: f.startMs, e: l.endMs, selected: p.words.some((w) => w.id === selectedId), inSelection: p.words.some((w) => selectedWordIds.has(w.id)), live: timeMs >= p.startMs && timeMs < p.endMs };
     });
-  }, [mode, visible, pages, selectedId, timeMs]);
+  }, [mode, visible, pages, selectedId, selectedWordIds, timeMs]);
 
   const snapTargets = (skip: string) => {
     const t: number[] = [0, total, timeMs];
@@ -215,15 +221,32 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   const beginDrag = (e: React.PointerEvent, b: Block, kind: Drag["kind"]) => {
     if (renaming) return;
     e.stopPropagation();
+    // Shift+click on a block adds/removes its words from the drag selection — no drag starts.
+    if (kind === "move" && e.shiftKey) {
+      onWordSelectionChange(toggleIds(selectedWordIds, b.wordIds));
+      return;
+    }
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     const i = blocks.findIndex((v) => v.key === b.key);
     const prev = blocks[i - 1];
     const next = blocks[i + 1];
     onSelect(b.firstId);
-    setDrag({ key: b.key, firstId: b.firstId, lastId: b.lastId, kind, x0: e.clientX, s0: b.s, e0: b.e, min: prev ? prev.e : 0, max: ripple ? total : next ? next.s : total, s: b.s, e: b.e });
+    // Dragging a block that belongs to a larger word selection retimes the WHOLE selection
+    // (owner correction #5); anything else keeps the single-run drag this timeline already had.
+    const group =
+      kind === "move" && b.wordIds.some((id) => selectedWordIds.has(id)) && ![...selectedWordIds].every((id) => b.wordIds.includes(id))
+        ? [...selectedWordIds]
+        : null;
+    if (kind === "move" && !group) onWordSelectionChange(new Set(b.wordIds));
+    setDrag({ key: b.key, firstId: b.firstId, lastId: b.lastId, kind, x0: e.clientX, s0: b.s, e0: b.e, min: prev ? prev.e : 0, max: ripple ? total : next ? next.s : total, s: b.s, e: b.e, group, dxMs: 0, px: e.clientX, py: e.clientY });
   };
   const onMove = (e: React.PointerEvent) => {
     if (!drag) return;
+    if (drag.group) {
+      // group retime: preview the delta only — the document is committed once, on pointer up
+      setDrag({ ...drag, dxMs: pxToMs(e.clientX - drag.x0, pxPerMs), px: e.clientX, py: e.clientY });
+      return;
+    }
     const d = (e.clientX - drag.x0) / pxPerMs;
     const targets = snapTargets(drag.key);
     const minLen = MIN_MS;
@@ -243,7 +266,9 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
     setDrag({ ...drag, s: Math.round(s), e: Math.round(en) });
   };
   const endDrag = () => {
-    if (drag && (drag.s !== drag.s0 || drag.e !== drag.e0)) onRetimeRun(drag.firstId, drag.lastId, drag.s, drag.e, ripple);
+    if (drag?.group) {
+      if (drag.dxMs !== 0) onShiftWords(drag.group, drag.dxMs);
+    } else if (drag && (drag.s !== drag.s0 || drag.e !== drag.e0)) onRetimeRun(drag.firstId, drag.lastId, drag.s, drag.e, ripple);
     setDrag(null);
   };
 
@@ -318,7 +343,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
           {/* captions: words or lines */}
           <div className={trackRow} {...scrub} onClick={() => onSelect(null)}>
             {blocks.map((b) => {
-              const live = drag?.key === b.key ? { s: drag.s, e: drag.e } : { s: b.s, e: b.e };
+              const live = drag?.key === b.key && !drag.group ? { s: drag.s, e: drag.e } : { s: b.s, e: b.e };
+              const groupOffsetPx = drag?.group && b.wordIds.some((id) => selectedWordIds.has(id)) ? drag.dxMs * pxPerMs : 0;
               const wpx = Math.max(3, x(live.e) - x(live.s) - 1);
               return (
                 <div
@@ -327,8 +353,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
                   onClick={(e) => { e.stopPropagation(); onSelect(b.firstId); onSeek(live.s + 1); }}
                   onDoubleClick={(e) => { e.stopPropagation(); if (mode === "word") setRenaming(b.firstId); }}
                   title={`${b.text}  ${fmtTime(live.s)} – ${fmtTime(live.e)}${mode === "word" ? "  (double-click to edit)" : ""}`}
-                  className={`absolute top-1 bottom-1 cursor-grab overflow-hidden rounded-md border text-[11px] leading-tight ${b.selected ? "border-st-ink bg-st-lav text-[#FFFFEB] ring-2 ring-st-ink/20" : b.live ? "border-st-ink/30 bg-st-or text-[#141412]" : mode === "line" ? "border-st-ink/15 bg-st-hover text-[#FFFFEB] hover:bg-st-lav/60" : "border-st-ink/10 bg-st-lav/60 text-[#FFFFEB] hover:bg-st-lav"}`}
-                  style={{ left: x(live.s), width: wpx }}
+                  className={`absolute top-1 bottom-1 cursor-grab touch-none overflow-hidden rounded-md border text-[11px] leading-tight ${b.inSelection ? "ring-2 ring-st-em " : ""}${b.selected ? "border-st-ink bg-st-lav text-[#FFFFEB] ring-2 ring-st-ink/20" : b.live ? "border-st-ink/30 bg-st-or text-[#141412]" : mode === "line" ? "border-st-ink/15 bg-st-hover text-[#FFFFEB] hover:bg-st-lav/60" : "border-st-ink/10 bg-st-lav/60 text-[#FFFFEB] hover:bg-st-lav"}`}
+                  style={{ left: x(live.s) + groupOffsetPx, width: wpx }}
                 >
                   {renaming === b.firstId ? (
                     <input
@@ -382,6 +408,12 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
           </div>
         </div>
       </div>
+
+      {drag?.group ? (
+        <div aria-hidden className="pointer-events-none fixed z-50 rounded-md bg-st-ink px-2 py-1 font-mono text-xs font-semibold text-st-panel shadow-lg" style={{ left: drag.px + 14, top: drag.py + 16 }}>
+          {formatDelta(drag.dxMs)}
+        </div>
+      ) : null}
     </div>
   );
 };

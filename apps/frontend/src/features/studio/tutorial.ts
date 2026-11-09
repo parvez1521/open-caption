@@ -37,7 +37,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "timing",
     anchor: "captions",
     title: "Nudge the timing",
-    body: "Tick the checkbox on any line to select it, then shift the selected lines together — or shift all captions at once from the top of this panel.",
+    body: "Drag across words to select them, then drag the selection left or right to retime it — or shift all captions at once from the top of this panel.",
   },
   {
     id: "style",
