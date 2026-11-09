@@ -699,3 +699,35 @@ begin
    where status_v2 = 'ready' and expires_at is not null and expires_at < now();
   delete from public.device_codes where expires_at < now() - interval '1 day';
 end $function$;
+
+-- ============================================================
+-- FILE: app/supabase/migrations/20261110000000_project_persistence.sql
+-- ============================================================
+-- Project persistence fix: registered users' projects never expire; only
+-- anonymous-guest projects untouched for 30+ days are eligible (daily job).
+-- Supersedes the 24h delete-everything rule from 20261004120000 above.
+create or replace function public.delete_expired_projects(p_hours int default 720, p_limit int default 500)
+returns int language plpgsql security definer set search_path = public as $$
+declare n int; floor_hours int := greatest(coalesce(p_hours, 720), 720);
+begin
+  with gone as (
+    select p.id
+      from projects p
+      join auth.users u on u.id = p.owner_id
+     where coalesce(u.is_anonymous, false) = true
+       and p.created_at < now() - make_interval(hours => floor_hours)
+       and p.updated_at < now() - make_interval(hours => floor_hours)
+     order by p.created_at
+     limit p_limit
+  ), del as (
+    delete from projects where id in (select id from gone) returning 1
+  )
+  select count(*) into n from del;
+  return n;
+end $$;
+revoke all on function public.delete_expired_projects(int, int) from public, anon, authenticated;
+
+select cron.unschedule('capseasy-expire-projects')
+ where exists (select 1 from cron.job where jobname = 'capseasy-expire-projects');
+
+select cron.schedule('capseasy-expire-projects', '15 3 * * *', $$select public.delete_expired_projects(720, 500)$$);
