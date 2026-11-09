@@ -237,7 +237,7 @@ export default function ProjectsList() {
             {deleteError && <div className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{deleteError}</div>}
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setDeleteTarget(null)} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Keep it</button>
-              <button onClick={handleDelete} className="rounded-full bg-orange-accent px-6 py-2.5 font-sora text-[12px] font-semibold text-obsidian hover:bg-orange-accent/85 transition-all cursor-pointer">Delete project</button>
+              <button onClick={handleDelete} className="rounded-full bg-orange-accent px-6 py-2.5 font-sora text-[12px] font-semibold text-[#141412] hover:bg-orange-accent/85 transition-all cursor-pointer">Delete project</button>
             </div>
           </div>
         </div>

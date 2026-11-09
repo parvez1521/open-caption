@@ -151,7 +151,7 @@ export function Loader({ onDone }: { onDone: () => void }) {
                         className={`absolute -inset-x-[6px] -inset-y-[4px] rounded-[10px] ${last ? "last bg-[#34D399]" : "bg-[#252B26]"}`}
                         style={{ animationDelay: last ? `${WORD_AT(i)}ms` : `${WORD_AT(i)}ms, ${WORD_AT(i + 1)}ms` }}
                       />
-                      <span data-wt={last ? undefined : ""} className="relative" style={last ? undefined : { animationDelay: `${WORD_AT(i + 1)}ms` }}>
+                      <span data-wt={last ? undefined : ""} className={`relative ${last ? "text-[#141412]" : ""}`} style={last ? undefined : { animationDelay: `${WORD_AT(i + 1)}ms` }}>
                         {w}
                       </span>
                     </span>

@@ -96,7 +96,7 @@ export const MotionPicker: React.FC<Props> = ({ label, kind, value, groups, onCh
                               <Preview kind={kind} type={t} className="block aspect-[2/1] w-full" />
                               <span className="flex items-center justify-between px-2.5 py-2 text-sm">
                                 {motionName(t, kind)}
-                                {on ? <span className="rounded-full bg-emerald-accent px-2 py-0.5 text-[10px] font-semibold text-obsidian">In use</span> : null}
+                                {on ? <span className="rounded-full bg-emerald-accent px-2 py-0.5 text-[10px] font-semibold text-[#141412]">In use</span> : null}
                               </span>
                             </button>
                           );

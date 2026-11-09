@@ -17,7 +17,13 @@ import { useIsMobile } from "./useIsMobile";
  * ─────────────────────────────────────────────────────────────── */
 
 export const INK = "#FFFFEB";
-export const CREAM = "#FFFFEB";
+/**
+ * Card surface in the dark theme. This was `CREAM = "#FFFFEB"` in the light design, where INK was
+ * #1A1A1A; the dark-theme hex sweep flipped INK to #FFFFEB but left this background constant
+ * untouched, so every showcase card rendered cream text on a cream panel (the 2026-11-10 contrast
+ * bug). The surface is now the dark elevated token #1C1C1A — never a light colour.
+ */
+export const SURFACE = "#1C1C1A";
 export const FPS = 30;
 /** clips are cut to the corridor card shape */
 export const CLIP_W = 432;
@@ -194,11 +200,11 @@ const rise = (d: number) => ({
 function Eyebrow({ index, eyebrow, accent }: Pick<ShowcaseProps, "index" | "eyebrow" | "accent">) {
   return (
     <motion.div {...rise(0.05)} className="flex items-center gap-3">
-      <span className="flex h-8 items-center gap-2 rounded-full border border-[#FFFFEB]/10 bg-white/70 px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/70">
+      <span className="flex h-8 items-center gap-2 rounded-full border border-[#FFFFEB]/10 bg-[#232320] px-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-[#B4B4AA]">
         <span className="h-2 w-2 rounded-full" style={{ background: accent }} />
         {eyebrow}
       </span>
-      <span className="font-mono text-[12px] text-[#FFFFEB]/35">{String(index).padStart(2, "0")} / 04</span>
+      <span className="font-mono text-[12px] text-[#8F8F86]">{String(index).padStart(2, "0")} / 04</span>
     </motion.div>
   );
 }
@@ -259,7 +265,7 @@ export function ShowcaseCard({ index, eyebrow, accent, wash, title, titleAccent,
   }, []);
 
   const shell = "relative overflow-hidden font-sans text-[#FFFFEB]";
-  const shellStyle = { background: CREAM, boxShadow: "0 0 0 1px rgba(0,0,0,0.07), 0 40px 80px -30px rgba(0,0,0,0.28)" };
+  const shellStyle = { background: SURFACE, boxShadow: "0 0 0 1px rgba(255,255,235,0.08), 0 40px 80px -30px rgba(0,0,0,0.6)" };
   const glow = (
     <>
       <div aria-hidden className="absolute inset-0" style={{ background: wash }} />
@@ -320,7 +326,7 @@ export function ShowcaseCard({ index, eyebrow, accent, wash, title, titleAccent,
 /** Small frosted label used across the demos. */
 export function Tag({ children, dark = false, className = "" }: { children: React.ReactNode; dark?: boolean; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10.5px] font-medium tracking-wide ${dark ? "bg-[#262622] text-[#FFFFEB]" : "border border-[#FFFFEB]/10 bg-white/80 text-[#FFFFEB]/70 backdrop-blur"} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-mono text-[10.5px] font-medium tracking-wide ${dark ? "bg-[#262622] text-[#FFFFEB]" : "border border-[#FFFFEB]/10 bg-[#232320] text-[#B4B4AA]"} ${className}`}>
       {children}
     </span>
   );

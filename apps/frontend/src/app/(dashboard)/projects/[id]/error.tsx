@@ -36,7 +36,7 @@ export default function ProjectError({ error, reset }: { error: Error & { digest
           ) : null}
           <Link href="/dashboard" className="rounded-full border border-[#FFFFEB]/15 px-5 py-2.5 text-sm font-semibold">All your projects</Link>
         </div>
-        {error.digest ? <p className="mt-6 font-mono text-[11px] text-[#FFFFEB]/35">Reference: {error.digest}</p> : null}
+        {error.digest ? <p className="mt-6 font-mono text-[11px] text-[#FFFFEB]/60">Reference: {error.digest}</p> : null}
       </div>
     </main>
   );

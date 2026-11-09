@@ -23,7 +23,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
           <button onClick={reset} className="rounded-full bg-[#FFFFEB] px-5 py-2.5 text-sm font-semibold text-[#141412]">Try again</button>
           <Link href="/dashboard" className="rounded-full border border-[#FFFFEB]/15 px-5 py-2.5 text-sm font-semibold">Go to dashboard</Link>
         </div>
-        {error.digest ? <p className="mt-6 font-mono text-[11px] text-[#FFFFEB]/35">Reference: {error.digest}</p> : null}
+        {error.digest ? <p className="mt-6 font-mono text-[11px] text-[#FFFFEB]/60">Reference: {error.digest}</p> : null}
       </div>
     </main>
   );

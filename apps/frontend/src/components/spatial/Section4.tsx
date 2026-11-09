@@ -37,7 +37,7 @@ export function Section4() {
       index={4}
       eyebrow="Export"
       accent={INKC}
-      wash="radial-gradient(70% 110% at 82% 45%, rgba(228,228,208,0.9) 0%, rgba(228,228,208,0.35) 50%, transparent 80%)"
+      wash="radial-gradient(70% 110% at 82% 45%, rgba(228,228,208,0.14) 0%, rgba(228,228,208,0.05) 50%, transparent 80%)"
       title="Captions only,"
       titleAccent="zero re-encode."
       body="Editing in Premiere, Resolve or Final Cut? Export just the animated captions on a transparent background and lay them over your own grade. Your footage is never recompressed."
@@ -70,20 +70,20 @@ export function Section4() {
       <div className="absolute bottom-[178px] left-[34px] right-[34px] flex items-center justify-between">
         <span className="flex items-center gap-2 text-[12px] text-[#FFFFEB]/65">
           <span className="h-3.5 w-3.5 rounded-[4px] border border-[#FFFFEB]/20" style={{ background: CHECKER }} />
-          captions.mov <span className="font-mono text-[10.5px] text-[#FFFFEB]/40">alpha layer</span>
+          captions.mov <span className="font-mono text-[10.5px] text-[#8F8F86]">alpha layer</span>
         </span>
         <span className="flex items-center gap-2 text-[12px] text-[#FFFFEB]/65">
           <span className="h-3.5 w-3.5 rounded-[4px] bg-gradient-to-br from-[#b4546a] to-[#3b2a22]" />
-          your-footage.mp4 <span className="font-mono text-[10.5px] text-[#FFFFEB]/40">untouched</span>
+          your-footage.mp4 <span className="font-mono text-[10.5px] text-[#8F8F86]">untouched</span>
         </span>
       </div>
 
       {/* formats */}
       <div className="absolute bottom-[46px] left-[34px] right-[34px] grid grid-cols-2 gap-2">
         {FORMATS.map((x, k) => (
-          <div key={x.f} className={`rounded-xl border px-3.5 py-2.5 ${k === 1 ? "border-[#FFFFEB]/60 bg-[#262622] text-[#FFFFEB]" : "border-[#FFFFEB]/10 bg-white/80"}`}>
+          <div key={x.f} className={`rounded-xl border px-3.5 py-2.5 ${k === 1 ? "border-[#FFFFEB]/60 bg-[#262622] text-[#FFFFEB]" : "border-[#FFFFEB]/10 bg-[#232320]"}`}>
             <div className="font-mono text-[12px] font-semibold">{x.f}</div>
-            <div className={`text-[11.5px] ${k === 1 ? "text-[#FFFFEB]/60" : "text-[#FFFFEB]/55"}`}>{x.d}</div>
+            <div className={`text-[11.5px] ${k === 1 ? "text-[#FFFFEB]/60" : "text-[#FFFFEB]/65"}`}>{x.d}</div>
           </div>
         ))}
       </div>

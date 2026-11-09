@@ -78,7 +78,7 @@ export function SpatialScroll() {
       justifyContent: 'center',
     };
     return (
-      <div key="mobile" id="spatial-scroll-container" className="mb-20 sm:mb-32" style={{ width: '100vw', backgroundColor: '#FFFFEB', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+      <div key="mobile" id="spatial-scroll-container" className="mb-20 sm:mb-32" style={{ width: '100vw', backgroundColor: '#141412', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <ShowcaseHeading className="px-4 pt-16" />
         <div style={snapSlot}><Section1Productivity /></div>
         <div style={snapSlot}><Section2 /></div>

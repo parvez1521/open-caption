@@ -359,7 +359,7 @@ export const WorksWheel = React.forwardRef<WorksWheelRef, WorksWheelProps>(({
                 scrollDriven ? "cursor-default" : "hover:text-[#FFFFEB]",
                 i === active
                   ? "text-[#FFFFEB] font-bold underline decoration-[#FFA946] decoration-2 underline-offset-4"
-                  : "text-[#FFFFEB]/45",
+                  : "text-[#FFFFEB]/60",
               )}
             >
               {item.title}

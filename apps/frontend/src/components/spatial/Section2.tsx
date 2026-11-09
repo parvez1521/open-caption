@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { getLook } from "@capseasy/templates";
 import { ClipPlayer, Frame, ShowcaseCard, Tag, lookFor, useTranscript } from "./ShowcaseKit";
 
-const VIOLET = "#A855F7";
+const LAVENDER = "#F0D7FF";
 const CLIP = "mckensie";
 const DEMO_LOOKS = ["hormozi_box", "beast_bounce", "karaoke_fill", "highlighter_card", "neon_sign", "staggered_splash"].filter((id) => getLook(id));
 
@@ -27,8 +27,8 @@ export function Section2() {
     <ShowcaseCard
       index={2}
       eyebrow="Looks"
-      accent={VIOLET}
-      wash="radial-gradient(70% 110% at 82% 45%, rgba(240,215,255,0.85) 0%, rgba(240,215,255,0.35) 45%, transparent 78%)"
+      accent={LAVENDER}
+      wash="radial-gradient(70% 110% at 82% 45%, rgba(240,215,255,0.14) 0%, rgba(240,215,255,0.05) 45%, transparent 78%)"
       title="20+ looks,"
       titleAccent="one click."
       body="Viral boxes, karaoke fills, glowing neon, three-line stacks. Every look is a complete, tuned style: font, colour, motion and the spoken-word effect. Your words and timing never change."
@@ -58,8 +58,8 @@ export function Section2() {
 
       <div className="absolute left-[340px] top-[70px] w-[188px]">
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/45">Pick a look</span>
-          <span className="font-mono text-[10px] text-[#FFFFEB]/40">{pinned ? "picked" : "auto"}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#B4B4AA]">Pick a look</span>
+          <span className="font-mono text-[10px] text-[#8F8F86]">{pinned ? "picked" : "auto"}</span>
         </div>
         <div className="flex flex-col gap-2">
           {DEMO_LOOKS.map((id, k) => {
@@ -82,10 +82,10 @@ export function Section2() {
               >
                 <span className="min-w-0">
                   <span className={`block truncate text-[13px] font-semibold ${on ? "text-[#FFFFEB]" : "text-[#FFFFEB]"}`}>{look.name}</span>
-                  <span className={`block truncate text-[10.5px] ${on ? "text-[#FFFFEB]/55" : "text-[#FFFFEB]/45"}`}>{look.tags?.join(" · ") ?? look.category}</span>
+                  <span className={`block truncate text-[10.5px] ${on ? "text-[#FFFFEB]/65" : "text-[#FFFFEB]/60"}`}>{look.tags?.join(" · ") ?? look.category}</span>
                 </span>
                 {on && !pinned ? (
-                  <motion.span key={`bar-${i}`} className="absolute bottom-0 left-0 h-[2px] bg-[#C084FC]" initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 3.4, ease: "linear" }} />
+                  <motion.span key={`bar-${i}`} className="absolute bottom-0 left-0 h-[2px] bg-[#F0D7FF]" initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 3.4, ease: "linear" }} />
                 ) : null}
               </button>
             );
@@ -93,16 +93,16 @@ export function Section2() {
         </div>
       </div>
 
-      <div className="absolute bottom-[46px] left-[36px] right-[34px] flex items-center justify-between rounded-2xl border border-[#FFFFEB]/8 bg-white/80 px-4 py-3 backdrop-blur">
+      <div className="absolute bottom-[46px] left-[36px] right-[34px] flex items-center justify-between rounded-2xl border border-[#FFFFEB]/10 bg-[#232320] px-4 py-3 backdrop-blur">
         <div className="flex items-center gap-3">
           <div className="flex -space-x-1.5">
-            {["#FFA946", "#34D399", "#C084FC", "#FFFFEB"].map((c) => (
+            {["#FFA946", "#34D399", "#F0D7FF", "#FFFFEB"].map((c) => (
               <span key={c} className="h-5 w-5 rounded-full border-2 border-[#FFFFEB]" style={{ background: c }} />
             ))}
           </div>
           <span className="text-[13px] text-[#FFFFEB]/70">Same transcript, same timing, new style.</span>
         </div>
-        <span className="font-mono text-[11px] text-[#FFFFEB]/45">live render</span>
+        <span className="font-mono text-[11px] text-[#B4B4AA]">live render</span>
       </div>
     </ShowcaseCard>
   );
