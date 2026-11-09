@@ -4,7 +4,7 @@ import {
   autoEmoji, clearAutoEmoji, emojiFor,
   applyFillerFilter, applyProfanity, breakLines, contrastRatio, derivePages, detectEmotion, findReplace, fromWhisperVerboseJson,
   fromWhisperCaptions, importSubtitles, insertWordAfter, legacyStyleToV2, legacyTranscriptToDoc, mergeWithPrevious, normalizeTokens,
-  pageAt, pickHeroIndex, readMs, retimeWord, setHidden, setWordText, shiftAllWords, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
+  pageAt, pickHeroIndex, readMs, retimeWord, setHidden, setWordText, shiftAllWords, shiftWordsByIds, deleteWordsByIds, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
 } from "./index";
 
 const mk = (text: string, startMs: number, endMs: number, id = text + startMs): Word => ({ id, text, startMs, endMs });
@@ -219,6 +219,37 @@ describe("doc ops", () => {
     expect(pages[0]!.startMs).toBe(1000);
     expect(toSrt(pages)).toContain("00:00:01,000 --> 00:00:02,100"); // page end includes the derived min display time
     expect(toVtt(pages)).toContain("00:00:01.000 --> 00:00:02.100");
+  });
+  it("shiftWordsByIds shifts only the selected words", () => {
+    const out = shiftWordsByIds(base, ["a", "c"], 500);
+    expect(out.words.map((w) => [w.startMs, w.endMs])).toEqual([[500, 700], [200, 400], [900, 1100]]);
+    expect(out.words[1]).toBe(base.words[1]); // unselected word keeps identity
+    expect(out.meta.userEdited).toBe(true);
+    expect(base.words[0]!.startMs).toBe(0); // immutable
+    // derived pages and SRT carry the selected words' new times verbatim
+    const pages = derivePages(shiftWordsByIds(base, new Set(["a", "b", "c"]), 1000), settings());
+    expect(pages[0]!.startMs).toBe(1000);
+    expect(toSrt(pages)).toContain("00:00:01,000 -->");
+  });
+  it("shiftWordsByIds clamps at 0 with minimum span and no-ops cleanly", () => {
+    const clamped = shiftWordsByIds(base, ["a", "b"], -300);
+    expect(clamped.words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 40], [0, 100], [400, 600]]);
+    for (const w of clamped.words) expect(w.endMs - w.startMs).toBeGreaterThanOrEqual(40);
+    expect(shiftWordsByIds(base, [], 500)).toBe(base);
+    expect(shiftWordsByIds(base, ["a"], 0)).toBe(base);
+    expect(shiftWordsByIds(base, ["nope"], 500)).toBe(base);
+  });
+  it("deleteWordsByIds removes exactly the selected words and their bookkeeping", () => {
+    const withBreaks = splitCardAt(base, "b"); // manualBreaks: ["b"]
+    const out = deleteWordsByIds(withBreaks, ["b"]);
+    expect(out.words.map((w) => w.id)).toEqual(["a", "c"]);
+    expect(out.manualBreaks).toEqual([]);
+    expect(out.meta.userEdited).toBe(true);
+    expect(deleteWordsByIds(base, [])).toBe(base);
+    expect(deleteWordsByIds(base, ["nope"])).toBe(base);
+    const pages = derivePages(deleteWordsByIds(base, ["a", "b"]), settings());
+    expect(pages.flatMap((p) => p.words.map((w) => w.text))).toEqual(["c"]);
+    expect(toTxt(pages)).toBe("c");
   });
   it("find/replace counts matches and respects whole word", () => {
     const d = docOf([mk("cat", 0, 1, "1"), mk("category", 1, 2, "2"), mk("Cat!", 2, 3, "3")]);

@@ -128,6 +128,47 @@ export function shiftAllWords(doc: CaptionDoc, deltaMs: number): CaptionDoc {
   return touch(doc, { words });
 }
 
+/**
+ * Shift ONLY the selected words by the same amount (the multi-select group tool in the captions panel:
+ * tick several lines, then nudge them together). Same invariants as shiftAllWords — starts clamp at 0,
+ * every word keeps end > start with at least MIN_WORD_MS, the doc is marked userEdited — and words that
+ * are not selected are returned untouched (same object identity), so derived pages and subtitle exports
+ * reflect exactly the selected words' new times. No-op (same doc reference) for an empty selection, a
+ * zero delta, or ids that match nothing, so the editor's history is not polluted.
+ */
+export function shiftWordsByIds(doc: CaptionDoc, ids: Iterable<string>, deltaMs: number): CaptionDoc {
+  const d = Math.round(deltaMs);
+  const set = new Set(ids);
+  if (!d || set.size === 0 || doc.words.length === 0) return doc;
+  let hit = false;
+  const words = doc.words.map((w) => {
+    if (!set.has(w.id)) return w;
+    hit = true;
+    const startMs = Math.max(0, w.startMs + d);
+    const endMs = Math.max(startMs + MIN_WORD_MS, w.endMs + d);
+    return startMs === w.startMs && endMs === w.endMs ? w : { ...w, startMs, endMs };
+  });
+  return hit ? touch(doc, { words }) : doc;
+}
+
+/**
+ * Hard-delete exactly the selected words (the group bar's Delete). Cleans up the same break/card
+ * bookkeeping as deleteWord for every removed id. No-op (same doc reference) when nothing matches.
+ */
+export function deleteWordsByIds(doc: CaptionDoc, ids: Iterable<string>): CaptionDoc {
+  const set = new Set(ids);
+  if (set.size === 0 || doc.words.length === 0) return doc;
+  if (!doc.words.some((w) => set.has(w.id))) return doc;
+  const cards = { ...doc.cards };
+  for (const id of set) delete cards[id];
+  return touch(doc, {
+    words: doc.words.filter((w) => !set.has(w.id)),
+    manualBreaks: doc.manualBreaks.filter((x) => !set.has(x)),
+    noBreakAfter: doc.noBreakAfter.filter((x) => !set.has(x)),
+    cards,
+  });
+}
+
 /** "Split here": the word starts a new card. */
 export function splitCardAt(doc: CaptionDoc, wordId: string): CaptionDoc {
   const i = indexOfWord(doc, wordId);
