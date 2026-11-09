@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { PLANS } from "@capseasy/shared";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = { title: "Terms of Service · CaptionsEasy", description: "The agreement that governs your use of CaptionsEasy." };
+export const metadata: Metadata = pageMetadata({ title: "Terms of Service", description: "The agreement that governs your use of Open Caption.", path: "/terms" });
 
 export default function TermsPage() {
   const free = PLANS.free;

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = { title: "Copyright & Takedowns · CaptionsEasy", description: "How to report copyright infringement to CaptionsEasy and how counter-notices work." };
+export const metadata: Metadata = pageMetadata({ title: "Copyright & Takedowns", description: "How to report copyright infringement to Open Caption and how counter-notices work.", path: "/copyright" });
 
 export default function CopyrightPage() {
   return (

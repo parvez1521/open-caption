@@ -1,12 +1,15 @@
 import type { MetadataRoute } from "next";
-import { LEGAL_PAGES } from "@/lib/legal";
+import { INDEXABLE_PATHS, SITE_URL } from "@/lib/seo";
 
-const BASE = process.env.APP_URL ?? "https://www.captionseasy.com";
-
-// only pages worth finding in search: the homepage and the public policies (sign-in and the studio stay out)
+/**
+ * Exactly the indexable public routes (homepage, sign-in, legal pages) on the
+ * production origin. App pages behind auth are excluded here, carry metadata
+ * noindex, and are disallowed in robots — they never belong in a sitemap.
+ */
 export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    { url: `${BASE}/`, changeFrequency: "weekly", priority: 1 },
-    ...LEGAL_PAGES.map((p) => ({ url: `${BASE}${p.href}`, changeFrequency: "yearly" as const, priority: 0.3 })),
-  ];
+  return INDEXABLE_PATHS.map((path) => ({
+    url: path === "/" ? `${SITE_URL}/` : `${SITE_URL}${path}`,
+    changeFrequency: path === "/" ? ("weekly" as const) : ("yearly" as const),
+    priority: path === "/" ? 1 : path === "/login" ? 0.5 : 0.3,
+  }));
 }

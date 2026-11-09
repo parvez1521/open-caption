@@ -169,7 +169,7 @@ export default function AuthShell({
       <div className="relative w-full lg:w-1/2 min-h-[300px] lg:min-h-screen bg-neutral-950 overflow-hidden select-none">
         <Image
           src="/images/auth-hero.jpg"
-          alt="CaptionsEasy Spatial Visual"
+          alt="Creator wearing a futuristic visor against a city skyline at dusk"
           fill
           priority
           sizes="(max-width: 1024px) 100vw, 50vw"

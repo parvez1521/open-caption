@@ -3,7 +3,8 @@ import { Instrument_Serif, Plus_Jakarta_Sans } from "next/font/google";
 import QueryProvider from "@/providers/QueryProvider";
 import { introScript } from "@/components/home/intro";
 import { authReturnScript } from "@/lib/authReturn";
-import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE, BRAND_TITLE, BRAND_URL } from "@/lib/brand";
+import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE, BRAND_TITLE } from "@/lib/brand";
+import { SITE_URL, googleSiteVerification } from "@/lib/seo";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -27,21 +28,24 @@ const fontAccent = Instrument_Serif({
   style: ["normal", "italic"],
 });
 
-const SITE_URL = BRAND_URL;
-const SITE_TITLE = BRAND_TITLE;
 const SITE_DESCRIPTION = BRAND_DESCRIPTION;
 
 // og:image / twitter:image come from app/opengraph-image.jpg and app/twitter-image.jpg
+// Search Console: verification renders ONLY when NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+// is set in the environment (see lib/seo.ts) — no empty meta tag otherwise.
+const googleVerification = googleSiteVerification();
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: SITE_TITLE,
+  title: { default: BRAND_TITLE, template: `%s · ${BRAND_NAME}` },
   description: SITE_DESCRIPTION,
   applicationName: BRAND_NAME,
+  ...(googleVerification ? { verification: { google: googleVerification } } : {}),
   openGraph: {
     type: "website",
     siteName: BRAND_NAME,
     title: BRAND_TAGLINE,
     description: SITE_DESCRIPTION,
+    url: SITE_URL,
     locale: "en_US",
   },
   twitter: {

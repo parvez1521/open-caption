@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { PLANS } from "@capseasy/shared";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = { title: "Privacy Policy · CaptionsEasy", description: "What CaptionsEasy collects, why, where it is stored and your choices." };
+export const metadata: Metadata = pageMetadata({ title: "Privacy Policy", description: "What Open Caption collects, why, where it is stored and your choices.", path: "/privacy" });
 
 export default function PrivacyPage() {
   return (

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import credits from "../../../../public/hero/credits.json";
 
-export const metadata: Metadata = { title: "Credits · CaptionsEasy", description: "Sources and licences of the footage shown on the CaptionsEasy website." };
+export const metadata: Metadata = pageMetadata({ title: "Credits", description: "Sources and licences of the footage shown on the Open Caption website.", path: "/credits" });
 
 type Credit = { title: string; license: string; source: string; lookName: string };
 

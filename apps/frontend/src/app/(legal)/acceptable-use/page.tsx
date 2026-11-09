@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = { title: "Acceptable Use Policy · CaptionsEasy", description: "What you may and may not do with CaptionsEasy." };
+export const metadata: Metadata = pageMetadata({ title: "Acceptable Use Policy", description: "What you may and may not do with Open Caption.", path: "/acceptable-use" });
 
 export default function AcceptableUsePage() {
   return (

@@ -26,7 +26,7 @@ export function Logo({
     <span className={`inline-flex shrink-0 select-none items-center gap-2 ${className}`} role="img" aria-label={BRAND_NAME}>
       {variant !== "word" && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={markSrc} alt="" height={height} className="block shrink-0 select-none" style={{ height, width: "auto" }} draggable={false} />
+        <img src={markSrc} alt="" aria-hidden="true" height={height} className="block shrink-0 select-none" style={{ height, width: "auto" }} draggable={false} />
       )}
       {variant !== "mark" && (
         <span className="font-styled font-black leading-none tracking-tight" style={{ fontSize: height * 0.82 }}>

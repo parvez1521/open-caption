@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = { title: "Subprocessors · CaptionsEasy", description: "The service providers that process data for CaptionsEasy." };
+export const metadata: Metadata = pageMetadata({ title: "Subprocessors", description: "The service providers that process data for Open Caption.", path: "/subprocessors" });
 
 const ROWS: [string, string, string, string][] = [
   ["Supabase", "Database, file storage, sign-in", "Account, projects, captions, uploaded videos and exports", "South Korea (Seoul)"],

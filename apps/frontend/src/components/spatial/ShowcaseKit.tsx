@@ -134,7 +134,7 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
     <div ref={box} className={`relative overflow-hidden ${className}`} style={style_}>
       {mode === "burn" ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/hero/${clip}.raw.webp`} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
+        <img src={`/hero/${clip}.raw.webp`} alt="Still from a sample talking-head video" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
       {doc && near && !lowEnd ? (
         <Player
