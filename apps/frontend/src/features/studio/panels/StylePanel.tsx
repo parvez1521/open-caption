@@ -10,7 +10,7 @@ import { FontPicker } from "./FontPicker";
 import { MotionPicker } from "./MotionPicker";
 
 const opts = (xs: readonly string[]) => xs.map((x) => ({ value: x, label: x.replace(/-/g, " ") }));
-const LETTERS_ELSEWHERE = "These need a look that shows the whole line, such as Pop-Up Word or Classic Subtitle.";
+const LETTERS_ELSEWHERE = "These need a template that shows the whole line, such as Pop-Up Word or Classic Subtitle.";
 const solid = (s: CaptionStyleV2) => (s.fill.type === "solid" ? s.fill.color : s.fill.stops[0]!.color);
 
 interface StyleProps {
@@ -75,13 +75,13 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
         </div>
       </Section>
 
-      <Section title="Look">
+      <Section title="Template">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold text-st-text">{lookName ?? "Custom style"}</div>
             <p className="text-xs text-st-faint">{tpl.description}</p>
           </div>
-          <button type="button" onClick={onOpenLooks} className="shrink-0 rounded-lg border border-st-line bg-st-panel px-3 py-2 text-xs font-medium hover:bg-st-hover lg:py-1.5">Change look</button>
+          <button type="button" onClick={onOpenLooks} className="shrink-0 rounded-lg border border-st-line bg-st-panel px-3 py-2 text-xs font-medium hover:bg-st-hover lg:py-1.5">Change template</button>
         </div>
         {show("reveal") ? (
           <div className="flex items-center justify-between text-sm text-st-text/90">
