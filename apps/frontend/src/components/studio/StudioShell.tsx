@@ -16,31 +16,46 @@ const HEALTH_URL = "/health/ready";
 /** The service-status widget is a developer aid: shown on localhost (next dev), never on the live site. */
 const SHOW_HEALTH = process.env.NODE_ENV !== "production";
 
-const NAV = [
+const iconProps = { className: "w-4 h-4 shrink-0", fill: "none", stroke: "currentColor", strokeWidth: "1.8", viewBox: "0 0 24 24" } as const;
+
+/**
+ * Primary navigation — four categories, every item a real page:
+ * Dashboard (overview + exports history), Captions (project list), Creator Studio
+ * (Brand presets), Video Editor (pick / continue a project; the editor itself is
+ * per-project at /projects/[id]). Settings stays secondary at the foot.
+ */
+const NAV_GROUPS: { heading: string | null; items: { href: string; label: string; icon: React.ReactNode }[] }[] = [
   {
-    href: "/dashboard",
-    label: "Projects",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-        <rect x="3" y="5" width="18" height="14" rx="2" />
-        <path d="M3 10h18M8 5v5" strokeLinecap="round" />
-      </svg>
-    ),
+    heading: null,
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: (<svg {...iconProps}><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg>) },
+      { href: "/exports", label: "Exports", icon: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>) },
+    ],
   },
   {
-    href: "/settings",
-    label: "Settings",
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="3" />
-        <path
-          strokeLinecap="round"
-          d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01A1.7 1.7 0 0 0 10.05 3V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01c.26.63.87 1.04 1.56 1.04H21a2 2 0 1 1 0 4h-.09c-.69 0-1.3.41-1.51 1.04z"
-        />
-      </svg>
-    ),
+    heading: "Captions",
+    items: [
+      { href: "/captions", label: "Captions", icon: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 12h4M7 15.5h7M14 12h3" strokeLinecap="round" /></svg>) },
+    ],
+  },
+  {
+    heading: "Creator Studio",
+    items: [
+      { href: "/brand", label: "Brand presets", icon: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.1 4.6L19 9l-3.6 3.3 1 4.9L12 14.7l-4.4 2.5 1-4.9L5 9l4.9-1.4L12 3z" /></svg>) },
+    ],
+  },
+  {
+    heading: "Video Editor",
+    items: [
+      { href: "/editor", label: "Video Editor", icon: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M8 5v5" strokeLinecap="round" /></svg>) },
+    ],
   },
 ];
+
+const NAV = [...NAV_GROUPS.flatMap((g) => g.items), { href: "/settings", label: "Settings", icon: (<svg {...iconProps}><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /></svg>) }];
+
+const isActive = (pathname: string, href: string) =>
+  pathname === href || (href === "/editor" && pathname.startsWith("/projects/"));
 
 function HealthRow({ label, ok, pending }: { label: string; ok?: boolean; pending: boolean }) {
   return (
@@ -99,11 +114,11 @@ export default function StudioShell({ children }: { children: React.ReactNode })
         <Link href="/dashboard" aria-label="CaptionsEasy projects">
           <Logo height={24} />
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav className="flex max-w-[62vw] items-center gap-1 overflow-x-auto">
           {NAV.map((item) => (
             <Link key={item.href} href={item.href} aria-label={item.label} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-sora text-[12px] font-semibold ${pathname === item.href ? "bg-sand-200 text-ink" : "text-sand-700"}`}>
               {item.icon}
-              <span className="hidden min-[400px]:inline">{item.label}</span>
+              <span className="whitespace-nowrap">{item.label}</span>
             </Link>
           ))}
           {SHOW_HEALTH ? <span title={healthy === undefined ? "Checking service" : healthy ? "All systems running" : "Service problem"} className={`ml-1 h-2 w-2 rounded-full ${healthy === undefined ? "bg-sand-300" : healthy ? "bg-emerald-accent" : "bg-orange-accent"}`} /> : null}
@@ -121,27 +136,28 @@ export default function StudioShell({ children }: { children: React.ReactNode })
           </Link>
         </div>
 
-        <nav className="px-3 space-y-1">
-          {NAV.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold transition-colors ${
-                  active
-                    ? "bg-sand-200 text-ink"
-                    : "text-sand-700 hover:bg-sand-100 hover:text-ink"
-                }`}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-            );
-          })}
+        <nav className="px-3 space-y-4 overflow-y-auto">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.heading ?? "main"} className="space-y-1">
+              {group.heading ? <p className="px-3 pb-1 font-sora text-[11px] font-semibold uppercase tracking-wider text-sand-500">{group.heading}</p> : null}
+              {group.items.map((item) => {
+                const active = isActive(pathname, item.href);
+                return (
+                  <Link key={item.href} href={item.href} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold transition-colors ${active ? "bg-sand-200 text-ink" : "text-sand-700 hover:bg-sand-100 hover:text-ink"}`}>
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         <div className="mt-auto">
+          <Link href="/settings" className={`mx-3 mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold transition-colors ${pathname === "/settings" ? "bg-sand-200 text-ink" : "text-sand-700 hover:bg-sand-100 hover:text-ink"}`}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /></svg>
+            Settings
+          </Link>
           <a href={FEEDBACK_MAILTO} className="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold text-sand-700 transition-colors hover:bg-sand-100 hover:text-ink">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v11H8l-4 4V5z" /></svg>
             Send feedback
