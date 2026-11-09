@@ -40,8 +40,9 @@ const liveLayers = (root: HTMLElement) => root.querySelectorAll('div[style*="108
 
 function setup() {
   FakeIO.instances = [];
-  (globalThis as never)["IntersectionObserver"] = FakeIO;
-  (globalThis as never)["ResizeObserver"] = FakeRO;
+  const g = globalThis as unknown as Record<string, unknown>;
+  g["IntersectionObserver"] = FakeIO;
+  g["ResizeObserver"] = FakeRO;
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get() { return 320; } });
 }
 
