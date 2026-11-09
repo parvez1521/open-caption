@@ -2,9 +2,12 @@ import { z } from "zod";
 
 export const ACTIVE_EFFECTS = [
   "none", "color", "pop", "box", "underline", "marker", "glow", "bounce", "shake", "fill-sweep", "scale-up", "outline-fill",
+  // Slice 1 additions: a hand-drawn ring that draws itself around the spoken word, and a highlight box
+  // whose width sweeps across the word as it is spoken (the existing "box" jumps; "marker" is a low swipe)
+  "scribble-ring", "box-sweep",
 ] as const;
 export const ENTRANCES = [
-  "none", "fade", "rise", "drop", "pop", "zoom", "slide-left", "slide-right", "blur-in", "typewriter", "wave", "flip", "elastic", "glitch", "mask-reveal",
+  "none", "fade", "rise", "drop", "pop", "zoom", "slide-left", "slide-right", "blur-in", "typewriter", "wave", "flip", "elastic", "glitch", "glitch-slice", "mask-reveal",
   // letter animators: per-letter scale/rotate/tracking driven like an After Effects expression selector
   "letter-spin", "letter-elastic", "letter-snap", "letter-burst", "letter-stretch",
 ] as const;

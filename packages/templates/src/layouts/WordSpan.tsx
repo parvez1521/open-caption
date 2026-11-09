@@ -59,6 +59,7 @@ export const WordSpan: React.FC<WordSpanProps> = ({
 
   let behind: React.ReactNode = null;
   let bar: React.ReactNode = null;
+  let ring: React.ReactNode = null;
   const eff = effect === undefined ? style.active.effect : effect;
   let growRight = 0;
   if (isActive && eff) {
@@ -74,6 +75,16 @@ export const WordSpan: React.FC<WordSpanProps> = ({
     }
     if (res.behind) behind = <span style={{ position: "absolute", pointerEvents: "none", ...res.behind.css }} />;
     if (res.bar) bar = <span style={{ position: "absolute", pointerEvents: "none", ...res.bar.css }} />;
+    if (res.ring) {
+      // Hand-drawn ellipse that draws itself around the spoken word: an SVG stroke whose dash offset is a
+      // pure function of time, so the studio preview and the Remotion export rasterise the same frame.
+      const rp = res.ring.progress;
+      ring = (
+        <svg aria-hidden viewBox="0 0 100 60" preserveAspectRatio="none" style={{ position: "absolute", left: "-9%", top: "-22%", width: "118%", height: "144%", overflow: "visible", pointerEvents: "none", transform: "rotate(-2deg)" }}>
+          <ellipse cx="50" cy="30" rx="46" ry="24" fill="none" stroke={res.ring.color} strokeWidth="3.2" strokeLinecap="round" pathLength={100} strokeDasharray={100} strokeDashoffset={((1 - rp) * 100).toFixed(2)} vectorEffect="non-scaling-stroke" transform="rotate(-1.5 50 30)" />
+        </svg>
+      );
+    }
   }
 
   const showEmoji = style.emoji.enabled && word.emoji && (word.emoji.position === "before" || word.emoji.position === "after");
@@ -109,13 +120,20 @@ export const WordSpan: React.FC<WordSpanProps> = ({
         );
       })
     : display;
+  // typewriter entrance: a blinking block caret rides the word currently being typed (frame math, not a
+  // timer — on for 500 ms, off for 500 ms — so preview and export agree)
+  const caret = !settled && style.entrance.type === "typewriter" && isActive ? (
+    <span aria-hidden style={{ opacity: Math.floor(timeMs / 500) % 2 === 0 ? 1 : 0, color: style.active.color, WebkitTextFillColor: style.active.color, backgroundImage: "none" }}>▌</span>
+  ) : null;
   const inner = (
     <span style={css}>
       {behind}
       {emojiBefore}
       {text}
+      {caret}
       {emojiAfter}
       {bar}
+      {ring}
     </span>
   );
   if (stagger?.unit !== "word" || settled) return inner;
@@ -127,8 +145,10 @@ export const WordSpan: React.FC<WordSpanProps> = ({
         {behind}
         {emojiBefore}
         {text}
+        {caret}
         {emojiAfter}
         {bar}
+        {ring}
       </span>
     </span>
   );

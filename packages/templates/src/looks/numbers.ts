@@ -32,6 +32,9 @@ export const LOOK_NUMBER_ORDER: readonly string[] = [
   "stack_attack", "typecraft", "velvet_editorial", "ember_rush", "marker_pro", "duo_headline",
   "noir_title", "studio_bubble", "glitch_reveal", "slam_stack", "halo_serif", "pill_pop_pro",
   "underline_pro", "wave_rider", "gold_frame", "bubble_noir",
+  // Slice 1 showcase (appended 2026-11-09; numbers are permanent, append-only)
+  "typed_caret", "slice_signal", "scribble_ring", "amber_sweep_box",
+  "typed_slate", "slice_one_word", "marker_ring", "mint_sweep_pill",
 ];
 
 /**

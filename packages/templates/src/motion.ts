@@ -105,6 +105,29 @@ export function entranceStyle(style: CaptionStyleV2, localMs: number, fps: numbe
       const dx = ((f * 7919) % 5) - 2;
       return { opacity: Math.min(1, p * 3), transform: `translateX(${(dx * j * 0.6).toFixed(2)}px)`, filter: j > 0.4 ? `drop-shadow(${j.toFixed(2)}px 0 rgba(255,0,80,0.85)) drop-shadow(${(-j).toFixed(2)}px 0 rgba(0,240,255,0.85))` : undefined };
     }
+    case "typewriter": {
+      // Stepped reveal: the card is uncovered in discrete type-steps (like keys striking), not a smooth
+      // wipe. Per-character staggering + the blinking caret live in WordSpan (staggerUnit is "char").
+      const steps = 10;
+      const stepped = p >= 1 ? 1 : Math.floor(p * steps) / steps;
+      return { opacity: stepped <= 0 ? 0 : 1, clipPath: `inset(-20% ${((1 - stepped) * 100).toFixed(1)}% -20% -5%)` };
+    }
+    case "glitch-slice": {
+      // Slice-and-settle: horizontal bands of the card jump sideways by frame-quantised amounts with an
+      // RGB split, then snap clean. Distinct from "glitch" (whole-card jitter): here a clip window slices
+      // the block and the offset is larger and banded. Deterministic from the frame number.
+      const f = Math.floor((localMs / 1000) * fps);
+      const j = q * 0.3 * k * u;
+      const dx = (((f * 31) % 7) - 3) * j;
+      const sliceTop = q > 0.04 ? ((f * 17) % 26) : 0;
+      const sliceBottom = q > 0.04 ? Math.max(0, 22 - sliceTop * 0.5) : 0;
+      return {
+        opacity: Math.min(1, p * 3),
+        transform: `translateX(${dx.toFixed(2)}px)`,
+        clipPath: q > 0.04 ? `inset(${sliceTop.toFixed(1)}% -5% ${sliceBottom.toFixed(1)}% -5%)` : undefined,
+        filter: j > 0.4 ? `drop-shadow(${j.toFixed(2)}px 0 rgba(255,0,80,0.9)) drop-shadow(${(-j).toFixed(2)}px 0 rgba(0,240,255,0.9))` : undefined,
+      };
+    }
     case "wave": return { opacity: p, transform: `translateY(${(q * 0.45 * k * u).toFixed(2)}px)` };
     case "rise":
     default: return { opacity: p, transform: `translateY(${(q * 0.7 * k * u).toFixed(2)}px)` };
@@ -237,7 +260,7 @@ export const splitsLetters = (style: CaptionStyleV2) => staggerUnit(style) === "
 /** Which unit a layout should stagger by ("wave" always animates letter by letter). */
 export function staggerUnit(style: CaptionStyleV2): "none" | "word" | "char" {
   if (style.entrance.type === "none") return "none";
-  if (style.entrance.type === "wave" || isLetterAnimator(style.entrance.type)) return "char";
+  if (style.entrance.type === "wave" || style.entrance.type === "typewriter" || isLetterAnimator(style.entrance.type)) return "char";
   return style.entrance.stagger;
 }
 
@@ -269,6 +292,9 @@ export interface ActiveResult {
   behind?: { css: React.CSSProperties };
   /** thin bar under the word (underline/marker) */
   bar?: { css: React.CSSProperties };
+  /** hand-drawn ring around the word (scribble-ring): layouts render it as an SVG ellipse that draws
+   *  itself on — `progress` is 0..1 of the stroke drawn, so preview and export rasterise identically */
+  ring?: { progress: number; color: string };
   /** how much the effect enlarges the word (1 = not at all); layouts push neighbours apart by this */
   grow?: number;
 }
@@ -314,6 +340,17 @@ export function activeEffect(
       return { css: { backgroundImage: `linear-gradient(90deg, ${color} ${p}%, currentColor ${p}%)`, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" } };
     }
     case "outline-fill": return { css: { color, WebkitTextFillColor: color } };
+    case "box-sweep": {
+      // a full-height highlight box whose width sweeps across the word as it is spoken (the "box" effect
+      // jumps word to word at full width; this one grows). Text takes active.color, the box boxColor.
+      const w = settled ? 100 : t * 100;
+      return { css: { color, WebkitTextFillColor: color, backgroundImage: "none" }, behind: { css: { left: "-0.18em", top: "4%", height: "92%", width: `calc(${w.toFixed(1)}% + 0.36em)`, backgroundColor: a.boxColor ?? color, borderRadius: a.boxRadius * sc, zIndex: -1 } } };
+    }
+    case "scribble-ring": {
+      // the ring itself is drawn by the layout (SVG stroke-dashoffset); here we only carry its progress
+      const rp = settled ? 1 : Math.min(1, Math.max(0, (timeMs - word.startMs) / Math.min(dur, 320)));
+      return { css: { color, WebkitTextFillColor: color, backgroundImage: "none" }, ring: { progress: rp, color } };
+    }
     default: return { css: {} };
   }
 }

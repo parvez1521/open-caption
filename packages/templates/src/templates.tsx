@@ -12,7 +12,7 @@ import type { PageRenderProps, TemplateCapabilities, TemplateDefinition } from "
 const ALL_EFFECTS = ACTIVE_EFFECTS;
 /** what a three-line stack's body words can do while spoken (the hero word has its own styling) */
 const STACK_EFFECTS = ["none", "color", "pop", "underline", "glow", "bounce"] as const;
-const CORE_ENTRANCES = ["none", "fade", "rise", "drop", "pop", "zoom", "slide-left", "slide-right", "blur-in", "flip", "elastic", "mask-reveal", "glitch", "wave",
+const CORE_ENTRANCES = ["none", "fade", "rise", "drop", "pop", "zoom", "slide-left", "slide-right", "blur-in", "flip", "elastic", "mask-reveal", "glitch", "glitch-slice", "typewriter", "wave",
   "letter-spin", "letter-elastic", "letter-snap", "letter-burst", "letter-stretch"] as const;
 /** layouts that animate each card their own way (bubble pop, kinetic rows) take no extra card entrance */
 const OWN_MOTION = ["none"] as const;

@@ -53,6 +53,11 @@ export const WordLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, can
           {fx.behind ? <span style={{ position: "absolute", pointerEvents: "none", ...fx.behind.css }} /> : null}
           {display}
           {fx.bar ? <span style={{ position: "absolute", pointerEvents: "none", ...fx.bar.css }} /> : null}
+          {fx.ring ? (
+            <svg aria-hidden viewBox="0 0 100 60" preserveAspectRatio="none" style={{ position: "absolute", left: "-9%", top: "-22%", width: "118%", height: "144%", overflow: "visible", pointerEvents: "none", transform: "rotate(-2deg)" }}>
+              <ellipse cx="50" cy="30" rx="46" ry="24" fill="none" stroke={fx.ring.color} strokeWidth="3.2" strokeLinecap="round" pathLength={100} strokeDasharray={100} strokeDashoffset={((1 - fx.ring.progress) * 100).toFixed(2)} vectorEffect="non-scaling-stroke" transform="rotate(-1.5 50 30)" />
+            </svg>
+          ) : null}
         </div>
       </div>
     </div>

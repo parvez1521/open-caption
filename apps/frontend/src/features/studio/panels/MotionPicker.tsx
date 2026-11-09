@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 
 const NAMES: Record<string, string> = {
   none: "None", fade: "Fade", rise: "Rise", drop: "Drop", pop: "Pop", zoom: "Zoom", "slide-left": "Slide from left", "slide-right": "Slide from right",
-  "blur-in": "Blur in", wave: "Wave", flip: "Flip", elastic: "Elastic", glitch: "Glitch", "mask-reveal": "Wipe",
+  "blur-in": "Blur in", wave: "Wave", flip: "Flip", elastic: "Elastic", glitch: "Glitch", "glitch-slice": "Glitch slice", typewriter: "Typewriter", "mask-reveal": "Wipe",
   "letter-spin": "Spin-in letters", "letter-elastic": "Elastic letters", "letter-snap": "Snap-in letters", "letter-burst": "Centre burst", "letter-stretch": "Stretch-up letters",
   "zoom-out": "Zoom out", "blur-out": "Blur out", fall: "Fall", "slide-up": "Slide up",
 };
