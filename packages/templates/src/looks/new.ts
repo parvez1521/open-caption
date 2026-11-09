@@ -44,9 +44,9 @@ export const NEW_LOOKS: LookSeed[] = [
 
   // ---------- Viral
   { id: "hormozi_box", name: "Hormozi Box", description: "Montserrat caps with a green box that jumps word to word", category: "Viral", templateId: "boxed_word",
-    style: { fontId: "Montserrat", fontWeight: 900, fontSize: 58, casing: "upper", stroke: outline(3), active: { effect: "box", color: "#000000", boxColor: "#22C55E", scale: 1.06, boxRadius: 14 } }, settings: { maxWordsPerCard: 3 } },
+    style: { fontId: "Montserrat", fontWeight: 900, fontSize: 58, casing: "upper", stroke: outline(3), active: { effect: "box", color: "#000000", boxColor: "#22C55E", scale: 1.1, boxRadius: 14 } }, settings: { maxWordsPerCard: 3 } },
   { id: "beast_bounce", name: "Beast Bounce", description: "Chunky yellow words with a hard shadow and alternating tilt", category: "Viral", templateId: "word_by_word",
-    style: { fontId: "Luckiest Guy", fontWeight: 400, fontSize: 70, casing: "upper", fill: { type: "solid", color: "#FFF200" }, stroke: outline(6), shadows: hardShadow(8), active: { effect: "scale-up", color: "#FFFFFF", scale: 1.12, boxRadius: 12 }, templateOptions: { tilt: 3 } }, settings: { maxWordsPerCard: 1 } },
+    style: { fontId: "Luckiest Guy", fontWeight: 400, fontSize: 70, casing: "upper", fill: { type: "solid", color: "#FFF200" }, stroke: outline(6), shadows: hardShadow(8), active: { effect: "scale-up", color: "#FFFFFF", scale: 1.16, boxRadius: 12 }, templateOptions: { tilt: 3 } }, settings: { maxWordsPerCard: 1 } },
   { id: "karaoke_fill", name: "Karaoke Fill", description: "Whole line on screen; words fill yellow as they're sung", category: "Viral", templateId: "karaoke",
     style: { fontId: "Poppins", fontWeight: 800, fontSize: 56, stroke: outline(3), active: { effect: "fill-sweep", color: "#FFD400", scale: 1, boxRadius: 12 } }, settings: { maxWordsPerCard: 5 } },
   { id: "pop_clean", name: "Pop Clean", description: "Clean Poppins with a pink scale-up on the spoken word", category: "Viral", templateId: "sentence_highlight",
@@ -62,7 +62,7 @@ export const NEW_LOOKS: LookSeed[] = [
 
   // ---------- Fun
   { id: "comic_burst", name: "Comic Burst", description: "Comic-book Bangers with a red drop shadow and a big tilt", category: "Fun", templateId: "word_by_word",
-    style: { fontId: "Bangers", fontWeight: 400, fontSize: 80, casing: "upper", fill: { type: "solid", color: "#FFE600" }, stroke: outline(5), shadows: hardShadow(7, "#E11D48"), active: { effect: "scale-up", color: "#FFFFFF", scale: 1.15, boxRadius: 12 }, templateOptions: { tilt: 6 } }, settings: { maxWordsPerCard: 1 } },
+    style: { fontId: "Bangers", fontWeight: 400, fontSize: 80, casing: "upper", fill: { type: "solid", color: "#FFE600" }, stroke: outline(5), shadows: hardShadow(7, "#E11D48"), active: { effect: "scale-up", color: "#FFFFFF", scale: 1.18, boxRadius: 12 }, templateOptions: { tilt: 6 } }, settings: { maxWordsPerCard: 1 } },
   { id: "wave_bounce", name: "Wave", description: "Playful Fredoka; the spoken word hops", category: "Fun", templateId: "sentence_highlight",
     style: { fontId: "Fredoka", fontWeight: 700, fontSize: 56, stroke: outline(3), active: { effect: "bounce", color: "#7CFFB2", scale: 1.1, boxRadius: 12 } }, settings: { maxWordsPerCard: 4 } },
   { id: "storytime", name: "Storytime", description: "Soft rounded words with a pastel box on the spoken word", category: "Fun", templateId: "boxed_word",

@@ -4,11 +4,33 @@ import type { CaptionStyleV2, Emotion } from "@capseasy/shared";
 import { withAlpha } from "@motion-ai/caption-engine/core";
 
 export const SPRINGS = {
-  snappy: { damping: 14, stiffness: 220, mass: 0.5 },
+  // damping 12.5 (was 14) + stiffness 250 (was 220): the settle overshoots ~8–10% and snaps back —
+  // the spring "pop and settle" that makes spoken-word emphasis feel physical instead of flat
+  snappy: { damping: 12.5, stiffness: 250, mass: 0.5 },
   bouncy: { damping: 9, stiffness: 180, mass: 0.5 },
   smooth: { damping: 26, stiffness: 120, mass: 0.6 },
   punch: { damping: 11, stiffness: 240, mass: 0.5 },
 } as const;
+
+/**
+ * Ease-out with a settle overshoot (easeOutBack family): progress passes 1 by up to ~6% (s = 1.3)
+ * around t ≈ 0.7, then decays back to exactly 1. Used for entrance transforms so elements land a
+ * hair past their resting place and settle — the deceleration tail flat easings lack. Pure in t.
+ */
+export function overshootOut(t: number, s = 1.3): number {
+  const u = Math.min(1, Math.max(0, t)) - 1;
+  return 1 + (s + 1) * u * u * u + s * u * u;
+}
+
+/**
+ * Anticipation for travel entrances (drop / slides): progress dips slightly NEGATIVE early (a small
+ * counter-move away from the target, peaking ≈ −0.2% of travel around p = 0.1 with a gather through
+ * p ≈ 0.2) before the sweep, and is exactly p again from p = 0.4 on, so the eased tail is untouched.
+ */
+export function withAnticipation(p: number): number {
+  if (p <= 0 || p >= 0.4) return p;
+  return p - 0.16 * Math.sin(Math.PI * (p / 0.4)) * (1 - p);
+}
 
 const EASE_OUT_EXPO = Easing.bezier(0.16, 1, 0.3, 1);
 
@@ -182,16 +204,30 @@ export function entranceStyle(style: CaptionStyleV2, localMs: number, fps: numbe
   const u = sizePx;
   switch (e.type) {
     case "fade": return { opacity: p };
-    case "drop": return { opacity: Math.min(1, p * 1.6), transform: `translateY(${(-q * 0.9 * k * u).toFixed(2)}px)` };
-    case "zoom": return { opacity: p, transform: `scale(${(1 + q * 0.55 * k).toFixed(4)})` };
-    case "slide-left": return { opacity: Math.min(1, p * 1.4), transform: `translateX(${(-q * 2 * k * u).toFixed(2)}px)` };
-    case "slide-right": return { opacity: Math.min(1, p * 1.4), transform: `translateX(${(q * 2 * k * u).toFixed(2)}px)` };
+    case "drop": {
+      // anticipation: a small counter-move up before the drop sweeps down (transform only; opacity plain)
+      const tp = withAnticipation(p);
+      return { opacity: Math.min(1, p * 1.6), transform: `translateY(${(-(1 - tp) * 0.9 * k * u).toFixed(2)}px)` };
+    }
+    case "zoom": {
+      // settle overshoot: the scale dips a hair below 1 as it lands, instead of stopping dead
+      const s = overshootOut(p);
+      return { opacity: p, transform: `scale(${(1 + (1 - s) * 0.55 * k).toFixed(4)})` };
+    }
+    case "slide-left": {
+      const tp = withAnticipation(p);
+      return { opacity: Math.min(1, p * 1.4), transform: `translateX(${(-(1 - tp) * 2 * k * u).toFixed(2)}px)` };
+    }
+    case "slide-right": {
+      const tp = withAnticipation(p);
+      return { opacity: Math.min(1, p * 1.4), transform: `translateX(${((1 - tp) * 2 * k * u).toFixed(2)}px)` };
+    }
     case "blur-in": return { opacity: p, filter: `blur(${(q * 0.35 * k * u).toFixed(2)}px)`, transform: `scale(${(1 + q * 0.06 * k).toFixed(4)})` };
     case "flip": return { opacity: p, transform: `perspective(${(u * 10).toFixed(0)}px) rotateX(${(q * 80 * k).toFixed(2)}deg)` };
     case "mask-reveal": return { clipPath: `inset(-20% ${(q * 100).toFixed(2)}% -20% -5%)`, opacity: Math.min(1, p * 4) };
     case "pop": {
-      // small to full size on a snappy spring with a little overshoot
-      const s = springMs(localMs, 0, fps, { damping: 12, stiffness: 260, mass: 0.5 });
+      // small to full size on a spring tuned for a clear overshoot (~1.12) and a fast settle
+      const s = springMs(localMs, 0, fps, { damping: 11, stiffness: 280, mass: 0.5 });
       return { opacity: Math.min(1, p * 2.5), transform: `scale(${(1 - 0.45 * k * (1 - s)).toFixed(4)})` };
     }
     case "elastic": {
@@ -267,9 +303,10 @@ export function entranceStyle(style: CaptionStyleV2, localMs: number, fps: numbe
       const j = jellyTransform(localMs, fps, k);
       return { opacity: localMs <= 0 ? 0 : Math.min(1, 0.25 + localMs / 80), transform: `scale(${j.scaleX.toFixed(4)}, ${j.scaleY.toFixed(4)}) skewX(${j.skewDeg.toFixed(3)}deg)` };
     }
-    case "wave": return { opacity: p, transform: `translateY(${(q * 0.45 * k * u).toFixed(2)}px)` };
+    case "wave": return { opacity: p, transform: `translateY(${((1 - overshootOut(p)) * 0.45 * k * u).toFixed(2)}px)` };
     case "rise":
-    default: return { opacity: p, transform: `translateY(${(q * 0.7 * k * u).toFixed(2)}px)` };
+    // settle overshoot on the way up: the card lands a hair past its rest position and eases back
+    default: return { opacity: p, transform: `translateY(${((1 - overshootOut(p)) * 0.7 * k * u).toFixed(2)}px)` };
   }
 }
 
@@ -387,9 +424,11 @@ export function letterAmounts(style: CaptionStyleV2, entranceSec: number | null,
   return [Math.max(-100, Math.min(100, x)), Math.max(-100, Math.min(100, y))];
 }
 
-/** Per-item delay for staggered entrances: words ~70 ms apart, letters ~28 ms apart (scaled by entrance speed). */
+/** Per-item delay for staggered entrances: words ~56 ms apart, letters ~22 ms apart (scaled by entrance
+ *  speed). Tightened from 70/28 (2026-11-10): word-by-word builds read snappier when the cascade
+ *  outruns speech slightly instead of trailing it. */
 export function staggerDelayMs(style: CaptionStyleV2, index: number, unit: "word" | "char"): number {
-  const base = unit === "word" ? 70 : 28;
+  const base = unit === "word" ? 56 : 22;
   return index * base * Math.max(0.4, style.entrance.durationMs / 220);
 }
 
@@ -455,11 +494,14 @@ export function activeEffect(
     case "none": return { css: {} };
     case "color": return { css: { color, WebkitTextFillColor: color, backgroundImage: "none" } };
     case "pop": {
-      const k = 1 + (a.scale - 1) * sp * intensity;
+      // the spoken word's pop rides the punchier spring: fast attack, ~10% overshoot, quick settle
+      const pp = settled ? 1 : springMs(timeMs, word.startMs, fps, SPRINGS.punch);
+      const k = 1 + (a.scale - 1) * pp * intensity;
       return { css: { color, WebkitTextFillColor: color, backgroundImage: "none", transform: `scale(${k})` }, grow: k };
     }
     case "scale-up": {
-      const k = 1 + (a.scale - 1) * sp * intensity;
+      const pp = settled ? 1 : springMs(timeMs, word.startMs, fps, SPRINGS.punch);
+      const k = 1 + (a.scale - 1) * pp * intensity;
       return { css: { transform: `scale(${k})` }, grow: k };
     }
     case "bounce": return { css: { color, WebkitTextFillColor: color, transform: `translateY(${-Math.sin(Math.PI * Math.min(1, ((timeMs - word.startMs) / 260))) * 14 * sc * intensity}px)` } };
@@ -469,29 +511,35 @@ export function activeEffect(
     }
     case "glow": return { css: { color, WebkitTextFillColor: color, textShadow: `0 0 ${(12 + sp * 10) * sc}px ${color}, 0 0 ${(24 + sp * 16) * sc}px ${withAlpha(color, 0.6)}` } };
     case "underline": {
-      const w = settled ? 100 : progress(timeMs - word.startMs, 180) * 100;
+      const w = settled ? 100 : progress(timeMs - word.startMs, 160) * 100;
       return { css: { color, WebkitTextFillColor: color }, bar: { css: { left: 0, bottom: "-0.08em", height: "0.09em", width: `${w}%`, backgroundColor: color, borderRadius: 4 } } };
     }
     case "marker": {
-      const w = settled ? 100 : progress(timeMs - word.startMs, 200) * 100;
+      const w = settled ? 100 : progress(timeMs - word.startMs, 170) * 100;
       return { css: {}, behind: { css: { left: "-0.12em", top: "12%", height: "78%", width: `calc(${w}% + 0.24em)`, backgroundColor: withAlpha(color, 0.85), borderRadius: "0.12em", zIndex: -1 } } };
     }
     // active.color is the text ON the box
     case "box": return { grow: 1 + (a.scale - 1) * sp, css: { color, WebkitTextFillColor: color, backgroundImage: "none", transform: `scale(${1 + (a.scale - 1) * sp})` }, behind: { css: { left: "-0.22em", right: "-0.22em", top: "6%", bottom: "2%", backgroundColor: a.boxColor ?? color, borderRadius: a.boxRadius * sc, zIndex: -1 } } };
     case "fill-sweep": {
-      const p = settled ? 100 : t * 100;
+      // eased sweep (was linear in the spoken fraction): fast fill that decelerates into the word's
+      // end, so karaoke reads as a brush stroke settling rather than a progress bar
+      const p = settled ? 100 : progress(timeMs - word.startMs, dur) * 100;
       return { css: { backgroundImage: `linear-gradient(90deg, ${color} ${p}%, currentColor ${p}%)`, WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent" } };
     }
     case "outline-fill": return { css: { color, WebkitTextFillColor: color } };
     case "box-sweep": {
       // a full-height highlight box whose width sweeps across the word as it is spoken (the "box" effect
       // jumps word to word at full width; this one grows). Text takes active.color, the box boxColor.
-      const w = settled ? 100 : t * 100;
+      // The sweep is eased (expo) and completes at ~85% of the word, so the box lands and settles
+      // before the next word starts instead of tracking speech linearly like a progress bar.
+      const w = settled ? 100 : progress(timeMs - word.startMs, dur * 0.85) * 100;
       return { css: { color, WebkitTextFillColor: color, backgroundImage: "none" }, behind: { css: { left: "-0.18em", top: "4%", height: "92%", width: `calc(${w.toFixed(1)}% + 0.36em)`, backgroundColor: a.boxColor ?? color, borderRadius: a.boxRadius * sc, zIndex: -1 } } };
     }
     case "scribble-ring": {
-      // the ring itself is drawn by the layout (SVG stroke-dashoffset); here we only carry its progress
-      const rp = settled ? 1 : Math.min(1, Math.max(0, (timeMs - word.startMs) / Math.min(dur, 320)));
+      // the ring itself is drawn by the layout (SVG stroke-dashoffset); here we only carry its progress.
+      // Eased draw (was linear): the stroke races around the first half of the ellipse and decelerates
+      // into the close, like a hand finishing a circle; completes within ~300 ms.
+      const rp = settled ? 1 : progress(timeMs - word.startMs, Math.min(dur, 300), Easing.out(Easing.cubic));
       return { css: { color, WebkitTextFillColor: color, backgroundImage: "none" }, ring: { progress: rp, color } };
     }
     default: return { css: {} };
