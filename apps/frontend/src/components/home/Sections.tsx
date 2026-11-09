@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useSyncExternalStore } from "react";
+import React, { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { FAQS } from "./faqs";
@@ -12,6 +12,7 @@ import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/br
 // the real renderer is client-only and fairly heavy: load it after the page shell
 const CyclingPreview = dynamic(() => import("./LivePreview").then((m) => m.CyclingPreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#0F3D2E]" /> });
 const LivePreview = dynamic(() => import("./LivePreview").then((m) => m.LivePreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#1f2b27]" /> });
+const HeroCylinder = dynamic(() => import("./HeroCylinder").then((m) => m.HeroCylinder), { ssr: false, loading: () => <div className="h-[320px] w-full animate-pulse rounded-2xl bg-[#1C1C1A] sm:h-[360px]" /> });
 
 const INK = "#FFFFEB";
 export const GITHUB_URL = "https://github.com/Ishaan-Gpt/Captions-Easy";
@@ -109,39 +110,9 @@ export function Nav() {
   );
 }
 
-import { CoverflowCarousel } from "@/components/ui/coverflow-carousel";
-
-// Real CaptionsEasy renders: open-licensed talking-head clips, transcribed by local whisper.cpp and captioned in
-// Viral/Popular looks by the export composition (packages/compositions/scripts/hero-clips.ts; credits in credits.json).
-const HERO_CLIPS = ["sol", "gianna", "william", "aisha", "jesse", "gereon", "mckensie", "rusita", "omar", "sam"];
-const HERO_IMAGES = HERO_CLIPS.map((n) => ({ src: `/hero/${n}.webp`, video: `/hero/${n}.mp4`, alt: "Talking-head clip with animated captions" }));
-
-/** Clips decode only while the hero is on screen and the tab is visible. */
-function usePauseOffscreen(ref: React.RefObject<HTMLElement | null>) {
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    let onScreen = true;
-    const sync = () => {
-      const run = onScreen && document.visibilityState === "visible";
-      el.querySelectorAll("video").forEach((v) => (run ? void v.play().catch(() => {}) : v.pause()));
-    };
-    const io = new IntersectionObserver(([e]) => {
-      onScreen = !!e?.isIntersecting;
-      sync();
-    });
-    io.observe(el);
-    document.addEventListener("visibilitychange", sync);
-    return () => {
-      io.disconnect();
-      document.removeEventListener("visibilitychange", sync);
-    };
-  }, [ref]);
-}
+/** Hero visual: the Trending templates cylinder (HeroCylinder) — live animated previews, drag to spin. */
 
 export function Hero() {
-  const reel = React.useRef<HTMLDivElement>(null);
-  usePauseOffscreen(reel);
   return (
     <section className="relative flex min-h-[100svh] w-full flex-col overflow-hidden pt-[max(6.5rem,12vh)]">
       <div data-parallax="0.25" aria-hidden className="pointer-events-none absolute -left-40 top-16 h-[520px] w-[520px] rounded-full bg-[#252B26]/60 blur-3xl" />
@@ -183,25 +154,13 @@ export function Hero() {
 
       </div>
 
-      {/* real renders: talking-head clips captioned by our own pipeline */}
-      <div ref={reel} data-hero="stream" className="relative z-0 mt-4 pt-2 sm:mt-auto">
-        <CoverflowCarousel
-          slides={HERO_IMAGES}
-          rotate={44}
-          depth={0.6}
-          perspective={3}
-          falloff={0.56}
-          fade={0.1}
-          ratio={25 / 18}
-          cardWidth="clamp(140px, min(20vw, 25vh), 250px)"
-          gap={0.05}
-          loop
-          className="mx-auto w-full"
-        />
+      {/* trending templates on a rotating cylinder: live previews of the real templates */}
+      <div data-hero="stream" className="relative z-0 mt-4 pt-2 sm:mt-auto">
+        <HeroCylinder />
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#141412]" />
       </div>
       <div className="mx-auto flex w-full max-w-6xl justify-end px-5 pb-3">
-        <a href="/credits" className="inline-flex min-h-8 items-center text-[11px] text-[#FFFFEB]/40 hover:text-[#FFFFEB]/75">
+        <a href="/credits" className="inline-flex min-h-8 items-center text-[11px] text-[#FFFFEB]/60 hover:text-[#FFFFEB]">
           Clips: Wikimedia Commons, CC BY / BY-SA
         </a>
       </div>
@@ -411,7 +370,7 @@ function PopArtifact() {
   return (
     <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-white/50 overflow-hidden flex items-center justify-center px-6">
       <div className="text-base font-semibold text-[#FFFFEB]/60 text-center leading-relaxed">
-        The word that matters gets <span className="inline-block px-3 py-1 mt-1 rounded-lg bg-[#34D399] text-[#FFFFEB] font-bold text-lg shadow-sm rotate-[-2deg] scale-110 group-hover:rotate-2 group-hover:scale-125 transition-transform duration-300">its own box</span> automatically.
+        The word that matters gets <span className="inline-block px-3 py-1 mt-1 rounded-lg bg-[#34D399] text-[#141412] font-bold text-lg shadow-sm rotate-[-2deg] scale-110 group-hover:rotate-2 group-hover:scale-125 transition-transform duration-300">its own box</span> automatically.
       </div>
     </div>
   );
@@ -445,7 +404,7 @@ function LanguageArtifact() {
        <div className="flex flex-col items-center space-y-1 group-hover:scale-105 transition-transform">
          <span className="font-sans text-base text-[#FFFFEB]/50 line-through decoration-[#FFFFEB]/30">क्या हाल है?</span>
          <span className="font-sans text-2xl font-bold text-[#FFFFEB]">Kya haal hai?</span>
-         <span className="font-mono text-[10px] uppercase text-[#FFFFEB]/40 tracking-widest mt-2 bg-white/50 px-2 py-0.5 rounded">Hinglish, as you type it</span>
+         <span className="font-mono text-[10px] uppercase text-[#FFFFEB]/60 tracking-widest mt-2 bg-white/50 px-2 py-0.5 rounded">Hinglish, as you type it</span>
        </div>
     </div>
   );
@@ -722,7 +681,7 @@ export function Faq() {
                         }`}
                       >
                         <span>{faq.q}</span>
-                        <span className={`text-xs transition-transform ${isActive ? "text-[#34D399] rotate-90" : "text-[#FFFFEB]/30"}`}>
+                        <span className={`text-xs transition-transform ${isActive ? "text-[#34D399] rotate-90" : "text-[#FFFFEB]/50"}`}>
                           →
                         </span>
                       </button>
@@ -739,7 +698,7 @@ export function Faq() {
                   <span className="font-mono text-xs uppercase tracking-wider text-[#34D399] font-bold">
                     Answer
                   </span>
-                  <span className="text-xs text-[#FFFFEB]/40 font-mono">
+                  <span className="text-xs text-[#FFFFEB]/60 font-mono">
                     Instant clarification
                   </span>
                 </div>
