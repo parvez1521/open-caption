@@ -21,3 +21,27 @@ export const supabase = createClient(
   supabaseUrl || "https://placeholder.supabase.co",
   supabaseAnonKey || "placeholder-anon-key"
 );
+
+/**
+ * True only when a real Supabase project is wired up: the URL is an actual
+ * https://<ref>.supabase.co project URL (not the placeholder fallback above)
+ * and a non-placeholder anon key is present. Every auth surface (login page,
+ * sign-up gate, auth guards) checks this first — with no backend configured,
+ * sign-in actions would send people to the dead placeholder domain, so they
+ * are hidden and the guest flow is offered instead. When this returns true,
+ * auth behaves exactly as before.
+ */
+export function isSupabaseConfigured(): boolean {
+  if (!supabaseUrl || !supabaseAnonKey) return false;
+  if (supabaseAnonKey === "placeholder-anon-key") return false;
+  try {
+    const u = new URL(supabaseUrl);
+    return (
+      u.protocol === "https:" &&
+      u.hostname.endsWith(".supabase.co") &&
+      u.hostname !== "placeholder.supabase.co"
+    );
+  } catch {
+    return false;
+  }
+}

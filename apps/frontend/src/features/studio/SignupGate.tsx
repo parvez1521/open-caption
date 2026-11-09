@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { rememberGuestForClaim, signInWithGoogleKeepingWork } from "@/services/auth/guest";
+import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { Button } from "./controls";
 
 /**
@@ -9,7 +10,7 @@ import { Button } from "./controls";
  * so the project, video and captions they already made stay exactly where they are.
  * New accounts are Google only (no confirmation emails); people with an email account use "Sign in".
  */
-export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; notice?: string | null }> = ({ onClose, notice }) => {
+export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; notice?: string | null }> = ({ onDone, onClose, notice }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +34,26 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
       setError(e instanceof Error ? e.message : "Google sign-up didn't start. Check your connection and try again.");
     }
   };
+
+  // No Supabase backend connected: there is no account to create and Google
+  // sign-in would bounce to the dead placeholder auth domain. Exports are made
+  // in the browser, so let the guest straight through instead. (Env-based, so
+  // this branch can never flip between renders of a mounted gate.)
+  if (!isSupabaseConfigured()) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-obsidian/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+        <div role="dialog" aria-label="No account needed" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
+          <h2 className="text-lg font-semibold">No account needed to export</h2>
+          <p className="mt-1 text-sm text-st-muted">Accounts are coming soon — no sign-up needed to make captions. Your export is made right in your browser.</p>
+          {notice ? <p role="status" className="mt-3 rounded-lg border border-st-line bg-st-raised px-3 py-2 text-sm text-st-text">{notice}</p> : null}
+          <Button tone="primary" className="mt-5 w-full !py-3" onClick={onDone}>
+            Continue to export
+          </Button>
+          <p className="mt-4 text-center text-sm text-st-muted">Changed your mind? <button type="button" className="font-semibold text-st-text underline" onClick={onClose}>Keep editing</button>.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-obsidian/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>

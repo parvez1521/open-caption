@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectsService } from "@/services/projects";
 import { authService } from "@/services/auth";
+import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { Project, ProjectStatus, User } from "@/services/types";
 import StudioShell from "@/components/studio/StudioShell";
 import { useBrandNav } from "@/components/brand/BrandNav";
@@ -54,7 +55,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
-      router.push("/login");
+      // No backend configured: there is no sign-in to bounce to — send them to
+      // the guest entry, which explains the state. Configured: as before.
+      router.push(isSupabaseConfigured() ? "/login" : "/start");
       return;
     }
     setSignedIn(true);

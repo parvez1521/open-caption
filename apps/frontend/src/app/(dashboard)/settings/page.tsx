@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth";
+import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import StudioShell from "@/components/studio/StudioShell";
 
 
@@ -20,7 +21,9 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
-      router.push("/login");
+      // No backend configured: there is no sign-in to bounce to — send them to
+      // the guest entry, which explains the state. Configured: as before.
+      router.push(isSupabaseConfigured() ? "/login" : "/start");
       return;
     }
     authService.getCurrentUser().then((user) => {

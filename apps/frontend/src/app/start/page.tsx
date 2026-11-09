@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/services/auth/supabaseClient";
+import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
 import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, startGuestSession, takeAfterSignIn } from "@/services/auth/guest";
 import type { Project } from "@/services/types";
@@ -43,6 +43,7 @@ async function waitForSession(ms = 6000) {
 export default function StartPage() {
   const router = useRouter();
   const [failed, setFailed] = useState(false);
+  const [notConfigured, setNotConfigured] = useState(false);
   const once = useRef(false);
 
   // fetch the speech model files while the person is on their way to the studio (idle, and not on a metered connection)
@@ -52,6 +53,13 @@ export default function StartPage() {
     if (once.current) return; // Strict Mode runs effects twice: never create two projects
     once.current = true;
     void (async () => {
+      // No Supabase backend connected: guest sessions and projects live in that
+      // backend, so there is no session to wait for and no sign-in to bounce to.
+      // Show the honest notice instead of calling the placeholder auth client.
+      if (!isSupabaseConfigured()) {
+        setNotConfigured(true);
+        return;
+      }
       const fromAuth = /[?&]code=|access_token=|token_hash=/.test(window.location.search + window.location.hash);
       const fromAuthError = /[?&#]error(_code|_description)?=/.test(window.location.search + window.location.hash);
       let session = await waitForSession(fromAuth ? 6000 : 400);
@@ -90,7 +98,16 @@ export default function StartPage() {
 
   return (
     <div className="grid min-h-[100svh] place-items-center bg-[#FFFFEB] px-6 text-center">
-      {failed ? (
+      {notConfigured ? (
+        <div className="flex max-w-sm flex-col items-center gap-4">
+          <LogoWave height={40} />
+          <p className="text-[15px] font-semibold text-[#1A1A1A]">Accounts are coming soon — no sign-up needed to make captions.</p>
+          <p className="text-[13px] font-medium text-[#1A1A1A]/70">We&apos;re finishing the studio setup. Check back shortly — your clips and captions will be made right in your browser, free.</p>
+          <a href="/" className="mt-2 rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-semibold text-[#FFFFEB]">
+            Back to home
+          </a>
+        </div>
+      ) : failed ? (
         <div>
           <p className="text-[15px] font-semibold text-[#1A1A1A]">We couldn&apos;t open your studio.</p>
           <button onClick={() => router.replace("/dashboard")} className="mt-4 rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-semibold text-[#FFFFEB]">

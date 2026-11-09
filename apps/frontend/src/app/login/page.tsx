@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth";
-import { supabase } from "@/services/auth/supabaseClient";
+import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { setAfterSignIn } from "@/services/auth/guest";
 import AuthShell, { Field, PasswordField, SubmitButton, ErrorNote, friendlyAuthError, validEmail } from "@/components/auth/AuthShell";
 import { BRAND_NAME } from "@/lib/brand";
@@ -72,6 +72,8 @@ export default function LoginPage() {
 
   // Redirect if already authenticated; also catches the OAuth return.
   useEffect(() => {
+    // No backend configured: never touch the placeholder auth client.
+    if (!isSupabaseConfigured()) return;
     // a guest (anonymous) session may still sign in to a real account here
     void supabase.auth.getSession().then(({ data }) => {
       if (data.session && !data.session.user.is_anonymous) router.replace("/start");
@@ -141,6 +143,32 @@ export default function LoginPage() {
       <span className="truncate">Continue with Google</span>
     </button>
   );
+
+  // No Supabase backend is connected yet, so Google/email sign-in cannot work —
+  // offering it would send people to the dead placeholder auth domain. Show the
+  // guest path instead; the sign-in UI below returns unchanged once a real
+  // project is configured.
+  if (!isSupabaseConfigured()) {
+    return (
+      <AuthShell
+        title={`Sign in to ${BRAND_NAME}`}
+        subtitle={<p className="text-[13.5px] text-neutral-600">Accounts are coming soon — no sign-up needed to make captions.</p>}
+      >
+        <div className="space-y-4">
+          <Link
+            href="/start"
+            className="block w-full rounded-xl bg-neutral-900 py-3 px-3 text-center font-semibold text-[14px] text-white shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)] transition duration-150 hover:bg-neutral-800"
+          >
+            Continue as guest
+          </Link>
+          <p className="text-center text-[12px] text-neutral-500">
+            Free. No card. By continuing you agree to the{" "}
+            <Link href="/terms" className="underline">Terms</Link> and <Link href="/privacy" className="underline">Privacy Policy</Link>.
+          </p>
+        </div>
+      </AuthShell>
+    );
+  }
 
   if (mode === "google") {
     return (
