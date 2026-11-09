@@ -72,9 +72,11 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
   const hasTextOverlay = overlays.some((o) => o.kind === "text");
 
   const fontFamilies = useMemo(() => [resolved.fontId, resolved.hero.fontId ?? "", ...getTemplate(resolved.templateId).fonts, resolved.emoji.enabled ? EMOJI_FONT : "", hasTextOverlay ? "Plus Jakarta Sans" : ""], [resolved, hasTextOverlay]);
-  const fontsReady = useFontsReady(fontFamilies);
+  // fontsEpoch bumps when a NEW family set finishes loading on a live component (a template switch in
+  // the studio): pages recompute with the real metrics then, without ever blanking in between
+  const { ready: fontsReady, epoch: fontsEpoch } = useFontsReady(fontFamilies);
 
-  const pages = useMemo(() => (fontsReady ? computePages(doc, settings, resolved, canvas) : []), [fontsReady, doc, settings, resolved, canvas]);
+  const pages = useMemo(() => (fontsReady ? computePages(doc, settings, resolved, canvas) : []), [fontsReady, fontsEpoch, doc, settings, resolved, canvas]);
 
   // The in-browser exporter redraws the DOM on a canvas and ignores mix-blend-mode, so a look that blends with the
   // picture (the difference look) composites it itself from the video layer's frames (see templates videoFrame.ts).

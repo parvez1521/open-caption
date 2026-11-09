@@ -192,11 +192,19 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   // load the fonts the style needs before measuring text (same requirement as the render)
   const fontKey = style ? [style.fontId, style.hero.fontId ?? "", ...getTemplate(style.templateId).fonts].join("|") : "";
+  // Font gate for page metrics — but ONLY the first load may gate. A template switch changes fontKey;
+  // resetting fontsReady there emptied `pages` (captions + timeline blank) until the new template's
+  // fonts downloaded, which is exactly the 1–2 s selection glitch. Now: keep rendering with the
+  // current pages, and bump fontEpoch when the new fonts land so pages recompute with real metrics.
+  const [fontEpoch, setFontEpoch] = useState(0);
   useEffect(() => {
     if (!fontKey) return;
     let alive = true;
-    setFontsReady(false);
-    void Promise.all(fontKey.split("|").filter(Boolean).map(loadFontFamily)).then(() => alive && setFontsReady(true));
+    void Promise.all(fontKey.split("|").filter(Boolean).map(loadFontFamily)).then(() => {
+      if (!alive) return;
+      setFontsReady(true);
+      setFontEpoch((e) => e + 1);
+    });
     return () => { alive = false; };
   }, [fontKey]);
 
@@ -205,7 +213,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // rendering below resolves placed image overlays from it
   const mediaBin = useMediaAssets(projectId);
   const wave = useWaveform(video?.id, video?.url, video?.size);
-  const pages = useMemo(() => (doc && style && fontsReady ? computePages(doc, settings, style, canvas) : []), [doc, style, settings, canvas, fontsReady]);
+  const pages = useMemo(() => (doc && style && fontsReady ? computePages(doc, settings, style, canvas) : []), [doc, style, settings, canvas, fontsReady, fontEpoch]);
   const currentPage = pages.find((p) => timeMs >= p.startMs && timeMs < p.endMs) ?? null;
   const selected = doc?.words.find((w) => w.id === selectedId) ?? null;
 

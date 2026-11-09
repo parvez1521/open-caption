@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cancelRender, continueRender, delayRender } from "remotion";
 import { fontStack, getFontEntry } from "./fontCatalog";
 
@@ -242,19 +242,31 @@ export function deviceHasFont(family: string): boolean {
 }
 
 /**
- * Blocks rendering until every family is loaded. Call ONCE near the composition root so frames are
- * never captured with fallback glyphs, and measurement runs on real metrics.
+ * Blocks rendering until every family is loaded — for the FIRST family set only. Call ONCE near the
+ * composition root so frames are never captured with fallback glyphs, and measurement runs on real
+ * metrics.
+ *
+ * Style switches (a new template picked in the studio) change the family set on a LIVE component:
+ * blanking the captions until the new fonts download made selection feel like a 1–2 s glitch, so once
+ * any set has loaded, `ready` stays true — the composition keeps rendering (fallback metrics for a
+ * beat) and `epoch` bumps when the new set lands, which is the consumer's cue to recompute its pages
+ * with the real metrics. Fresh mounts (server render, in-browser export) still gate on the first load
+ * exactly as before, so no exported frame is captured with fallback glyphs.
  */
-export function useFontsReady(families: string[]): boolean {
+export function useFontsReady(families: string[]): { ready: boolean; epoch: number } {
   const key = [...new Set(families.filter(Boolean))].sort().join("|");
-  const [ready, setReady] = useState(false);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [epoch, setEpoch] = useState(0);
   const [handle] = useState(() => delayRender("Loading caption fonts", { timeoutInMilliseconds: 60000 }));
+  const continuedRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
     Promise.all(key.split("|").filter(Boolean).map(loadFontFamily))
       .then(() => {
-        if (alive) setReady(true);
+        if (!alive) return;
+        setLoadedKey(key);
+        setEpoch((e) => e + 1);
       })
       .catch((e) => cancelRender(e));
     return () => {
@@ -262,11 +274,17 @@ export function useFontsReady(families: string[]): boolean {
     };
   }, [key]);
 
+  const ready = loadedKey !== null;
   // release the frame only AFTER React has committed the caption pages that depend on `ready`. Continuing in the
   // same tick as setReady let renderers (notably the in-browser one) capture early frames with no captions.
+  // The handle is continued exactly once: later family sets load in the background (above) and must
+  // never re-block a live preview.
   useEffect(() => {
-    if (ready) continueRender(handle);
+    if (ready && !continuedRef.current) {
+      continuedRef.current = true;
+      continueRender(handle);
+    }
   }, [ready, handle]);
 
-  return ready;
+  return { ready, epoch };
 }

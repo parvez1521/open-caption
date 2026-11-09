@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Save, Search } from "lucide-react";
 import type { CaptionStyleV2, ProjectSettings } from "@capseasy/shared";
+import { withAlpha } from "@motion-ai/caption-engine/core";
 import { LOOKS, LOOK_SECTIONS, fontStack, loadFontFamily, resolveStyle, type LookDefinition } from "@capseasy/templates";
 import { studioService } from "@/services/studio";
 import { AnimatedTemplatePreview } from "./AnimatedTemplatePreview";
@@ -32,14 +33,27 @@ function swatchStyle(look: LookDefinition): React.CSSProperties {
 /** Built-in looks have previews rendered by the real composition (packages/compositions/scripts/look-previews.ts). */
 const BUILT_IN = new Set(LOOKS.map((l) => l.id));
 
-/** Live-text preview in the template's own font and colours: the poster whenever no rendered still exists. */
-const SwatchPreview: React.FC<{ look: LookDefinition }> = ({ look }) => (
-  <div className="flex h-full w-full items-center justify-center bg-black px-3 text-center text-[22px] leading-tight">
-    <span style={swatchStyle(look)}>
-      {look.templateId === "word_by_word" ? "WATCH" : "Watch this"} <span style={{ color: look.style.active.color }}>now</span>
-    </span>
-  </div>
-);
+/**
+ * Live-text preview in the template's own font and colours: the poster whenever no rendered still exists.
+ * Looks composed as dark text on a light box/pill/bubble carry that background behind the words — without
+ * it the swatch was dark text on the card's black stage, i.e. invisible ("no preview at all").
+ */
+const SwatchPreview: React.FC<{ look: LookDefinition }> = ({ look }) => {
+  const bg = look.style.background;
+  const hasBg = bg && bg.type !== "none";
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-black px-3 text-center text-[22px] leading-tight">
+      <span className="relative inline-block" style={hasBg ? { padding: "0.35em 0.6em" } : undefined}>
+        {hasBg ? (
+          <span aria-hidden className="absolute inset-0" style={{ backgroundColor: withAlpha(bg.color, bg.opacity), borderRadius: Math.max(4, bg.radius / 2) }} />
+        ) : null}
+        <span className="relative" style={swatchStyle(look)}>
+          {look.templateId === "word_by_word" ? "WATCH" : "Watch this"} <span style={{ color: look.style.active.color }}>now</span>
+        </span>
+      </span>
+    </div>
+  );
+};
 
 /**
  * Poster for a template card: the pre-rendered still when one exists, otherwise the live-text swatch.
@@ -55,7 +69,59 @@ const TemplatePoster: React.FC<{ look: LookDefinition }> = ({ look }) => {
   );
 };
 
-export const LooksPanel: React.FC<Props> =({ currentLookId, onChoose, currentStyle, currentSettings }) => {
+/**
+ * One template card. Memoized: a selection change re-renders ONLY the card losing "In use" and the
+ * card gaining it — previously every StudioPage render (selection, the 15 Hz playback feed, …)
+ * re-rendered all 141 cards and their previews, which is what made selecting feel like a glitch.
+ */
+export const TemplateCard = React.memo(function TemplateCard({
+  look,
+  chosen,
+  onChoose,
+  onRemove,
+}: {
+  look: LookDefinition;
+  chosen: boolean;
+  onChoose: (look: LookDefinition) => void;
+  onRemove?: (look: LookDefinition) => void;
+}) {
+  return (
+    <button
+      onClick={() => {
+        // warm the chosen template's fonts in parallel with the (synchronous, local) apply: the studio
+        // keeps rendering with the current pages until they land, then recomputes metrics — no blank gap
+        void loadFontFamily(look.style.fontId);
+        if (look.style.hero.fontId) void loadFontFamily(look.style.hero.fontId);
+        onChoose(look);
+      }}
+      aria-pressed={chosen}
+      className={`group block w-full overflow-hidden rounded-2xl border bg-st-panel text-left transition ${chosen ? "border-st-ink shadow-[0_0_0_3px_var(--color-st-lav)]" : "border-st-line hover:border-st-ink/30 hover:shadow-[0_8px_20px_-14px_rgba(0,0,0,0.5)]"}`}
+    >
+      <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
+        <span className="truncate text-sm font-bold text-st-text">
+          {look.name}
+          {look.number ? <span className="ml-1.5 font-medium text-st-faint">#{look.number}</span> : null}
+        </span>
+        {onRemove ? (
+          <span role="button" aria-label={`Delete ${look.name}`} onClick={(e) => { e.stopPropagation(); onRemove(look); }} className="rounded px-1 text-xs text-st-faint hover:bg-st-or/30 hover:text-st-text">✕</span>
+        ) : chosen ? (
+          <span className="rounded-full bg-st-em px-2 py-0.5 text-[10px] font-semibold text-[#141412]">In use</span>
+        ) : null}
+      </div>
+      <AnimatedTemplatePreview look={look} poster={<TemplatePoster look={look} />} />
+      <div className="flex flex-wrap gap-1.5 px-3.5 pb-3">
+        {look.trending ? (
+          <span className="rounded-md bg-[#FFA946] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Trending</span>
+        ) : null}
+        {(look.tags ?? [look.category]).map((t) => (
+          <span key={t} className="rounded-md bg-st-raised px-2 py-0.5 text-[11px] font-medium text-st-muted">{t}</span>
+        ))}
+      </div>
+    </button>
+  );
+});
+
+export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentStyle, currentSettings }) => {
   const qc = useQueryClient();
   const mine = useQuery({ queryKey: ["my-looks"], queryFn: () => studioService.listLooks() });
   const myLooks = useMemo<LookDefinition[]>(
@@ -82,13 +148,11 @@ export const LooksPanel: React.FC<Props> =({ currentLookId, onChoose, currentSty
     if (!window.confirm(`Delete "${look.name}"?`)) return;
     void studioService.deleteLook(look.id.slice(5)).then(() => qc.invalidateQueries({ queryKey: ["my-looks"] }));
   };
-  const [, setTick] = useState(0);
 
-  // preview each look in its real font
-  useEffect(() => {
-    const families = [...new Set(LOOKS.flatMap((l) => [l.style.fontId, l.style.hero.fontId ?? ""]).filter(Boolean))];
-    void Promise.all(families.map(loadFontFamily)).then(() => setTick((n) => n + 1));
-  }, []);
+  // NOTE: no panel-wide font preload any more. It downloaded every look's full font set (100+ families,
+  // up to 7 weights each) the moment the panel opened and finished with a panel-wide re-render — the
+  // contention that made the first selection feel slow. Each preview now loads its own fonts as it
+  // approaches the viewport (see AnimatedTemplatePreview), and selecting warms the chosen look's fonts.
 
   const all = [...myLooks, ...LOOKS];
   const needle = q.trim().toLowerCase();
@@ -119,38 +183,15 @@ export const LooksPanel: React.FC<Props> =({ currentLookId, onChoose, currentSty
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {shown.length === 0 ? <p className="py-8 text-center text-sm text-st-faint">No templates match “{q}”.</p> : null}
-        {shown.map((look) => {
-          const chosen = look.id === currentLookId;
-          return (
-            <button
-              key={look.id}
-              onClick={() => onChoose(look)}
-              aria-pressed={chosen}
-              className={`group block w-full overflow-hidden rounded-2xl border bg-st-panel text-left transition ${chosen ? "border-st-ink shadow-[0_0_0_3px_var(--color-st-lav)]" : "border-st-line hover:border-st-ink/30 hover:shadow-[0_8px_20px_-14px_rgba(0,0,0,0.5)]"}`}
-            >
-              <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
-                <span className="truncate text-sm font-bold text-st-text">
-                  {look.name}
-                  {look.number ? <span className="ml-1.5 font-medium text-st-faint">#{look.number}</span> : null}
-                </span>
-                {look.category === "My templates" ? (
-                  <span role="button" aria-label={`Delete ${look.name}`} onClick={(e) => { e.stopPropagation(); removeLook(look); }} className="rounded px-1 text-xs text-st-faint hover:bg-st-or/30 hover:text-st-text">✕</span>
-                ) : chosen ? (
-                  <span className="rounded-full bg-st-em px-2 py-0.5 text-[10px] font-semibold text-[#141412]">In use</span>
-                ) : null}
-              </div>
-              <AnimatedTemplatePreview look={look} poster={<TemplatePoster look={look} />} />
-              <div className="flex flex-wrap gap-1.5 px-3.5 pb-3">
-                {look.trending ? (
-                  <span className="rounded-md bg-[#FFA946] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Trending</span>
-                ) : null}
-                {(look.tags ?? [look.category]).map((t) => (
-                  <span key={t} className="rounded-md bg-st-raised px-2 py-0.5 text-[11px] font-medium text-st-muted">{t}</span>
-                ))}
-              </div>
-            </button>
-          );
-        })}
+        {shown.map((look) => (
+          <TemplateCard
+            key={look.id}
+            look={look}
+            chosen={look.id === currentLookId}
+            onChoose={onChoose}
+            onRemove={look.category === "My templates" ? removeLook : undefined}
+          />
+        ))}
       </div>
     </div>
   );
