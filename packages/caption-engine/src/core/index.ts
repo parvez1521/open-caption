@@ -1,3 +1,4 @@
+export * from "./segments";
 export * from "./normalize";
 export * from "./hero";
 export * from "./derive";

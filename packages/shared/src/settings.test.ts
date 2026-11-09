@@ -205,3 +205,37 @@ describe("exportMemoryErrorMessage (OOM mapping)", () => {
     expect(exportMemoryErrorMessage(undefined)).toBeNull();
   });
 });
+
+describe("clipRange (Clipper projects)", () => {
+  it("defaults to null on an empty object and on old projects, so they are untouched", () => {
+    expect(ProjectSettingsSchema.parse({}).clipRange).toBeNull();
+    expect(ProjectSettingsSchema.parse({ maxWordsPerCard: 5 }).clipRange).toBeNull();
+    expect(defaultSettings().clipRange).toBeNull();
+  });
+
+  it("keeps a valid range", () => {
+    const s = ProjectSettingsSchema.parse({ clipRange: { startMs: 32_000, endMs: 65_000 } });
+    expect(s.clipRange).toEqual({ startMs: 32_000, endMs: 65_000 });
+  });
+
+  it("rejects an empty or backwards range and a negative start", () => {
+    expect(() => ProjectSettingsSchema.parse({ clipRange: { startMs: 5000, endMs: 5000 } })).toThrow();
+    expect(() => ProjectSettingsSchema.parse({ clipRange: { startMs: 6000, endMs: 5000 } })).toThrow();
+    expect(() => ProjectSettingsSchema.parse({ clipRange: { startMs: -1, endMs: 5000 } })).toThrow();
+  });
+
+  it("clipRangeDurationMs and effectiveDurationMs do the renderer math", async () => {
+    const { clipRangeDurationMs, effectiveDurationMs } = await import("./settings");
+    const range = { startMs: 32_000, endMs: 65_000 };
+    expect(clipRangeDurationMs(range)).toBe(33_000);
+    // no range: the source duration passes through
+    expect(effectiveDurationMs(120_000, null)).toBe(120_000);
+    expect(effectiveDurationMs(120_000, undefined)).toBe(120_000);
+    // with a range: only the segment
+    expect(effectiveDurationMs(120_000, range)).toBe(33_000);
+    // a range running past the (known) source end clamps to the source
+    expect(effectiveDurationMs(50_000, range)).toBe(18_000);
+    // unknown source duration: the range itself is the bound
+    expect(effectiveDurationMs(0, range)).toBe(33_000);
+  });
+});

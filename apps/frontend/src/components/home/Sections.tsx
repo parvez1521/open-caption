@@ -332,6 +332,54 @@ export function HowItWorks() {
 
 
 
+export function ClipperSection() {
+  const rows = [
+    ["0:32–1:05", "the part where the story turns"],
+    ["2:10–2:48", "a complete answer, on its own"],
+    ["4:02–4:57", "the example everyone replays"],
+  ];
+  return (
+    <section id="clipper" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
+          <div>
+            <span className="rounded-md bg-[#FFA946] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Trending</span>
+            <h2 className="font-styled mt-4 text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+              One long video, <em className="font-normal italic text-[#34D399]">many short clips.</em>
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
+              The Clipper reads your transcript and proposes the segments worth clipping: the speech
+              runs between silences, sized 15 to 60 seconds. Adjust the edges, create a clip, and it
+              becomes its own captioned project, ready to style and post.
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-[#FFFFEB]/60">
+              Smart segment suggestions from your transcript — no highlight magic, just your words
+              and the pauses between them. Your source video is not re-encoded or cut; a clip is a
+              range on the same file, kept on your device.
+            </p>
+            <Link href="/clipper" className="mt-7 inline-flex items-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-6 py-3.5 text-base font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
+              Open the Clipper <span aria-hidden>→</span>
+            </Link>
+          </div>
+          <div className="rounded-[2rem] border border-[#FFFFEB]/10 bg-[#1E1E1B] p-6 sm:p-8">
+            <p className="font-mono text-[11px] uppercase tracking-widest text-[#FFFFEB]/50">Suggested segments · from the transcript</p>
+            <div className="mt-5 space-y-3">
+              {rows.map(([range, label]) => (
+                <div key={range} className="flex items-center justify-between gap-3 rounded-xl border border-[#FFFFEB]/10 bg-[#262622] px-4 py-3.5">
+                  <span className="font-mono text-sm font-semibold text-[#FFFFEB]">{range}</span>
+                  <span className="min-w-0 truncate text-sm text-[#FFFFEB]/65">{label}</span>
+                  <span className="shrink-0 rounded-full bg-[#FFFFEB] px-3 py-1 text-xs font-bold text-[#141412]">Create clip</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/45">Silences split the runs · short runs merge · long runs split at the biggest pause</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function TimingArtifact() {
   return (
     <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex flex-col justify-end group-hover:bg-[#FFFFEB]/10 transition-colors">
@@ -755,6 +803,7 @@ const FOOTER_COLUMNS = [
     title: "PRODUCT",
     links: [
       { label: "How it works", href: "/#how" },
+      { label: "Clipper", href: "/clipper" },
       { label: "Looks gallery", href: "/#looks" },
       { label: "Precision controls", href: "/#control" },
     ],

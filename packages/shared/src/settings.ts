@@ -154,6 +154,38 @@ export function exportMemoryErrorMessage(error: unknown, resolution?: ExportReso
   return `Your device ran out of memory while rendering${at}. Try a lower resolution (1080p or 720p) and export again.`;
 }
 
+/* ---------------- clip range (Clipper projects) ---------------- */
+
+/**
+ * A clip project's media range, in SOURCE-video milliseconds: the project was created from the
+ * segment [startMs, endMs] of a longer video. The caption document is already shifted so the
+ * segment start is 0; this range is the metadata that lets every renderer show ONLY the segment
+ * (the source video file itself is never re-encoded or cut — it stays whole on the device).
+ * Null on every normal project, which then renders exactly as before.
+ */
+export const ClipRangeSchema = z
+  .object({
+    startMs: z.number().min(0),
+    endMs: z.number().min(1),
+  })
+  .refine((r) => r.endMs > r.startMs, { message: "endMs must be after startMs", path: ["endMs"] });
+export type ClipRange = z.infer<typeof ClipRangeSchema>;
+
+/** Length of a clip range in ms. */
+export function clipRangeDurationMs(range: ClipRange): number {
+  return Math.max(0, range.endMs - range.startMs);
+}
+
+/**
+ * The duration a renderer should author for a project: with a clip range, only the segment
+ * (clamped to the source when the source duration is known); without one, the source duration.
+ */
+export function effectiveDurationMs(sourceDurationMs: number, clipRange: ClipRange | null | undefined): number {
+  if (!clipRange) return sourceDurationMs;
+  const end = sourceDurationMs > 0 ? Math.min(clipRange.endMs, sourceDurationMs) : clipRange.endMs;
+  return Math.max(0, end - clipRange.startMs);
+}
+
 export const ProjectSettingsSchema = z.object({
   platform: PlatformSchema.default("custom"),
   maxWordsPerCard: z.number().int().min(1).max(12).default(DEFAULT_WORDS_PER_CARD),
@@ -177,6 +209,8 @@ export const ProjectSettingsSchema = z.object({
   overlays: z.array(OverlayItemSchema).default([]),
   /** last export choice, per project (owner 2026-11-10): drives BOTH render paths; old projects get 1080p/30 */
   exportSettings: ExportSettingsSchema.default({ resolution: "1080p", fps: 30 }),
+  /** Clipper projects only: the source-video range this project is a clip of; null = whole video */
+  clipRange: ClipRangeSchema.nullable().default(null),
 });
 export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>;
 export const defaultSettings = (): ProjectSettings => ProjectSettingsSchema.parse({});

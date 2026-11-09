@@ -1,4 +1,4 @@
-import { NEUTRAL_VIDEO_ADJUST, type OverlayItem, type ProjectSettings, type VideoAdjust } from "@capseasy/shared";
+import { NEUTRAL_VIDEO_ADJUST, type ClipRange, type OverlayItem, type ProjectSettings, type VideoAdjust } from "@capseasy/shared";
 
 /**
  * Pure helpers for the Slice 1(d) editor elements: the CSS filter string for the video layer and the
@@ -36,4 +36,24 @@ export function resolveVideoAdjust(input: { videoAdjust?: VideoAdjust; settings?
 
 export function resolveOverlays(input: { overlays?: OverlayItem[]; settings?: Partial<ProjectSettings> | null }): OverlayItem[] {
   return input.overlays ?? input.settings?.overlays ?? [];
+}
+
+/** A clip project's range lives in its settings (the only channel every render path already carries). */
+export function resolveClipRange(input: { settings?: Partial<ProjectSettings> | null }): ClipRange | null {
+  return input.settings?.clipRange ?? null;
+}
+
+/**
+ * The video layer's trim for a clip range, in SOURCE frames: both video engines (Remotion's
+ * OffthreadVideo and @remotion/media's Video) take trimBefore/trimAfter as the source frame the
+ * picture starts / ends at, so frame 0 of the composition shows the source frame at clipRange.startMs
+ * and the picture stops at clipRange.endMs. Null range -> no trim props at all (untouched projects
+ * render exactly as before).
+ */
+export function videoTrimFrames(range: ClipRange | null | undefined, fps: number): { trimBefore: number; trimAfter: number } | undefined {
+  if (!range) return undefined;
+  const f = Math.max(1, fps);
+  const trimBefore = Math.max(0, Math.round((range.startMs / 1000) * f));
+  const trimAfter = Math.max(trimBefore + 1, Math.round((range.endMs / 1000) * f));
+  return { trimBefore, trimAfter };
 }

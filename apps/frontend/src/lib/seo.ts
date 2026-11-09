@@ -29,6 +29,7 @@ export const APP_PATHS = [
   "/projects",
   "/captions",
   "/editor",
+  "/clipper",
   "/exports",
   "/brand",
   "/settings",

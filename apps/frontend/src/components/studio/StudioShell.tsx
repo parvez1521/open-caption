@@ -48,6 +48,7 @@ const NAV_GROUPS: { heading: string | null; items: { href: string; label: string
     heading: "Video Editor",
     items: [
       { href: "/editor", label: "Video Editor", icon: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M8 5v5" strokeLinecap="round" /></svg>) },
+      { href: "/clipper", label: "Clipper", icon: (<svg {...iconProps}><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" strokeLinecap="round" /></svg>) },
     ],
   },
 ];

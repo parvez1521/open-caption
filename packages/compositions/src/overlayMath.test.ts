@@ -90,3 +90,26 @@ describe("resolve helpers (props win, settings are the fallback)", () => {
     expect(resolveOverlays({})).toEqual([]);
   });
 });
+
+describe("clip range trim (Clipper projects)", () => {
+  it("no range means no trim props at all", async () => {
+    const { resolveClipRange, videoTrimFrames } = await import("./overlayMath");
+    expect(videoTrimFrames(null, 30)).toBeUndefined();
+    expect(videoTrimFrames(undefined, 30)).toBeUndefined();
+    expect(resolveClipRange({ settings: ProjectSettingsSchema.parse({}) })).toBeNull();
+    expect(resolveClipRange({})).toBeNull();
+  });
+
+  it("converts a range to source frames at the composition fps", async () => {
+    const { videoTrimFrames } = await import("./overlayMath");
+    expect(videoTrimFrames({ startMs: 32_000, endMs: 65_000 }, 30)).toEqual({ trimBefore: 960, trimAfter: 1950 });
+    expect(videoTrimFrames({ startMs: 32_000, endMs: 65_000 }, 60)).toEqual({ trimBefore: 1920, trimAfter: 3900 });
+    expect(videoTrimFrames({ startMs: 0, endMs: 15_000 }, 30)).toEqual({ trimBefore: 0, trimAfter: 450 });
+  });
+
+  it("resolveClipRange reads the range out of parsed settings", async () => {
+    const { resolveClipRange } = await import("./overlayMath");
+    const settings = ProjectSettingsSchema.parse({ clipRange: { startMs: 1000, endMs: 9000 } });
+    expect(resolveClipRange({ settings })).toEqual({ startMs: 1000, endMs: 9000 });
+  });
+});

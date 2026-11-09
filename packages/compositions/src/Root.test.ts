@@ -52,3 +52,22 @@ describe("calculateMetadata: export output override", () => {
     expect(m.fps).toBe(60);
   });
 });
+
+describe("calculateMetadata: clip range (Clipper projects)", () => {
+  it("authors only the segment when the project carries a clipRange", async () => {
+    const m = await meta({ media: { ...MEDIA, durationMs: 120_000 }, settings: { clipRange: { startMs: 32_000, endMs: 65_000 } } });
+    // 33s of segment at 30fps, NOT the 120s source
+    expect(m.durationInFrames).toBe(990);
+    expect(m.fps).toBe(30);
+  });
+
+  it("the segment duration scales with the export fps like everything else", async () => {
+    const m = await meta({ media: { ...MEDIA, durationMs: 120_000 }, outputFps: 60, settings: { clipRange: { startMs: 32_000, endMs: 65_000 } } });
+    expect(m.durationInFrames).toBe(1980);
+  });
+
+  it("a null clipRange keeps the full source duration", async () => {
+    const m = await meta({ media: { ...MEDIA, durationMs: 120_000 }, settings: { clipRange: null } });
+    expect(m.durationInFrames).toBe(3600);
+  });
+});

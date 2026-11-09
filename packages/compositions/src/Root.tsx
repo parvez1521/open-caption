@@ -1,6 +1,6 @@
 import React from "react";
 import { Composition, type CalculateMetadataFunction } from "remotion";
-import { framesForDurationMs } from "@capseasy/shared";
+import { effectiveDurationMs, framesForDurationMs } from "@capseasy/shared";
 import { CaptionedVideo } from "./CaptionedVideo";
 import { CaptionedVideoProps } from "./props";
 
@@ -16,7 +16,9 @@ export const calculateMetadata: CalculateMetadataFunction<CaptionedVideoProps> =
   const props = CaptionedVideoProps.parse(raw);
   const fps = Math.max(1, Math.round(props.outputFps || props.media.fps || 30));
   const lastWordEnd = props.doc.words.reduce((m, w) => Math.max(m, w.endMs), 0);
-  const durationMs = props.media.durationMs > 0 ? props.media.durationMs : lastWordEnd + 500;
+  // clip projects author only their segment: media.durationMs is the SOURCE length, so the range
+  // clamps it (when the media has no duration, the shifted doc's own last word already bounds it)
+  const durationMs = props.media.durationMs > 0 ? effectiveDurationMs(props.media.durationMs, props.settings.clipRange) : lastWordEnd + 500;
   const base = {
     durationInFrames: framesForDurationMs(durationMs, fps),
     fps,

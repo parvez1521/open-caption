@@ -137,6 +137,15 @@ export const studioService = {
     return apiClient.patch(`/projects/${projectId}`, { json: patch });
   },
 
+  /**
+   * Clipper: create a normal caption project from one segment of this project. The server copies
+   * the project + video row and stores the (already segment-shifted) caption doc; it returns the
+   * NEW video id so the caller can copy the on-device video bytes to it (see features/clipper).
+   */
+  async createClip(projectId: string, body: { title: string; startMs: number; endMs: number; doc: CaptionDoc }): Promise<{ project: { id: string; title: string }; videoId: string | null }> {
+    return apiClient.post(`/projects/${projectId}/clips`, { json: body });
+  },
+
   listExports(projectId: string) {
     return apiClient.get<ExportRow[]>(`/projects/${projectId}/exports`);
   },

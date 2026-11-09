@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
-import { CaptionDocSchema } from "@capseasy/shared";
+import { CaptionDocSchema, effectiveDurationMs } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
 import { insertWordAfter, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { EyeOff, Redo2, Star, Undo2 } from "lucide-react";
@@ -28,6 +28,7 @@ import { MediaPanel } from "./panels/MediaPanel";
 import { TextPanel } from "./panels/TextPanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
+import { ClipperPanel } from "./panels/ClipperPanel";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
 import { Timeline } from "./Timeline";
@@ -54,7 +55,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "clipper";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -69,6 +70,7 @@ const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?:
   { id: "elements", label: "Elements", icon: railIcon(<><circle cx="8" cy="8" r="3.5" /><rect x="13" y="13" width="8" height="8" rx="1" /><path d="M17.5 3.5l3 5h-6z" /></>) },
   { id: "adjust", label: "Adjust", icon: railIcon(<><path d="M4 8h9M19 8h1M4 16h3M13 16h7" /><circle cx="16" cy="8" r="2" /><circle cx="10" cy="16" r="2" /></>) },
   { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
+  { id: "clipper", label: "Clipper", icon: railIcon(<><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" /></>) },
 ];
 
 const SAVE_LABEL: Record<SaveState, { text: string; dot: string }> = {
@@ -145,6 +147,14 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     if (await currentUserIsGuest()) setShowSignup(true);
     else setShowExport(true);
   }, []);
+  // arriving from the /clipper launcher with ?clipper=1: open the Clipper panel straight away
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("clipper")) return;
+    url.searchParams.delete("clipper");
+    window.history.replaceState(null, "", url.toString());
+    setSection("clipper");
+  }, []);
   // back from Google sign-up with ?export=1: carry on to the export dialog
   useEffect(() => {
     // that Google account already has CaptionsEasy: sign in to it; /start moves this project over and comes back here
@@ -188,7 +198,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const width = video?.width || 1080;
   const height = video?.height || 1920;
   const fps = video?.fps || 30;
-  const durationMs = video?.durationMs || (doc ? Math.max(0, ...doc.words.map((w) => w.endMs)) + 500 : 10000);
+  const sourceDurationMs = video?.durationMs || (doc ? Math.max(0, ...doc.words.map((w) => w.endMs)) + 500 : 10000);
+  // clip projects: the working duration is ONLY the segment (the video row still reports the full
+  // source length); the caption doc is already shifted to segment time, so everything downstream
+  // (player, timeline, export modal) works in clip time from this one number
+  const durationMs = video?.durationMs ? effectiveDurationMs(sourceDurationMs, settings.clipRange) : sourceDurationMs;
 
   // load the fonts the style needs before measuring text (same requirement as the render)
   const fontKey = style ? [style.fontId, style.hero.fontId ?? "", ...getTemplate(style.templateId).fonts].join("|") : "";
@@ -493,6 +507,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       : t === "text" ? <TextPanel {...overlayPanelProps} />
       : t === "elements" ? <ElementsPanel {...overlayPanelProps} />
       : t === "adjust" ? <AdjustPanel settings={settings} patch={s.patchSettings} />
+      : t === "clipper" ? (doc ? <ClipperPanel projectId={projectId} sourceTitle={data.project.title} sourceVideoId={data.video?.id ?? null} mediaDurationMs={settings.clipRange ? durationMs : (data.video?.durationMs ?? 0)} doc={doc} /> : null)
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
 

@@ -5,7 +5,7 @@ import { CaptionDocSchema, type CaptionStyleV2, OverlayItemSchema, ProjectSettin
 import { applyFillerFilter, applyProfanity, derivePages } from "@motion-ai/caption-engine/core";
 import { EMOJI_FONT, PageView, VideoFrameBus, VideoFrameContext, famCss, getTemplate, layoutBox, measure, resolveStyle, scaleOf, useFontsReady, wordGapEm, wordGapPx, type Canvas } from "@capseasy/templates";
 import type { CaptionedVideoInput } from "./props";
-import { buildVideoFilter, overlayFrames, resolveOverlays, resolveVideoAdjust } from "./overlayMath";
+import { buildVideoFilter, overlayFrames, resolveClipRange, resolveOverlays, resolveVideoAdjust, videoTrimFrames } from "./overlayMath";
 import { OverlayView } from "./overlays";
 
 /** Doc -> what the audience should see (filters are display-time, so the stored doc is never mutated). */
@@ -77,6 +77,10 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
     () => resolveOverlays({ overlays: parsedOverlays?.success ? parsedOverlays.data : undefined, settings }),
     [parsedOverlays, settings],
   );
+  // Clipper projects: the video layer is trimmed to the project's clip range (both engines take
+  // trimBefore/trimAfter as source frames), so preview, browser export and server render all show
+  // ONLY the segment — the caption doc is already shifted to segment time, everything lines up at 0.
+  const clipTrim = useMemo(() => videoTrimFrames(resolveClipRange({ settings }), fps), [settings, fps]);
   const hasTextOverlay = overlays.some((o) => o.kind === "text" || o.kind === "social");
 
   const fontFamilies = useMemo(() => [resolved.fontId, resolved.hero.fontId ?? "", ...getTemplate(resolved.templateId).fonts, resolved.emoji.enabled ? EMOJI_FONT : "", hasTextOverlay ? "Plus Jakarta Sans" : ""], [resolved, hasTextOverlay]);
@@ -97,9 +101,9 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
       {mode === "burn" && src ? (
         <AbsoluteFill style={{ backgroundColor: "black", ...(videoFilter ? { filter: videoFilter } : {}) }}>
           {videoEngine === "media" ? (
-            <MediaVideo src={src} objectFit="contain" style={{ width: "100%", height: "100%" }} onVideoFrame={frameBus?.emit} />
+            <MediaVideo src={src} objectFit="contain" style={{ width: "100%", height: "100%" }} onVideoFrame={frameBus?.emit} {...(clipTrim ?? {})} />
           ) : (
-            <OffthreadVideo src={src} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <OffthreadVideo src={src} style={{ width: "100%", height: "100%", objectFit: "contain" }} {...(clipTrim ?? {})} />
           )}
         </AbsoluteFill>
       ) : mode === "burn" && backdrop ? (
