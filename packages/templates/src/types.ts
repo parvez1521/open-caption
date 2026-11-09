@@ -88,4 +88,10 @@ export interface LookDefinition {
   /** short traits shown under the gallery preview ("Caps", "Box highlight") */
   tags?: string[];
   legacy?: boolean;
+  /**
+   * Display metadata only: curated "Trending" picks for the landing hero cylinder and the studio
+   * picker badge. Deliberately NOT part of a look's style or its uniqueness signature
+   * (template + font + effect + fill + background) — flipping it never changes a render.
+   */
+  trending?: boolean;
 }

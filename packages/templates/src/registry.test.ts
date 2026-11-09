@@ -3,7 +3,7 @@ import { CaptionStyleSchema } from "@capseasy/shared";
 import { PACK_LOOKS } from "./pack";
 import { PREMIUM_LOOKS } from "./looks/premium";
 import { LOOK_NUMBER_ORDER, RETIRED_LOOK_NUMBERS } from "./looks/numbers";
-import { KNOWN_FONTS, FALLBACK_TEMPLATE, LOOKS, LOOK_SECTIONS, TEMPLATE_IDS, applyLook, deepMerge, getLook, getTemplate, lookCategories, resolveStyle } from "./index";
+import { KNOWN_FONTS, FALLBACK_TEMPLATE, LOOKS, LOOK_SECTIONS, TEMPLATE_IDS, TRENDING_LOOK_IDS, TRENDING_LOOKS, applyLook, deepMerge, getLook, getTemplate, lookCategories, resolveStyle } from "./index";
 
 describe("template registry", () => {
   it("ships the 8 legacy templates", () => {
@@ -59,6 +59,21 @@ describe("template registry", () => {
     }
     // pinned: renumbering would break what creators already quote
     expect(getLook("metal_script")?.number).toBe(1);
+  });
+
+  it("trending is display metadata on exactly the curated picks, never part of the style", () => {
+    expect(TRENDING_LOOK_IDS).toHaveLength(10);
+    expect(new Set(TRENDING_LOOK_IDS).size).toBe(TRENDING_LOOK_IDS.length);
+    // every curated id resolves to a gallery look carrying the flag, in curated order
+    expect(TRENDING_LOOKS.map((l) => l.id)).toEqual([...TRENDING_LOOK_IDS]);
+    for (const l of TRENDING_LOOKS) expect(l.trending, l.id).toBe(true);
+    expect(LOOKS.filter((l) => l.trending).map((l) => l.id).sort()).toEqual([...TRENDING_LOOK_IDS].sort());
+    for (const l of LOOKS) if (!TRENDING_LOOK_IDS.includes(l.id)) expect(l.trending, l.id).toBe(false);
+    // the flag is not style: stripping it leaves the resolved style untouched
+    for (const l of TRENDING_LOOKS) {
+      const { trending: _t, ...rest } = l;
+      expect(resolveStyle(rest.style)).toEqual(resolveStyle(l.style));
+    }
   });
 
   it("applyLook returns the look's style and timing settings", () => {

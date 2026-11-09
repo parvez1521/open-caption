@@ -141,6 +141,9 @@ export const LooksPanel: React.FC<Props> =({ currentLookId, onChoose, currentSty
               </div>
               <AnimatedTemplatePreview look={look} poster={<TemplatePoster look={look} />} />
               <div className="flex flex-wrap gap-1.5 px-3.5 pb-3">
+                {look.trending ? (
+                  <span className="rounded-md bg-[#FFA946] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Trending</span>
+                ) : null}
                 {(look.tags ?? [look.category]).map((t) => (
                   <span key={t} className="rounded-md bg-st-raised px-2 py-0.5 text-[11px] font-medium text-st-muted">{t}</span>
                 ))}

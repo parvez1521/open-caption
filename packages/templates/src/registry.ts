@@ -143,9 +143,32 @@ export const LOOK_SECTIONS: { id: string; label: string; lookIds: string[] }[] =
 ].map((s) => ({ ...s, lookIds: s.lookIds.filter((id) => !isRetiredLook(id)) })).filter((s) => s.lookIds.length);
 const featured = LOOK_SECTIONS.flatMap((s) => s.lookIds);
 const rank = (id: string) => (featured.includes(id) ? featured.indexOf(id) : featured.length);
-const NUMBERED: LookDefinition[] = [...ALL_LOOKS].sort((a, b) => rank(a.id) - rank(b.id)).map((l) => ({ ...l, number: lookNumber(l.id) }));
+
+/**
+ * Curated "Trending" picks: the new-motion showcases (Scribble Ring, Typed Caret, Amber Sweep Box,
+ * Slice Signal) plus the strongest karaoke / bold classics. Display metadata only — applied here,
+ * centrally, so no look definition file (and no uniqueness signature) changes; see LookDefinition.trending.
+ */
+export const TRENDING_LOOK_IDS: readonly string[] = [
+  "scribble_ring",
+  "typed_caret",
+  "amber_sweep_box",
+  "slice_signal",
+  // karaoke classics: karaoke_fill itself is retired from the gallery, so its live karaoke kin carry the slot
+  "karaoke_pill",
+  "emerald_karaoke_pro",
+  "hormozi_box",
+  "beast_bounce",
+  "metal_script",
+  "comic_burst",
+];
+const TRENDING = new Set(TRENDING_LOOK_IDS);
+
+const NUMBERED: LookDefinition[] = [...ALL_LOOKS].sort((a, b) => rank(a.id) - rank(b.id)).map((l) => ({ ...l, number: lookNumber(l.id), trending: TRENDING.has(l.id) }));
 /** the gallery: every look except retired ones (see looks/numbers.ts) */
 export const LOOKS: LookDefinition[] = NUMBERED.filter((l) => !isRetiredLook(l.id));
+/** the curated trending looks, in TRENDING_LOOK_IDS order (hero cylinder + picker badge) */
+export const TRENDING_LOOKS: LookDefinition[] = TRENDING_LOOK_IDS.map((id) => LOOKS.find((l) => l.id === id)).filter((l): l is LookDefinition => !!l);
 
 /** resolves retired looks too, so projects that use one keep rendering */
 const looksById = new Map(NUMBERED.map((l) => [l.id, l]));
