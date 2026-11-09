@@ -21,7 +21,7 @@ const iconProps = { className: "w-4 h-4 shrink-0", fill: "none", stroke: "curren
 /**
  * Primary navigation — four categories, every item a real page:
  * Dashboard (overview + exports history), Captions (project list), Creator Studio
- * (Brand presets), Video Editor (pick / continue a project; the editor itself is
+ * (Brand presets, Generators), Video Editor (pick / continue a project; the editor itself is
  * per-project at /projects/[id]). Settings stays secondary at the foot.
  */
 const NAV_GROUPS: { heading: string | null; items: { href: string; label: string; icon: React.ReactNode }[] }[] = [
@@ -42,6 +42,7 @@ const NAV_GROUPS: { heading: string | null; items: { href: string; label: string
     heading: "Creator Studio",
     items: [
       { href: "/brand", label: "Brand presets", icon: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.1 4.6L19 9l-3.6 3.3 1 4.9L12 14.7l-4.4 2.5 1-4.9L5 9l4.9-1.4L12 3z" /></svg>) },
+      { href: "/create", label: "Generators", icon: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>) },
     ],
   },
   {

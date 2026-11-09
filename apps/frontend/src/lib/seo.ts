@@ -32,6 +32,7 @@ export const APP_PATHS = [
   "/clipper",
   "/exports",
   "/brand",
+  "/create",
   "/settings",
   "/start",
   "/pair",
