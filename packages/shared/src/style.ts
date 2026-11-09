@@ -8,6 +8,10 @@ export const ACTIVE_EFFECTS = [
 ] as const;
 export const ENTRANCES = [
   "none", "fade", "rise", "drop", "pop", "zoom", "slide-left", "slide-right", "blur-in", "typewriter", "wave", "flip", "elastic", "glitch", "glitch-slice", "mask-reveal",
+  // Envato-styles wave (2026-11-10, original implementations in the shared motion layer):
+  // flicker = neon strike-on, scramble = decode resolve, block-reveal = solid block wipe,
+  // roll = vertical word roll, write-on = pen reveal subset, jelly = squash-and-stretch settle
+  "flicker", "scramble", "block-reveal", "roll", "write-on", "jelly",
   // letter animators: per-letter scale/rotate/tracking driven like an After Effects expression selector
   "letter-spin", "letter-elastic", "letter-snap", "letter-burst", "letter-stretch",
 ] as const;

@@ -6,6 +6,7 @@ import { applyCasing } from "@motion-ai/caption-engine/core";
 import type { PageRenderProps } from "../types";
 import { STACK_SKINS, type StackSkin } from "./skins";
 import { WordSpan } from "./WordSpan";
+import { BlockRevealBlock } from "./BlockReveal";
 
 /** Body line / giant hero word / body line. The hero is the card's star; splash pins lines to its edges. */
 export const Stack3Layout: React.FC<PageRenderProps & { skinId: string }> = ({ page, timeMs, style, canvas, measure, settled, skinId }) => {
@@ -89,6 +90,7 @@ export const Stack3Layout: React.FC<PageRenderProps & { skinId: string }> = ({ p
 
   return (
     <div style={containerCss(box, style.rotation)}>
+      <BlockRevealBlock style={style} localMs={local} settled={settled} />
       <div
         style={{
           position: "relative", display: "flex", flexDirection: "column", alignItems: "center", width: box.width, boxSizing: "border-box",

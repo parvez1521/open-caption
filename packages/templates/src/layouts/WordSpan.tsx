@@ -1,6 +1,6 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
-import { activeEffect, combineMotion, entranceStyle, isLetterAnimator, letterAmounts, letterCss, letterSpeed, letterTrackEm, progress, showAt, splitsLetters, staggerDelayMs, staggerUnit, wordReveal } from "../motion";
+import { activeEffect, combineMotion, entranceStyle, isLetterAnimator, letterAmounts, letterCss, letterSpeed, letterTrackEm, progress, scrambleDurationMs, scrambledText, showAt, splitsLetters, staggerDelayMs, staggerUnit, wordReveal, writeOnTrail } from "../motion";
 import type { Canvas } from "../types";
 import { scaleOf, wordGapCss } from "../text";
 
@@ -97,7 +97,12 @@ export const WordSpan: React.FC<WordSpanProps> = ({
   const entranceSec = lettersIn ? (local / 1000) * letterSpeed(style.entrance.durationMs) : null;
   const msUntilEnd = lettersOut ? stagger!.pageEndMs! - timeMs : null;
   const amountsAt = (index: number) => (lettersIn || lettersOut ? letterAmounts(style, entranceSec, msUntilEnd, index, letterTotal) : null);
-  const chars = [...display];
+  // decode scramble: substitute glyphs for this word, resolving in reveal order from the word's own
+  // reveal time (not the page start), so the effect rides speech timing word by word
+  const shownText = !settled && style.entrance.type === "scramble"
+    ? scrambledText(display, timeMs - showAt(word), Math.floor((timeMs / 1000) * canvas.fps), scrambleDurationMs(word))
+    : display;
+  const chars = [...shownText];
   const letterBase = stagger?.letterIndex ?? 1;
   const letterTotal = stagger?.letterTotal ?? chars.length;
   // the space after this word is a character too in AE: it carries tracking while the letters fly in
@@ -119,7 +124,13 @@ export const WordSpan: React.FC<WordSpanProps> = ({
           }}>{ch}</span>
         );
       })
-    : display;
+    : shownText;
+  // pen reveal: a thin trail line extends under the word at the pace its letters land, then fades —
+  // the honest "pen" of the write-on entrance (no glyph-path tracing is claimed or faked)
+  const trail = !settled && style.entrance.type === "write-on" ? writeOnTrail(timeMs - showAt(word), [...display].length) : null;
+  const penTrail = trail && trail.opacity > 0.01 && trail.widthPct > 0 ? (
+    <span aria-hidden style={{ position: "absolute", pointerEvents: "none", left: 0, bottom: "-0.10em", height: "0.055em", width: `${trail.widthPct.toFixed(1)}%`, backgroundColor: style.active.color, borderRadius: 4, opacity: trail.opacity }} />
+  ) : null;
   // typewriter entrance: a blinking block caret rides the word currently being typed (frame math, not a
   // timer — on for 500 ms, off for 500 ms — so preview and export agree)
   const caret = !settled && style.entrance.type === "typewriter" && isActive ? (
@@ -133,6 +144,7 @@ export const WordSpan: React.FC<WordSpanProps> = ({
       {caret}
       {emojiAfter}
       {bar}
+      {penTrail}
       {ring}
     </span>
   );
@@ -148,6 +160,7 @@ export const WordSpan: React.FC<WordSpanProps> = ({
         {caret}
         {emojiAfter}
         {bar}
+        {penTrail}
         {ring}
       </span>
     </span>

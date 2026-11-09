@@ -84,6 +84,13 @@ const LOADERS: Record<string, () => Promise<unknown>> = {
   Unbounded: () => import("@remotion/google-fonts/Unbounded"),
   "Tilt Neon": () => import("@remotion/google-fonts/TiltNeon"),
   VT323: () => import("@remotion/google-fonts/VT323"),
+  // Envato-styles wave looks (2026-11-10)
+  Orbitron: () => import("@remotion/google-fonts/Orbitron"),
+  Anta: () => import("@remotion/google-fonts/Anta"),
+  "Share Tech Mono": () => import("@remotion/google-fonts/ShareTechMono"),
+  "Chakra Petch": () => import("@remotion/google-fonts/ChakraPetch"),
+  Archivo: () => import("@remotion/google-fonts/Archivo"),
+  Bungee: () => import("@remotion/google-fonts/Bungee"),
 };
 
 /** families whose looks set words in true italics (not the browser's slanted fake) */

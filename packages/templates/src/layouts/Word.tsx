@@ -1,5 +1,6 @@
 import React from "react";
-import { activeEffect, combineMotion, effectiveIntensity, entranceStyle, exitStyle, SPRINGS, springMs } from "../motion";
+import { activeEffect, combineMotion, effectiveIntensity, entranceStyle, exitStyle, rollAt, scrambleDurationMs, scrambledText, SPRINGS, springMs } from "../motion";
+import { BlockRevealBlock } from "./BlockReveal";
 import { fitSize } from "../measure";
 import { backgroundCss, baseTextCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { PageRenderProps } from "../types";
@@ -21,7 +22,18 @@ export const WordLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, can
   if (!word) return null;
 
   const casing = style.casing === "none" ? "upper" : style.casing;
-  const display = displayText(word, style, casing);
+  const rawDisplay = displayText(word, style, casing);
+  // decode scramble on the single word (same pure function as WordSpan)
+  const display = !settled && style.entrance.type === "scramble"
+    ? scrambledText(rawDisplay, timeMs - word.startMs, Math.floor((timeMs / 1000) * canvas.fps), scrambleDurationMs(word))
+    : rawDisplay;
+  // word roll: during the first entrance window the outgoing word rolls up out of a clipped box
+  // while this word rolls in from below (rollAt is the shared pure timing function)
+  const isRoll = !settled && style.entrance.type === "roll";
+  const roll = isRoll ? rollAt(timeMs - word.startMs, style.entrance.durationMs) : null;
+  const rolling = !!roll && !roll.done;
+  const prevWord = rolling && idx > 0 ? page.words[idx - 1] : undefined;
+  const prevDisplay = prevWord ? displayText(prevWord, style, casing) : "";
   const scale = typeof style.templateOptions.sizeScale === "number" ? style.templateOptions.sizeScale : 1.35;
   // leave room for the spoken-word growth and any 3D extrusion/shadow so the word never touches the edges
   const size = fitSize(display, style.fontSize * scale * sc, box.width / (1 + Math.max(0, style.active.scale - 1) * Math.min(2, effectiveIntensity(style, page.emotion))) * 0.94, {
@@ -46,10 +58,28 @@ export const WordLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, can
     ...fxCss,
   };
 
+  const prevSize = prevWord ? fitSize(prevDisplay, style.fontSize * scale * sc, box.width * 0.94, {
+    fontFamily: famCss(style.fontId), fontWeight: style.fontWeight, fontStyle: style.fontStyle, letterSpacing: style.letterSpacing * sc,
+  }, measure) : size;
+  const rollCss: React.CSSProperties | null = rolling && roll ? {
+    ...css,
+    transform: `translateY(${roll.incomingPct.toFixed(2)}%)${fxTransform ? ` ${fxTransform}` : ""}`,
+  } : null;
+
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ ...backgroundCss(style, sc), ...combineMotion(entranceStyle(style, timeMs - word.startMs, canvas.fps, intensity, settled, size), exitStyle(style, page.endMs - timeMs, settled, size)) }}>
-        <div key={word.id} style={css}>
+      <BlockRevealBlock style={style} localMs={timeMs - page.startMs} settled={settled} />
+      <div style={{
+        ...backgroundCss(style, sc),
+        ...(rolling ? { position: "relative" as const, overflow: "hidden" as const, height: `${(size * style.lineHeight * 1.05).toFixed(1)}px`, width: "100%" } : {}),
+        ...combineMotion(isRoll ? {} : entranceStyle(style, timeMs - word.startMs, canvas.fps, intensity, settled, size), exitStyle(style, page.endMs - timeMs, settled, size)),
+      }}>
+        {prevWord && roll ? (
+          <div aria-hidden style={{ ...baseTextCss(style, sc, prevSize), position: "absolute", left: 0, right: 0, top: 0, textAlign: "center", transform: `translateY(${roll.outgoingPct.toFixed(2)}%)` }}>
+            {prevDisplay}
+          </div>
+        ) : null}
+        <div key={word.id} style={rollCss ?? css}>
           {fx.behind ? <span style={{ position: "absolute", pointerEvents: "none", ...fx.behind.css }} /> : null}
           {display}
           {fx.bar ? <span style={{ position: "absolute", pointerEvents: "none", ...fx.bar.css }} /> : null}

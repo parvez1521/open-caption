@@ -64,6 +64,107 @@ export function combineMotion(...xs: React.CSSProperties[]): React.CSSProperties
   return out as React.CSSProperties;
 }
 
+/** Deterministic integer hash -> [0,1). Never Math.random: the same frame must render the same in the
+ *  picker, the studio preview and the Remotion export. */
+export function seededUnit(seed: number): number {
+  let h = Math.floor(Math.abs(seed)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 2246822519);
+  h = Math.imul(h ^ (h >>> 13), 3266489917);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/**
+ * Neon strike-on: opacity of one letter `localMs` into its strike window. The window is cut into ~26 ms
+ * buckets; a seeded hash of the bucket decides whether the tube is lit in that bucket, giving 2–4 short
+ * dark gaps before the letter holds steady at 1. Pure function of (localMs, seed, durationMs).
+ */
+export function flickerOpacity(localMs: number, seed = 0, durationMs = 300): number {
+  if (localMs <= 0) return 0;
+  if (localMs >= durationMs) return 1;
+  const bucket = Math.floor(localMs / 26);
+  return seededUnit(seed * 131 + bucket * 17 + 7) < 0.38 ? 0.08 : 1;
+}
+
+/** Breathing multiplier for a settled neon glow: ±15% on a ~1.5 s sine, frame-derived. */
+export const glowBreath = (localMs: number): number => 1 + 0.15 * Math.sin(localMs / 240);
+
+export const SCRAMBLE_GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#/";
+
+/** One scrambled glyph for `ch` at a given frame; spaces and punctuation never scramble. */
+export function scrambleGlyph(ch: string, frame: number, index: number): string {
+  if (!/[a-zA-Z0-9]/.test(ch)) return ch;
+  const upper = ch.toUpperCase();
+  let pick = SCRAMBLE_GLYPHS[Math.floor(seededUnit(frame * 409 + index * 97 + 13) * SCRAMBLE_GLYPHS.length)]!;
+  if (pick === upper) pick = SCRAMBLE_GLYPHS[(SCRAMBLE_GLYPHS.indexOf(pick) + 7) % SCRAMBLE_GLYPHS.length]!;
+  return ch === ch.toLowerCase() && /[a-z]/.test(ch) ? pick.toLowerCase() : pick;
+}
+
+/**
+ * Decode resolve: characters resolve in reveal order over `durationMs`; a character is real once
+ * elapsed/duration passes its (index+1)/length threshold, otherwise it shows a seeded substitute
+ * glyph for that frame. Deterministic in (text, elapsedMs, frame, durationMs).
+ */
+export function scrambledText(text: string, elapsedMs: number, frame: number, durationMs = 300): string {
+  const chars = [...text];
+  if (durationMs <= 0 || elapsedMs >= durationMs || chars.length === 0) return text;
+  const r = Math.max(0, elapsedMs / durationMs);
+  return chars.map((ch, i) => (r >= (i + 1) / chars.length ? ch : scrambleGlyph(ch, frame, i))).join("");
+}
+
+/** How long a word's decode resolve runs: ~300 ms, capped before its spoken midpoint. */
+export const scrambleDurationMs = (word: { startMs: number; endMs: number }): number =>
+  Math.min(300, Math.max(90, (word.endMs - word.startMs) * 0.5));
+
+/**
+ * Block reveal geometry: a solid block (16% of the box wide) travels left→right across the page while
+ * the text clip follows its wake; in the final 60 ms the block collapses vertically (scaleY → 0).
+ */
+export function blockRevealAt(localMs: number, durationMs = 260) {
+  const dur = Math.max(1, durationMs);
+  const p = progress(localMs, dur, EASE_OUT_EXPO);
+  const widthPct = 16;
+  const collapseStart = dur - 60;
+  const scaleY = localMs <= collapseStart ? 1 : 1 - progress(localMs - collapseStart, 60);
+  return {
+    p,
+    clipRightPct: (1 - p) * 100,
+    blockLeftPct: -widthPct + p * (100 + widthPct),
+    blockWidthPct: widthPct,
+    blockScaleY: Math.max(0, scaleY),
+    done: localMs >= dur,
+  };
+}
+
+/** Vertical word roll: outgoing word rolls up out of the box while the incoming rolls in from below. */
+export function rollAt(localMs: number, durationMs = 180) {
+  const p = progress(localMs, Math.max(1, durationMs), Easing.inOut(Easing.cubic));
+  return { p, incomingPct: (1 - p) * 100, outgoingPct: p === 0 ? 0 : -p * 100, done: localMs >= durationMs };
+}
+
+/**
+ * Pen-trail underline for write-on: the trail extends under a word at the pace its letters appear
+ * (~32 ms/char), holds at full width, then fades over 300 ms. Pure function of time.
+ */
+export function writeOnTrail(elapsedMs: number, charCount: number, msPerChar = 32) {
+  if (elapsedMs < 0) return { widthPct: 0, opacity: 0 };
+  const typing = Math.max(1, charCount) * msPerChar;
+  if (elapsedMs < typing) return { widthPct: (elapsedMs / typing) * 100, opacity: 1 };
+  return { widthPct: 100, opacity: 1 - progress(elapsedMs - typing, 300) };
+}
+
+/**
+ * Jelly settle: squash-and-stretch on a heavy bouncy spring — scaleY follows the spring while scaleX
+ * moves opposite-sign (a shape distortion, unlike "elastic"'s uniform scale) — plus a skew that
+ * decays exponentially to zero. Deterministic in (localMs, fps, intensity).
+ */
+export function jellyTransform(localMs: number, fps: number, intensity = 1) {
+  const s = springMs(localMs, 0, fps, { damping: 8, stiffness: 180, mass: 0.9 });
+  const scaleY = Math.max(0, s);
+  const scaleX = Math.max(0.05, 1 - (s - 1) * 0.55);
+  const skewDeg = intensity * 1.5 * Math.sin(localMs / 38) * Math.exp(-Math.max(0, localMs) / 170);
+  return { scaleX, scaleY, skewDeg, spring: s };
+}
+
 /** default text size (px) for distance-based motion when a caller can't tell */
 const DEFAULT_SIZE_PX = 60;
 
@@ -127,6 +228,44 @@ export function entranceStyle(style: CaptionStyleV2, localMs: number, fps: numbe
         clipPath: q > 0.04 ? `inset(${sliceTop.toFixed(1)}% -5% ${sliceBottom.toFixed(1)}% -5%)` : undefined,
         filter: j > 0.4 ? `drop-shadow(${j.toFixed(2)}px 0 rgba(255,0,80,0.9)) drop-shadow(${(-j).toFixed(2)}px 0 rgba(0,240,255,0.9))` : undefined,
       };
+    }
+    case "flicker": {
+      // Neon strike: per letter (staggerUnit is "char", so each letter's local time is offset) the tube
+      // flickers on via flickerOpacity, then holds with a breathing glow in the glow/active colour.
+      const dur = Math.max(120, e.durationMs);
+      const op = flickerOpacity(localMs, 0, dur);
+      const glowColor = style.glow.enabled ? style.glow.color : style.active.color;
+      const breath = localMs >= dur ? glowBreath(localMs) : 1;
+      const r = Math.max(4, style.glow.radius || 12) * breath * (u / 60) * Math.max(0.4, k);
+      return { opacity: op, filter: op > 0 ? `drop-shadow(0 0 ${r.toFixed(2)}px ${glowColor})` : undefined };
+    }
+    case "scramble": {
+      // the glyph substitution itself lives in the layouts (WordSpan / Word); here the word simply
+      // appears (no transform) so the resolving glyphs are the whole motion
+      return { opacity: localMs < 0 ? 0 : 1 };
+    }
+    case "block-reveal": {
+      // mask-reveal composition: the text clip follows the travelling block's wake (blockRevealAt);
+      // the block itself is drawn by the layouts from the same pure function, so they never desync
+      const b = blockRevealAt(localMs, e.durationMs);
+      return { clipPath: `inset(-20% ${b.clipRightPct.toFixed(2)}% -20% -5%)`, opacity: localMs < 0 ? 0 : Math.min(1, b.p * 4) };
+    }
+    case "roll": {
+      // incoming word rolls up a full word-height into its clipped box (the one-word layout also
+      // rolls the outgoing word out — see Word.tsx, same rollAt function)
+      const r = rollAt(localMs, e.durationMs);
+      return { opacity: localMs < 0 ? 0 : Math.min(1, r.p * 3 + 0.2), transform: `translateY(${r.incomingPct.toFixed(2)}%)` };
+    }
+    case "write-on": {
+      // per letter (staggerUnit is "char"): each letter fades in rising 0.12em with a 2° rotate settle,
+      // reading as pen strokes landing in sequence; the pen-trail underline lives in WordSpan
+      const wp = progress(localMs, Math.max(60, e.durationMs * 0.6), Easing.out(Easing.cubic));
+      const wq = 1 - wp;
+      return { opacity: localMs < 0 ? 0 : wp, transform: `translateY(${(wq * 0.12 * u).toFixed(2)}px) rotate(${(-wq * 2 * k).toFixed(2)}deg)` };
+    }
+    case "jelly": {
+      const j = jellyTransform(localMs, fps, k);
+      return { opacity: localMs <= 0 ? 0 : Math.min(1, 0.25 + localMs / 80), transform: `scale(${j.scaleX.toFixed(4)}, ${j.scaleY.toFixed(4)}) skewX(${j.skewDeg.toFixed(3)}deg)` };
     }
     case "wave": return { opacity: p, transform: `translateY(${(q * 0.45 * k * u).toFixed(2)}px)` };
     case "rise":
@@ -260,7 +399,11 @@ export const splitsLetters = (style: CaptionStyleV2) => staggerUnit(style) === "
 /** Which unit a layout should stagger by ("wave" always animates letter by letter). */
 export function staggerUnit(style: CaptionStyleV2): "none" | "word" | "char" {
   if (style.entrance.type === "none") return "none";
-  if (style.entrance.type === "wave" || style.entrance.type === "typewriter" || isLetterAnimator(style.entrance.type)) return "char";
+  // per-letter entrances: wave, typewriter, neon flicker, decode scramble, pen write-on, letter animators
+  if (style.entrance.type === "wave" || style.entrance.type === "typewriter" || style.entrance.type === "flicker" || style.entrance.type === "scramble" || style.entrance.type === "write-on" || isLetterAnimator(style.entrance.type)) return "char";
+  // word roll swaps word by word; block reveal and jelly are whole-page compositions
+  if (style.entrance.type === "roll") return "word";
+  if (style.entrance.type === "block-reveal" || style.entrance.type === "jelly") return "none";
   return style.entrance.stagger;
 }
 

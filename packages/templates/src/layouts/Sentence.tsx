@@ -3,6 +3,7 @@ import { combineMotion, effectiveIntensity, entranceStyle, exitStyle, staggerUni
 import { backgroundCss, baseTextCss, containerCss, displayText, layoutBox, lineWidth, scaleOf } from "../text";
 import type { PageRenderProps } from "../types";
 import { WordSpan, staggerPlan } from "./WordSpan";
+import { BlockRevealBlock } from "./BlockReveal";
 
 /** Full sentence block: explicit lines from the segmenter, active-word effect, real-metric fitting. */
 export const SentenceLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, canvas, measure, settled }) => {
@@ -23,6 +24,7 @@ export const SentenceLayout: React.FC<PageRenderProps> = ({ page, timeMs, style,
 
   return (
     <div style={containerCss(box, style.rotation)}>
+      <BlockRevealBlock style={style} localMs={local} settled={settled} />
       <div
         style={{
           display: "flex",
