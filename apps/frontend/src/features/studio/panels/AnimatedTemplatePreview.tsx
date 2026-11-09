@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Page, Word } from "@capseasy/shared";
-import { PageView, measure, type LookDefinition } from "@capseasy/templates";
+import { PageView, loadFontFamily, measure, type LookDefinition } from "@capseasy/templates";
 
 /**
  * Live animated template preview for the picker: instead of a pre-rendered clip (which only 39 templates
@@ -14,13 +14,14 @@ import { PageView, measure, type LookDefinition } from "@capseasy/templates";
  *  - the poster (still / swatch) shows first; the live layer only mounts when the card is in or near
  *    the viewport (IntersectionObserver, 240px margin),
  *  - at most MAX_LIVE previews animate at once across the whole panel (FIFO slot queue),
- *  - leaving the viewport or unmounting releases the slot and stops the clock,
+ *  - leaving the viewport releases the slot (so below-fold cards are not starved by the first cards
+ *    that ever approached) and stops the clock; unmounting does the same,
  *  - prefers-reduced-motion keeps the poster, always.
  */
 
 const MAX_LIVE = 6;
 
-/** Our own sample line, timed like speech: five words over ~2.3 s, then a hold before the loop restarts. */
+/** Our own sample line, timed like speech: five words over ~2.3 s, then the loop restarts. */
 const SAMPLE_WORDS: Word[] = ["Make", "every", "single", "word", "count"].map((text, i) => ({
   id: `preview-${i}`,
   text,
@@ -28,7 +29,8 @@ const SAMPLE_WORDS: Word[] = ["Make", "every", "single", "word", "count"].map((t
   endMs: i * 480 + 400,
 }));
 const PAGE_END_MS = 2700;
-const LOOP_MS = 2900;
+/** the loop is exactly the page: holding past PAGE_END_MS would render PageView's null (a black flash) */
+const LOOP_MS = PAGE_END_MS;
 const CANVAS = { width: 1080, height: 405, fps: 30 };
 const PREVIEW_PAGE: Page = {
   id: "template-preview",
@@ -69,12 +71,13 @@ function cancelWait(grant: () => void) {
 const reducedMotion = () =>
   typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export const AnimatedTemplatePreview: React.FC<{ look: LookDefinition; poster: React.ReactNode }> = ({ look, poster }) => {
+const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: React.ReactNode }> = ({ look, poster }) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
   const [live, setLive] = useState(false);
   const [boxW, setBoxW] = useState(0);
   const [timeMs, setTimeMs] = useState(0);
+  const [, setFontTick] = useState(0);
 
   // Templates are composed for a full frame; in the small card the type is scaled up so the motion
   // reads at card size (the pre-rendered stills exaggerate size the same way). Motion is untouched.
@@ -100,23 +103,42 @@ export const AnimatedTemplatePreview: React.FC<{ look: LookDefinition; poster: R
     return () => ro.disconnect();
   }, []);
 
+  // load this look's fonts as its card approaches, then re-render once so the preview (poster swatch
+  // and live layer alike) draws in the real face instead of a fallback. Per-card and lazy on purpose:
+  // the panel used to download every look's full font set up front, which starved the first click.
+  const fontLoadStarted = useRef(false);
   useEffect(() => {
-    if (!near || live) return;
+    if (!near || fontLoadStarted.current) return;
+    fontLoadStarted.current = true;
+    const families = [look.style.fontId, look.style.hero.fontId ?? ""].filter(Boolean);
+    void Promise.all(families.map(loadFontFamily)).then(() => setFontTick((n) => n + 1));
+  }, [near, look.style.fontId, look.style.hero.fontId]);
+
+  // Slot lifecycle, keyed on visibility: near -> acquire (or queue); the cleanup — which runs when the
+  // card leaves the viewport AND on unmount — releases a held slot or cancels a queued wait, so slots
+  // recycle through the list instead of being held forever by the first cards that approached.
+  // (The previous version never invoked the grant callback on the immediate-acquire path, so no
+  // preview ever went live and the leaked slots starved every other card.)
+  useEffect(() => {
+    if (!near) {
+      setLive(false);
+      return;
+    }
     let granted = false;
     const grant = () => {
       granted = true;
       setLive(true);
     };
-    if (acquireSlot(grant)) granted = true;
+    if (acquireSlot(grant)) grant();
     return () => {
-      if (!granted) cancelWait(grant);
+      if (granted) {
+        setLive(false);
+        releaseSlot();
+      } else {
+        cancelWait(grant);
+      }
     };
-  }, [near, live]);
-
-  useEffect(() => {
-    if (!live) return;
-    return () => releaseSlot();
-  }, [live]);
+  }, [near]);
 
   useEffect(() => {
     if (!live) return;
@@ -144,3 +166,13 @@ export const AnimatedTemplatePreview: React.FC<{ look: LookDefinition; poster: R
     </div>
   );
 };
+
+/**
+ * Memoized on the look alone: the poster is a pure function of the look, and a parent re-render (a
+ * selection change, the 15 Hz playback time feed) must not re-render 141 previews. Only the cards
+ * whose look object changes re-render.
+ */
+export const AnimatedTemplatePreview = React.memo(
+  AnimatedTemplatePreviewInner,
+  (a, b) => a.look === b.look,
+);
