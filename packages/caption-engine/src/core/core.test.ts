@@ -4,7 +4,7 @@ import {
   autoEmoji, clearAutoEmoji, emojiFor,
   applyFillerFilter, applyProfanity, breakLines, contrastRatio, derivePages, detectEmotion, findReplace, fromWhisperVerboseJson,
   fromWhisperCaptions, importSubtitles, insertWordAfter, legacyStyleToV2, legacyTranscriptToDoc, mergeWithPrevious, normalizeTokens,
-  pageAt, pickHeroIndex, readMs, retimeWord, setHidden, setWordText, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
+  pageAt, pickHeroIndex, readMs, retimeWord, setHidden, setWordText, shiftAllWords, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
 } from "./index";
 
 const mk = (text: string, startMs: number, endMs: number, id = text + startMs): Word => ({ id, text, startMs, endMs });
@@ -196,6 +196,29 @@ describe("doc ops", () => {
     for (let i = 0; i < w.length - 1; i++) expect(w[i]!.endMs).toBeLessThanOrEqual(w[i + 1]!.startMs);
     const tiny = retimeWord(base, "b", 300, 300).words[1]!;
     expect(tiny.endMs - tiny.startMs).toBeGreaterThanOrEqual(40);
+  });
+  it("shiftAllWords moves every word by the same amount, both ways", () => {
+    const fwd = shiftAllWords(base, 500);
+    expect(fwd.words.map((w) => [w.startMs, w.endMs])).toEqual([[500, 700], [700, 900], [900, 1100]]);
+    const back = shiftAllWords(fwd, -200);
+    expect(back.words.map((w) => [w.startMs, w.endMs])).toEqual([[300, 500], [500, 700], [700, 900]]);
+    expect(fwd.meta.userEdited).toBe(true);
+    expect(base.words[0]!.startMs).toBe(0); // immutable
+    expect(shiftAllWords(base, 0)).toBe(base); // no-op keeps the same doc
+  });
+  it("shiftAllWords clamps at 0, keeps order and end > start, and exports see the shift", () => {
+    const clamped = shiftAllWords(base, -300);
+    for (const w of clamped.words) {
+      expect(w.startMs).toBeGreaterThanOrEqual(0);
+      expect(w.endMs).toBeGreaterThan(w.startMs);
+      expect(w.endMs - w.startMs).toBeGreaterThanOrEqual(40);
+    }
+    expect(clamped.words.map((w) => w.startMs)).toEqual([0, 0, 100]);
+    // the shifted times are the stored times, so derived pages and subtitle exports carry them verbatim
+    const pages = derivePages(shiftAllWords(base, 1000), settings());
+    expect(pages[0]!.startMs).toBe(1000);
+    expect(toSrt(pages)).toContain("00:00:01,000 --> 00:00:02,100"); // page end includes the derived min display time
+    expect(toVtt(pages)).toContain("00:00:01.000 --> 00:00:02.100");
   });
   it("find/replace counts matches and respects whole word", () => {
     const d = docOf([mk("cat", 0, 1, "1"), mk("category", 1, 2, "2"), mk("Cat!", 2, 3, "3")]);

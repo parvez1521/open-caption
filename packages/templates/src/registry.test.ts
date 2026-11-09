@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CaptionStyleSchema } from "@capseasy/shared";
 import { PACK_LOOKS } from "./pack";
+import { PREMIUM_LOOKS } from "./looks/premium";
 import { LOOK_NUMBER_ORDER, RETIRED_LOOK_NUMBERS } from "./looks/numbers";
 import { KNOWN_FONTS, FALLBACK_TEMPLATE, LOOKS, LOOK_SECTIONS, TEMPLATE_IDS, applyLook, deepMerge, getLook, getTemplate, lookCategories, resolveStyle } from "./index";
 
@@ -25,7 +26,7 @@ describe("template registry", () => {
   });
 
   it("gallery is curated: every look is distinct (no two share template + font + effect + fill kind)", () => {
-    expect(LOOKS.length).toBe(39 + PACK_LOOKS.length - RETIRED_LOOK_NUMBERS.size);
+    expect(LOOKS.length).toBe(39 + PACK_LOOKS.length + PREMIUM_LOOKS.length - RETIRED_LOOK_NUMBERS.size);
     for (const l of LOOKS) expect(l.tags?.length, `${l.id} needs gallery tags`).toBeGreaterThan(0);
     for (const l of LOOKS) expect(l.style.emoji.enabled).toBe(false);
     expect(new Set(LOOKS.map((l) => l.id)).size).toBe(LOOKS.length);

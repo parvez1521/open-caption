@@ -14,7 +14,7 @@
 import { pipeline, env, StoppingCriteria, type AutomaticSpeechRecognitionPipeline } from "@huggingface/transformers";
 import { MODELS, pickRuntime, runtimeFor, type Device, type SpeechLanguage } from "./runtime";
 import { Resampler, downmix } from "./resample";
-import { SR, capWordEnd, dropRepeatedRuns, isLooping, planWindows, renderWindow, toOriginalSeconds, type PackedWindow } from "./speech";
+import { SR, TimelineAligner, capWordEnd, dropRepeatedRuns, isLooping, planWindows, renderWindow, toOriginalSeconds, type PackedWindow } from "./speech";
 
 env.allowLocalModels = false;
 
@@ -122,6 +122,7 @@ async function extractAudio(file: Blob, onHead?: (head: Float32Array) => void): 
   const total = await input.computeDuration().catch(() => 0);
   const sink = new AudioSampleSink(track);
   let rs: Resampler | null = null;
+  let aligner: TimelineAligner | null = null;
   const chunks: Float32Array[] = [];
   let pending: Float32Array[] = [];
   let pendingLen = 0;
@@ -154,9 +155,14 @@ async function extractAudio(file: Blob, onHead?: (head: Float32Array) => void): 
         planes.push(plane);
       }
       rs ??= new Resampler(sample.sampleRate, SR);
-      const mono = downmix(planes);
-      pending.push(mono);
-      pendingLen += mono.length;
+      aligner ??= new TimelineAligner(sample.sampleRate);
+      // place the sample on the media clock (start offsets, gaps, codec priming) BEFORE resampling:
+      // concatenating raw decoded PCM here used to shift every word timestamp by the container's offsets
+      const mono = aligner.align(sample.timestamp, downmix(planes));
+      if (mono.length) {
+        pending.push(mono);
+        pendingLen += mono.length;
+      }
       if (pendingLen >= 32_768) flushPending();
       // the first ~12 s are enough to start captioning while the rest still decodes
       if (onHead && !headFired && emitted >= HEAD_S * SR) {

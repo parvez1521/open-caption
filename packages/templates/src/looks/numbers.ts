@@ -27,6 +27,11 @@ export const LOOK_NUMBER_ORDER: readonly string[] = [
   // Premium motion (After Effects-grade)
   "difference_invert", "cinematic_track_in", "rgb_split_slam", "letter_cascade", "light_slit_reveal",
   "flip_3d_type", "glitch_slice", "chrome_sweep", "echo_zoom", "kinetic_camera",
+  // Premium Plus (appended 2026-11-09; numbers are permanent, append-only)
+  "apex_kinetic", "rush_cut", "emerald_karaoke_pro", "amber_box_sweep", "focus_blur", "broadcast_lower",
+  "stack_attack", "typecraft", "velvet_editorial", "ember_rush", "marker_pro", "duo_headline",
+  "noir_title", "studio_bubble", "glitch_reveal", "slam_stack", "halo_serif", "pill_pop_pro",
+  "underline_pro", "wave_rider", "gold_frame", "bubble_noir",
 ];
 
 /**

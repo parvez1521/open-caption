@@ -31,10 +31,24 @@ function swatchStyle(look: LookDefinition): React.CSSProperties {
 /** Built-in looks have previews rendered by the real composition (packages/compositions/scripts/look-previews.ts). */
 const BUILT_IN = new Set(LOOKS.map((l) => l.id));
 
-/** Wide still of the look on black (as the previews are rendered); its actual animation loops on hover (and always for the selected look). */
-const LookPreview: React.FC<{ id: string; name: string; playing: boolean }> = ({ id, name, playing }) => {
+/** Live-text preview in the look's own font and colours: the fallback whenever no rendered still exists. */
+const SwatchPreview: React.FC<{ look: LookDefinition }> = ({ look }) => (
+  <div className="flex aspect-[8/3] items-center justify-center bg-black px-3 text-center text-[22px] leading-tight">
+    <span style={swatchStyle(look)}>
+      {look.templateId === "word_by_word" ? "WATCH" : "Watch this"} <span style={{ color: look.style.active.color }}>now</span>
+    </span>
+  </div>
+);
+
+/**
+ * Wide still of the look on black (as the previews are rendered); its actual animation loops on hover (and always
+ * for the selected look). Rendered stills only exist for some looks — when the file is missing the card falls back
+ * to the live-text swatch instead of showing a dead black box (most pack looks have no rendered still).
+ */
+const LookPreview: React.FC<{ look: LookDefinition; playing: boolean }> = ({ look, playing }) => {
   const ref = useRef<HTMLVideoElement>(null);
   const [hover, setHover] = useState(false);
+  const [stillOk, setStillOk] = useState(true);
   const active = hover || playing;
   useEffect(() => {
     const v = ref.current;
@@ -44,12 +58,13 @@ const LookPreview: React.FC<{ id: string; name: string; playing: boolean }> = ({
       void v.play().catch(() => undefined);
     } else v.pause();
   }, [active]);
+  if (!stillOk) return <SwatchPreview look={look} />;
   return (
     <div className="relative aspect-[8/3] overflow-hidden bg-black" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/looks/${id}.webp`} alt={`${name} caption style`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-contain" />
+      <img src={`/looks/${look.id}.webp`} alt={`${look.name} caption style`} loading="lazy" decoding="async" onError={() => setStillOk(false)} className="absolute inset-0 h-full w-full object-contain" />
       {active ? (
-        <video ref={ref} src={`/looks/${id}.mp4`} muted loop playsInline preload="auto" aria-hidden className="absolute inset-0 h-full w-full object-contain" />
+        <video ref={ref} src={`/looks/${look.id}.mp4`} muted loop playsInline preload="auto" aria-hidden className="absolute inset-0 h-full w-full object-contain" />
       ) : null}
     </div>
   );
@@ -140,13 +155,9 @@ export const LooksPanel: React.FC<Props> =({ currentLookId, onChoose, currentSty
                 ) : null}
               </div>
               {BUILT_IN.has(look.id) ? (
-                <LookPreview id={look.id} name={look.name} playing={chosen} />
+                <LookPreview look={look} playing={chosen} />
               ) : (
-                <div className="flex aspect-[8/3] items-center justify-center bg-black px-3 text-center text-[22px] leading-tight">
-                  <span style={swatchStyle(look)}>
-                    {look.templateId === "word_by_word" ? "WATCH" : "Watch this"} <span style={{ color: look.style.active.color }}>now</span>
-                  </span>
-                </div>
+                <SwatchPreview look={look} />
               )}
               <div className="flex flex-wrap gap-1.5 px-3.5 pb-3">
                 {(look.tags ?? [look.category]).map((t) => (

@@ -110,6 +110,51 @@ export function planWindows(audio: Float32Array, segs: Seg[] = detectSpeech(audi
   return wins;
 }
 
+/**
+ * Places decoded audio samples on the MEDIA clock before anything else sees them.
+ *
+ * A decoded sample carries a presentation timestamp (seconds, can be negative for codec priming), and the
+ * decoded stream is NOT guaranteed to start at 0 or to be gapless: phone recordings and screen captures
+ * often start their audio a few hundred ms into the container, edited clips have holes, and AAC priming
+ * samples sit before t=0. Concatenating decoded PCM as if it started at 0 (what this pipeline used to do)
+ * shifts EVERY word timestamp by that start offset, and collapses every mid-stream gap so everything after
+ * it lands early too — the "captions are a bit off, more so later" bug. The aligner inserts silence for
+ * gaps/offsets and trims priming overlap, so sample N of the output is media time N / sampleRate.
+ */
+export class TimelineAligner {
+  private nextPos = 0; // source-rate frame index where the next sample belongs on the media clock
+
+  constructor(private readonly sampleRate: number) {}
+
+  /** Append one decoded sample; returns the PCM to append to the stream (silence-padded or head-trimmed). */
+  align(timestampSec: number, mono: Float32Array): Float32Array {
+    const frames = mono.length;
+    if (!Number.isFinite(timestampSec)) {
+      this.nextPos += frames;
+      return mono;
+    }
+    const start = Math.round(timestampSec * this.sampleRate);
+    if (start >= this.nextPos) {
+      const gap = start - this.nextPos;
+      this.nextPos = start + frames;
+      if (!gap) return mono;
+      const out = new Float32Array(gap + frames);
+      out.set(mono, gap);
+      return out;
+    }
+    // the sample starts before the current position: codec priming or overlap — keep only the part at/after it
+    const skip = this.nextPos - start;
+    if (skip >= frames) return new Float32Array(0);
+    this.nextPos += frames - skip;
+    return mono.subarray(skip);
+  }
+
+  /** Media-clock position (seconds) the stream has been filled up to. */
+  get positionSec(): number {
+    return this.nextPos / this.sampleRate;
+  }
+}
+
 /** The packed samples for a window (zero glue between segments). */
 export function renderWindow(audio: Float32Array, w: PackedWindow): Float32Array {
   const out = new Float32Array(w.samples);

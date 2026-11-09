@@ -1,6 +1,7 @@
 import { CaptionStyleSchema, DEFAULT_WORDS_PER_CARD, type CaptionStyleV2, type ProjectSettings } from "@capseasy/shared";
 import legacyLooks from "./looks/legacy.generated.json";
 import { NEW_LOOKS } from "./looks/new";
+import { PREMIUM_LOOKS } from "./looks/premium";
 import { isRetiredLook, lookNumber } from "./looks/numbers";
 import { PACK_LOOKS, PACK_SECTIONS } from "./pack";
 import { TEMPLATES } from "./templates";
@@ -128,6 +129,8 @@ const ALL_LOOKS: LookDefinition[] = [
   ...NEW_LOOKS.filter((l) => CURATED_NEW.has(l.id)).map((l) => named({ ...l, style: resolveStyle({ ...l.style, templateId: l.templateId }) })),
   // pack looks carry their own gallery name and tags
   ...PACK_LOOKS.map((l) => ({ ...l, style: resolveStyle({ ...l.style, templateId: l.templateId }) })),
+  // Premium Plus looks (looks/premium.ts) carry their own gallery name and tags too
+  ...PREMIUM_LOOKS.map((l) => ({ ...l, style: resolveStyle({ ...l.style, templateId: l.templateId }) })),
   ...(legacyLooks as unknown as LookDefinition[]).filter((l) => CURATED_LEGACY.has(l.id)).map((l) => named({ ...l, category: "Classic", style: CaptionStyleSchema.parse(deepMerge(deepMerge(l.style, LEGACY_FIXES[l.id]), { emoji: { enabled: EMOJI_ENABLED } })) })),
 ];
 
@@ -136,6 +139,7 @@ export const LOOK_SECTIONS: { id: string; label: string; lookIds: string[] }[] =
   { id: "viral", label: "Viral", lookIds: ["metal_script", "soft_glow", "neon_duo", "serif_behind", "ice_duo", "serif_accent_glow", "staggered_splash", "glow_stack_classic", "vintage_cinematic", "serif_pop_classic", "kinetic_mix"] },
   { id: "popular", label: "Popular", lookIds: ["hormozi_box", "beast_bounce", "comic_burst", "chat_bubble", "explainer", "highlighter_card"] },
   ...PACK_SECTIONS.filter((s) => s.looks.length).map((s) => ({ id: s.id, label: s.label, lookIds: s.looks.map((l) => l.id) })),
+  { id: "premium_plus", label: "Premium Plus", lookIds: PREMIUM_LOOKS.map((l) => l.id) },
 ].map((s) => ({ ...s, lookIds: s.lookIds.filter((id) => !isRetiredLook(id)) })).filter((s) => s.lookIds.length);
 const featured = LOOK_SECTIONS.flatMap((s) => s.lookIds);
 const rank = (id: string) => (featured.includes(id) ? featured.indexOf(id) : featured.length);

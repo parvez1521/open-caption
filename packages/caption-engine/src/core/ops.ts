@@ -109,6 +109,25 @@ export function retimeRun(doc: CaptionDoc, firstId: string, lastId: string, star
   return touch(doc, { words });
 }
 
+/**
+ * Shift EVERY word in the document by the same amount (the owner's manual re-alignment tool: when a whole
+ * transcript sits a little early or late against the picture, one shift fixes all of it at once). Applied
+ * destructively to the stored word times, so the editor, the saved document and every export (MP4, SRT,
+ * VTT) see the same shifted times — there is no separate offset that could drift apart. Starts clamp at 0
+ * (words already at the very beginning compress against 0 but keep their order and minimum length), and
+ * every word keeps end > start.
+ */
+export function shiftAllWords(doc: CaptionDoc, deltaMs: number): CaptionDoc {
+  const d = Math.round(deltaMs);
+  if (!d || doc.words.length === 0) return doc;
+  const words = doc.words.map((w) => {
+    const startMs = Math.max(0, w.startMs + d);
+    const endMs = Math.max(startMs + MIN_WORD_MS, w.endMs + d);
+    return startMs === w.startMs && endMs === w.endMs ? w : { ...w, startMs, endMs };
+  });
+  return touch(doc, { words });
+}
+
 /** "Split here": the word starts a new card. */
 export function splitCardAt(doc: CaptionDoc, wordId: string): CaptionDoc {
   const i = indexOfWord(doc, wordId);

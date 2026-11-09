@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { CaptionDoc, Page } from "@capseasy/shared";
-import { findMatches, findReplace, importSubtitles, mergeWithPrevious, setEmphasis, setHidden, setWordText, splitCardAt } from "@motion-ai/caption-engine/core";
+import { findMatches, findReplace, importSubtitles, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Button, fmtTime } from "../controls";
 
 
@@ -24,6 +24,13 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
   const [find, setFind] = useState("");
   const [replace, setReplace] = useState("");
   const [showHidden, setShowHidden] = useState(false);
+  const [shiftSec, setShiftSec] = useState("");
+  const applyShiftInput = () => {
+    const v = Number.parseFloat(shiftSec);
+    if (!Number.isFinite(v) || v === 0) return;
+    edit((d) => shiftAllWords(d, Math.round(v * 1000)));
+    setShiftSec("");
+  };
 
   const selected = useMemo(() => doc.words.find((w) => w.id === selectedId) ?? null, [doc, selectedId]);
   const matchIds = useMemo(() => new Set(findMatches(doc, find)), [doc, find]);
@@ -71,6 +78,34 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
             <Button disabled={matchIds.size === 0} onClick={() => { edit((d) => findReplace(d, find, replace).doc); setFind(""); setReplace(""); }} className="!py-1 text-xs">
               Replace all
             </Button>
+          </div>
+        ) : null}
+        {doc.words.length > 0 ? (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-st-text">
+              Shift all captions{" "}
+              <span className="font-normal text-st-faint">— if every caption sits a little early or late, move them all together</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {[-1000, -500, -100, 100, 500, 1000].map((ms) => (
+                <Button key={ms} className="!py-1 text-xs" onClick={() => edit((d) => shiftAllWords(d, ms))}>
+                  {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
+                </Button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                step="0.1"
+                value={shiftSec}
+                onChange={(e) => setShiftSec(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") applyShiftInput(); }}
+                placeholder="Seconds (+ later, − earlier)"
+                aria-label="Shift all captions by this many seconds"
+                className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
+              />
+              <Button className="!py-1 text-xs" onClick={applyShiftInput}>Apply shift</Button>
+            </div>
           </div>
         ) : null}
       </div>

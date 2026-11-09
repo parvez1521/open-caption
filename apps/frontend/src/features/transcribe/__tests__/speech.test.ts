@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Resampler } from "../resample";
-import { SR, capWordEnd, detectSpeech, isLooping, dropRepeatedRuns, planWindows, renderWindow, toOriginalSeconds } from "../speech";
+import { SR, TimelineAligner, capWordEnd, detectSpeech, isLooping, dropRepeatedRuns, planWindows, renderWindow, toOriginalSeconds } from "../speech";
 
 /** a "voiced" burst: a 200 Hz tone with an envelope, loud enough to count as speech */
 function tone(seconds: number, amp = 0.2): Float32Array {
@@ -93,6 +93,69 @@ describe("speech packing", () => {
     const firstEnd = first.origStart + (first.packedEnd - first.packedStart);
     expect(mapped === firstEnd || mapped === second.origStart).toBe(true);
     expect(renderWindow(audio, w!).length).toBe(w!.samples);
+  });
+});
+
+describe("TimelineAligner (decoded samples belong on the media clock)", () => {
+  it("pads an audio track that starts late, so speech stays at its media time", () => {
+    const a = new TimelineAligner(SR);
+    const out = a.align(0.35, tone(0.5)); // first decoded sample is stamped 0.35 s, holds 0.5 s of speech
+    expect(out.length).toBe(Math.round(0.35 * SR) + Math.round(0.5 * SR));
+    expect(out[Math.round(0.35 * SR) - 1]).toBe(0); // silence before 0.35 s
+    expect(Math.abs(out[Math.round(0.35 * SR) + 100]!)).toBeGreaterThan(0.05); // speech from 0.35 s
+    expect(a.positionSec).toBeCloseTo(0.85, 6);
+    // plain concatenation (the old behaviour) would have placed this speech at 0 s: a 350 ms caption shift
+  });
+
+  it("keeps a mid-stream gap as silence instead of collapsing it", () => {
+    const a = new TimelineAligner(SR);
+    a.align(0, tone(0.5));
+    const second = a.align(1.7, tone(0.5)); // next sample is stamped 1.7 s: a 1.2 s hole before it
+    expect(second.length).toBe(Math.round(1.2 * SR) + Math.round(0.5 * SR));
+    expect(second[Math.round(1.2 * SR) - 1]).toBe(0);
+    expect(Math.abs(second[Math.round(1.2 * SR) + 100]!)).toBeGreaterThan(0.05);
+    expect(a.positionSec).toBeCloseTo(2.2, 6);
+  });
+
+  it("trims codec priming stamped before t=0 and drops samples that end before 0", () => {
+    const a = new TimelineAligner(48_000);
+    const out = a.align(-0.04, new Float32Array(4800).fill(0.9)); // 0.1 s at 48 kHz, stamped -0.04 s
+    expect(out.length).toBe(4800 - Math.round(0.04 * 48_000));
+    expect(a.positionSec).toBeCloseTo(0.06, 6);
+    const b = new TimelineAligner(48_000);
+    expect(b.align(-0.2, new Float32Array(4800))).toHaveLength(0);
+    expect(b.align(0, new Float32Array(4800))).toHaveLength(4800);
+  });
+
+  it("end to end: bursts keep their media times through alignment + window packing", () => {
+    // a container whose audio starts 0.35 s late and has a hole before the second burst
+    const a = new TimelineAligner(SR);
+    const parts = [
+      a.align(0.35, tone(1)), // speech at media 0.35–1.35
+      a.align(1.35, new Float32Array(SR)), // silence 1.35–2.35
+      a.align(4.95, tone(1)), // speech at media 4.95–5.95, after a 2.6 s hole
+    ];
+    const audio = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+    let o = 0;
+    for (const p of parts) { audio.set(p, o); o += p.length; }
+    // the aligned stream spans the media duration (5.95 s), not the concatenated length (3 s)
+    expect(audio.length / SR).toBeCloseTo(5.95, 3);
+
+    const wins = planWindows(audio, undefined, 0, false);
+    expect(wins).toHaveLength(2);
+    const truths = [0.35, 4.95];
+    wins.forEach((w, i) => {
+      const packed = renderWindow(audio, w);
+      // first 5 ms hop whose RMS says "speech", mapped back to the original clock
+      let onset = -1;
+      for (let s = 0; s + 160 <= packed.length; s += 80) {
+        let sum = 0;
+        for (let j = s; j < s + 160; j++) sum += packed[j]! * packed[j]!;
+        if (Math.sqrt(sum / 160) > 0.05) { onset = s / SR; break; }
+      }
+      expect(onset).toBeGreaterThanOrEqual(0);
+      expect(Math.abs(toOriginalSeconds(w, onset) - truths[i]!)).toBeLessThanOrEqual(0.04);
+    });
   });
 });
 
