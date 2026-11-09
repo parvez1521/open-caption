@@ -35,6 +35,10 @@ export const LOOK_NUMBER_ORDER: readonly string[] = [
   // Slice 1 showcase (appended 2026-11-09; numbers are permanent, append-only)
   "typed_caret", "slice_signal", "scribble_ring", "amber_sweep_box",
   "typed_slate", "slice_one_word", "marker_ring", "mint_sweep_pill",
+  // Envato-styles wave (appended 2026-11-10; numbers are permanent, append-only)
+  "neon_strike_mint", "neon_strike_amber", "decode_resolve", "decode_hero",
+  "block_reveal_obsidian", "block_reveal_mint", "roll_hero", "roll_stack",
+  "pen_reveal_dark", "pen_reveal_paper", "jelly_settle", "jelly_one_word",
 ];
 
 /**
