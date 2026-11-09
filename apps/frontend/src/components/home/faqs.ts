@@ -1,7 +1,7 @@
 /** Homepage FAQ. Shared by the FAQ section and the FAQPage structured data, so the two always match. */
 export const FAQS = [
   {
-    q: "Is CaptionsEasy really free?",
+    q: "Is Open Caption really free?",
     a: "Yes. Captions, every look, the full editor and MP4 and SRT exports are free, with no watermark. Free videos can be up to 5 minutes long. A Pro plan for longer videos is on the way.",
   },
   {
@@ -9,11 +9,11 @@ export const FAQS = [
     a: "No. Speech recognition and the MP4 export both run inside your browser, so your video stays on your device. Only your captions and settings are saved, so you can pick a project up again later.",
   },
   {
-    q: "Will CaptionsEasy work with vertical 9:16 Shorts, Reels, and TikToks?",
-    a: "Yes. CaptionsEasy is made for vertical 9:16 Shorts, Reels and TikToks, and works just as well with 16:9 widescreen video. Drag the caption box anywhere in the frame to keep it clear of faces and platform buttons.",
+    q: "Will Open Caption work with vertical 9:16 Shorts, Reels, and TikToks?",
+    a: "Yes. Open Caption is made for vertical 9:16 Shorts, Reels and TikToks, and works just as well with 16:9 widescreen video. Drag the caption box anywhere in the frame to keep it clear of faces and platform buttons.",
   },
   {
-    q: "How is CaptionsEasy different from basic CapCut or Premiere captions?",
+    q: "How is Open Caption different from basic CapCut or Premiere captions?",
     a: "Every word is timed to the speech, the key word on each line gets its own colour, box or motion, and you pick from 20+ animated looks instead of plain text. There is no watermark and nothing to install.",
   },
   {

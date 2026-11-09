@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { FAQS } from "@/components/home/faqs";
+import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_URL } from "@/lib/brand";
 
-const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://www.captionseasy.com").replace(/\/$/, "");
+const SITE_URL = BRAND_URL;
 
 // homepage only: other pages keep their own canonical URL
 export const metadata: Metadata = {
@@ -12,10 +13,9 @@ const structuredData = [
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    name: "CaptionsEasy",
+    name: BRAND_NAME,
     url: SITE_URL,
-    description:
-      "Animated, word-timed captions for Reels, Shorts and TikToks, made in your browser. 20+ caption styles, English and Hinglish, MP4 and SRT export.",
+    description: BRAND_DESCRIPTION,
     applicationCategory: "MultimediaApplication",
     operatingSystem: "Any (web browser)",
     browserRequirements: "Requires a modern browser with WebAssembly. WebGPU makes captioning faster.",

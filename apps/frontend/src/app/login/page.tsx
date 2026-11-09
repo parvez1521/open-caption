@@ -7,6 +7,7 @@ import { authService } from "@/services/auth";
 import { supabase } from "@/services/auth/supabaseClient";
 import { setAfterSignIn } from "@/services/auth/guest";
 import AuthShell, { Field, PasswordField, SubmitButton, ErrorNote, friendlyAuthError, validEmail } from "@/components/auth/AuthShell";
+import { BRAND_NAME } from "@/lib/brand";
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" aria-hidden>
@@ -144,7 +145,7 @@ export default function LoginPage() {
   if (mode === "google") {
     return (
       <AuthShell
-        title="Sign in to CaptionsEasy"
+        title={`Sign in to ${BRAND_NAME}`}
         subtitle={<p className="text-[13.5px] text-neutral-600">New here? Continue with Google and your free account is ready in one tap.</p>}
       >
         <div className="space-y-4">
@@ -224,7 +225,7 @@ export default function LoginPage() {
           onClick={() => switchTo("google")}
           className="w-full text-center text-[13px] font-medium text-neutral-500 hover:text-neutral-900 transition cursor-pointer py-1"
         >
-          New to CaptionsEasy? Create your account with Google
+          New to {BRAND_NAME}? Create your account with Google
         </button>
       </div>
     </AuthShell>

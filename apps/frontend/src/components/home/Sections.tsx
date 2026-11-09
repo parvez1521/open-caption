@@ -7,6 +7,7 @@ import { FAQS } from "./faqs";
 import { PLANS } from "@capseasy/shared";
 import { Logo as BrandLogo } from "@/components/brand/Logo";
 import { LEGAL_PAGES } from "@/lib/legal";
+import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/brand";
 
 // the real renderer is client-only and fairly heavy: load it after the page shell
 const CyclingPreview = dynamic(() => import("./LivePreview").then((m) => m.CyclingPreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#0F3D2E]" /> });
@@ -15,8 +16,8 @@ const LivePreview = dynamic(() => import("./LivePreview").then((m) => m.LivePrev
 const INK = "#1A1A1A";
 export const GITHUB_URL = "https://github.com/Ishaan-Gpt/Captions-Easy";
 /** Product Hunt badge: set NEXT_PUBLIC_PRODUCT_HUNT_POST_ID (and _SLUG) on Vercel once the launch is scheduled; hidden until then. */
-const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID || "1272016";
-const PH_SLUG = process.env.NEXT_PUBLIC_PRODUCT_HUNT_SLUG || "captionseasy";
+const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID || "";
+const PH_SLUG = process.env.NEXT_PUBLIC_PRODUCT_HUNT_SLUG || "";
 
 function GitHubMark({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -61,7 +62,7 @@ export function Nav() {
   return (
     <div data-nav className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-4 sm:pt-4">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-3 rounded-2xl border border-[#1A1A1A]/10 bg-[#FFFFEB]/85 px-4 py-2.5 shadow-[0_8px_30px_-12px_rgba(26,26,26,0.25)] backdrop-blur-md">
-        <Link href="/" aria-label="CaptionsEasy home" className="transition-transform duration-200 hover:scale-105">
+        <Link href="/" aria-label={`${BRAND_NAME} home`} className="transition-transform duration-200 hover:scale-105">
           <Logo />
         </Link>
         <nav className="hidden items-center gap-6 whitespace-nowrap text-sm font-semibold text-[#1A1A1A]/80 lg:flex xl:gap-7">
@@ -758,7 +759,7 @@ export function Faq() {
               <div className="mt-6 pt-4 border-t border-[#1A1A1A]/5 flex items-center justify-between text-xs text-[#1A1A1A]/50">
                 <span className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-[#34D399]" />
-                  CaptionsEasy
+                  {BRAND_NAME}
                 </span>
                 <span className="font-mono">Runs in your browser</span>
               </div>
@@ -867,14 +868,14 @@ export function Footer() {
 
             {/* Giant CaptionsEasy Typography */}
             <span className="font-styled font-black text-4xl sm:text-7xl md:text-8xl lg:text-[130px] leading-none tracking-tighter text-[#1A1A1A] transition-transform duration-300 group-hover:translate-x-1">
-              Captions<span className="font-serif font-normal italic text-[#1A1A1A]">Easy</span>
+              {BRAND_WORDMARK_LEAD}<span className="font-serif font-normal italic text-[#1A1A1A]">{BRAND_WORDMARK_ACCENT}</span>
             </span>
           </Link>
         </div>
 
         {/* Bottom Legal Copyright */}
         <div className="mt-8 pt-6 border-t border-[#1A1A1A]/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#1A1A1A]/60">
-          <span>© {new Date().getFullYear()} CaptionsEasy. All rights reserved.</span>
+          <span>© {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.</span>
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#34D399] animate-pulse" />
             Zero Server Cost · Local Hardware-Accelerated Rendering
