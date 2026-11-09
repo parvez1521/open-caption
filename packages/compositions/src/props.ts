@@ -33,6 +33,13 @@ export const CaptionedVideoProps = z.object({
    */
   videoAdjust: VideoAdjustSchema.optional(),
   overlays: z.array(OverlayItemSchema).optional(),
+  /**
+   * Resolved URLs for image overlays, keyed by media-asset id. Image bytes are device-local
+   * (IndexedDB), so only the browser paths (Player preview + in-browser export) can resolve them —
+   * the studio passes object URLs here; a renderer without a URL for an asset skips that overlay,
+   * the same device-local constraint the main video already has for server renders.
+   */
+  overlayAssets: z.record(z.string()).optional(),
 });
 export type CaptionedVideoProps = z.infer<typeof CaptionedVideoProps>;
 export type CaptionedVideoInput = z.input<typeof CaptionedVideoProps>;

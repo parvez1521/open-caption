@@ -1,4 +1,5 @@
 import React from "react";
+import { Img } from "remotion";
 import type { OverlayItem, OverlayShape } from "@capseasy/shared";
 
 /**
@@ -56,6 +57,8 @@ export const OverlayShapeSvg: React.FC<{ shape: OverlayShape; color: string; siz
 
 /** Base box (reference px at a 1080 short edge) a shape overlay occupies before the item's scale. */
 export const SHAPE_BASE_PX = 240;
+/** Base width (reference px at a 1080 short edge) an image overlay occupies before the item's scale. */
+export const IMAGE_BASE_PX = 360;
 /** Default text size (reference px at a 1080 short edge) when an item carries no fontSize. */
 export const TEXT_DEFAULT_FONT_PX = 64;
 
@@ -63,7 +66,7 @@ export const TEXT_DEFAULT_FONT_PX = 64;
  * One overlay item, centre-anchored at (x, y) fractions of the canvas. `sc` is the composition's
  * scale factor (short edge / 1080), so sizes follow the same reference-px convention as captions.
  */
-export const OverlayView: React.FC<{ item: OverlayItem; sc: number }> = ({ item, sc }) => {
+export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: string }> = ({ item, sc, assetSrc }) => {
   const wrap: React.CSSProperties = {
     position: "absolute",
     left: `${item.x * 100}%`,
@@ -87,6 +90,16 @@ export const OverlayView: React.FC<{ item: OverlayItem; sc: number }> = ({ item,
         }}
       >
         {item.text ?? ""}
+      </div>
+    );
+  }
+  if (item.kind === "image") {
+    // device-local bytes: without a resolved URL in this rendering context there is nothing honest
+    // to draw (server renders cannot see IndexedDB) — skip rather than paint a broken image.
+    if (!assetSrc) return null;
+    return (
+      <div style={wrap}>
+        <Img src={assetSrc} alt={item.assetName ?? ""} style={{ display: "block", width: IMAGE_BASE_PX * sc, height: "auto" }} />
       </div>
     );
   }

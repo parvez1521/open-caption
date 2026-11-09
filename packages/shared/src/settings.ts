@@ -28,9 +28,14 @@ export type OverlayShape = z.infer<typeof OverlayShapeSchema>;
 export const OverlayItemSchema = z
   .object({
     id: z.string().min(1),
-    kind: z.enum(["text", "shape"]),
+    kind: z.enum(["text", "shape", "image"]),
     text: z.string().max(500).optional(),
     shape: OverlayShapeSchema.optional(),
+    /** image overlays: the media-bin asset (device-local IndexedDB) whose bytes this overlay shows.
+     *  Only the id + display name are stored — the bytes never leave the device, exactly like the
+     *  project video; renderers resolve the id to a URL in the browser and skip the item without one. */
+    assetId: z.string().min(1).optional(),
+    assetName: z.string().max(300).optional(),
     startMs: z.number().min(0),
     endMs: z.number().min(1),
     x: z.number().min(0).max(1).default(0.5),
@@ -44,7 +49,8 @@ export const OverlayItemSchema = z
     fontSize: z.number().min(12).max(300).optional(),
   })
   .refine((o) => o.endMs > o.startMs, { message: "endMs must be after startMs", path: ["endMs"] })
-  .refine((o) => o.kind !== "shape" || o.shape !== undefined, { message: "shape overlays need a shape", path: ["shape"] });
+  .refine((o) => o.kind !== "shape" || o.shape !== undefined, { message: "shape overlays need a shape", path: ["shape"] })
+  .refine((o) => o.kind !== "image" || o.assetId !== undefined, { message: "image overlays need a media asset id", path: ["assetId"] });
 export type OverlayItem = z.infer<typeof OverlayItemSchema>;
 
 export const ProjectSettingsSchema = z.object({

@@ -77,6 +77,12 @@ describe("OverlayItemSchema", () => {
     expect(() => OverlayItemSchema.parse({ id: "s1", kind: "shape", shape: "blob", startMs: 0, endMs: 1000 })).toThrow();
   });
 
+  it("requires a media asset id for image items and keeps its display name", () => {
+    expect(() => OverlayItemSchema.parse({ id: "i1", kind: "image", startMs: 0, endMs: 1000 })).toThrow();
+    const o = OverlayItemSchema.parse({ id: "i1", kind: "image", assetId: "asset-9", assetName: "logo.png", startMs: 0, endMs: 1000 });
+    expect(o).toMatchObject({ kind: "image", assetId: "asset-9", assetName: "logo.png" });
+  });
+
   it("round-trips a full settings object with overlays", () => {
     const s = ProjectSettingsSchema.parse({ overlays: [{ id: "t1", kind: "text", text: "Hi", startMs: 0, endMs: 3000, color: "#34D399" }] });
     expect(s.overlays).toHaveLength(1);

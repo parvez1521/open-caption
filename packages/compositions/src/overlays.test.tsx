@@ -1,6 +1,13 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Remotion's <Img> reads the composition config (absent in a static-markup render); stand it in
+// with a plain <img> so the overlay's own markup — src, size, position — is what gets asserted.
+vi.mock("remotion", async (orig) => {
+  const actual = (await orig()) as Record<string, unknown>;
+  return { ...actual, Img: (props: Record<string, unknown>) => React.createElement("img", props) };
+});
 import { OVERLAY_SHAPES, type OverlayItem } from "@capseasy/shared";
 import { OVERLAY_SHAPE_META, OverlayShapeSvg, OverlayView } from "./overlays";
 
@@ -36,6 +43,17 @@ describe("OverlayView (static markup — the same tree the Player and the web-re
       expect(html).toContain("#FFA946");
       expect(html).not.toContain("mix-blend-mode");
     }
+  });
+
+  it("renders an image overlay only when its asset URL is resolved in this context", () => {
+    const item: OverlayItem = { id: "i1", kind: "image", assetId: "asset-9", assetName: "logo.png", startMs: 0, endMs: 1000, x: 0.5, y: 0.25, scale: 1, rotation: 0, color: "#FFFFFF" };
+    const withSrc = renderToStaticMarkup(<OverlayView item={item} sc={1} assetSrc="blob:logo" />);
+    expect(withSrc).toContain('src="blob:logo"');
+    expect(withSrc).toContain("width:360px");
+    expect(withSrc).toContain("top:25%");
+    expect(withSrc).not.toContain("mix-blend-mode");
+    // no resolved URL (e.g. a server render, which cannot see device-local bytes): nothing is drawn
+    expect(renderToStaticMarkup(<OverlayView item={item} sc={1} />)).toBe("");
   });
 
   it("renders a shape overlay item through OverlayView", () => {
