@@ -1,10 +1,12 @@
 import React, { useMemo } from "react";
 import { AbsoluteFill, OffthreadVideo, Sequence, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from "remotion";
 import { Video as MediaVideo } from "@remotion/media";
-import { CaptionDocSchema, type CaptionStyleV2, ProjectSettingsSchema, type CaptionDoc, type Page, type ProjectSettings } from "@capseasy/shared";
+import { CaptionDocSchema, type CaptionStyleV2, OverlayItemSchema, ProjectSettingsSchema, VideoAdjustSchema, type CaptionDoc, type Page, type ProjectSettings } from "@capseasy/shared";
 import { applyFillerFilter, applyProfanity, derivePages } from "@motion-ai/caption-engine/core";
 import { EMOJI_FONT, PageView, VideoFrameBus, VideoFrameContext, famCss, getTemplate, layoutBox, measure, resolveStyle, scaleOf, useFontsReady, wordGapEm, wordGapPx, type Canvas } from "@capseasy/templates";
 import type { CaptionedVideoInput } from "./props";
+import { buildVideoFilter, overlayFrames, resolveOverlays, resolveVideoAdjust } from "./overlayMath";
+import { OverlayView } from "./overlays";
 
 /** Doc -> what the audience should see (filters are display-time, so the stored doc is never mutated). */
 export function prepareDoc(doc: CaptionDoc, settings: ProjectSettings): CaptionDoc {
@@ -45,7 +47,7 @@ const PageSequence: React.FC<{ page: Page; fromFrame: number; canvas: Canvas; st
  * Remotion does NOT run inputProps through the zod schema at render time, and the Player passes props
  * verbatim, so every surface must normalize here. Partial settings/styles are completed with defaults.
  */
-export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc: docIn, style: styleIn, settings: settingsIn, mode = "burn", backdrop = null, videoEngine = "offthread" }) => {
+export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc: docIn, style: styleIn, settings: settingsIn, mode = "burn", backdrop = null, videoEngine = "offthread", videoAdjust: videoAdjustIn, overlays: overlaysIn }) => {
   const doc = useMemo(() => CaptionDocSchema.parse(docIn ?? { version: 2, words: [] }), [docIn]);
   const settings = useMemo(() => ProjectSettingsSchema.parse(settingsIn ?? {}), [settingsIn]);
   const style = styleIn ?? {};
@@ -53,7 +55,23 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
   const canvas = useMemo<Canvas>(() => ({ width, height, fps }), [width, height, fps]);
   const resolved = useMemo(() => resolveStyle(style as Partial<CaptionStyleV2>), [style]);
 
-  const fontFamilies = useMemo(() => [resolved.fontId, resolved.hero.fontId ?? "", ...getTemplate(resolved.templateId).fonts, resolved.emoji.enabled ? EMOJI_FONT : ""], [resolved]);
+  // editor elements: explicit props win, settings are the fallback (see overlayMath) — same picture everywhere.
+  // Like doc/settings above, incoming props are normalized through the schemas first (the Player passes
+  // props verbatim); an invalid top-level value falls back to the settings copy instead of breaking the render.
+  const parsedAdjust = useMemo(() => (videoAdjustIn ? VideoAdjustSchema.safeParse(videoAdjustIn) : null), [videoAdjustIn]);
+  const parsedOverlays = useMemo(() => (overlaysIn ? OverlayItemSchema.array().safeParse(overlaysIn) : null), [overlaysIn]);
+  const videoAdjust = useMemo(
+    () => resolveVideoAdjust({ videoAdjust: parsedAdjust?.success ? parsedAdjust.data : undefined, settings }),
+    [parsedAdjust, settings],
+  );
+  const videoFilter = useMemo(() => buildVideoFilter(videoAdjust), [videoAdjust]);
+  const overlays = useMemo(
+    () => resolveOverlays({ overlays: parsedOverlays?.success ? parsedOverlays.data : undefined, settings }),
+    [parsedOverlays, settings],
+  );
+  const hasTextOverlay = overlays.some((o) => o.kind === "text");
+
+  const fontFamilies = useMemo(() => [resolved.fontId, resolved.hero.fontId ?? "", ...getTemplate(resolved.templateId).fonts, resolved.emoji.enabled ? EMOJI_FONT : "", hasTextOverlay ? "Plus Jakarta Sans" : ""], [resolved, hasTextOverlay]);
   const fontsReady = useFontsReady(fontFamilies);
 
   const pages = useMemo(() => (fontsReady ? computePages(doc, settings, resolved, canvas) : []), [fontsReady, doc, settings, resolved, canvas]);
@@ -67,7 +85,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
   return (
     <AbsoluteFill>
       {mode === "burn" && src ? (
-        <AbsoluteFill style={{ backgroundColor: "black" }}>
+        <AbsoluteFill style={{ backgroundColor: "black", ...(videoFilter ? { filter: videoFilter } : {}) }}>
           {videoEngine === "media" ? (
             <MediaVideo src={src} objectFit="contain" style={{ width: "100%", height: "100%" }} onVideoFrame={frameBus?.emit} />
           ) : (
@@ -77,6 +95,15 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
       ) : mode === "burn" && backdrop ? (
         <AbsoluteFill style={{ background: backdrop }} />
       ) : null}
+      {/* overlays sit above the video, below the captions — timed Sequences, same in preview and export */}
+      {overlays.map((item) => {
+        const { from, durationInFrames } = overlayFrames(item, fps);
+        return (
+          <Sequence key={item.id} from={from} durationInFrames={durationInFrames} layout="none">
+            <OverlayView item={item} sc={scaleOf(canvas)} />
+          </Sequence>
+        );
+      })}
       <VideoFrameContext.Provider value={frameBus}>
         {pages.map((page) => {
           const from = Math.floor((page.startMs / 1000) * fps);

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CaptionDocSchema, CaptionStyleSchema, ProjectSettingsSchema, emptyDoc } from "@capseasy/shared";
+import { CaptionDocSchema, CaptionStyleSchema, OverlayItemSchema, ProjectSettingsSchema, VideoAdjustSchema, emptyDoc } from "@capseasy/shared";
 
 export const MediaMetaSchema = z.object({
   width: z.number().int().positive().default(1080),
@@ -26,6 +26,13 @@ export const CaptionedVideoProps = z.object({
    * "media": @remotion/media's <Video>, required by the in-browser renderer (@remotion/web-renderer).
    */
   videoEngine: z.enum(["offthread", "media"]).default("offthread"),
+  /**
+   * Editor elements (Slice 1d): video filter adjustments + timed text/shape overlays. Optional on purpose:
+   * when absent, the composition falls back to the same fields inside `settings` — which is how the
+   * companion/server render payload carries them — so every render path shows the same picture.
+   */
+  videoAdjust: VideoAdjustSchema.optional(),
+  overlays: z.array(OverlayItemSchema).optional(),
 });
 export type CaptionedVideoProps = z.infer<typeof CaptionedVideoProps>;
 export type CaptionedVideoInput = z.input<typeof CaptionedVideoProps>;
