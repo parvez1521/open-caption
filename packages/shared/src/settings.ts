@@ -21,6 +21,19 @@ export const OverlayShapeSchema = z.enum(OVERLAY_SHAPES);
 export type OverlayShape = z.infer<typeof OverlayShapeSchema>;
 
 /**
+ * Animated "Social Media" overlay variants (2026-11-10): original drawn graphics (pill/card/bell/heart/
+ * chat/counter/badge — no platform logos or chrome) whose animation phases are derived purely from the
+ * item's own start/end window inside the shared composition, so preview ≡ browser export ≡ server render.
+ * The item's `text` carries the editable lines (split on "\n"); `color` is the one accent colour.
+ */
+export const OVERLAY_SOCIAL_VARIANTS = [
+  "subscribe-pill", "subscribe-banner", "follow-banner", "comment-popup",
+  "like-pop", "heart-pop", "counter", "chat-stack", "orbit-badge", "search-bar",
+] as const;
+export const OverlaySocialVariantSchema = z.enum(OVERLAY_SOCIAL_VARIANTS);
+export type OverlaySocialVariant = z.infer<typeof OverlaySocialVariantSchema>;
+
+/**
  * A timed overlay item rendered above the video and below the captions, in the preview AND the MP4 export
  * (one shared composition). Position is the item centre as a fraction of the canvas; fontSize is reference
  * px at a 1080 short edge, like the caption style schema.
@@ -28,9 +41,11 @@ export type OverlayShape = z.infer<typeof OverlayShapeSchema>;
 export const OverlayItemSchema = z
   .object({
     id: z.string().min(1),
-    kind: z.enum(["text", "shape", "image"]),
+    kind: z.enum(["text", "shape", "image", "social"]),
     text: z.string().max(500).optional(),
     shape: OverlayShapeSchema.optional(),
+    /** social overlays: which animated graphic this item draws (required for kind "social") */
+    variant: OverlaySocialVariantSchema.optional(),
     /** image overlays: the media-bin asset (device-local IndexedDB) whose bytes this overlay shows.
      *  Only the id + display name are stored — the bytes never leave the device, exactly like the
      *  project video; renderers resolve the id to a URL in the browser and skip the item without one. */
@@ -50,7 +65,8 @@ export const OverlayItemSchema = z
   })
   .refine((o) => o.endMs > o.startMs, { message: "endMs must be after startMs", path: ["endMs"] })
   .refine((o) => o.kind !== "shape" || o.shape !== undefined, { message: "shape overlays need a shape", path: ["shape"] })
-  .refine((o) => o.kind !== "image" || o.assetId !== undefined, { message: "image overlays need a media asset id", path: ["assetId"] });
+  .refine((o) => o.kind !== "image" || o.assetId !== undefined, { message: "image overlays need a media asset id", path: ["assetId"] })
+  .refine((o) => o.kind !== "social" || o.variant !== undefined, { message: "social overlays need a variant", path: ["variant"] });
 export type OverlayItem = z.infer<typeof OverlayItemSchema>;
 
 /* ---------------- export settings (resolution + frame rate) ---------------- */

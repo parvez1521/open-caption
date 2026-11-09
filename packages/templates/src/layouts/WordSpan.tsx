@@ -1,6 +1,7 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
-import { activeEffect, combineMotion, entranceStyle, isLetterAnimator, letterAmounts, letterCss, letterSpeed, letterTrackEm, progress, scrambleDurationMs, scrambledText, showAt, splitsLetters, staggerDelayMs, staggerUnit, wordReveal, writeOnTrail } from "../motion";
+import { activeEffect, combineMotion, entranceStyle, flapAt, isLetterAnimator, letterAmounts, letterCss, letterSpeed, letterTrackEm, progress, scrambleDurationMs, scrambledText, showAt, splitsLetters, staggerDelayMs, staggerUnit, wordReveal, writeOnTrail } from "../motion";
+import { withAlpha } from "@motion-ai/caption-engine/core";
 import type { Canvas } from "../types";
 import { scaleOf, wordGapCss } from "../text";
 
@@ -111,17 +112,30 @@ export const WordSpan: React.FC<WordSpanProps> = ({
   if (spaceAmount) growRight += letterTrackEm(spaceAmount[0], intensity, trackEm);
   if (trailingSpace || growRight) css.marginRight = trailingSpace ? `calc(${wordGapCss(style, sc, eff)} + ${growRight.toFixed(3)}em)` : `${growRight.toFixed(3)}em`;
   const baseline = lettersIn || lettersOut ? baselineEm(String(baseCss.fontFamily ?? ""), Number(baseCss.fontWeight ?? 400), Number(baseCss.lineHeight ?? style.lineHeight)) : 0;
+  // split-flap: each char is a tile whose drum walks the ordered charset (flapAt) — the glyph shown
+  // here, the fold transform in entranceStyle, both from the same pure function and the same local time
+  const isFlap = !settled && style.entrance.type === "split-flap" && stagger?.unit === "char";
+  const flapTileCss: React.CSSProperties = isFlap
+    ? {
+        // the tile's split: a 1px midline in a shade derived from the background colour (MUST-WIRE:
+        // tile background = background.color, exactly as block-reveal's panel colour is wired)
+        backgroundImage: `linear-gradient(to bottom, transparent 49%, ${withAlpha(style.background.color, 0.55)} 49%, ${withAlpha(style.background.color, 0.55)} 51%, transparent 51%)`,
+        ...(style.background.type !== "none" ? { backgroundColor: withAlpha(style.background.color, style.background.opacity) } : {}),
+      }
+    : {};
   const text = !settled && stagger && (stagger.unit === "char" || lettersOut)
     ? chars.map((ch, ci) => {
         const amount = amountsAt(letterBase + ci);
+        const flap = isFlap ? flapAt(ch, local - staggerDelayMs(style, stagger.charOffset + ci, "char"), Math.max(120, style.entrance.durationMs)) : null;
         return (
           <span key={ci} style={{
             display: "inline-block", whiteSpace: "pre",
+            ...flapTileCss,
             ...combineMotion(
               stagger.unit === "char" && !lettersIn ? entranceStyle(style, local - staggerDelayMs(style, stagger.charOffset + ci, "char"), canvas.fps, intensity, false, sizePx) : {},
               amount ? letterCss(amount, intensity, baseline, trackEm) : {},
             ),
-          }}>{ch}</span>
+          }}>{flap ? flap.glyph : ch}</span>
         );
       })
     : shownText;

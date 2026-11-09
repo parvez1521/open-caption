@@ -187,6 +187,106 @@ export function jellyTransform(localMs: number, fps: number, intensity = 1) {
   return { scaleX, scaleY, skewDeg, spring: s };
 }
 
+/* --------------------------------------------------------------------------------------------------
+ * Animation-expansion wave (2026-11-10): split-flap, curtain panels, shimmer sweep, weight wave.
+ * All pure functions of time/index — deterministic, no Math.random / Date.now in any render path.
+ * ----------------------------------------------------------------------------------------------- */
+
+/** Ordered drum of the split-flap board: a cell walks FORWARD through this set (never random, never
+ *  backwards) from the blank at index 0 until it lands on its target glyph. */
+export const FLAP_CHARSET = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:;!?'’-+";
+
+export interface FlapState {
+  glyph: string;
+  /** eased drum progress 0..1 (decelerating, like a real Solari drum) */
+  p: number;
+  /** how many drum steps have been taken from the blank */
+  steps: number;
+  /** total forward steps from the blank to the target */
+  totalSteps: number;
+  done: boolean;
+  /** rotateX (deg) of the tile fold: a settle pulse in the final flip window, 0 at rest */
+  foldDeg: number;
+}
+
+/**
+ * Split-Flap Resolve state for one character `localMs` into its flip. Characters outside the charset
+ * (and spaces) never flip. Case is preserved for letters (the drum itself is upper-case; a lower-case
+ * target shows lower-case glyphs on the way). Pure in (ch, localMs, durationMs).
+ */
+export function flapAt(ch: string, localMs: number, durationMs = 300): FlapState {
+  const target = ch.toUpperCase();
+  const totalSteps = FLAP_CHARSET.indexOf(target);
+  if (totalSteps <= 0) return { glyph: ch, p: 1, steps: Math.max(0, totalSteps), totalSteps: Math.max(0, totalSteps), done: true, foldDeg: 0 };
+  const dur = Math.max(1, durationMs);
+  if (localMs <= 0) return { glyph: " ", p: 0, steps: 0, totalSteps, done: false, foldDeg: 14 };
+  if (localMs >= dur) return { glyph: ch, p: 1, steps: totalSteps, totalSteps, done: true, foldDeg: 0 };
+  const raw = localMs / dur;
+  const p = 1 - Math.pow(1 - raw, 3); // easeOutCubic: the drum decelerates onto its target
+  const steps = Math.min(totalSteps, Math.floor(p * totalSteps));
+  let glyph = FLAP_CHARSET[steps]!;
+  if (/[a-z]/.test(ch)) glyph = glyph.toLowerCase();
+  // the split-tile fold: a rotateX pulse over the last 120 ms as the final flap falls
+  const foldWindow = Math.min(120, dur * 0.4);
+  const foldT = (localMs - (dur - foldWindow)) / foldWindow;
+  const foldDeg = foldT > 0 ? Math.sin(foldT * Math.PI) * 32 : (1 - p) * 14;
+  return { glyph, p, steps, totalSteps, done: false, foldDeg };
+}
+
+/** A whole string flapping in: char i starts ~30 ms after char i-1 (the board's cascade). */
+export function flapText(text: string, elapsedMs: number, durationMs = 300, staggerMs = 30): string {
+  return [...text].map((ch, i) => flapAt(ch, elapsedMs - i * staggerMs, durationMs).glyph).join("");
+}
+
+/**
+ * Curtain Panels: blockRevealAt generalised to N staggered panels. Panel i retracts upward over
+ * `panelDur` starting at i*staggerMs; beneath them the text was already there. `wake` is the slowest
+ * panel's progress (the card-level clip fallback for layouts that don't draw the panels themselves).
+ */
+export function panelsRevealAt(localMs: number, durationMs = 420, panels = 4) {
+  const count = Math.max(1, Math.floor(panels));
+  const staggerMs = 45;
+  const panelDur = Math.max(1, durationMs - staggerMs * (count - 1));
+  const list = Array.from({ length: count }, (_, i) => {
+    const p = progress(localMs - i * staggerMs, panelDur, EASE_OUT_EXPO);
+    return { index: i, p, topPct: -p * 100, done: p >= 1 };
+  });
+  return { panels: list, wake: Math.min(...list.map((x) => x.p)), done: localMs >= durationMs, staggerMs, panelDur };
+}
+
+/**
+ * Shimmer Sweep: the position (% across the word) of a bright band travelling over the spoken word.
+ * The sweep runs once over min(word duration, 500 ms), then rests OFF the word (pos > 100 + band), so
+ * the word returns to its normal fill — unlike fill-sweep, whose colour fill stays. Band ≈18% wide.
+ */
+export function shimmerAt(localMs: number, wordDurationMs: number) {
+  const sweepMs = Math.max(1, Math.min(Math.max(1, wordDurationMs), 500));
+  const p = progress(localMs, sweepMs, Easing.out(Easing.cubic));
+  return { posPct: -20 + 140 * p, bandPct: 18, p, done: localMs >= sweepMs };
+}
+
+/** The discrete weights our font loader actually serves (see fonts.ts: @remotion/google-fonts exposes
+ *  one FontFace per weight key — there is NO variable-axis / fontVariationSettings path in that loader). */
+export const LOADED_WEIGHT_STEPS = [100, 200, 300, 400, 500, 600, 700, 800, 900] as const;
+
+/**
+ * Weight Wave — HONEST capability note: continuous variable-font interpolation is NOT available through
+ * our @remotion/google-fonts loading (loadFont takes discrete weight keys; fonts.ts loads each as its
+ * own FontFace, and nothing exposes a wght axis to vary). So the swell ships STEPPED: the ideal
+ * continuous weight (base + up to +300 on a sine over the word's spoken duration) is quantised to the
+ * nearest loaded 100-step weight. On fonts serving the full 100–900 range (the wave looks use Outfit,
+ * whose module meta lists every step 100–900) that is up to 3 visible steps up and back; on a font with
+ * fewer loaded weights it degrades to fewer steps — never to a fake scale (that would duplicate "pop").
+ */
+export function weightWaveAt(localMs: number, wordDurationMs: number, baseWeight: number) {
+  const dur = Math.max(1, wordDurationMs);
+  const t = Math.min(1, Math.max(0, localMs / dur));
+  const swell = Math.sin(Math.PI * t);
+  const ideal = baseWeight + 300 * swell;
+  const weight = LOADED_WEIGHT_STEPS.reduce((best, w) => (Math.abs(w - ideal) < Math.abs(best - ideal) ? w : best), LOADED_WEIGHT_STEPS[0]);
+  return { swell, idealWeight: ideal, weight: Math.max(100, Math.min(900, weight)) };
+}
+
 /** default text size (px) for distance-based motion when a caller can't tell */
 const DEFAULT_SIZE_PX = 60;
 
@@ -302,6 +402,21 @@ export function entranceStyle(style: CaptionStyleV2, localMs: number, fps: numbe
     case "jelly": {
       const j = jellyTransform(localMs, fps, k);
       return { opacity: localMs <= 0 ? 0 : Math.min(1, 0.25 + localMs / 80), transform: `scale(${j.scaleX.toFixed(4)}, ${j.scaleY.toFixed(4)}) skewX(${j.skewDeg.toFixed(3)}deg)` };
+    }
+    case "split-flap": {
+      // per char (staggerUnit is "char"): each tile folds on its drum's final flip (flapAt) while the
+      // glyph itself cycles in WordSpan / Word. At card level (layouts without per-char spans) the
+      // whole card folds gently instead. The drum curve is FIXED (decelerating) — the Easing control
+      // is hidden for this entrance in controls.ts, like the letter animators.
+      const f = flapAt("A", localMs, Math.max(120, e.durationMs));
+      return { opacity: localMs < 0 ? 0 : 1, transform: `perspective(${(u * 10).toFixed(0)}px) rotateX(${f.foldDeg.toFixed(2)}deg)` };
+    }
+    case "panels-reveal": {
+      // the 4 retracting panels are drawn by the layouts from panelsRevealAt (same fn, no desync);
+      // here the card's clip follows the slowest panel's wake so layouts without panel drawing
+      // still reveal in step
+      const pr = panelsRevealAt(localMs, e.durationMs);
+      return { opacity: localMs < 0 ? 0 : Math.min(1, pr.wake * 4 + 0.15), clipPath: `inset(-20% ${((1 - pr.wake) * 100).toFixed(2)}% -20% -5%)` };
     }
     case "wave": return { opacity: p, transform: `translateY(${((1 - overshootOut(p)) * 0.45 * k * u).toFixed(2)}px)` };
     case "rise":
@@ -438,11 +553,11 @@ export const splitsLetters = (style: CaptionStyleV2) => staggerUnit(style) === "
 /** Which unit a layout should stagger by ("wave" always animates letter by letter). */
 export function staggerUnit(style: CaptionStyleV2): "none" | "word" | "char" {
   if (style.entrance.type === "none") return "none";
-  // per-letter entrances: wave, typewriter, neon flicker, decode scramble, pen write-on, letter animators
-  if (style.entrance.type === "wave" || style.entrance.type === "typewriter" || style.entrance.type === "flicker" || style.entrance.type === "scramble" || style.entrance.type === "write-on" || isLetterAnimator(style.entrance.type)) return "char";
-  // word roll swaps word by word; block reveal and jelly are whole-page compositions
+  // per-letter entrances: wave, typewriter, neon flicker, decode scramble, pen write-on, split-flap drum, letter animators
+  if (style.entrance.type === "wave" || style.entrance.type === "typewriter" || style.entrance.type === "flicker" || style.entrance.type === "scramble" || style.entrance.type === "write-on" || style.entrance.type === "split-flap" || isLetterAnimator(style.entrance.type)) return "char";
+  // word roll swaps word by word; block reveal, curtain panels and jelly are whole-page compositions
   if (style.entrance.type === "roll") return "word";
-  if (style.entrance.type === "block-reveal" || style.entrance.type === "jelly") return "none";
+  if (style.entrance.type === "block-reveal" || style.entrance.type === "panels-reveal" || style.entrance.type === "jelly") return "none";
   return style.entrance.stagger;
 }
 
@@ -534,6 +649,30 @@ export function activeEffect(
       // before the next word starts instead of tracking speech linearly like a progress bar.
       const w = settled ? 100 : progress(timeMs - word.startMs, dur * 0.85) * 100;
       return { css: { color, WebkitTextFillColor: color, backgroundImage: "none" }, behind: { css: { left: "-0.18em", top: "4%", height: "92%", width: `calc(${w.toFixed(1)}% + 0.36em)`, backgroundColor: a.boxColor ?? color, borderRadius: a.boxRadius * sc, zIndex: -1 } } };
+    }
+    case "shimmer": {
+      // a bright band in the highlight colour (active.color — MUST-WIRE) sweeps across the spoken word
+      // over its normal fill, then leaves it at rest. Reuses fill-sweep's background-clip:text machinery,
+      // driven by shimmerAt instead of speech progress. For a gradient fill the band travels over the
+      // gradient's own end stops (first -> last), so the Gradient controls still own the base.
+      const sh = settled ? { posPct: 120, bandPct: 18 } : shimmerAt(timeMs - word.startMs, dur);
+      const base = style.fill.type === "solid" ? style.fill.color : style.fill.stops[0]!.color;
+      const baseEnd = style.fill.type === "solid" ? style.fill.color : style.fill.stops[style.fill.stops.length - 1]!.color;
+      const lo = Math.max(0, sh.posPct - sh.bandPct);
+      const hi = Math.min(100, sh.posPct + sh.bandPct);
+      return {
+        css: {
+          backgroundImage: `linear-gradient(100deg, ${base} 0%, ${base} ${lo.toFixed(1)}%, ${color} ${sh.posPct.toFixed(1)}%, ${baseEnd} ${hi.toFixed(1)}%, ${baseEnd} 100%)`,
+          WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent",
+        },
+      };
+    }
+    case "weight-wave": {
+      // the spoken word literally gets bolder as it is said: weight swells base -> base+300 -> base on a
+      // sine over the word's duration, STEPPED to the loaded discrete weights (see weightWaveAt's note:
+      // no variable axis exists in our font loader, so continuous interpolation would be a lie)
+      const ww = settled ? { weight: style.fontWeight } : weightWaveAt(timeMs - word.startMs, dur, style.fontWeight);
+      return { css: { color, WebkitTextFillColor: color, backgroundImage: "none", fontWeight: ww.weight } };
     }
     case "scribble-ring": {
       // the ring itself is drawn by the layout (SVG stroke-dashoffset); here we only carry its progress.

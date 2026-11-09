@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { OverlayItem } from "@capseasy/shared";
+import { SOCIAL_META } from "@capseasy/compositions";
 import { Button, ColorField, Section, Slider, fmtTime } from "../controls";
 
 /**
@@ -30,18 +31,30 @@ export const OverlayEditor: React.FC<{
     { label: "Bottom left", x: 0.25, y: 0.75 }, { label: "Bottom centre", x: 0.5, y: 0.75 }, { label: "Bottom right", x: 0.75, y: 0.75 },
   ];
   return (
-    <Section title={item.kind === "text" ? "Selected text" : item.kind === "image" ? "Selected image" : "Selected element"}>
+    <Section title={item.kind === "text" ? "Selected text" : item.kind === "image" ? "Selected image" : item.kind === "social" ? `Selected: ${SOCIAL_META.find((m) => m.id === item.variant)?.label ?? "Social"}` : "Selected element"}>
       {item.kind === "image" ? (
         <p className="text-sm text-st-text/90">{item.assetName ?? "Image"}<span className="block text-xs text-st-faint">From the media bin (this device). It renders in the preview and the in-browser MP4 export.</span></p>
       ) : null}
-      {item.kind === "text" ? (
+      {item.kind === "social" ? (
+        <p className="text-xs text-st-faint">{SOCIAL_META.find((m) => m.id === item.variant)?.hint} It animates from its own start/end times, in the preview, the in-browser MP4 export and server renders. Colour below is its accent (button / heart / digits).</p>
+      ) : null}
+      {item.kind === "text" || item.kind === "social" ? (
         <label className="block text-sm text-st-text/90">
-          <span className="mb-1 block">Text</span>
-          <input
-            value={item.text ?? ""}
-            onChange={(e) => set({ text: e.target.value })}
-            className="w-full rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm text-st-text outline-none focus:border-st-lav"
-          />
+          <span className="mb-1 block">{item.kind === "social" ? "Text (one line per part)" : "Text"}</span>
+          {item.kind === "social" ? (
+            <textarea
+              value={item.text ?? ""}
+              rows={4}
+              onChange={(e) => set({ text: e.target.value })}
+              className="w-full rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm text-st-text outline-none focus:border-st-lav"
+            />
+          ) : (
+            <input
+              value={item.text ?? ""}
+              onChange={(e) => set({ text: e.target.value })}
+              className="w-full rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm text-st-text outline-none focus:border-st-lav"
+            />
+          )}
         </label>
       ) : null}
       <div className="flex items-end gap-2">

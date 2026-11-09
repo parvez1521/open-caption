@@ -59,8 +59,9 @@ export function controlVisible(id: ControlId, t: TemplateDefinition, s: CaptionS
     case "emojiSize": case "emojiAnimation": return EMOJI_ENABLED && s.emoji.enabled;
     case "entrance": return entrancesFor(t).length > 1;
     case "entranceSpeed": return entrancesFor(t).length > 1 && s.entrance.type !== "none";
-    // letter animators keep the curves of the presets they were transcribed from (only their speed changes)
-    case "easing": return entrancesFor(t).length > 1 && s.entrance.type !== "none" && !isLetterAnimator(s.entrance.type);
+    // letter animators keep the curves of the presets they were transcribed from (only their speed changes);
+    // split-flap's drum decelerates on its own fixed curve and panels-reveal on its fixed stagger, likewise
+    case "easing": return entrancesFor(t).length > 1 && s.entrance.type !== "none" && !isLetterAnimator(s.entrance.type) && s.entrance.type !== "split-flap" && s.entrance.type !== "panels-reveal";
     // word/letter stagger needs words laid out one by one; "wave" is always letter by letter
     case "stagger": return STAGGER_LAYOUTS.has(t.layout) && entrancesFor(t).length > 1 && s.entrance.type !== "none" && s.entrance.type !== "wave" && !isLetterAnimator(s.entrance.type);
     case "fillType": return c.color;

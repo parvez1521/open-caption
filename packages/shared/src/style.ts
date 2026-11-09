@@ -5,6 +5,11 @@ export const ACTIVE_EFFECTS = [
   // Slice 1 additions: a hand-drawn ring that draws itself around the spoken word, and a highlight box
   // whose width sweeps across the word as it is spoken (the existing "box" jumps; "marker" is a low swipe)
   "scribble-ring", "box-sweep",
+  // Animation-expansion wave (2026-11-10): "shimmer" = a light band (in active.color) sweeps across the
+  // spoken word and leaves it at its normal fill (fill-sweep stays filled — different); "weight-wave" =
+  // the spoken word's font weight swells and recedes over its spoken duration (STEPPED in our loader —
+  // see weightWaveAt in motion.ts for the honest capability note)
+  "shimmer", "weight-wave",
 ] as const;
 export const ENTRANCES = [
   "none", "fade", "rise", "drop", "pop", "zoom", "slide-left", "slide-right", "blur-in", "typewriter", "wave", "flip", "elastic", "glitch", "glitch-slice", "mask-reveal",
@@ -12,6 +17,10 @@ export const ENTRANCES = [
   // flicker = neon strike-on, scramble = decode resolve, block-reveal = solid block wipe,
   // roll = vertical word roll, write-on = pen reveal subset, jelly = squash-and-stretch settle
   "flicker", "scramble", "block-reveal", "roll", "write-on", "jelly",
+  // Animation-expansion wave (2026-11-10): "split-flap" = ordered per-char drum through FLAP_CHARSET
+  // in a split tile (≠ scramble's random glyphs, ≠ roll's whole-word roll); "panels-reveal" = block-reveal
+  // generalised to 4 staggered retracting curtain panels
+  "split-flap", "panels-reveal",
   // letter animators: per-letter scale/rotate/tracking driven like an After Effects expression selector
   "letter-spin", "letter-elastic", "letter-snap", "letter-burst", "letter-stretch",
 ] as const;

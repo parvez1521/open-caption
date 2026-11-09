@@ -60,7 +60,7 @@ export interface CaptionClip extends ClipBase {
 }
 
 export interface OverlayClip extends ClipBase {
-  kind: "text" | "shape" | "image";
+  kind: OverlayItem["kind"];
   /** the stored overlay item, by reference — reads only; writes go through patchSettings */
   overlay: OverlayItem;
 }
@@ -137,7 +137,7 @@ export function toComposition(state: CompositionInput): Composition {
     overlay: o,
   });
   const textClips = settings.overlays.filter((o) => o.kind === "text" || o.kind === "image").map(overlayClip).sort(byStartThenId);
-  const graphicsClips = settings.overlays.filter((o) => o.kind === "shape").map(overlayClip).sort(byStartThenId);
+  const graphicsClips = settings.overlays.filter((o) => o.kind === "shape" || o.kind === "social").map(overlayClip).sort(byStartThenId);
 
   return {
     version: 1,

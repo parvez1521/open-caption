@@ -35,6 +35,14 @@ export function computePages(doc: CaptionDoc, settings: ProjectSettings, style: 
   });
 }
 
+/** One overlay inside its Sequence: local time comes from the frame (never a wall clock), so animated
+ *  social overlays phase identically in the Player, the browser export and the server render. */
+const OverlaySequenceInner: React.FC<{ item: import("@capseasy/shared").OverlayItem; sc: number; assetSrc?: string }> = ({ item, sc, assetSrc }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  return <OverlayView item={item} sc={sc} assetSrc={assetSrc} localMs={(frame / fps) * 1000} />;
+};
+
 const PageSequence: React.FC<{ page: Page; fromFrame: number; canvas: Canvas; style: CaptionStyleV2 }> = ({ page, fromFrame, canvas, style }) => {
   const frame = useCurrentFrame();
   // absolute media time, derived from frames only (never a wall clock)
@@ -69,7 +77,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
     () => resolveOverlays({ overlays: parsedOverlays?.success ? parsedOverlays.data : undefined, settings }),
     [parsedOverlays, settings],
   );
-  const hasTextOverlay = overlays.some((o) => o.kind === "text");
+  const hasTextOverlay = overlays.some((o) => o.kind === "text" || o.kind === "social");
 
   const fontFamilies = useMemo(() => [resolved.fontId, resolved.hero.fontId ?? "", ...getTemplate(resolved.templateId).fonts, resolved.emoji.enabled ? EMOJI_FONT : "", hasTextOverlay ? "Plus Jakarta Sans" : ""], [resolved, hasTextOverlay]);
   // fontsEpoch bumps when a NEW family set finishes loading on a live component (a template switch in
@@ -102,7 +110,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
         const { from, durationInFrames } = overlayFrames(item, fps);
         return (
           <Sequence key={item.id} from={from} durationInFrames={durationInFrames} layout="none">
-            <OverlayView item={item} sc={scaleOf(canvas)} assetSrc={item.assetId ? overlayAssets?.[item.assetId] : undefined} />
+            <OverlaySequenceInner item={item} sc={scaleOf(canvas)} assetSrc={item.assetId ? overlayAssets?.[item.assetId] : undefined} />
           </Sequence>
         );
       })}

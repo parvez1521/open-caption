@@ -1,6 +1,6 @@
 import React from "react";
-import { activeEffect, combineMotion, effectiveIntensity, entranceStyle, exitStyle, rollAt, scrambleDurationMs, scrambledText, SPRINGS, springMs } from "../motion";
-import { BlockRevealBlock } from "./BlockReveal";
+import { activeEffect, combineMotion, effectiveIntensity, entranceStyle, exitStyle, flapText, rollAt, scrambleDurationMs, scrambledText, SPRINGS, springMs } from "../motion";
+import { BlockRevealBlock, PanelsRevealPanels } from "./BlockReveal";
 import { fitSize } from "../measure";
 import { backgroundCss, baseTextCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { PageRenderProps } from "../types";
@@ -26,7 +26,9 @@ export const WordLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, can
   // decode scramble on the single word (same pure function as WordSpan)
   const display = !settled && style.entrance.type === "scramble"
     ? scrambledText(rawDisplay, timeMs - word.startMs, Math.floor((timeMs / 1000) * canvas.fps), scrambleDurationMs(word))
-    : rawDisplay;
+    : !settled && style.entrance.type === "split-flap"
+      ? flapText(rawDisplay, timeMs - word.startMs, Math.max(120, style.entrance.durationMs))
+      : rawDisplay;
   // word roll: during the first entrance window the outgoing word rolls up out of a clipped box
   // while this word rolls in from below (rollAt is the shared pure timing function)
   const isRoll = !settled && style.entrance.type === "roll";
@@ -69,10 +71,16 @@ export const WordLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, can
   return (
     <div style={containerCss(box, style.rotation)}>
       <BlockRevealBlock style={style} localMs={timeMs - page.startMs} settled={settled} />
+      <PanelsRevealPanels style={style} localMs={timeMs - page.startMs} settled={settled} />
       <div style={{
         ...backgroundCss(style, sc),
         ...(rolling ? { position: "relative" as const, overflow: "hidden" as const, height: `${(size * style.lineHeight * 1.05).toFixed(1)}px`, width: "100%" } : {}),
-        ...combineMotion(isRoll ? {} : entranceStyle(style, timeMs - word.startMs, canvas.fps, intensity, settled, size), exitStyle(style, page.endMs - timeMs, settled, size)),
+        // Floor Hero looks (templateOptions.floorTilt): a SUSTAINED perspective plane held for the
+        // word's whole life (entrance/exit transforms chain after it via combineMotion) — not a
+        // transient flip. Angle 38° / perspective 900px are FIXED feel constants of the look.
+        ...combineMotion(
+          style.templateOptions.floorTilt === true ? { transform: "perspective(900px) rotateX(38deg)", transformOrigin: "50% 100%" } : {},
+          isRoll ? {} : entranceStyle(style, timeMs - word.startMs, canvas.fps, intensity, settled, size), exitStyle(style, page.endMs - timeMs, settled, size)),
       }}>
         {prevWord && roll ? (
           <div aria-hidden style={{ ...baseTextCss(style, sc, prevSize), position: "absolute", left: 0, right: 0, top: 0, textAlign: "center", transform: `translateY(${roll.outgoingPct.toFixed(2)}%)` }}>

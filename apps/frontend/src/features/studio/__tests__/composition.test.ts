@@ -68,6 +68,22 @@ describe("toComposition (Stage-A read-side view)", () => {
     expect(img.kind !== "video" && img.kind !== "caption" && img.overlay).toBe(settings.overlays[2]);
   });
 
+  it("social overlays ride the graphics track and are listed by overlayItemsOf", () => {
+    const withSocial = {
+      ...base,
+      settings: ProjectSettingsSchema.parse({
+        overlays: [
+          ...settings.overlays,
+          { id: "ov-social", kind: "social", variant: "subscribe-pill", text: "Subscribe\nSubscribed", startMs: 3000, endMs: 7000 },
+        ],
+      }),
+    };
+    const comp = toComposition(withSocial);
+    expect(trackOf(comp, "graphics").clips.map((c) => c.id)).toEqual(["ov-social", "ov-shape"]);
+    expect(overlayItemsOf(comp, "social").map((o) => o.id)).toEqual(["ov-social"]);
+    expect(overlayClipsOf(comp).map((c) => c.id)).toContain("ov-social");
+  });
+
   it("overlayClipsOf combines both overlay tracks in timeline order", () => {
     expect(overlayClipsOf(toComposition(base)).map((c) => c.id)).toEqual(["ov-text", "ov-img", "ov-shape"]);
     expect(overlayItemsOf(toComposition(base), "shape").map((o) => o.id)).toEqual(["ov-shape"]);

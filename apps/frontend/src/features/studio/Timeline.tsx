@@ -465,7 +465,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
             {overlayBlocks.map((c) => {
               const live = oDrag?.id === c.id ? oDrag.dxMs : 0;
               const wpx = Math.max(3, x(c.endMs) - x(c.startMs) - 1);
-              const label = c.kind === "text" ? c.overlay.text?.trim() || "Text" : c.kind === "image" ? c.overlay.assetName ?? "Image" : c.overlay.shape ?? "Element";
+              const label = c.kind === "text" ? c.overlay.text?.trim() || "Text" : c.kind === "image" ? c.overlay.assetName ?? "Image" : c.kind === "social" ? c.overlay.variant ?? "Social" : c.overlay.shape ?? "Element";
               return (
                 <div
                   key={c.id}

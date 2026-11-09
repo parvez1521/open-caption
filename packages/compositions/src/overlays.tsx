@@ -1,6 +1,7 @@
 import React from "react";
 import { Img } from "remotion";
 import type { OverlayItem, OverlayShape } from "@capseasy/shared";
+import { SocialOverlayView } from "./social";
 
 /**
  * The app's own overlay shape set: nine simple geometric SVGs drawn for Open Caption (not copied from any
@@ -66,7 +67,7 @@ export const TEXT_DEFAULT_FONT_PX = 64;
  * One overlay item, centre-anchored at (x, y) fractions of the canvas. `sc` is the composition's
  * scale factor (short edge / 1080), so sizes follow the same reference-px convention as captions.
  */
-export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: string }> = ({ item, sc, assetSrc }) => {
+export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: string; localMs?: number }> = ({ item, sc, assetSrc, localMs = 0 }) => {
   const wrap: React.CSSProperties = {
     position: "absolute",
     left: `${item.x * 100}%`,
@@ -74,6 +75,16 @@ export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: s
     transform: `translate(-50%, -50%) rotate(${item.rotation}deg) scale(${item.scale})`,
     pointerEvents: "none",
   };
+  if (item.kind === "social") {
+    // animated Social Media graphic: phases derive from the item's own window (localMs is the time
+    // inside its Sequence, supplied by CaptionedVideo from the frame — never a wall clock)
+    if (!item.variant) return null;
+    return (
+      <div style={wrap}>
+        <SocialOverlayView item={item} sc={sc} localMs={localMs} />
+      </div>
+    );
+  }
   if (item.kind === "text") {
     return (
       <div

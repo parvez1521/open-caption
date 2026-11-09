@@ -39,6 +39,9 @@ export const LOOK_NUMBER_ORDER: readonly string[] = [
   "neon_strike_mint", "neon_strike_amber", "decode_resolve", "decode_hero",
   "block_reveal_obsidian", "block_reveal_mint", "roll_hero", "roll_stack",
   "pen_reveal_dark", "pen_reveal_paper", "jelly_settle", "jelly_one_word",
+  // Animation-expansion wave (appended 2026-11-10; numbers are permanent, append-only)
+  "split_flap_board", "split_flap_hero", "shimmer_pass", "shimmer_gradient_pill",
+  "weight_wave_line", "weight_wave_word", "curtain_panels_obsidian", "curtain_panels_coral", "floor_hero",
 ];
 
 /**
