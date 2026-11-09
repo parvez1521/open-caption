@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { preloadSpeechModel } from "@/features/transcribe/browserWhisper";
 import { getSession, startSession } from "@/features/transcribe/session";
-import { HINGLISH_AVAILABLE, PROJECT_LANGUAGE, likelySpeechLanguage, saveSpeechLanguage, savedSpeechLanguage, speechLanguageOf, type SpeechLanguage } from "@/features/transcribe/runtime";
+import { HINGLISH_AVAILABLE, PROJECT_LANGUAGE, isConstrainedDevice, likelySpeechLanguage, saveSpeechLanguage, savedSpeechLanguage, speechLanguageOf, type SpeechLanguage } from "@/features/transcribe/runtime";
 import { studioService } from "@/services/studio";
 import { track } from "@/lib/track";
 import { ApiError } from "@/services/api-client";
@@ -27,6 +27,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   // get the speech model ready while they pick a video, so captions start the moment it's in.
   // Desktop loads it into memory; phones only download the files (their memory is for the video).
   // Which model writes the captions depends on what's spoken: asked here, remembered for next time.
+  const [constrained] = useState(() => isConstrainedDevice());
   const [lang, setLang] = useState<SpeechLanguage | null>(() => (speechLanguageOf(language) === "hinglish" ? "hinglish" : savedSpeechLanguage()));
   const [pending, setPending] = useState<File | null>(null);
   useEffect(() => {
@@ -108,6 +109,12 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
             ? "Converting it so it plays in every browser. This happens on your device."
             : note ?? (busy ? "" : "or choose one from your device")}
         </p>
+        {constrained && !busy && !prep ? (
+          <p className="mx-auto mt-3 max-w-md rounded-xl border border-st-line bg-st-lav/40 px-3 py-2 text-xs leading-relaxed text-st-muted">
+            On a phone, shorter clips work best — a couple of minutes at a time is kindest to your phone&rsquo;s memory.
+            Your captions save as they are written, so if this tab ever closes you can pick the project up again where you left off.
+          </p>
+        ) : null}
 
         {prep ? (
           <div className="mx-auto mt-6 max-w-sm">

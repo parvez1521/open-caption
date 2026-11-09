@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
@@ -16,7 +17,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth";
 import { ApiError } from "@/services/api-client";
 import { Button } from "./controls";
-import { ExportModal } from "./ExportModal";
+// The export dialog pulls in the whole in-browser renderer (Remotion web-renderer + Mediabunny). Load it
+// only when the creator actually opens Export — the studio's first paint (especially on a phone) should
+// not carry or evaluate that machinery.
+const ExportModal = dynamic(() => import("./ExportModal").then((m) => m.ExportModal), { ssr: false });
 import { CaptionsPanel } from "./panels/CaptionsPanel";
 import { LooksPanel } from "./panels/LooksPanel";
 import { SettingsPanel, StylePanel } from "./panels/StylePanel";

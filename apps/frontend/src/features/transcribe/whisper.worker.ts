@@ -12,7 +12,7 @@
  *      clip's clock, so the editor can show captions while the rest is still being written.
  */
 import { pipeline, env, StoppingCriteria, type AutomaticSpeechRecognitionPipeline } from "@huggingface/transformers";
-import { MODELS, pickRuntime, runtimeFor, type Device, type SpeechLanguage } from "./runtime";
+import { MODELS, isConstrainedDevice, pickRuntime, runtimeFor, type Device, type SpeechLanguage } from "./runtime";
 import { Resampler, downmix } from "./resample";
 import { SR, TimelineAligner, capWordEnd, dropRepeatedRuns, isLooping, planWindows, renderWindow, toOriginalSeconds, type PackedWindow } from "./speech";
 
@@ -68,8 +68,10 @@ async function loadModel(forceWasm: boolean) {
   if (asr) return asr;
   const spec = MODELS[wanted];
   const t0 = performance.now();
-  // WASM threads need SharedArrayBuffer, which only exists when the page is cross-origin isolated
-  if (safeMode) env.backends.onnx.wasm!.numThreads = 1;
+  // WASM threads need SharedArrayBuffer, which only exists when the page is cross-origin isolated.
+  // Phones/low-memory devices stay on ONE thread: extra WASM threads multiply the runtime's memory,
+  // which is what gets heavy mobile tabs killed outright.
+  if (safeMode || isConstrainedDevice()) env.backends.onnx.wasm!.numThreads = 1;
   else if (self.crossOriginIsolated) {
     env.backends.onnx.wasm!.numThreads = Math.min(8, Math.max(2, (navigator.hardwareConcurrency || 4) - 1));
   }

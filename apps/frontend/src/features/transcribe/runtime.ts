@@ -147,9 +147,21 @@ export async function webgpuF16(): Promise<boolean> {
   }
 }
 
+/**
+ * Phones and low-memory devices: the tab's memory budget is small, and a mobile GPU driver crash kills the whole
+ * tab (Chrome's "Can't open this page"), taking the editor with it. These devices always get the quantized (q8)
+ * WASM runtime on a single thread — slower, but it survives. Desktops keep the WebGPU/fp16 fast path.
+ */
+export function isConstrainedDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  if (/Android|webOS|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent ?? "")) return true;
+  const mem = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  return mem !== undefined && mem <= 4;
+}
+
 let picked: Promise<Runtime> | null = null;
 export function pickRuntime(forceWasm = false): Promise<Runtime> {
-  if (forceWasm || webgpuMarkedBroken()) return Promise.resolve(runtimeFor("wasm"));
+  if (forceWasm || webgpuMarkedBroken() || isConstrainedDevice()) return Promise.resolve(runtimeFor("wasm"));
   return (picked ??= webgpuF16().then((ok) => runtimeFor(ok ? "webgpu" : "wasm")));
 }
 

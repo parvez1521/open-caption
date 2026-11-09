@@ -317,6 +317,10 @@ export class TranscriptionSession {
       note(this.runId, { device: this.finished.device, words: words.length });
       await deleteProgress(this.videoId);
       this.set({ phase: "saved" });
+      // The words are saved: free the speech model and its worker so the editor gets the memory back.
+      // Holding the ONNX session next to the video Player is what gets heavy mobile tabs killed; the
+      // next run rebuilds the worker and reloads the model from the browser's file cache.
+      if (this.worker) { dropWorker(this.worker); this.worker = null; }
       track("captions_ready", { model: this.model.key, words: words.length, device: this.finished.device ?? null });
       report(this.runId);
     } catch (e) {
@@ -435,6 +439,9 @@ export class TranscriptionSession {
       void this.run();
       return;
     }
+    // terminal failure: release the worker too — the error screen can sit open a while, and a retry
+    // starts a fresh worker anyway (see run()).
+    if (this.worker) { dropWorker(this.worker); this.worker = null; }
     console.warn("[captions] in-browser transcription failed:", e);
     import("@sentry/nextjs").then((S) => S.captureException(e, { tags: { area: "browser-transcription" } })).catch(() => undefined);
     const m = message.toLowerCase();
