@@ -14,6 +14,16 @@ export const CaptionedVideoProps = z.object({
   /** video URL; null renders captions only (stills, overlay exports) */
   src: z.string().nullable().default(null),
   media: MediaMetaSchema.default({}),
+  /**
+   * Export output override (resolution + frame-rate choice): when a renderer is making an export at a
+   * chosen resolution/fps, it passes the TARGET canvas here and calculateMetadata authors the composition
+   * at that size/rate instead of the source media's. `media` stays the truth about the source file.
+   * Absent = render at the source size/rate (preview, stills, legacy jobs). Timing is ms-based
+   * everywhere, so a higher outputFps only multiplies frame counts — captions land at the same instants.
+   */
+  outputWidth: z.number().int().positive().optional(),
+  outputHeight: z.number().int().positive().optional(),
+  outputFps: z.number().positive().optional(),
   doc: CaptionDocSchema.default(emptyDoc()),
   style: CaptionStyleSchema.default({}),
   settings: ProjectSettingsSchema.default({}),

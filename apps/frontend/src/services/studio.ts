@@ -141,7 +141,7 @@ export const studioService = {
     return apiClient.get<ExportRow[]>(`/projects/${projectId}/exports`);
   },
 
-  createExport(projectId: string, body: { kind: ExportKind; crf?: number; width?: number; height?: number; range?: { startMs: number; endMs: number } }) {
+  createExport(projectId: string, body: { kind: ExportKind; crf?: number; width?: number; height?: number; fps?: number; range?: { startMs: number; endMs: number } }) {
     return apiClient.post<{ exportId: string; ready: boolean; downloadUrl?: string; jobId?: string; companionOnline?: boolean }>(`/projects/${projectId}/exports`, { json: body });
   },
 

@@ -3,6 +3,10 @@
 import * as Sentry from "@sentry/nextjs";
 import React, { useEffect, useRef, useState } from "react";
 import type { CaptionedVideoInput } from "@capseasy/compositions";
+import {
+  EXPORT_RESOLUTION_LABEL, exportDimensions, exportMemoryErrorMessage,
+  type ExportResolution, type ExportSettings,
+} from "@capseasy/shared";
 import { canExportInBrowser, exportMp4InBrowser, saveBlob } from "./browserExport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studioService, type ExportKind, type ExportRow } from "@/services/studio";
@@ -10,6 +14,23 @@ import { ApiError } from "@/services/api-client";
 import { Button, fmtBytes, fmtTime, triggerDownload } from "./controls";
 import { VideoReady } from "./VideoReady";
 import { track } from "@/lib/track";
+
+/**
+ * Export resolution options (owner 2026-11-10). The dims follow the shared short-edge rule from the
+ * project's aspect; the hints are honest about the cost — 2K/4K are slower and 4K needs a strong device.
+ */
+const RESOLUTION_OPTIONS: Array<{ id: ExportResolution; hint: string }> = [
+  { id: "720p", hint: "Fastest to render, smallest file." },
+  { id: "1080p", hint: "Full HD. The usual choice for Reels, Shorts and TikTok." },
+  { id: "2k", hint: "2K — slower to render, bigger file." },
+  { id: "4k", hint: "4K — much slower, needs a strong device." },
+];
+
+/** Frame-rate hints. 60fps is NEVER described as adding motion: a lower-fps source just repeats frames. */
+const FPS_OPTIONS: Array<{ id: 30 | 60; label: string; hint: string }> = [
+  { id: 30, label: "30 fps", hint: "Standard frame rate. Matches most phone videos." },
+  { id: 60, label: "60 fps", hint: "Twice as many frames, slower to render. If your original video is below 60 fps, its frames are repeated — 60 fps does not add new motion." },
+];
 
 /** Same resolution either way: this only trades sharpness for file size. */
 const QUALITY_OPTIONS = [
@@ -41,26 +62,24 @@ interface Props {
   saving: boolean;
   onClose: () => void;
   flushSave: () => Promise<void>;
+  /** the project's saved export choice (resolution + frame rate), persisted per project via settings */
+  exportSettings: ExportSettings;
+  onExportSettings: (next: ExportSettings) => void;
 }
 
-export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave }) => {
+export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings }) => {
   const qc = useQueryClient();
   const [busyKind, setBusyKind] = useState<ExportKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [quality, setQuality] = useState<"high" | "balanced" | "small">("high");
-  const [res, setRes] = useState<"source" | "1080" | "720">("source");
   const [trim, setTrim] = useState(false);
   const [startS, setStartS] = useState(0);
   const [endS, setEndS] = useState(Math.round(video.durationMs / 100) / 10);
   const totalS = Math.round(video.durationMs / 100) / 10;
-  const short = Math.min(video.width, video.height);
-  // scale by the SHORT edge so portrait and landscape both mean "720p/1080p"; keep even dimensions for H.264
-  const dims = (): { width: number; height: number } | undefined => {
-    if (res === "source" || short <= Number(res)) return undefined;
-    const k = Number(res) / short;
-    const even = (n: number) => Math.max(2, Math.round((n * k) / 2) * 2);
-    return { width: even(video.width), height: even(video.height) };
-  };
+  // the chosen resolution as absolute output dims, from the project's aspect (shared short-edge rule:
+  // 9:16 at 1080p is 1080x1920, 16:9 is 1920x1080). This drives BOTH render paths below.
+  const outDims = exportDimensions(video.width, video.height, exportSettings.resolution);
+  const outFps = exportSettings.fps;
   const trimValid = !trim || (endS - startS >= 0.5 && startS >= 0 && endS <= totalS + 0.05);
 
   // MP4 is made in this tab
@@ -72,12 +91,14 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const abort = useRef<AbortController | null>(null);
   useEffect(() => {
     let alive = true;
-    void canExportInBrowser(video.width, video.height).then((r) => alive && setWeb(r));
+    // encoder support is checked at the OUTPUT size: a browser that encodes 1080p may refuse 4K
+    void canExportInBrowser(outDims.width, outDims.height).then((r) => alive && setWeb(r));
     return () => {
       alive = false;
       abort.current?.abort();
     };
-  }, [video.width, video.height]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outDims.width, outDims.height]);
   const webReady = !!web?.ok && !!renderInput?.src;
 
   const [restarted, setRestarted] = useState(false);
@@ -109,15 +130,13 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     }, 5000);
     try {
       await flushSave();
-      const d = dims();
       const started = clock();
       const blob = await exportMp4InBrowser({
         input: renderInput,
-        width: video.width,
-        height: video.height,
-        fps: video.fps,
+        width: outDims.width,
+        height: outDims.height,
+        fps: outFps,
         durationMs: video.durationMs,
-        scale: d ? d.width / video.width : 1,
         range: trim ? { startMs: Math.round(startS * 1000), endMs: Math.round(endS * 1000) } : undefined,
         quality,
         signal: ctrl.signal,
@@ -131,14 +150,16 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       setWebDone(`${fmtBytes(blob.size)} · made in ${fmtTime(clock() - started)}`);
       setMade({ blob, name });
       setShowReady(true);
-      track("export_done", { kind: "mp4", quality, trimmed: trim });
+      track("export_done", { kind: "mp4", quality, trimmed: trim, resolution: exportSettings.resolution, fps: outFps });
     } catch (e) {
       if (stalled && attempt < 2) again = true;
       else if (stalled) setError("The export kept stalling. Keep this tab open and in front while it renders, then try again.");
       else if (!ctrl.signal.aborted) {
         Sentry.captureException(e, { tags: { area: "browser-export" } });
         track("export_failed", { kind: "mp4" });
-        setError(e instanceof Error ? `Couldn't render in the browser: ${e.message}` : "Couldn't render in the browser.");
+        // a memory failure gets plain words + the fix (lower resolution), never a generic failure
+        const oom = exportMemoryErrorMessage(e, exportSettings.resolution);
+        setError(oom ?? (e instanceof Error ? `Couldn't render in the browser: ${e.message}` : "Couldn't render in the browser."));
       }
     } finally {
       clearInterval(guard);
@@ -177,7 +198,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       let w = web;
       if (!w) {
         setBusyKind("mp4");
-        w = await canExportInBrowser(video.width, video.height);
+        w = await canExportInBrowser(outDims.width, outDims.height);
         setWeb(w);
         setBusyKind(null);
       }
@@ -192,7 +213,8 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       const body = {
         kind: o.kind,
         crf: quality === "high" ? 20 : quality === "balanced" ? 24 : 29,
-        ...(o.usesRange ? dims() ?? {} : {}),
+        // the same chosen resolution + fps the browser path uses, as absolute dims for the render job
+        ...(o.usesRange ? { width: outDims.width, height: outDims.height, fps: outFps } : {}),
         ...(o.usesRange && trim ? { range: { startMs: Math.round(startS * 1000), endMs: Math.round(endS * 1000) } } : {}),
       };
       const created = await studioService.createExport(projectId, body);
@@ -231,13 +253,28 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             <p className="mt-1 text-xs text-st-faint sm:text-right">{QUALITY_OPTIONS.find((q) => q.id === quality)?.hint}</p>
           </div>
 
-          <div className="mb-3 flex flex-col gap-1.5 text-sm text-st-text/80 sm:flex-row sm:items-center sm:justify-between">
-            <span>Resolution</span>
-            <div className="grid grid-cols-3 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
-              {([["source", `Original (${short}p)`], ["1080", "1080p"], ["720", "720p"]] as const).map(([v, label]) => (
-                <button key={v} disabled={v !== "source" && short <= Number(v)} onClick={() => setRes(v)} className={`whitespace-nowrap rounded-md px-2.5 py-2 text-xs disabled:opacity-30 sm:py-1 ${res === v ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{label}</button>
-              ))}
+          <div className="mb-3 text-sm text-st-text/80">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+              <span>Resolution</span>
+              <div role="radiogroup" aria-label="Export resolution" className="grid grid-cols-4 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
+                {RESOLUTION_OPTIONS.map((r) => (
+                  <button key={r.id} role="radio" aria-checked={exportSettings.resolution === r.id} onClick={() => onExportSettings({ ...exportSettings, resolution: r.id })} className={`whitespace-nowrap rounded-md px-2.5 py-2 text-xs sm:py-1 ${exportSettings.resolution === r.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{EXPORT_RESOLUTION_LABEL[r.id]}</button>
+                ))}
+              </div>
             </div>
+            <p className="mt-1 text-xs text-st-faint sm:text-right">{RESOLUTION_OPTIONS.find((r) => r.id === exportSettings.resolution)?.hint} Exports at {outDims.width} × {outDims.height}.</p>
+          </div>
+
+          <div className="mb-3 text-sm text-st-text/80">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+              <span>Frame rate</span>
+              <div role="radiogroup" aria-label="Export frame rate" className="grid grid-cols-2 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
+                {FPS_OPTIONS.map((f) => (
+                  <button key={f.id} role="radio" aria-checked={exportSettings.fps === f.id} onClick={() => onExportSettings({ ...exportSettings, fps: f.id })} className={`whitespace-nowrap rounded-md px-2.5 py-2 text-xs sm:py-1 ${exportSettings.fps === f.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{f.label}</button>
+                ))}
+              </div>
+            </div>
+            <p className="mt-1 text-xs text-st-faint sm:text-right">{FPS_OPTIONS.find((f) => f.id === exportSettings.fps)?.hint}</p>
           </div>
           <div className="mb-4 rounded-xl bg-st-raised/50 p-3 text-sm text-st-text/80">
             <label className="flex min-h-8 cursor-pointer items-center gap-2">

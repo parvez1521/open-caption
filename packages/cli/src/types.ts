@@ -155,6 +155,17 @@ export interface RenderOptions {
   /** frames rendered in parallel (default: half the CPU cores) */
   concurrency?: number;
   quiet?: boolean;
+  /**
+   * Export resolution (same ids as the studio's export settings): the output's SHORT edge becomes
+   * 720/1080/1440/2160 following the source's aspect. Omit to render at the source size.
+   */
+  resolution?: "720p" | "1080p" | "2k" | "4k";
+  /**
+   * Export frame rate (30 or 60). Timing is ms-based, so captions land at the same instants;
+   * a source with fewer frames per second simply repeats frames — nothing is interpolated.
+   * Omit to render at the source frame rate.
+   */
+  fps?: 30 | 60;
 }
 
 export interface RenderResult {

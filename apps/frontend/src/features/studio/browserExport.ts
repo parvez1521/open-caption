@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { CaptionedVideo, type CaptionedVideoInput } from "@capseasy/compositions";
+import { framesForDurationMs } from "@capseasy/shared";
 
 /**
  * MP4 export without the Companion: the SAME composition the preview shows, rendered frame by frame in this tab
@@ -10,12 +11,12 @@ import { CaptionedVideo, type CaptionedVideoInput } from "@capseasy/compositions
 
 export interface BrowserExportJob {
   input: CaptionedVideoInput;
+  /** OUTPUT width/height: the chosen export resolution resolved from the project's aspect (short-edge rule) */
   width: number;
   height: number;
+  /** OUTPUT frame rate: the chosen export fps (30 or 60), NOT necessarily the source video's fps */
   fps: number;
   durationMs: number;
-  /** output size factor (e.g. 720/1080); 1 = original */
-  scale?: number;
   range?: { startMs: number; endMs: number };
   quality: "high" | "balanced" | "small";
   signal?: AbortSignal;
@@ -39,7 +40,11 @@ export async function canExportInBrowser(width: number, height: number): Promise
 
 export async function exportMp4InBrowser(job: BrowserExportJob): Promise<Blob> {
   const { renderMediaOnWeb } = await import("@remotion/web-renderer");
-  const durationInFrames = Math.max(1, Math.ceil((job.durationMs / 1000) * job.fps));
+  // the composition is authored AT the output size/rate: captions are drawn natively for the chosen
+  // resolution, and because all timing is ms-based, durationInFrames = ms x fps keeps every caption
+  // at the same instant at 60fps as at 30fps (the source video's frames simply repeat if it is
+  // lower-fps — the web renderer samples it; nothing is interpolated).
+  const durationInFrames = framesForDurationMs(job.durationMs, job.fps);
   const frame = (ms: number) => Math.min(durationInFrames - 1, Math.max(0, Math.round((ms / 1000) * job.fps)));
   const result = await renderMediaOnWeb({
     composition: {
@@ -54,7 +59,6 @@ export async function exportMp4InBrowser(job: BrowserExportJob): Promise<Blob> {
     container: "mp4",
     videoCodec: "h264",
     videoBitrate: QUALITY[job.quality],
-    scale: job.scale ?? 1,
     frameRange: job.range ? [frame(job.range.startMs), frame(job.range.endMs)] : null,
     signal: job.signal ?? null,
     onProgress: (p) => job.onProgress?.(p.progress),

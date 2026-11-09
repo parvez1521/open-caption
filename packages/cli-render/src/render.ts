@@ -8,6 +8,7 @@ import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 import { serveFile } from "@capseasy/companion/src/media-server";
+import { exportDimensions } from "@capseasy/shared";
 import { buildCaptions } from "../../cli/src/captions";
 import { CaptionsEasyError } from "../../cli/src/errors";
 import { existingFile } from "../../cli/src/fsutil";
@@ -111,9 +112,14 @@ export async function render(opts: RenderOptions): Promise<RenderResult> {
   const media = mode === "burn" ? await serveFile(video) : null;
   mkdirSync(dirname(out), { recursive: true });
   try {
+    // export resolution/fps (when requested): the composition is authored at the target size/rate via
+    // the output override — same mechanism the companion render job uses. No override = source size/rate.
+    const outDims = opts.resolution ? exportDimensions(info.width, info.height, opts.resolution) : null;
     const inputProps = {
       src: media?.url ?? null,
       media: { width: info.width, height: info.height, fps: info.fps, durationMs: info.durationMs, rotation: 0 },
+      ...(outDims ? { outputWidth: outDims.width, outputHeight: outDims.height } : {}),
+      ...(opts.fps ? { outputFps: opts.fps } : {}),
       doc: props.doc,
       style: props.style,
       settings: props.settings,

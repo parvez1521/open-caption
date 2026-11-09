@@ -1,6 +1,6 @@
 import { rateLimit } from "@/lib/api/rateLimit";
 import {
-  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, ProjectSettingsSchema, TEXT_EXPORT_KINDS, planFor, type RenderJob,
+  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, ProjectSettingsSchema, TEXT_EXPORT_KINDS, exportDimensions, planFor, type RenderJob,
 } from "@capseasy/shared";
 import { applyFillerFilter, applyProfanity, derivePages, toAss, toJson, toSrt, toTxt, toVtt } from "@motion-ai/caption-engine/core";
 import { requireUser } from "@/lib/api/auth";
@@ -72,9 +72,14 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
 
   // ---- video formats: queue a render for the companion ----
   if (!video?.duration_ms) throw new ApiFailure("CONFLICT", "The source video is still being prepared.");
-  const width = even(body.width ?? video.width ?? 1080);
-  const height = even(body.height ?? video.height ?? 1920);
-  const fps = body.fps ?? (video.fps || 30);
+  // Export resolution + frame rate: explicit body values (the Export UI sends the project's saved
+  // export settings as absolute dims + fps) win; otherwise fall back to the project's persisted
+  // exportSettings, resolved from the source's aspect by the shared short-edge rule. Never the
+  // raw source fps alone any more — the saved choice is the default for every client.
+  const savedDims = exportDimensions(video.width ?? 1080, video.height ?? 1920, settings.exportSettings.resolution);
+  const width = even(body.width ?? savedDims.width);
+  const height = even(body.height ?? savedDims.height);
+  const fps = body.fps ?? settings.exportSettings.fps;
   const format = body.kind as RenderJob["format"];
 
   const { data: profile } = await user.db.from("profiles").select("plan").eq("id", user.id).maybeSingle();

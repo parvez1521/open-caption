@@ -53,6 +53,91 @@ export const OverlayItemSchema = z
   .refine((o) => o.kind !== "image" || o.assetId !== undefined, { message: "image overlays need a media asset id", path: ["assetId"] });
 export type OverlayItem = z.infer<typeof OverlayItemSchema>;
 
+/* ---------------- export settings (resolution + frame rate) ---------------- */
+
+/** The four export resolutions the owner asked for, as ids. "2k" is the 1440p tier and "4k" the 2160p tier. */
+export const EXPORT_RESOLUTIONS = ["720p", "1080p", "2k", "4k"] as const;
+export const ExportResolutionSchema = z.enum(EXPORT_RESOLUTIONS);
+export type ExportResolution = z.infer<typeof ExportResolutionSchema>;
+
+/** The two export frame rates. No interpolation is ever done: see the fps hint copy in the Export UI. */
+export const EXPORT_FPS_OPTIONS = [30, 60] as const;
+export const ExportFpsSchema = z.union([z.literal(30), z.literal(60)]);
+export type ExportFps = z.infer<typeof ExportFpsSchema>;
+
+export const ExportSettingsSchema = z.object({
+  resolution: ExportResolutionSchema.default("1080p"),
+  fps: ExportFpsSchema.default(30),
+});
+export type ExportSettings = z.infer<typeof ExportSettingsSchema>;
+export const DEFAULT_EXPORT_SETTINGS: ExportSettings = { resolution: "1080p", fps: 30 };
+
+/** Short-edge size (the "p") each resolution id stands for. */
+export const EXPORT_RESOLUTION_SHORT_EDGE: Record<ExportResolution, number> = {
+  "720p": 720,
+  "1080p": 1080,
+  "2k": 1440,
+  "4k": 2160,
+};
+
+export const EXPORT_RESOLUTION_LABEL: Record<ExportResolution, string> = {
+  "720p": "720p",
+  "1080p": "1080p",
+  "2k": "2K",
+  "4k": "4K",
+};
+
+const evenDim = (n: number) => Math.max(2, Math.round(n / 2) * 2);
+
+/**
+ * THE DIMENSIONS RULE (implemented here, used by every render path):
+ * the chosen resolution's "p" is the SHORT edge of the output frame, whatever the aspect.
+ * Portrait (height > width): the width IS p — 9:16 at 720p is 720×1280, at 1080p 1080×1920,
+ * at 2K 1440×2560, at 4K 2160×3840; 4:5 at 720p is 720×900.
+ * Landscape (width > height): the height IS p — 16:9 at 720p is 1280×720, at 1080p 1920×1080,
+ * at 2K 2560×1440, at 4K 3840×2160.
+ * Square: both edges are p — 1:1 at 1080p is 1080×1080.
+ * The long edge follows the source's aspect ratio and is rounded to an even number (H.264 needs even dims).
+ * The source size does not cap the result: picking 4K for a 1080p video really renders 4K (upscaled video,
+ * captions drawn natively at the bigger canvas).
+ */
+export function exportDimensions(sourceWidth: number, sourceHeight: number, resolution: ExportResolution): { width: number; height: number } {
+  const p = EXPORT_RESOLUTION_SHORT_EDGE[resolution];
+  const w = Math.max(1, sourceWidth);
+  const h = Math.max(1, sourceHeight);
+  if (w === h) return { width: p, height: p };
+  if (w < h) return { width: p, height: evenDim((p * h) / w) };
+  return { width: evenDim((p * w) / h), height: p };
+}
+
+/** Same rule, starting from an aspect string like "9:16" (the PLATFORM_PRESETS shape). */
+export function exportDimensionsForAspect(aspect: string, resolution: ExportResolution): { width: number; height: number } {
+  const [aw, ah] = aspect.split(":").map((n) => Number(n));
+  if (!aw || !ah) throw new Error(`Bad aspect ratio: ${aspect}`);
+  return exportDimensions(aw, ah, resolution);
+}
+
+/**
+ * Frames for a duration at a frame rate. ALL timing in this system is stored in milliseconds
+ * (caption pages, overlays, trims), and every renderer converts ms × fps at render time, so
+ * doubling the fps doubles the frame count and every caption still lands at the same instant.
+ */
+export function framesForDurationMs(durationMs: number, fps: number): number {
+  return Math.max(1, Math.ceil((Math.max(0, durationMs) / 1000) * fps));
+}
+
+/**
+ * Plain-words message for a render that died because the device ran out of memory, or null when the
+ * error is not a memory failure. Callers surface this INSTEAD of a generic "export failed", so the
+ * user is told what happened and what to do (pick a lower resolution).
+ */
+export function exportMemoryErrorMessage(error: unknown, resolution?: ExportResolution): string | null {
+  const raw = error instanceof Error ? `${error.name} ${error.message}` : String(error ?? "");
+  if (!/out of memory|out-of-memory|\boom\b|allocation (failed|error)|failed to allocate|cannot allocate|unable to allocate|allocationfailed|array buffer allocation|heap out of memory|memory pressure|not enough memory/i.test(raw)) return null;
+  const at = resolution ? ` at ${EXPORT_RESOLUTION_LABEL[resolution]}` : "";
+  return `Your device ran out of memory while rendering${at}. Try a lower resolution (1080p or 720p) and export again.`;
+}
+
 export const ProjectSettingsSchema = z.object({
   platform: PlatformSchema.default("custom"),
   maxWordsPerCard: z.number().int().min(1).max(12).default(DEFAULT_WORDS_PER_CARD),
@@ -74,6 +159,8 @@ export const ProjectSettingsSchema = z.object({
   /** editor elements (Slice 1d): video filter adjustments + timed text/shape overlays */
   videoAdjust: VideoAdjustSchema.default({ brightness: 1, contrast: 1, saturation: 1 }),
   overlays: z.array(OverlayItemSchema).default([]),
+  /** last export choice, per project (owner 2026-11-10): drives BOTH render paths; old projects get 1080p/30 */
+  exportSettings: ExportSettingsSchema.default({ resolution: "1080p", fps: 30 }),
 });
 export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>;
 export const defaultSettings = (): ProjectSettings => ProjectSettingsSchema.parse({});

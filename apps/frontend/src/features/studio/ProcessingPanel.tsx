@@ -160,6 +160,7 @@ function friendlyError(job: StudioJob): string {
   if (raw.includes("lease_expired")) return "The tab making your captions was closed or went to sleep. Press Try again and keep this tab open.";
   if (raw.includes("too large") || raw.includes("file_too_large") || raw.includes("413")) return "This video is too big to process. Trim it to a shorter clip and upload again.";
   if (raw.includes("decode") || raw.includes("unsupported")) return "We couldn't read the audio in this video. Try exporting it again as MP4 from your phone or editor.";
+  if (raw.includes("out_of_memory") || raw.includes("out of memory")) return "Your device ran out of memory while rendering. Pick a lower resolution (1080p or 720p) in the export options and try again.";
   if (job.kind === "render") return "The export stopped before it finished. Press Try again.";
   return "Something interrupted the captions. Press Try again; it usually works the second time.";
 }

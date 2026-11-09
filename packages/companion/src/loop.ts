@@ -1,3 +1,4 @@
+import { exportMemoryErrorMessage } from "@capseasy/shared";
 import { ApiError, CompanionApi, type ClaimedJob } from "./api";
 import type { Config } from "./config";
 import { runProxy } from "./executors/proxy";
@@ -22,6 +23,9 @@ function classify(e: unknown): { code: string; retryable: boolean; message: stri
   const code = (e as { code?: string })?.code;
   if (code === "NO_AUDIO") return { code, retryable: false, message };
   if (code === "ENOSPC" || /no space left/i.test(message)) return { code: "DISK_FULL", retryable: false, message: "Your computer is out of disk space. Free some space and retry." };
+  // memory failures (2K/4K renders on a modest machine) get plain words + the fix, and no retry at the same size
+  const oom = exportMemoryErrorMessage(e);
+  if (oom) return { code: "OUT_OF_MEMORY", retryable: false, message: oom };
   if (/Unsupported|Invalid data found|moov atom not found|could not find codec/i.test(message)) return { code: "BAD_MEDIA", retryable: false, message: `The video could not be read: ${message.slice(0, 300)}` };
   return { code: code && typeof code === "string" ? code : "WORKER_ERROR", retryable: true, message };
 }

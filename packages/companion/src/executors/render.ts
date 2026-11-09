@@ -68,7 +68,14 @@ export async function runRender(ctx: JobContext) {
 
     const inputProps = {
       src,
-      media: { width: claimed.media?.width || job.width, height: claimed.media?.height || job.height, fps: job.fps, durationMs: claimed.media?.durationMs ?? 0, rotation: 0 },
+      // media stays the truth about the SOURCE file; the job's width/height/fps are the chosen EXPORT
+      // output (resolution + frame rate from the project's export settings, resolved by the API into
+      // absolute dims), passed as the composition's output override so calculateMetadata authors the
+      // composition at exactly that size/rate — including UPSCALING past the source when 2K/4K is picked.
+      media: { width: claimed.media?.width || job.width, height: claimed.media?.height || job.height, fps: claimed.media?.fps || job.fps, durationMs: claimed.media?.durationMs ?? 0, rotation: 0 },
+      outputWidth: job.width,
+      outputHeight: job.height,
+      outputFps: job.fps,
       doc: job.docSnapshot,
       style: job.style,
       settings: job.settings,
@@ -87,10 +94,10 @@ export async function runRender(ctx: JobContext) {
     const frameRange: [number, number] | undefined = job.range
       ? [Math.max(0, Math.min(last, Math.floor((job.range.startMs / 1000) * composition.fps))), Math.max(0, Math.min(last, Math.ceil((job.range.endMs / 1000) * composition.fps) - 1))]
       : undefined;
-    // resolution: the composition is authored at the source size; scale uniformly to the requested width
-    const srcW = claimed.media?.width || job.width;
-    const scale = srcW ? Math.min(1, job.width / srcW) : 1;
-    const common = { composition, serveUrl, inputProps, outputLocation: output, cancelSignal, frameRange, scale, timeoutInMilliseconds: FRAME_TIMEOUT_MS, concurrency: Math.max(1, Math.floor(cpus().length / 2)) } as const;
+    // resolution + fps: the composition was already authored at the job's output size/rate by
+    // calculateMetadata (see the output override in inputProps), so NO render-time scale is applied —
+    // the old scale factor capped exports at the source size and could never upscale to 2K/4K.
+    const common = { composition, serveUrl, inputProps, outputLocation: output, cancelSignal, frameRange, timeoutInMilliseconds: FRAME_TIMEOUT_MS, concurrency: Math.max(1, Math.floor(cpus().length / 2)) } as const;
     const onProgress = ({ progress }: { progress: number }) => void report("Rendering", slice(15, 88, progress));
 
     if (job.format === "mp4") {
