@@ -73,18 +73,32 @@ export async function rememberGuestForClaim(returnTo: string) {
   setAfterSignIn(returnTo);
 }
 
-/** Runs a pending claim (if any) for the now signed-in user. Never throws: the user's own data is untouched on failure. */
+/**
+ * Runs a pending claim (if any) for the now signed-in user. Never throws: the user's own data is untouched on failure.
+ * The stash is the ONLY copy of the guest's tokens (the guest session is gone once signed in), so it is cleared
+ * only once the claim has actually been handed to the server — a transient failure keeps it, and the next /start
+ * visit retries (the endpoint is idempotent: a repeat claim is a no-op). Expired/corrupt stashes are dropped.
+ */
 export async function claimPendingGuest(): Promise<void> {
   const raw = store.get(CLAIM);
   if (!raw) return;
-  store.del(CLAIM);
+  let parsed: { accessToken: string; refreshToken?: string; at: number };
   try {
-    const { accessToken, refreshToken, at } = JSON.parse(raw) as { accessToken: string; refreshToken?: string; at: number };
-    if (Date.now() - at > 7 * 86_400_000) return;
+    parsed = JSON.parse(raw) as { accessToken: string; refreshToken?: string; at: number };
+  } catch {
+    store.del(CLAIM);
+    return;
+  }
+  if (Date.now() - parsed.at > 7 * 86_400_000) {
+    store.del(CLAIM);
+    return;
+  }
+  try {
     const { apiClient } = await import("@/services/api-client");
-    await apiClient.post("/guest/claim", { json: { accessToken, refreshToken } });
+    await apiClient.post("/guest/claim", { json: { accessToken: parsed.accessToken, refreshToken: parsed.refreshToken } });
+    store.del(CLAIM);
   } catch (e) {
-    console.warn("[auth] couldn't move the guest project to this account", e);
+    console.warn("[auth] couldn't move the guest project to this account — will retry on the next visit", e);
   }
 }
 
