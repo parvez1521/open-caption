@@ -317,10 +317,20 @@ describe("chain 5: captions + placed audio → Polish → export-readiness (5→
     const commit = polishCommitSettings(next);
     expect(ProjectSettingsSchema.parse(commit)).toEqual(commit);
 
-    // the placed audio clip survives the pass (the trim steps may retime
-    // it — Phase 9 W5 — but never drop it), and ducking landed on its track.
-    expect(commit.composition.audio.clips).toHaveLength(1);
-    expect(commit.composition.audio.clips[0]!.assetId).toBe("asset-music");
+    // the placed audio clip survives the pass: the trim steps retime it
+    // (Phase 9 W5) — removing two ranges from under a clip that spans
+    // them SPLITS it into the pieces either side of the cuts, every piece
+    // still carrying the same asset on the same track, total placed
+    // duration shorter than the original 10 s. It is never dropped.
+    const placed = commit.composition.audio.clips;
+    expect(placed.length).toBeGreaterThanOrEqual(1);
+    for (const clip of placed) {
+      expect(clip.assetId).toBe("asset-music");
+      expect(clip.trackId).toBe("music-1");
+    }
+    const placedMs = placed.reduce((a, c) => a + (c.sourceOutMs - c.sourceInMs), 0);
+    expect(placedMs).toBeGreaterThan(0);
+    expect(placedMs).toBeLessThan(10_000);
     const musicTrack = commit.composition.audio.tracks.find((t) => t.id === "music-1")!;
     expect(musicTrack.ducking.enabled).toBe(true);
 
