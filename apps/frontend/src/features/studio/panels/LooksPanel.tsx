@@ -30,8 +30,27 @@ function swatchStyle(look: LookDefinition): React.CSSProperties {
   } as React.CSSProperties;
 }
 
-/** Built-in looks have previews rendered by the real composition (packages/compositions/scripts/look-previews.ts). */
-const BUILT_IN = new Set(LOOKS.map((l) => l.id));
+/**
+ * Looks that actually HAVE a pre-rendered still in apps/frontend/public/looks/ — the original
+ * gallery set rendered by packages/compositions/scripts/look-previews.ts. Every other built-in
+ * look has no still file on disk.
+ *
+ * Phase 9 W2, quirk (d): the poster used to request `/looks/<id>.webp` for EVERY built-in look,
+ * so ~126 cards (including Roll Hero) first painted a 404 <img> over the black stage — a black
+ * card — until the error arrived and the swatch fallback took over (or the live layer granted).
+ * Looks without a still now go straight to the swatch. If previews are re-rendered for more
+ * looks, add their ids here; a stale entry only costs the graceful swatch, never a black card.
+ */
+export const LOOKS_WITH_STILLS: ReadonlySet<string> = new Set([
+  "beast_bounce", "bold_pill", "cartoon_stack_classic", "chat_bubble", "comic_burst",
+  "desi_clean", "explainer", "film_noir", "gaming_hud", "glow_stack_classic",
+  "gradient_pop", "highlighter_card", "hormozi_box", "ice_duo", "karaoke_fill",
+  "kinetic_mix", "lower_third", "luxe_serif", "metal_script", "minimal_pro",
+  "motivational", "neon_duo", "neon_sign", "netflix_sub", "outline_fill",
+  "pop_clean", "read_along", "retro_3d", "retro_vhs", "scribble",
+  "serif_accent_glow", "serif_behind", "serif_pop_classic", "soft_glow", "staggered_splash",
+  "storytime", "terminal", "vintage_cinematic", "wave_bounce",
+]);
 
 /**
  * Live-text preview in the template's own font and colours: the poster whenever no rendered still exists.
@@ -60,9 +79,9 @@ const SwatchPreview: React.FC<{ look: LookDefinition }> = ({ look }) => {
  * The live animated layer (AnimatedTemplatePreview) mounts over this poster near the viewport, so every
  * template — with or without a still — plays its real motion.
  */
-const TemplatePoster: React.FC<{ look: LookDefinition }> = ({ look }) => {
+export const TemplatePoster: React.FC<{ look: LookDefinition }> = ({ look }) => {
   const [stillOk, setStillOk] = useState(true);
-  if (!BUILT_IN.has(look.id) || !stillOk) return <SwatchPreview look={look} />;
+  if (!LOOKS_WITH_STILLS.has(look.id) || !stillOk) return <SwatchPreview look={look} />;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={`/looks/${look.id}.webp`} alt={`${look.name} caption style`} loading="lazy" decoding="async" onError={() => setStillOk(false)} className="absolute inset-0 h-full w-full object-contain" />

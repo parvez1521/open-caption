@@ -42,6 +42,15 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
   );
   const [nowMs, setNowMs] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Phase 9 W2, quirk (c): a transient media error LATCHES in the preview. The composition's
+  // video element passes no onError, so Remotion's preview video THROWS on a media error, and
+  // @remotion/player's ErrorBoundary keeps the fallback on screen forever — its state has no
+  // reset; only a full page reload recovered it. (A resize crossing the studio's 1024px layout
+  // breakpoint remounts this Player mid-load, which is exactly the kind of moment a browser
+  // aborts a blob-URL load with a media error.) Recovery: our own errorFallback with a retry
+  // that remounts the Player (key bump), which resets the boundary and reloads the same —
+  // still valid — media URL.
+  const [attempt, setAttempt] = useState(0);
   const durationInFrames = Math.max(1, Math.ceil((durationMs / 1000) * fps));
 
   const setRef = (r: PlayerRef | null) => {
@@ -94,6 +103,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
       <div className={compact ? "flex min-h-0 w-full flex-1 items-center justify-center" : "contents"}>
       <div ref={boxRef} className="group relative overflow-hidden rounded-xl bg-[#0B0B0A] shadow-[0_18px_40px_-18px_rgba(0,0,0,0.45)] ring-1 ring-st-ink/10" style={{ aspectRatio: `${width} / ${height}`, height: "100%", maxWidth: "100%" }}>
         <Player
+          key={attempt}
           ref={setRef}
           component={CaptionedVideo as unknown as React.ComponentType<Record<string, unknown>>}
           inputProps={input as unknown as Record<string, unknown>}
@@ -106,6 +116,18 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
           clickToPlay
           acknowledgeRemotionLicense
           numberOfSharedAudioTags={0}
+          errorFallback={() => (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[#0B0B0A] p-4 text-center">
+              <p className="text-sm text-white/85">Unable to play this video in the preview.</p>
+              <button
+                type="button"
+                onClick={() => setAttempt((a) => a + 1)}
+                className="rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-black"
+              >
+                Try again
+              </button>
+            </div>
+          )}
         />
         {dragging ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-st-em/50" /> : null}
         {showSafeZone ? (
