@@ -44,3 +44,7 @@ next-env.d.ts
 # local copy of the Hinglish speech model for development (published to Hugging Face)
 /public/models-dev/
 !.env.example
+
+# Playwright (Wave-4 e2e, run via pnpm test:e2e)
+test-results/
+playwright-report/
