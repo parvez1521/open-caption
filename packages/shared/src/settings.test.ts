@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
-  CompositionSettingsSchema, DEFAULT_COMPOSITION_TRACKS, DEFAULT_TRACK_STATE, EMPTY_COMPOSITION_SETTINGS,
-  OverlayItemSchema, ProjectSettingsSchema, defaultSettings,
-  exportDimensions, exportDimensionsForAspect, exportMemoryErrorMessage, framesForDurationMs,
+  CanvasSettingsSchema, CompositionSettingsSchema, DEFAULT_COMPOSITION_TRACKS, DEFAULT_TRACK_STATE, EMPTY_COMPOSITION_SETTINGS,
+  IDENTITY_SEGMENT_TRANSFORM, OverlayItemSchema, ProjectSettingsSchema, SegmentTransformSchema, VideoSegmentSchema, defaultSettings,
+  compositionDurationMs, exportDimensions, exportDimensionsForAspect, exportMemoryErrorMessage, framesForDurationMs,
+  segmentTimelineDurationMs, segmentsTimelineDurationMs,
   type ExportResolution,
 } from "./settings";
+
+/** The Run-2 segment defaults every pre-Run-2 stored segment parses with. */
+const SEG_DEFAULTS = {
+  playbackRate: 1,
+  transform: IDENTITY_SEGMENT_TRANSFORM,
+  transitionIn: null,
+  assetId: null,
+  still: false,
+} as const;
 
 describe("ProjectSettings editor elements (Slice 1d)", () => {
   it("defaults videoAdjust to neutral and overlays to empty on an empty object", () => {
@@ -260,7 +270,14 @@ describe("composition (Stage-B composition slice in settings)", () => {
         graphics: { locked: false, visible: false, muted: false },
       },
     };
-    expect(ProjectSettingsSchema.parse({ composition }).composition).toEqual(composition);
+    // pre-Run-2 segment literals parse with every Run-2 field defaulted (identically, in spirit)
+    const parsed = ProjectSettingsSchema.parse({ composition }).composition;
+    expect(parsed).toEqual({
+      ...composition,
+      videoSegments: composition.videoSegments.map((s) => ({ ...s, ...SEG_DEFAULTS })),
+    });
+    expect(parsed.markers).toEqual(composition.markers);
+    expect(parsed.tracks).toEqual(composition.tracks);
   });
 
   it("rejects a segment whose out point is at or before its in point", () => {
@@ -307,5 +324,77 @@ describe("clipRange (Clipper projects)", () => {
     expect(effectiveDurationMs(50_000, range)).toBe(18_000);
     // unknown source duration: the range itself is the bound
     expect(effectiveDurationMs(0, range)).toBe(33_000);
+  });
+});
+
+describe("VideoSegment Run-2 fields (Stage C model evolution)", () => {
+  it("an old stored segment (id + in/out only) parses with all Run-2 defaults", () => {
+    const seg = VideoSegmentSchema.parse({ id: "s1", sourceInMs: 1000, sourceOutMs: 5000 });
+    expect(seg).toEqual({ id: "s1", sourceInMs: 1000, sourceOutMs: 5000, ...SEG_DEFAULTS });
+    expect(seg.transform).toEqual(IDENTITY_SEGMENT_TRANSFORM);
+  });
+
+  it("SegmentTransformSchema.parse({}) is the identity transform", () => {
+    expect(SegmentTransformSchema.parse({})).toEqual(IDENTITY_SEGMENT_TRANSFORM);
+    expect(IDENTITY_SEGMENT_TRANSFORM).toEqual({
+      cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0,
+      flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0,
+    });
+  });
+
+  it("keeps explicit Run-2 values and rejects out-of-range ones", () => {
+    const seg = VideoSegmentSchema.parse({
+      id: "s1", sourceInMs: 0, sourceOutMs: 8000, playbackRate: 2,
+      transform: { cropLeft: 0.1, rotateDeg: -90, flipH: true, scale: 1.5, offsetX: 0.25 },
+      transitionIn: { type: "fade", durationMs: 500 }, assetId: "asset-9", still: true,
+    });
+    expect(seg.playbackRate).toBe(2);
+    expect(seg.transform).toMatchObject({ cropLeft: 0.1, rotateDeg: -90, flipH: true, scale: 1.5, offsetX: 0.25, cropTop: 0 });
+    expect(seg.transitionIn).toEqual({ type: "fade", durationMs: 500 });
+    expect(seg.assetId).toBe("asset-9");
+    expect(seg.still).toBe(true);
+    expect(() => VideoSegmentSchema.parse({ id: "s", sourceInMs: 0, sourceOutMs: 10, playbackRate: 0.1 })).toThrow();
+    expect(() => VideoSegmentSchema.parse({ id: "s", sourceInMs: 0, sourceOutMs: 10, playbackRate: 5 })).toThrow();
+    expect(() => VideoSegmentSchema.parse({ id: "s", sourceInMs: 0, sourceOutMs: 10, transform: { cropLeft: 0.95 } })).toThrow();
+    expect(() => VideoSegmentSchema.parse({ id: "s", sourceInMs: 0, sourceOutMs: 10, transitionIn: { type: "fade", durationMs: 50 } })).toThrow();
+    expect(() => VideoSegmentSchema.parse({ id: "s", sourceInMs: 0, sourceOutMs: 10, transitionIn: { type: "spin", durationMs: 500 } })).toThrow();
+  });
+
+  it("segmentTimelineDurationMs divides the source span by the rate (rounded)", () => {
+    expect(segmentTimelineDurationMs({ sourceInMs: 0, sourceOutMs: 10_000, playbackRate: 1 })).toBe(10_000);
+    expect(segmentTimelineDurationMs({ sourceInMs: 0, sourceOutMs: 10_000, playbackRate: 2 })).toBe(5000);
+    expect(segmentTimelineDurationMs({ sourceInMs: 2000, sourceOutMs: 12_000, playbackRate: 0.5 })).toBe(20_000);
+    expect(segmentTimelineDurationMs({ sourceInMs: 0, sourceOutMs: 1000, playbackRate: 3 })).toBe(333);
+    expect(segmentsTimelineDurationMs([
+      { sourceInMs: 0, sourceOutMs: 10_000, playbackRate: 2 },
+      { sourceInMs: 0, sourceOutMs: 4000, playbackRate: 0.5 },
+    ])).toBe(13_000);
+    expect(segmentsTimelineDurationMs([])).toBe(0);
+  });
+
+  it("compositionDurationMs subtracts only transitions on segments[1..]", () => {
+    const a = { sourceInMs: 0, sourceOutMs: 10_000, playbackRate: 1, transitionIn: { type: "fade" as const, durationMs: 900 } };
+    const b = { sourceInMs: 20_000, sourceOutMs: 30_000, playbackRate: 1, transitionIn: { type: "wipe" as const, durationMs: 500 } };
+    const c = { sourceInMs: 40_000, sourceOutMs: 50_000, playbackRate: 2, transitionIn: null };
+    // a's own transitionIn is ignored (index 0); totals: 10000+10000+5000 − 500
+    expect(compositionDurationMs([a, b, c])).toBe(24_500);
+    expect(compositionDurationMs([a])).toBe(10_000);
+    expect(compositionDurationMs([])).toBe(0);
+    expect(compositionDurationMs([b, c])).toBe(15_000);
+  });
+});
+
+describe("canvas settings (Run 2)", () => {
+  it("defaults to source aspect + blur background on old projects", () => {
+    expect(ProjectSettingsSchema.parse({}).canvas).toEqual({ aspect: "source", background: "blur" });
+    expect(defaultSettings().canvas).toEqual({ aspect: "source", background: "blur" });
+    expect(CanvasSettingsSchema.parse({})).toEqual({ aspect: "source", background: "blur" });
+  });
+
+  it("keeps an explicit aspect and a CSS-colour background", () => {
+    expect(ProjectSettingsSchema.parse({ canvas: { aspect: "9:16", background: "#101010" } }).canvas)
+      .toEqual({ aspect: "9:16", background: "#101010" });
+    expect(() => ProjectSettingsSchema.parse({ canvas: { aspect: "3:4" } })).toThrow();
+    expect(() => ProjectSettingsSchema.parse({ canvas: { background: "" } })).toThrow();
   });
 });
