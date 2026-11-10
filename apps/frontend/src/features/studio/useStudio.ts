@@ -378,21 +378,36 @@ export function useStudio(projectId: string) {
    * the doc via the revisioned save, settings via the project patch.
    */
   const editAll = useCallback(
-    (next: { doc?: CaptionDoc; settings?: ProjectSettings }) => {
+    (next: { doc?: CaptionDoc; settings?: ProjectSettings; style?: CaptionStyleV2 | null; lookId?: string | null }) => {
       const docChanged = next.doc !== undefined && next.doc !== docRef.current;
       const settingsChanged =
         next.settings !== undefined && JSON.stringify(next.settings) !== JSON.stringify(settingsRef.current);
-      if (!docChanged && !settingsChanged) return;
+      // Phase 5 (A2, One-click Polish): a polish pass can also carry a caption-look
+      // change (style + lookId) in the SAME step — without these fields the look
+      // would land as a second undo step and one Ctrl+Z could not undo the pass.
+      const styleChanged = next.style !== undefined && JSON.stringify(next.style) !== JSON.stringify(styleRef.current);
+      const lookChanged = next.lookId !== undefined && next.lookId !== lookRef.current;
+      if (!docChanged && !settingsChanged && !styleChanged && !lookChanged) return;
       recordHistory();
       if (docChanged && next.doc) {
         docRef.current = next.doc;
         setDocState(next.doc);
         schedule();
       }
+      if (styleChanged) {
+        styleRef.current = next.style ?? null;
+        setStyleState(next.style ?? null);
+      }
+      if (lookChanged) {
+        lookRef.current = next.lookId ?? null;
+        setLookId(next.lookId ?? null);
+      }
       if (settingsChanged && next.settings) {
         const parsed = ProjectSettingsSchema.parse(next.settings);
         settingsRef.current = parsed;
         setSettingsState(parsed);
+        persist();
+      } else if (styleChanged || lookChanged) {
         persist();
       }
     },

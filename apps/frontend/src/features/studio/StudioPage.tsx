@@ -32,6 +32,8 @@ import { AudioPanel } from "./panels/AudioPanel";
 import { ClipperPanel } from "./panels/ClipperPanel";
 import { TranslatePanel } from "./panels/TranslatePanel";
 import { TrimPanel } from "./panels/TrimPanel";
+import { PolishPanel } from "./panels/PolishPanel";
+import { polishCommitSettings, type PolishProjectState } from "./polish";
 import { removeRangesFromVideo, trimRangeEffects, type TrimRange } from "./trim";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
@@ -91,7 +93,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "clipper" | "translate" | "trim";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "clipper" | "translate" | "trim" | "polish";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -110,6 +112,7 @@ const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?:
   { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
   { id: "clipper", label: "Clipper", icon: railIcon(<><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" /></>) },
   { id: "trim", label: "Trim", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /><path d="M3 21l7-7" /></>) },
+  { id: "polish", label: "Polish", icon: railIcon(<><path d="M4 20c2.5.5 5-.5 6-2.5L20.5 8a2.12 2.12 0 0 0-3-3L7 15.5C5 16.5 4 18 4 20z" /><path d="M13.5 6.5l3 3" /></>) },
 ];
 
 const SAVE_LABEL: Record<SaveState, { text: string; dot: string }> = {
@@ -1119,6 +1122,19 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       : t === "translate" ? (doc ? <TranslatePanel projectId={projectId} doc={doc} settings={settings} patch={s.patchSettings} translations={translations} onTranslated={(lang, tdoc) => setTranslations((prev) => ({ ...prev, [lang]: tdoc }))} /> : null)
       : t === "clipper" ? (doc ? <ClipperPanel projectId={projectId} sourceTitle={data.project.title} sourceVideoId={data.video?.id ?? null} mediaDurationMs={settings.clipRange ? durationMs : (data.video?.durationMs ?? 0)} doc={doc} peaks={wave.peaks} videoUrl={video?.url ?? null} sourceWidth={data.video?.width ?? null} sourceHeight={data.video?.height ?? null} sourceUrl={video?.url ?? null} /> : null)
       : t === "trim" ? (doc ? <TrimPanel doc={doc} peaks={wave.peaks} durationMs={durationMs} onSeek={seek} onApply={applyTrim} /> : null)
+      : t === "polish" ? (doc && style && editorComp ? (
+        <PolishPanel
+          state={{ doc, comp: editorComp, settings, style, lookId: s.lookId }}
+          sourceTitle={data.project.title}
+          peaks={wave.peaks}
+          hopMs={1000 / PEAKS_PER_SECOND}
+          onCommit={(next: PolishProjectState) => {
+            // ONE editAll for the whole pass (doc + projected settings + look),
+            // so a single Ctrl+Z undoes an apply — and likewise a per-step revert.
+            s.editAll({ doc: next.doc, settings: polishCommitSettings(next), style: next.style, lookId: next.lookId });
+          }}
+        />
+      ) : null)
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
 
