@@ -1,8 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import type { OverlayItem } from "@capseasy/shared";
 import { SOCIAL_META } from "@capseasy/compositions";
+import { getMotionTemplate } from "@capseasy/motion";
+import type { MediaAssetRecord } from "../mediaStore";
+import type { ImportError } from "../useMediaAssets";
 import { Button, ColorField, Section, Slider, fmtTime } from "../controls";
 
 /**
@@ -14,7 +17,18 @@ export const OverlayEditor: React.FC<{
   item: OverlayItem;
   onChange: (next: OverlayItem) => void;
   onDelete: () => void;
-}> = ({ item, onChange, onDelete }) => {
+  /** the project's device-local media bin + importer, for the social avatar/QR asset picker.
+   *  Absent = no picker (the panel was mounted without a bin). */
+  mediaAssets?: MediaAssetRecord[];
+  onImportMedia?: (files: File[]) => Promise<ImportError[]>;
+}> = ({ item, onChange, onDelete, mediaAssets, onImportMedia }) => {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importNote, setImportNote] = useState<string | null>(null);
+  // a social item whose registry entry carries an image field (avatar / QR) gets an asset picker:
+  // the item references the bin asset by id, and the composition resolves that id to the
+  // device-local bytes at render time (the same flow image overlays already use).
+  const imageField = item.kind === "social" && item.variant ? getMotionTemplate(item.variant)?.fields.find((f) => f.kind === "image") : undefined;
+  const imageAssets = (mediaAssets ?? []).filter((a) => a.kind === "image");
   const set = (p: Partial<OverlayItem>) => onChange({ ...item, ...p });
   const setStart = (sec: number) => {
     if (!Number.isFinite(sec)) return;
@@ -56,6 +70,58 @@ export const OverlayEditor: React.FC<{
             />
           )}
         </label>
+      ) : null}
+      {imageField && mediaAssets ? (
+        <div className="text-sm text-st-text/90">
+          <span className="mb-1 block">{imageField.label}</span>
+          {imageAssets.length ? (
+            <div className="space-y-1.5">
+              {imageAssets.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  aria-pressed={item.assetId === a.id}
+                  onClick={() => set({ assetId: a.id, assetName: a.name })}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${item.assetId === a.id ? "bg-st-lav text-st-ink" : "bg-st-raised/60 text-st-text hover:bg-st-hover"}`}
+                >
+                  <span className="min-w-0 flex-1 truncate font-medium">{a.name}</span>
+                  {item.assetId === a.id ? <span className="shrink-0 text-xs">In use</span> : null}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-st-faint">No images in this project&apos;s media bin yet. Upload one and it can be used here.</p>
+          )}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {onImportMedia ? (
+              <>
+                <button type="button" onClick={() => fileRef.current?.click()} className="rounded-md border border-st-line px-2 py-1 text-[12px] font-medium text-st-text transition hover:bg-st-hover">Upload image</button>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  aria-label={`Upload ${imageField.label}`}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    setImportNote(null);
+                    void onImportMedia([f]).then((errs) => {
+                      if (errs.length) setImportNote(errs.map((x) => x.error).join(" "));
+                      else setImportNote(`Added ${f.name} to the media bin — pick it above to use it here.`);
+                    });
+                  }}
+                />
+              </>
+            ) : null}
+            {item.assetId ? (
+              <button type="button" onClick={() => set({ assetId: undefined, assetName: undefined })} className="rounded-md border border-st-line px-2 py-1 text-[12px] font-medium text-orange-accent transition hover:bg-st-hover">Clear image</button>
+            ) : null}
+          </div>
+          {importNote ? <p role="status" className="mt-1.5 text-xs text-st-muted">{importNote}</p> : null}
+          <p className="mt-1.5 text-xs text-st-faint">Kept in this browser&apos;s media bin for this project — it renders in the preview and the in-browser MP4 export.</p>
+        </div>
       ) : null}
       <div className="flex items-end gap-2">
         <label className="flex-1 text-sm text-st-text/90">

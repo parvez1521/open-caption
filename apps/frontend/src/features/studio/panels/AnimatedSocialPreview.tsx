@@ -5,6 +5,7 @@ import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { OverlayView } from "@capseasy/compositions";
 import { makeSocialOverlay } from "./overlayItems";
 import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot } from "./livePreviewBudget";
+import { socialStageFor } from "./socialStage";
 
 /**
  * Live animated preview for a Social Media graphic in the Elements picker — the fix for the owner
@@ -26,6 +27,8 @@ import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot }
  * width, the tallest (Orbit Badge / Heart Burst, 300 px, plus the 26 px entrance rise) fits the
  * 360 px height, and the item is re-centred (x/y = 0.5) instead of keeping its on-video default
  * y = 0.78, which in a window this short would push tall graphics against the bottom edge.
+ * Tall variants (qr-frame, kinetic-title, profile-card — socialStage.ts) get a taller 700×540
+ * window instead, so the whole graphic fits rather than clipping at the flat height.
  * Motion, colours, text and timing are untouched — only the window is closer.
  *
  * Performance discipline mirrors AnimatedTemplatePreview exactly:
@@ -37,17 +40,19 @@ import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot }
  *  - prefers-reduced-motion keeps the poster, always.
  */
 
-/** The stage window in reference px (see the geometry note above) and its frame rate. */
-const CANVAS = { width: 700, height: 360, fps: 30 };
+/** The stage frame rate: the clock steps in authored 30 fps frames, like the Player + export. */
+const PREVIEW_FPS = 30;
 /** sc for the stage window: graphics are drawn at the 1080-reference scale (sc = 1), zoomed. */
 const PREVIEW_SC = 1;
 /** Poster instant: inside every variant's acted state (pill flipped, heart filled, count +1,
  *  counter near its target, chat bubbles all in, search query typed) but before the exit fade. */
 const POSTER_MS = 2600;
 
-/** One scaled stage: the virtual canvas div, CSS-scaled to the card width, holding OverlayView. */
-const SocialStage: React.FC<{ item: OverlayItem; localMs: number; scale: number }> = ({ item, localMs, scale }) => (
-  <div style={{ width: CANVAS.width, height: CANVAS.height, transform: `scale(${scale})`, transformOrigin: "top left", position: "relative" }}>
+/** One scaled stage: the virtual canvas div, CSS-scaled to the card width, holding OverlayView.
+ *  Its size comes from socialStageFor — tall variants (qr-frame, kinetic-title, profile-card)
+ *  get a taller window so the whole graphic fits instead of clipping at the flat 360 px. */
+const SocialStage: React.FC<{ item: OverlayItem; localMs: number; scale: number; width: number; height: number }> = ({ item, localMs, scale, width, height }) => (
+  <div style={{ width, height, transform: `scale(${scale})`, transformOrigin: "top left", position: "relative" }}>
     <OverlayView item={item} sc={PREVIEW_SC} localMs={localMs} />
   </div>
 );
@@ -117,13 +122,13 @@ const AnimatedSocialPreviewInner: React.FC<{ variant: OverlaySocialVariant }> = 
     };
   }, [near]);
 
-  // The clock steps in authored frames (CANVAS.fps = 30) and loops over the item's own window,
+  // The clock steps in authored frames (PREVIEW_FPS = 30) and loops over the item's own window,
   // exactly like the template previews: stepping on every display refresh would double the React
   // renders while producing frames the composition never actually shows.
   useEffect(() => {
     if (!live) return;
     let raf = 0;
-    const frameMs = 1000 / CANVAS.fps;
+    const frameMs = 1000 / PREVIEW_FPS;
     const t0 = performance.now();
     let lastStep = -1;
     const tick = (now: number) => {
@@ -138,19 +143,20 @@ const AnimatedSocialPreviewInner: React.FC<{ variant: OverlaySocialVariant }> = 
     return () => cancelAnimationFrame(raf);
   }, [live, loopMs]);
 
-  const scale = boxW > 0 ? boxW / CANVAS.width : 0;
+  const stage = socialStageFor(variant);
+  const scale = boxW > 0 ? boxW / stage.width : 0;
   return (
-    <div ref={boxRef} data-testid="social-preview" data-variant={variant} aria-hidden className="pointer-events-none relative aspect-[700/360] w-full overflow-hidden bg-black">
+    <div ref={boxRef} data-testid="social-preview" data-variant={variant} data-stage-height={stage.height} aria-hidden className="pointer-events-none relative w-full overflow-hidden bg-black" style={{ aspectRatio: `${stage.width} / ${stage.height}` }}>
       {/* poster: a still of the real element — what shows before the live layer mounts, what
           reduced-motion users keep, and the layer under the live one while it plays */}
       {scale > 0 ? (
         <div className="absolute inset-0 bg-black">
-          <SocialStage item={posterItem} localMs={POSTER_MS} scale={scale} />
+          <SocialStage item={posterItem} localMs={POSTER_MS} scale={scale} width={stage.width} height={stage.height} />
         </div>
       ) : null}
       {live && scale > 0 ? (
         <div data-testid="social-preview-live" className="absolute inset-0 bg-black">
-          <SocialStage item={liveItem} localMs={timeMs} scale={scale} />
+          <SocialStage item={liveItem} localMs={timeMs} scale={scale} width={stage.width} height={stage.height} />
         </div>
       ) : null}
     </div>

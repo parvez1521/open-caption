@@ -684,13 +684,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   }, [projectId]);
   const activeTranslatedDoc = settings.translateTo ? translations[settings.translateTo] : undefined;
 
-  // resolved URLs for placed image overlays (device-local bytes → object URLs for this session);
+  // resolved URLs for placed image overlays + social avatar/QR assets (device-local bytes → object URLs for this session);
   // threaded into the one input object, so the Player preview and the in-browser export agree
   const [overlayAssetUrls, setOverlayAssetUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     const urls: Record<string, string> = {};
     for (const o of settings.overlays) {
-      if (o.kind !== "image" || !o.assetId || urls[o.assetId]) continue;
+      // image overlays draw the asset itself; social overlays use it in their avatar/QR slot —
+      // CaptionedVideo resolves both from this same map (item.assetId -> object URL)
+      if ((o.kind !== "image" && o.kind !== "social") || !o.assetId || urls[o.assetId]) continue;
       const asset = mediaBin.assets.find((a) => a.id === o.assetId);
       if (asset) urls[o.assetId] = URL.createObjectURL(asset.blob);
     }
@@ -1059,7 +1061,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     </div>
   ) : null;
 
-  const overlayPanelProps = { settings, patch: s.patchSettings, selectedId: selectedOverlayId, onSelect: selectOverlay, getTimeMs: getPlayerMs, durationMs, composition };
+  const overlayPanelProps = { settings, patch: s.patchSettings, selectedId: selectedOverlayId, onSelect: selectOverlay, getTimeMs: getPlayerMs, durationMs, composition, mediaAssets: mediaBin.assets, onImportMedia: mediaBin.importFiles };
   // place an imported image as a timed overlay at a given time, then open its editor in Elements
   const placeImageAt = (asset: { id: string; name: string }, atMs: number) => {
     const item = makeImageOverlay(asset, atMs, durationMs);

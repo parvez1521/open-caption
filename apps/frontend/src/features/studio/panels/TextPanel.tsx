@@ -2,6 +2,8 @@
 
 import React from "react";
 import type { OverlayItem, ProjectSettings } from "@capseasy/shared";
+import type { MediaAssetRecord } from "../mediaStore";
+import type { ImportError } from "../useMediaAssets";
 import { Button, Section } from "../controls";
 import { overlayItemsOf, type Composition } from "../composition";
 import { OverlayEditor, OverlayRow } from "./OverlayEditor";
@@ -17,6 +19,10 @@ export interface OverlayPanelProps {
   durationMs: number;
   /** the Stage-A composition view — lists read from it; writes still go through `patch` */
   composition?: Composition | null;
+  /** the project's device-local media bin, for the social-overlay avatar/QR asset picker in
+   *  OverlayEditor (optional: panels mounted without a bin simply don't offer the picker) */
+  mediaAssets?: MediaAssetRecord[];
+  onImportMedia?: (files: File[]) => Promise<ImportError[]>;
 }
 
 export interface TextPanelProps extends OverlayPanelProps {
