@@ -4,9 +4,10 @@ import React, { useEffect, useRef, useState } from "react";
 import { Button, Section, fmtBytes, fmtTime } from "../controls";
 import type { Composition } from "../composition";
 import { trackOf } from "../composition";
-import { describeAssetMeta } from "../mediaAssets";
+import { describeAssetLicence, describeAssetMeta } from "../mediaAssets";
 import type { MediaAssetRecord } from "../mediaStore";
 import type { ImportError } from "../useMediaAssets";
+import { StockAudioSection } from "./StockAudioSection";
 
 export interface MediaInfo {
   filename: string | null;
@@ -28,6 +29,9 @@ export interface MediaPanelProps {
   onImport: (files: File[]) => Promise<ImportError[]>;
   onDeleteAsset: (id: string) => Promise<void>;
   onPlaceImage?: (asset: MediaAssetRecord) => void;
+  /** stock audio (A10): the project id stock imports land in, and a bin refresh for when one lands */
+  stockProjectId?: string | null;
+  onStockAdded?: () => void;
 }
 
 /**
@@ -37,7 +41,7 @@ export interface MediaPanelProps {
  * same attach path as re-link; an imported image can be placed as a timed overlay; an imported
  * audio file can be dragged onto the timeline or placed from the Audio panel.
  */
-export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRelink, assets, importing, onImport, onDeleteAsset, onPlaceImage }) => {
+export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRelink, assets, importing, onImport, onDeleteAsset, onPlaceImage, stockProjectId, onStockAdded }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const binRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -116,6 +120,9 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
           <p className="text-xs text-st-faint">Nothing imported yet. Add B-roll, music or a logo image and it stays here for this project.</p>
         )}
       </Section>
+      <Section title="Stock audio" hint="A bundled CC0 starter pack of sound effects, plus Pixabay music and sounds you can import with your own free Pixabay API key. Stock audio lands in the media bin above, exactly like an imported file, with its licence record attached.">
+        <StockAudioSection projectId={stockProjectId ?? null} onAdded={onStockAdded} tone="studio" />
+      </Section>
       <Section title="Where the video lives" hint="Your video stays on this device. Only the captions and settings are saved to your account, so opening this project on another device asks you to pick the video file again.">
         <Button disabled={busy} onClick={() => inputRef.current?.click()}>{busy ? "Linking…" : "Re-link video file"}</Button>
         <p className="text-xs text-st-faint">Pick the same video file on this device. The copy stored here is replaced; your captions and timing do not change.</p>
@@ -167,6 +174,12 @@ const AssetRow: React.FC<{
       <p className="text-xs tabular-nums text-st-muted">
         <span className="font-semibold uppercase tracking-wide">{asset.kind}</span> · {describeAssetMeta(asset)}
       </p>
+      {asset.licence ? (
+        <p className="text-xs text-st-faint">
+          {describeAssetLicence(asset.licence)} ·{" "}
+          <a href={asset.licence.sourceUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">source</a>
+        </p>
+      ) : null}
       <div className="mt-1 flex flex-wrap gap-1.5">
         {onUseAsSource ? (
           <button type="button" disabled={busy} onClick={onUseAsSource} className="rounded-md border border-st-line px-2 py-0.5 text-[11px] font-medium text-st-text transition hover:bg-st-hover disabled:opacity-40">Use as project video</button>

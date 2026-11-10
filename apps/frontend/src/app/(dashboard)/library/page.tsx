@@ -8,7 +8,8 @@ import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
 import StudioShell from "@/components/studio/StudioShell";
-import { formatBytes } from "@/features/studio/mediaAssets";
+import { describeAssetLicence, formatBytes } from "@/features/studio/mediaAssets";
+import { StockAudioSection } from "@/features/studio/panels/StockAudioSection";
 import { clearAssetPreviews, deleteAsset, listAllAssets, type MediaAssetRecord } from "@/features/studio/mediaStore";
 import {
   DERIVED_KIND_LABELS,
@@ -62,6 +63,7 @@ export default function LibraryPage() {
   >(null);
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [cleanupNotice, setCleanupNotice] = useState<string | null>(null);
+  const [stockProjectId, setStockProjectId] = useState<string>("");
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -192,6 +194,41 @@ export default function LibraryPage() {
           </p>
         </div>
 
+        {signedIn && (
+          <section aria-label="Stock audio" className="mt-8 rounded-xl border border-sand-200 bg-white px-5 py-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <h2 className="font-sora text-[14px] font-bold text-ink">Stock audio</h2>
+              <p className="text-[12px] text-sand-600">Bundled CC0 sound effects + Pixabay browse-import (A10)</p>
+            </div>
+            <p className="mt-1.5 max-w-[72ch] text-[12px] leading-relaxed text-sand-700">
+              Stock audio is added to a project&apos;s media bin on this device, as a normal asset with
+              its licence record attached — from there it is placed from the project&apos;s Audio panel
+              like any imported file.
+            </p>
+            <label className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-sand-800">
+              <span className="font-semibold">Add to project:</span>
+              <select
+                value={stockProjectId}
+                onChange={(e) => setStockProjectId(e.target.value)}
+                aria-label="Project to add stock audio to"
+                className="rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] text-ink outline-none"
+              >
+                <option value="">Choose a project…</option>
+                {(projectsData?.projects ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.title}</option>
+                ))}
+              </select>
+            </label>
+            <div className="mt-4">
+              <StockAudioSection
+                projectId={stockProjectId || null}
+                tone="library"
+                onAdded={() => { void listAllAssets().then(setAssets); }}
+              />
+            </div>
+          </section>
+        )}
+
         {assets === null ? (
           <p role="status" className="pt-8 text-[14px] text-sand-700">Loading the media on this device…</p>
         ) : all.length === 0 ? (
@@ -284,6 +321,16 @@ export default function LibraryPage() {
                         {a.width || a.height ? <>{" · "}{formatDimensions(a.width, a.height)}</> : null}
                         {classifyDerivedAsset(a) ? <>{" · "}<span className="font-semibold">Derived: {DERIVED_SINGULAR[classifyDerivedAsset(a)!]}</span></> : null}
                       </p>
+                      {a.licence ? (
+                        <p className="mt-0.5 text-[12px] text-sand-600">
+                          <span className="font-semibold">Licence:</span> {describeAssetLicence(a.licence)} — “{a.licence.title}”
+                          {a.licence.author ? <> by {a.licence.author}</> : null}
+                          {" · retrieved "}{a.licence.retrievedAt}
+                          {a.licence.contentIdRegistered === true ? <>{" · "}<span className="font-semibold text-obsidian">Content-ID registered</span></> : null}
+                          {" · "}
+                          <a href={a.licence.sourceUrl} target="_blank" rel="noreferrer" className="font-semibold text-sand-800 underline decoration-sand-300 underline-offset-2 hover:text-ink">source</a>
+                        </p>
+                      ) : null}
                       <p className="mt-0.5 truncate text-[12px] text-sand-600">
                         Project:{" "}
                         <Link href={`/projects/${a.projectId}`} className="font-semibold text-sand-800 underline decoration-sand-300 underline-offset-2 hover:text-ink">
