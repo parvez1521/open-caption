@@ -20,9 +20,11 @@ describe("shell nav config", () => {
       ["primary", "Creator Studio", "/create"],
       ["primary", "Caption Studio", "/captions"],
       ["primary", "Video Editor", "/editor"],
+      ["primary", "Growth Studio", "/growth"],
       ["supporting", "Media Library", "/library"],
       ["supporting", "Brand Kit", "/brand"],
       ["supporting", "Clipper", "/clipper"],
+      ["supporting", "Reel Analyzer", "/analyzer"],
       ["supporting", "Export History", "/exports"],
       ["supporting", "Settings", "/settings"],
     ]);
@@ -39,7 +41,7 @@ describe("shell nav config", () => {
   });
 
   it("does not mention sections that do not exist yet (no placeholder nav)", () => {
-    const forbidden = ["Growth Studio", "Content Planner", "Teleprompter", "Creator Analytics", "Reel Analyzer"];
+    const forbidden = ["Content Planner", "Teleprompter", "Creator Analytics"];
     for (const item of NAV_ITEMS) {
       for (const label of forbidden) {
         expect(item.label).not.toBe(label);

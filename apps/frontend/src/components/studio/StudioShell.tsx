@@ -29,9 +29,11 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   create: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>),
   captions: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 12h4M7 15.5h7M14 12h3" strokeLinecap="round" /></svg>),
   editor: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M8 5v5" strokeLinecap="round" /></svg>),
+  growth: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M4 17l5-6 4 3 7-8" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 6h5v5" /></svg>),
   library: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-4 4 3 3-2 6 4" /></svg>),
   brand: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.1 4.6L19 9l-3.6 3.3 1 4.9L12 14.7l-4.4 2.5 1-4.9L5 9l4.9-1.4L12 3z" /></svg>),
   clipper: (<svg {...iconProps}><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" strokeLinecap="round" /></svg>),
+  analyzer: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" strokeLinejoin="round" d="M7 12h2.5l2-3.5 2.5 6 1.8-2.5H17" /></svg>),
   exports: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>),
   settings: (<svg {...iconProps}><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /></svg>),
 };
