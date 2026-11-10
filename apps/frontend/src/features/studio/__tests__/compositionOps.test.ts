@@ -11,22 +11,40 @@ import { toComposition, type CompositionInput } from "../composition";
 import { buildEditorComposition, isPartition, projectComposition, type EditorComposition } from "../compositionDoc";
 import {
   addMarker,
+  applyContentEffect,
   applyContentShift,
   applyDocEffect,
   canRippleDeleteVideoSegment,
   deleteOverlayClip,
   duplicateOverlayClip,
+  duplicateVideoSegment,
+  insertStillSegmentAt,
   moveOverlayClip,
   overlayTrackOf,
   removeMarker,
   rippleDeleteOverlayClip,
   rippleDeleteVideoSegment,
+  setSegmentPlaybackRate,
+  setSegmentTransform,
+  setSegmentTransition,
   setTrackState,
   splitOverlayClipAt,
   splitVideoClipAt,
   trimOverlayClip,
   trimVideoClipEdge,
 } from "../compositionOps";
+
+/** The Run-2 editor-clip defaults every pre-Run-2 segment builds with. */
+const CLIP_DEFAULTS = {
+  playbackRate: 1,
+  transform: {
+    cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0,
+    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0,
+  },
+  transitionIn: null,
+  assetId: null,
+  still: false,
+} as const;
 
 /**
  * Stage-B clip-op tests (Phase 4, Worker C): every video op's result is run
@@ -135,7 +153,7 @@ describe("splitVideoClipAt", () => {
     expect(out).not.toBe(comp);
     expect(out.videoClips).toHaveLength(4);
     expect(out.videoClips[0]).toEqual(comp.videoClips[0]);
-    expect(out.videoClips[1]).toEqual({ id: "seg-2", kind: "video", startMs: 15_000, durationMs: 5000, sourceInMs: 25_000, sourceOutMs: 30_000 });
+    expect(out.videoClips[1]).toEqual({ id: "seg-2", kind: "video", startMs: 15_000, durationMs: 5000, sourceInMs: 25_000, sourceOutMs: 30_000, ...CLIP_DEFAULTS });
     const second = out.videoClips[2]!;
     expect(second.id).not.toBe("seg-2");
     expect(second.id.length).toBeGreaterThan(0);
@@ -149,7 +167,7 @@ describe("splitVideoClipAt", () => {
   it("splits the first segment, keeping its id on the first half", () => {
     const comp = segmentedComp();
     const { comp: out } = splitVideoClipAt(comp, 5000);
-    expect(out.videoClips[0]).toEqual({ id: "seg-1", kind: "video", startMs: 0, durationMs: 5000, sourceInMs: 10_000, sourceOutMs: 15_000 });
+    expect(out.videoClips[0]).toEqual({ id: "seg-1", kind: "video", startMs: 0, durationMs: 5000, sourceInMs: 10_000, sourceOutMs: 15_000, ...CLIP_DEFAULTS });
     expect(out.videoClips[1]).toMatchObject({ startMs: 5000, durationMs: 10_000, sourceInMs: 15_000, sourceOutMs: 25_000 });
     expectValidPartition(out, segmentedSettings);
   });
@@ -185,8 +203,8 @@ describe("trimVideoClipEdge — boundary roll", () => {
     const before = snapshot(comp);
     const { comp: out, docEffect } = trimVideoClipEdge(comp, "seg-2", "start", 18_000);
     expect(docEffect).toEqual({ type: "none" });
-    expect(out.videoClips[0]).toEqual({ id: "seg-1", kind: "video", startMs: 0, durationMs: 18_000, sourceInMs: 10_000, sourceOutMs: 28_000 });
-    expect(out.videoClips[1]).toEqual({ id: "seg-2", kind: "video", startMs: 18_000, durationMs: 12_000, sourceInMs: 28_000, sourceOutMs: 40_000 });
+    expect(out.videoClips[0]).toEqual({ id: "seg-1", kind: "video", startMs: 0, durationMs: 18_000, sourceInMs: 10_000, sourceOutMs: 28_000, ...CLIP_DEFAULTS });
+    expect(out.videoClips[1]).toEqual({ id: "seg-2", kind: "video", startMs: 18_000, durationMs: 12_000, sourceInMs: 28_000, sourceOutMs: 40_000, ...CLIP_DEFAULTS });
     expect(out.videoClips[1]!.sourceInMs).toBe(out.videoClips[0]!.sourceOutMs);
     expect(out.videoClips[2]).toEqual(comp.videoClips[2]);
     expect(out.durationMs).toBe(45_000);
@@ -241,7 +259,7 @@ describe("trimVideoClipEdge — head trim", () => {
     const before = snapshot(comp);
     const { comp: out, docEffect } = trimVideoClipEdge(comp, "seg-1", "start", 5000);
     expect(docEffect).toEqual({ type: "headShift", deltaMs: 5000 });
-    expect(out.videoClips[0]).toEqual({ id: "seg-1", kind: "video", startMs: 0, durationMs: 10_000, sourceInMs: 15_000, sourceOutMs: 25_000 });
+    expect(out.videoClips[0]).toEqual({ id: "seg-1", kind: "video", startMs: 0, durationMs: 10_000, sourceInMs: 15_000, sourceOutMs: 25_000, ...CLIP_DEFAULTS });
     expect(out.videoClips[1]).toMatchObject({ startMs: 10_000, durationMs: 15_000, sourceInMs: 25_000 });
     expect(out.videoClips[2]).toMatchObject({ startMs: 25_000, durationMs: 15_000, sourceInMs: 40_000 });
     expect(out.durationMs).toBe(40_000);
@@ -272,7 +290,7 @@ describe("trimVideoClipEdge — tail trim / extend", () => {
     const before = snapshot(comp);
     const { comp: out, docEffect } = trimVideoClipEdge(comp, "seg-3", "end", 40_000);
     expect(docEffect).toEqual({ type: "none" });
-    expect(out.videoClips[2]).toEqual({ id: "seg-3", kind: "video", startMs: 30_000, durationMs: 10_000, sourceInMs: 40_000, sourceOutMs: 50_000 });
+    expect(out.videoClips[2]).toEqual({ id: "seg-3", kind: "video", startMs: 30_000, durationMs: 10_000, sourceInMs: 40_000, sourceOutMs: 50_000, ...CLIP_DEFAULTS });
     expect(out.durationMs).toBe(40_000);
     expectValidPartition(out, segmentedSettings);
     expectUnmutated(comp, before);
@@ -304,7 +322,7 @@ describe("trimVideoClipEdge — tail trim / extend", () => {
       durationMs: 10_000,
       sourceDurationMs: 0,
       rangeStartMs: 0,
-      videoClips: [{ id: "only", kind: "video", startMs: 0, durationMs: 10_000, sourceInMs: 0, sourceOutMs: 10_000 }],
+      videoClips: [{ id: "only", kind: "video", startMs: 0, durationMs: 10_000, sourceInMs: 0, sourceOutMs: 10_000, ...CLIP_DEFAULTS }],
       captionClips: [],
       overlayClips: [],
       markers: [],
@@ -325,10 +343,10 @@ describe("trimVideoClipEdge — tail trim / extend", () => {
 });
 
 describe("rippleDeleteVideoSegment + canRippleDeleteVideoSegment", () => {
-  it("truth table: first/last true, middle/single/unknown false", () => {
+  it("truth table (Stage C): first/middle/last true, single/unknown false", () => {
     const comp = segmentedComp();
     expect(canRippleDeleteVideoSegment(comp, "seg-1")).toBe(true);
-    expect(canRippleDeleteVideoSegment(comp, "seg-2")).toBe(false);
+    expect(canRippleDeleteVideoSegment(comp, "seg-2")).toBe(true);
     expect(canRippleDeleteVideoSegment(comp, "seg-3")).toBe(true);
     expect(canRippleDeleteVideoSegment(comp, "nope")).toBe(false);
     expect(canRippleDeleteVideoSegment(plainComp(), "main-video")).toBe(false);
@@ -357,11 +375,20 @@ describe("rippleDeleteVideoSegment + canRippleDeleteVideoSegment", () => {
     expectValidPartition(out, segmentedSettings);
   });
 
-  it("refuses a middle segment and the only segment (same reference)", () => {
+  it("deleting a MIDDLE segment (Stage C) carries a rangeRemove over its timeline range", () => {
     const comp = segmentedComp();
-    const mid = rippleDeleteVideoSegment(comp, "seg-2");
-    expect(mid.comp).toBe(comp);
-    expect(mid.docEffect).toEqual({ type: "none" });
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = rippleDeleteVideoSegment(comp, "seg-2");
+    expect(docEffect).toEqual({ type: "rangeRemove", startMs: 15_000, durationMs: 15_000 });
+    expect(out.videoClips.map((c) => c.id)).toEqual(["seg-1", "seg-3"]);
+    expect(out.videoClips[1]).toMatchObject({ startMs: 15_000, sourceInMs: 40_000, sourceOutMs: 55_000 });
+    expect(out.durationMs).toBe(30_000);
+    expectValidPartition(out, segmentedSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("refuses the only segment and unknown ids (same reference)", () => {
+    const comp = segmentedComp();
     const single = plainComp();
     expect(rippleDeleteVideoSegment(single, "main-video").comp).toBe(single);
     expect(rippleDeleteVideoSegment(comp, "nope").comp).toBe(comp);
@@ -669,6 +696,14 @@ describe("purity: the whole op surface on a deep-frozen composition", () => {
     trimVideoClipEdge(comp, "seg-2", "start", 18_000);
     trimVideoClipEdge(comp, "seg-3", "end", 40_000);
     rippleDeleteVideoSegment(comp, "seg-1");
+    rippleDeleteVideoSegment(comp, "seg-2");
+    duplicateVideoSegment(comp, "seg-2");
+    setSegmentPlaybackRate(comp, "seg-2", 2);
+    setSegmentTransition(comp, "seg-2", { type: "fade", durationMs: 500 });
+    setSegmentTransform(comp, "seg-2", { scale: 1.5 });
+    insertStillSegmentAt(comp, 20_000, 3000, "asset-1");
+    applyContentEffect(comp, { type: "rangeRemove", startMs: 15_000, durationMs: 15_000 });
+    applyContentEffect(comp, { type: "rangeScale", startMs: 0, oldDurationMs: 15_000, newDurationMs: 7500 });
     applyContentShift(comp, 1000);
     moveOverlayClip(comp, "ov-text", 500);
     trimOverlayClip(comp, "ov-text", "end", 6000);
@@ -686,6 +721,429 @@ describe("purity: the whole op surface on a deep-frozen composition", () => {
     );
     const docBefore = snapshot(doc);
     applyDocEffect(doc, { type: "headShift", deltaMs: 750 });
+    applyDocEffect(doc, { type: "rangeRemove", startMs: 500, durationMs: 500 });
+    applyDocEffect(doc, { type: "rangeInsert", atMs: 500, durationMs: 500 });
+    applyDocEffect(doc, { type: "rangeShift", fromMs: 500, deltaMs: -250 });
+    applyDocEffect(doc, { type: "rangeScale", startMs: 0, oldDurationMs: 2000, newDurationMs: 1000 });
     expect(doc).toEqual(docBefore);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Run 2 (Stage C): rates, transitions, duplicate, stills, range effects */
+/* ------------------------------------------------------------------ */
+
+/* rated fixture: seg-1 rate 2 (20 s source → 10 s), seg-2 rate 1 (20 s), seg-3 rate 0.5 (10 s source → 20 s) */
+const ratedSettings = ProjectSettingsSchema.parse({
+  clipRange: { startMs: 10_000, endMs: 60_000 },
+  overlays: [
+    { id: "ov-text", kind: "text", text: "Hi", startMs: 1000, endMs: 4000 },
+    { id: "ov-shape", kind: "shape", shape: "star", startMs: 5000, endMs: 8000 },
+  ],
+  composition: {
+    version: 1,
+    videoSegments: [
+      { id: "seg-1", sourceInMs: 10_000, sourceOutMs: 30_000, playbackRate: 2 },
+      { id: "seg-2", sourceInMs: 30_000, sourceOutMs: 50_000 },
+      { id: "seg-3", sourceInMs: 50_000, sourceOutMs: 60_000, playbackRate: 0.5 },
+    ],
+    markers: [
+      { id: "mk-1", atMs: 5000, label: "Hook" },
+      { id: "mk-2", atMs: 30_000, label: "" },
+    ],
+  },
+});
+const ratedComp = (): EditorComposition =>
+  buildEditorComposition({ view: viewFor(ratedSettings, 120_000, 50_000), settings: ratedSettings, sourceDurationMs: 120_000 });
+
+describe("Run 2: split / trim under playback rates", () => {
+  it("rated fixture lays out by timeline duration", () => {
+    const comp = ratedComp();
+    expect(comp.videoClips.map((c) => [c.id, c.startMs, c.durationMs])).toEqual([
+      ["seg-1", 0, 10_000],
+      ["seg-2", 10_000, 20_000],
+      ["seg-3", 30_000, 20_000],
+    ]);
+    expect(comp.durationMs).toBe(50_000);
+    expectValidPartition(comp, ratedSettings);
+  });
+
+  it("split at rate 2 cuts the source at Δt × 2", () => {
+    const comp = ratedComp();
+    const { comp: out } = splitVideoClipAt(comp, 5000);
+    expect(out.videoClips[0]).toMatchObject({ id: "seg-1", sourceInMs: 10_000, sourceOutMs: 20_000, durationMs: 5000 });
+    expect(out.videoClips[1]).toMatchObject({ sourceInMs: 20_000, sourceOutMs: 30_000, durationMs: 5000, startMs: 5000, playbackRate: 2 });
+    expectValidPartition(out, ratedSettings);
+  });
+
+  it("split at rate 0.5 cuts the source at Δt × 0.5", () => {
+    const comp = ratedComp();
+    const { comp: out } = splitVideoClipAt(comp, 40_000); // 10 s into seg-3
+    const seg3a = out.videoClips.find((c) => c.id === "seg-3")!;
+    const seg3b = out.videoClips[out.videoClips.indexOf(seg3a) + 1]!;
+    expect(seg3a).toMatchObject({ sourceInMs: 50_000, sourceOutMs: 55_000, durationMs: 10_000 });
+    expect(seg3b).toMatchObject({ sourceInMs: 55_000, sourceOutMs: 60_000, durationMs: 10_000, playbackRate: 0.5 });
+    expectValidPartition(out, ratedSettings);
+  });
+
+  it("head trim at rate 2 advances the source by Δt × 2, docEffect stays in timeline ms", () => {
+    const comp = ratedComp();
+    const { comp: out, docEffect } = trimVideoClipEdge(comp, "seg-1", "start", 4000);
+    expect(docEffect).toEqual({ type: "headShift", deltaMs: 4000 });
+    expect(out.videoClips[0]).toMatchObject({ sourceInMs: 18_000, sourceOutMs: 30_000, durationMs: 6000 });
+    expect(out.durationMs).toBe(46_000);
+    expectValidPartition(out, ratedSettings);
+  });
+
+  it("boundary roll between two rate-2 clips lands exactly on the target", () => {
+    const settings = ProjectSettingsSchema.parse({
+      composition: {
+        videoSegments: [
+          { id: "a", sourceInMs: 0, sourceOutMs: 20_000, playbackRate: 2 },
+          { id: "b", sourceInMs: 20_000, sourceOutMs: 40_000, playbackRate: 2 },
+        ],
+        markers: [{ id: "mk", atMs: 1, label: "" }],
+      },
+    });
+    const comp = buildEditorComposition({ view: viewFor(settings, 60_000, 20_000), settings, sourceDurationMs: 60_000 });
+    const { comp: out } = trimVideoClipEdge(comp, "b", "start", 12_000);
+    expect(out.videoClips[0]).toMatchObject({ sourceOutMs: 24_000, durationMs: 12_000 });
+    expect(out.videoClips[1]).toMatchObject({ sourceInMs: 24_000, durationMs: 8000, startMs: 12_000 });
+    expect(out.durationMs).toBe(20_000);
+    expectValidPartition(out, settings);
+  });
+
+  it("boundary roll applies Δt × rate_i to BOTH source edges (mixed rates)", () => {
+    const comp = ratedComp();
+    // seg-2 start edge +2000 timeline at rate 1: source boundary +2000 on seg-1's out AND seg-2's in;
+    // seg-1 (rate 2) therefore grows by only 1000 timeline ms and the boundary lands at 11000
+    const { comp: out } = trimVideoClipEdge(comp, "seg-2", "start", 12_000);
+    expect(out.videoClips[0]).toMatchObject({ sourceOutMs: 32_000, durationMs: 11_000 });
+    expect(out.videoClips[1]).toMatchObject({ sourceInMs: 32_000, durationMs: 18_000, startMs: 11_000 });
+    expectValidPartition(out, ratedSettings);
+  });
+
+  it("tail trim / extend at rate 0.5 advances the source by Δt × 0.5", () => {
+    const comp = ratedComp();
+    const trimmed = trimVideoClipEdge(comp, "seg-3", "end", 45_000).comp;
+    expect(trimmed.videoClips[2]).toMatchObject({ sourceOutMs: 57_500, durationMs: 15_000 });
+    expectValidPartition(trimmed, ratedSettings);
+    const extended = trimVideoClipEdge(comp, "seg-3", "end", 55_000).comp;
+    expect(extended.videoClips[2]).toMatchObject({ sourceOutMs: 62_500, durationMs: 25_000 });
+    expectValidPartition(extended, ratedSettings);
+  });
+});
+
+describe("Run 2: duplicateVideoSegment", () => {
+  it("inserts a copy after the original with a rangeInsert effect; later clips re-accumulate", () => {
+    const comp = segmentedComp();
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = duplicateVideoSegment(comp, "seg-2");
+    expect(docEffect).toEqual({ type: "rangeInsert", atMs: 30_000, durationMs: 15_000 });
+    expect(out.videoClips.map((c) => c.id)).toHaveLength(4);
+    expect(out.videoClips[1]!.id).toBe("seg-2");
+    const copy = out.videoClips[2]!;
+    expect(copy.id).not.toBe("seg-2");
+    expect(copy).toMatchObject({ sourceInMs: 25_000, sourceOutMs: 40_000, startMs: 30_000, durationMs: 15_000, transitionIn: null });
+    expect(out.videoClips[3]).toMatchObject({ id: "seg-3", startMs: 45_000 });
+    expect(out.durationMs).toBe(60_000);
+    expectValidPartition(out, segmentedSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("the copy's transitionIn is null even when the original carries one; unknown id no-ops", () => {
+    const withT = setSegmentTransition(segmentedComp(), "seg-2", { type: "fade", durationMs: 1000 }).comp;
+    const { comp: out } = duplicateVideoSegment(withT, "seg-2");
+    expect(out.videoClips[1]!.transitionIn).toEqual({ type: "fade", durationMs: 1000 });
+    expect(out.videoClips[2]!.transitionIn).toBeNull();
+    expectValidPartition(out, segmentedSettings);
+    const comp = segmentedComp();
+    expect(duplicateVideoSegment(comp, "nope").comp).toBe(comp);
+  });
+
+  it("rangeInsert shifts words/markers at/after the point and leaves earlier content alone", () => {
+    const doc = CaptionDocSchema.parse({
+      version: 2,
+      words: [word("a", "before", 29_000, 29_500), word("b", "after", 31_000, 32_000)],
+    });
+    const out = applyDocEffect(doc, { type: "rangeInsert", atMs: 30_000, durationMs: 15_000 });
+    expect(out.words.map((w) => [w.id, w.startMs, w.endMs])).toEqual([["a", 29_000, 29_500], ["b", 46_000, 47_000]]);
+    const comp = segmentedComp();
+    const shifted = applyContentEffect(comp, { type: "rangeInsert", atMs: 30_000, durationMs: 15_000 });
+    expect(shifted.markers).toEqual([
+      { id: "mk-1", atMs: 5000, label: "Hook" },
+      { id: "mk-2", atMs: 45_000, label: "" },
+    ]);
+  });
+});
+
+describe("Run 2: setSegmentPlaybackRate + rangeScale effects", () => {
+  it("rate 2 on seg-2 halves its timeline duration and carries rangeScale over the old range", () => {
+    const comp = segmentedComp();
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = setSegmentPlaybackRate(comp, "seg-2", 2);
+    expect(docEffect).toEqual({ type: "rangeScale", startMs: 15_000, oldDurationMs: 15_000, newDurationMs: 7500 });
+    expect(out.videoClips[1]).toMatchObject({ playbackRate: 2, durationMs: 7500, sourceInMs: 25_000, sourceOutMs: 40_000 });
+    expect(out.videoClips[2]).toMatchObject({ startMs: 22_500 });
+    expect(out.durationMs).toBe(37_500);
+    expectValidPartition(out, segmentedSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("clamps to [0.25, 4] and rounds to 2 decimals; same rate is a no-op", () => {
+    const comp = segmentedComp();
+    expect(setSegmentPlaybackRate(comp, "seg-2", 10).comp.videoClips[1]).toMatchObject({ playbackRate: 4, durationMs: 3750 });
+    expect(setSegmentPlaybackRate(comp, "seg-2", 0.01).comp.videoClips[1]).toMatchObject({ playbackRate: 0.25, durationMs: 60_000 });
+    expect(setSegmentPlaybackRate(comp, "seg-2", 1.004).comp).toBe(comp); // rounds to 1.00
+    expect(setSegmentPlaybackRate(comp, "seg-2", 1).comp).toBe(comp);
+    expect(setSegmentPlaybackRate(comp, "nope", 2).comp).toBe(comp);
+  });
+
+  it("refuses when the new timeline duration would be < 40 ms", () => {
+    const settings = ProjectSettingsSchema.parse({
+      composition: {
+        videoSegments: [
+          { id: "tiny", sourceInMs: 0, sourceOutMs: 100 },
+          { id: "big", sourceInMs: 100, sourceOutMs: 20_000 },
+        ],
+        markers: [{ id: "mk", atMs: 1, label: "" }],
+      },
+    });
+    const comp = buildEditorComposition({ view: viewFor(settings, 60_000, 20_000), settings, sourceDurationMs: 60_000 });
+    expect(setSegmentPlaybackRate(comp, "tiny", 4).comp).toBe(comp); // 100/4 = 25 ms
+  });
+
+  it("rangeScale remaps words inside proportionally, shifts words after, leaves words before", () => {
+    const doc = CaptionDocSchema.parse({
+      version: 2,
+      words: [
+        word("before", "b", 0, 1000),
+        word("span", "s", 14_000, 16_000),
+        word("inside", "i", 16_000, 17_000),
+        word("after", "a", 31_000, 32_000),
+      ],
+    });
+    const before = snapshot(doc);
+    const out = applyDocEffect(doc, { type: "rangeScale", startMs: 15_000, oldDurationMs: 15_000, newDurationMs: 7500 });
+    expect(out.words.map((w) => [w.id, w.startMs, w.endMs])).toEqual([
+      ["before", 0, 1000],
+      ["span", 14_500, 15_500], // 15000 + (14000−15000)×0.5, 15000 + (16000−15000)×0.5
+      ["inside", 15_500, 16_000],
+      ["after", 23_500, 24_500], // shifted by −7500
+    ]);
+    expect(out.words.map((w) => w.id)).toEqual(["before", "span", "inside", "after"]); // ids preserved
+    expectUnmutated(doc, before);
+  });
+
+  it("rangeScale rescales markers/overlays intersecting the range and shifts later ones", () => {
+    const comp = segmentedComp();
+    const out = applyContentEffect(comp, { type: "rangeScale", startMs: 0, oldDurationMs: 15_000, newDurationMs: 7500 });
+    expect(out.markers).toEqual([
+      { id: "mk-1", atMs: 2500, label: "Hook" },
+      { id: "mk-2", atMs: 22_500, label: "" }, // at/after the range end: −7500
+    ]);
+    expect(out.overlayClips.map((c) => [c.id, c.startMs, c.endMs])).toEqual([
+      ["ov-text", 500, 2000],
+      ["ov-shape", 2500, 4000],
+    ]);
+    expect(out.overlayClips[0]!.overlay).toMatchObject({ startMs: 500, endMs: 2000 });
+    // video side untouched by the content effect
+    expect(out.videoClips).toBe(comp.videoClips);
+  });
+});
+
+describe("Run 2: middle ripple content effects (rangeRemove)", () => {
+  const docFixture = (): CaptionDoc =>
+    CaptionDocSchema.parse({
+      version: 2,
+      words: [
+        word("before", "b", 0, 1000),
+        word("span-start", "s", 14_000, 16_000),
+        word("inside", "i", 16_000, 17_000),
+        word("span-end", "e", 29_000, 31_000),
+        word("after", "a", 31_000, 32_000),
+      ],
+    });
+
+  it("words: fully-inside and span-end deleted, span-start kept unshifted, after shifted", () => {
+    const doc = docFixture();
+    const before = snapshot(doc);
+    const out = applyDocEffect(doc, { type: "rangeRemove", startMs: 15_000, durationMs: 15_000 });
+    expect(out.words.map((w) => [w.id, w.startMs, w.endMs])).toEqual([
+      ["before", 0, 1000],
+      ["span-start", 14_000, 16_000], // kept UNSHIFTED — the documented span-start rule
+      ["after", 16_000, 17_000],
+    ]);
+    expectUnmutated(doc, before);
+  });
+
+  it("markers drop inside and shift after; overlays follow the generalised headShift rules", () => {
+    const settings = ProjectSettingsSchema.parse({
+      overlays: [
+        { id: "ov-before", kind: "text", text: "B", startMs: 0, endMs: 1000 },
+        { id: "ov-inside", kind: "text", text: "I", startMs: 16_000, endMs: 20_000 },
+        { id: "ov-spanstart", kind: "text", text: "SS", startMs: 14_000, endMs: 16_000 },
+        { id: "ov-spanend", kind: "text", text: "SE", startMs: 29_000, endMs: 31_000 },
+        { id: "ov-after", kind: "text", text: "A", startMs: 31_000, endMs: 34_000 },
+      ],
+      composition: {
+        version: 1,
+        videoSegments: [],
+        markers: [
+          { id: "m-before", atMs: 5000, label: "" },
+          { id: "m-inside", atMs: 20_000, label: "" },
+          { id: "m-after", atMs: 31_000, label: "" },
+        ],
+      },
+    });
+    const comp = buildEditorComposition({ view: viewFor(settings, 60_000, 60_000), settings, sourceDurationMs: 60_000 });
+    const before = snapshot(comp);
+    const out = applyContentEffect(comp, { type: "rangeRemove", startMs: 15_000, durationMs: 15_000 });
+    expect(out.markers).toEqual([
+      { id: "m-before", atMs: 5000, label: "" },
+      { id: "m-after", atMs: 16_000, label: "" },
+    ]);
+    expect(out.overlayClips.map((c) => [c.id, c.startMs, c.endMs])).toEqual([
+      ["ov-before", 0, 1000],
+      ["ov-spanstart", 14_000, 15_000], // spanning the start: start kept, end clamped to the range start
+      ["ov-spanend", 15_000, 16_000], // starting inside, ending after: tail kept (start clamped, end shifted)
+      ["ov-after", 16_000, 19_000],
+    ]);
+    expectUnmutated(comp, before);
+  });
+
+  it("zero-amount effects are same-reference no-ops on both content and doc", () => {
+    const comp = segmentedComp();
+    expect(applyContentEffect(comp, { type: "none" })).toBe(comp);
+    expect(applyContentEffect(comp, { type: "rangeRemove", startMs: 100, durationMs: 0 })).toBe(comp);
+    expect(applyContentEffect(comp, { type: "rangeShift", fromMs: 100, deltaMs: 0 })).toBe(comp);
+    const doc = docFixture();
+    expect(applyDocEffect(doc, { type: "rangeRemove", startMs: 100, durationMs: 0 })).toBe(doc);
+    expect(applyDocEffect(doc, { type: "rangeScale", startMs: 0, oldDurationMs: 1000, newDurationMs: 1000 })).toBe(doc);
+  });
+});
+
+describe("Run 2: setSegmentTransition", () => {
+  it("adding a fade compresses the total and carries rangeShift from the segment's old start", () => {
+    const comp = segmentedComp();
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = setSegmentTransition(comp, "seg-2", { type: "fade", durationMs: 1000 });
+    expect(docEffect).toEqual({ type: "rangeShift", fromMs: 15_000, deltaMs: -1000 });
+    expect(out.videoClips[1]).toMatchObject({ startMs: 14_000, transitionIn: { type: "fade", durationMs: 1000 } });
+    expect(out.videoClips[2]).toMatchObject({ startMs: 29_000 });
+    expect(out.durationMs).toBe(44_000);
+    expectValidPartition(out, segmentedSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("shortening shifts later content later; removing restores the full duration", () => {
+    const withT = setSegmentTransition(segmentedComp(), "seg-2", { type: "fade", durationMs: 1000 }).comp;
+    const shorter = setSegmentTransition(withT, "seg-2", { type: "fade", durationMs: 400 });
+    expect(shorter.docEffect).toEqual({ type: "rangeShift", fromMs: 14_000, deltaMs: 600 });
+    expect(shorter.comp.durationMs).toBe(44_600);
+    const removed = setSegmentTransition(shorter.comp, "seg-2", null);
+    expect(removed.docEffect).toEqual({ type: "rangeShift", fromMs: 14_600, deltaMs: 400 });
+    expect(removed.comp.durationMs).toBe(45_000);
+    expect(removed.comp.videoClips[1]!.transitionIn).toBeNull();
+    expectValidPartition(removed.comp, segmentedSettings);
+  });
+
+  it("clamps the duration to < min(adjacent timeline durations), refuses index 0 and un-fittable joins", () => {
+    const comp = segmentedComp();
+    const clamped = setSegmentTransition(comp, "seg-2", { type: "zoom", durationMs: 999_999 });
+    expect(clamped.comp.videoClips[1]!.transitionIn).toEqual({ type: "zoom", durationMs: 14_999 });
+    expect(setSegmentTransition(comp, "seg-1", { type: "fade", durationMs: 500 }).comp).toBe(comp);
+    expect(setSegmentTransition(comp, "nope", { type: "fade", durationMs: 500 }).comp).toBe(comp);
+    expect(setSegmentTransition(comp, "seg-2", null).comp).toBe(comp); // already null
+    const same = setSegmentTransition(clamped.comp, "seg-2", { type: "zoom", durationMs: 14_999 });
+    expect(same.comp).toBe(clamped.comp);
+    // a type-only change carries no timing effect
+    const typeOnly = setSegmentTransition(clamped.comp, "seg-2", { type: "wipe", durationMs: 14_999 });
+    expect(typeOnly.docEffect).toEqual({ type: "none" });
+    expect(typeOnly.comp.videoClips[1]!.transitionIn).toEqual({ type: "wipe", durationMs: 14_999 });
+  });
+
+  it("rangeShift moves words/markers at/after the boundary by the signed delta", () => {
+    const doc = CaptionDocSchema.parse({
+      version: 2,
+      words: [word("a", "before", 14_000, 14_500), word("b", "at", 15_000, 16_000)],
+    });
+    const out = applyDocEffect(doc, { type: "rangeShift", fromMs: 15_000, deltaMs: -1000 });
+    expect(out.words.map((w) => [w.id, w.startMs, w.endMs])).toEqual([["a", 14_000, 14_500], ["b", 14_000, 15_000]]);
+  });
+});
+
+describe("Run 2: setSegmentTransform", () => {
+  it("merges a patch over the identity transform; no timing effect", () => {
+    const comp = segmentedComp();
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = setSegmentTransform(comp, "seg-2", { scale: 1.5, flipH: true, cropLeft: 0.2 });
+    expect(docEffect).toEqual({ type: "none" });
+    expect(out.videoClips[1]!.transform).toEqual({ ...CLIP_DEFAULTS.transform, scale: 1.5, flipH: true, cropLeft: 0.2 });
+    expect(out.videoClips[0]).toBe(comp.videoClips[0]);
+    expect(out.durationMs).toBe(comp.durationMs);
+    expectValidPartition(out, segmentedSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("no-ops when the patch changes nothing and on unknown ids", () => {
+    const comp = segmentedComp();
+    expect(setSegmentTransform(comp, "seg-2", { scale: 1 }).comp).toBe(comp);
+    expect(setSegmentTransform(comp, "seg-2", {}).comp).toBe(comp);
+    expect(setSegmentTransform(comp, "nope", { scale: 2 }).comp).toBe(comp);
+  });
+});
+
+describe("Run 2: insertStillSegmentAt", () => {
+  it("inside a clip: splits first, inserts the still at the boundary with a rangeInsert effect", () => {
+    const comp = segmentedComp();
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = insertStillSegmentAt(comp, 20_000, 3000, "still-asset");
+    expect(docEffect).toEqual({ type: "rangeInsert", atMs: 20_000, durationMs: 3000 });
+    expect(out.videoClips.map((c) => [c.startMs, c.durationMs])).toEqual([
+      [0, 15_000],
+      [15_000, 5000],
+      [20_000, 3000],
+      [23_000, 10_000],
+      [33_000, 15_000],
+    ]);
+    const still = out.videoClips[2]!;
+    expect(still).toMatchObject({ still: true, assetId: "still-asset", sourceInMs: 0, sourceOutMs: 3000, playbackRate: 1, transitionIn: null });
+    expect(out.durationMs).toBe(48_000);
+    expectValidPartition(out, segmentedSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("at a boundary and at the very end, without splitting", () => {
+    const comp = segmentedComp();
+    const atBoundary = insertStillSegmentAt(comp, 15_000, 2000, "s1").comp;
+    expect(atBoundary.videoClips.map((c) => c.still)).toEqual([false, true, false, false]);
+    expect(atBoundary.videoClips[1]).toMatchObject({ startMs: 15_000, durationMs: 2000 });
+    const atEnd = insertStillSegmentAt(comp, 45_000, 2000, "s2").comp;
+    expect(atEnd.videoClips[atEnd.videoClips.length - 1]).toMatchObject({ still: true, startMs: 45_000, durationMs: 2000 });
+    expect(atEnd.durationMs).toBe(47_000);
+    expectValidPartition(atEnd, segmentedSettings);
+  });
+
+  it("refuses outside the timeline, a too-short still, and a split point too close to an edge", () => {
+    const comp = segmentedComp();
+    expect(insertStillSegmentAt(comp, 99_999, 3000, "x").comp).toBe(comp);
+    expect(insertStillSegmentAt(comp, -100, 3000, "x").comp).toBe(comp);
+    expect(insertStillSegmentAt(comp, 20_000, 20, "x").comp).toBe(comp);
+    expect(insertStillSegmentAt(comp, 15_020, 3000, "x").comp).toBe(comp); // 20 ms from seg-2's start edge
+  });
+
+  it("a still behaves as rate 1 in trims and refuses playback-rate changes", () => {
+    const comp = insertStillSegmentAt(segmentedComp(), 15_000, 3000, "still-asset").comp;
+    const still = comp.videoClips[1]!;
+    // tail-extend the still when it is last is covered by construction; here trim its end edge as a roll:
+    const rolled = trimVideoClipEdge(comp, still.id, "end", 19_000).comp;
+    expect(rolled.videoClips[1]).toMatchObject({ sourceInMs: 0, sourceOutMs: 4000, durationMs: 4000, still: true });
+    expect(setSegmentPlaybackRate(comp, still.id, 2).comp).toBe(comp);
+    // splitting a still cuts its pseudo-span 1:1
+    const split = splitVideoClipAt(comp, 16_000).comp;
+    expect(split.videoClips[1]).toMatchObject({ still: true, sourceInMs: 0, sourceOutMs: 1000, durationMs: 1000 });
+    expect(split.videoClips[2]).toMatchObject({ still: true, sourceInMs: 1000, sourceOutMs: 3000, durationMs: 2000 });
+    expectValidPartition(split, segmentedSettings);
   });
 });
