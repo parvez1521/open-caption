@@ -26,7 +26,9 @@ export type ContentKind =
   | "calendar"
   | "carousel"
   | "hashtag-group"
-  | "chat-output";
+  | "chat-output"
+  | "analysis"
+  | "weekly-plan";
 
 export const CONTENT_KINDS: readonly ContentKind[] = [
   "idea",
@@ -39,6 +41,8 @@ export const CONTENT_KINDS: readonly ContentKind[] = [
   "carousel",
   "hashtag-group",
   "chat-output",
+  "analysis",
+  "weekly-plan",
 ];
 
 export interface ContentItem {
