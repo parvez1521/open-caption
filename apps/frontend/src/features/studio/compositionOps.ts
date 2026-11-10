@@ -3,6 +3,8 @@ import {
   IDENTITY_SEGMENT_TRANSFORM,
   KEYFRAME_VALUE_RANGES,
   newId,
+  type AudioBleep,
+  type AudioClip,
   type CaptionDoc,
   type CompositionTrackKind,
   type KeyframeEasing,
@@ -16,6 +18,7 @@ import {
   type TrackState,
 } from "@capseasy/shared";
 import { deleteWordsByIds, shiftWordsByIds } from "@motion-ai/caption-engine/core";
+import { MIN_AUDIO_MS } from "./audioOps";
 import type { OverlayClip } from "./composition";
 import type { EditorComposition, EditorVideoClip } from "./compositionDoc";
 
@@ -789,6 +792,182 @@ export function insertStillSegmentAt(
 }
 
 /* ------------------------------------------------------------------ */
+/* audio retiming (Phase 9, W5 — closes the A3 deferral)               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * AUDIO RETIMING RULES — how placed audio clips and bleeps follow a
+ * {@link DocEffect}. An audio clip is a WINDOW onto source audio (the audio
+ * model in audioOps.ts / the AudioClip schema): its timeline position is
+ * `startMs`, its used source span is `sourceOutMs − sourceInMs` played at
+ * rate 1, and the span IS its timeline duration. Retiming therefore only
+ * ever moves the window or trims its edges — it NEVER stretches the audio
+ * content itself (there is no rate on an audio clip):
+ * - `rangeRemove` [s, e): a clip fully inside drops; fully after shifts by
+ *   −duration (start only). A clip spanning the range END keeps its tail:
+ *   its start clamps to s and `sourceInMs` advances by the removed head
+ *   portion, so the surviving samples are exactly the ones that played
+ *   after e. A clip spanning the range START keeps its head: `sourceOutMs`
+ *   clamps so the clip ends at s. A clip spanning the WHOLE range SPLITS
+ *   into head + tail pieces — a split result IS representable here (the
+ *   audio model has splitAudioClipAt, and this function returns a fresh
+ *   clip array), so no clamping shortcut is taken: the head keeps the
+ *   original id, the tail gets a fresh id, processors are deep-copied to
+ *   both halves and the cut edges take fade 0, exactly as splitAudioClipAt
+ *   does. Any piece shorter than {@link MIN_AUDIO_MS} (the audio model's
+ *   minimum used span) is dropped rather than kept as a sliver.
+ * - `headShift` is a rangeRemove of [0, deltaMs) for audio, by the same
+ *   rules.
+ * - `rangeInsert` / `rangeShift`: the clip's START rules (the word /
+ *   overlay precedent) — a clip starting at/after the point shifts whole
+ *   (duration, source span and fades unchanged); a clip spanning the point
+ *   is left whole.
+ * - `rangeScale`: audio content is NOT time-stretched. The clip's START
+ *   follows the marker rule (inside the range → proportionally remapped;
+ *   at/after the range end → shifted by new − old) and the whole clip
+ *   moves by that amount with its duration, source span and fades
+ *   unchanged; a clip whose start is before the range is left whole, even
+ *   if it overlaps the range.
+ * - FADES: on any shortened clip, fadeInMs / fadeOutMs clamp to the new
+ *   span (the updateAudioClip invariant); a newly created cut edge takes
+ *   fade 0 on that side (the splitAudioClipAt precedent).
+ *
+ * BLEEPS (`audioBleeps`) are PROJECT-TIMELINE windows (see the AudioBleep
+ * schema: a range where the mix mutes the video's own sound), so they
+ * follow the same effects as windows — the overlay window rules for
+ * remove / insert / shift, and for rangeScale both edges remap
+ * proportionally (the muted speech itself rescales with its segment),
+ * keeping only a 1 ms minimum rather than the overlay 100 ms floor.
+ */
+
+const audioClipSpanMs = (clip: AudioClip): number => clip.sourceOutMs - clip.sourceInMs;
+
+function retimedAudioClip(
+  clip: AudioClip,
+  patch: {
+    startMs: number;
+    sourceInMs: number;
+    sourceOutMs: number;
+    fadeInMs?: number;
+    fadeOutMs?: number;
+    id?: string;
+    copyProcessors?: boolean;
+  },
+): AudioClip {
+  const span = patch.sourceOutMs - patch.sourceInMs;
+  return {
+    ...clip,
+    ...(patch.id !== undefined ? { id: patch.id } : {}),
+    startMs: patch.startMs,
+    sourceInMs: patch.sourceInMs,
+    sourceOutMs: patch.sourceOutMs,
+    fadeInMs: Math.max(0, Math.min(patch.fadeInMs ?? clip.fadeInMs, span)),
+    fadeOutMs: Math.max(0, Math.min(patch.fadeOutMs ?? clip.fadeOutMs, span)),
+    ...(patch.copyProcessors
+      ? {
+          processors: {
+            eq: { ...clip.processors.eq },
+            cleanup: { ...clip.processors.cleanup },
+            reverb: clip.processors.reverb,
+          },
+        }
+      : {}),
+  };
+}
+
+/** Map ONE audio clip over a removed timeline range [s, e): 0, 1 or 2 clips. */
+function mapAudioClipRemove(clip: AudioClip, s: number, e: number): AudioClip[] {
+  const start = clip.startMs;
+  const end = start + audioClipSpanMs(clip);
+  if (end <= s) return [clip];
+  if (start >= e) {
+    return [retimedAudioClip(clip, { startMs: start - (e - s), sourceInMs: clip.sourceInMs, sourceOutMs: clip.sourceOutMs })];
+  }
+  if (start >= s && end <= e) return []; // fully inside: dropped
+  if (start >= s) {
+    // spanning the range END: keep the tail — start clamps to s, source advances
+    const tailMs = end - e;
+    if (tailMs < MIN_AUDIO_MS) return [];
+    return [
+      retimedAudioClip(clip, {
+        startMs: s,
+        sourceInMs: clip.sourceInMs + (e - start),
+        sourceOutMs: clip.sourceOutMs,
+        fadeInMs: 0,
+      }),
+    ];
+  }
+  if (end <= e) {
+    // spanning the range START: keep the head — the end clamps to s
+    const headMs = s - start;
+    if (headMs < MIN_AUDIO_MS) return [];
+    return [
+      retimedAudioClip(clip, {
+        startMs: start,
+        sourceInMs: clip.sourceInMs,
+        sourceOutMs: clip.sourceInMs + headMs,
+        fadeOutMs: 0,
+      }),
+    ];
+  }
+  // spanning the WHOLE range: split into head + tail (see the rules above)
+  const headMs = s - start;
+  const tailMs = end - e;
+  const keepHead = headMs >= MIN_AUDIO_MS;
+  const keepTail = tailMs >= MIN_AUDIO_MS;
+  const pieces: AudioClip[] = [];
+  if (keepHead) {
+    pieces.push(
+      retimedAudioClip(clip, {
+        startMs: start,
+        sourceInMs: clip.sourceInMs,
+        sourceOutMs: clip.sourceInMs + headMs,
+        fadeOutMs: 0,
+        copyProcessors: keepTail,
+      }),
+    );
+  }
+  if (keepTail) {
+    pieces.push(
+      retimedAudioClip(clip, {
+        // a lone surviving tail keeps the original id; a true split's tail is new
+        ...(keepHead ? { id: newId() } : {}),
+        startMs: s,
+        sourceInMs: clip.sourceInMs + (e - start),
+        sourceOutMs: clip.sourceOutMs,
+        fadeInMs: 0,
+        copyProcessors: keepHead,
+      }),
+    );
+  }
+  return pieces;
+}
+
+/** Apply a per-clip audio mapping, tracking whether anything changed. */
+function remapAudioClips(
+  clips: readonly AudioClip[],
+  map: (clip: AudioClip) => AudioClip[],
+): { audioClips: AudioClip[]; changed: boolean } {
+  let changed = false;
+  const audioClips: AudioClip[] = [];
+  for (const clip of clips) {
+    const pieces = map(clip);
+    if (pieces.length !== 1 || pieces[0] !== clip) changed = true;
+    audioClips.push(...pieces);
+  }
+  return { audioClips, changed };
+}
+
+/** Bleep window over a removed range [s, e): the overlay window rules. */
+function mapBleepWindowRemove(startMs: number, endMs: number, s: number, e: number): [number, number] | null {
+  const dur = e - s;
+  if (endMs <= s) return [startMs, endMs];
+  if (startMs >= e) return [startMs - dur, endMs - dur];
+  if (startMs >= s) return endMs <= e ? null : [s, endMs - dur];
+  return endMs <= e ? [startMs, s] : [startMs, endMs - dur];
+}
+
+/* ------------------------------------------------------------------ */
 /* content shifting (the commit layer's half of a headShift)           */
 /* ------------------------------------------------------------------ */
 
@@ -802,10 +981,12 @@ export function insertStillSegmentAt(
  *   dropped; a clip spanning the cut clamps its start to 0 and shifts its
  *   end; a clip starting at or after the cut shifts wholly. Each surviving
  *   clip's overlay item is replaced with a synced copy (never mutated).
+ * - placed audio clips and bleeps follow the rangeRemove-of-[0, deltaMs)
+ *   audio rules (see the audio retiming rules above).
  * `videoClips` and `durationMs` are NOT touched — the video op that produced
  * the headShift already handled those. A zero (or negative) delta, or a
- * composition whose markers/overlays would not change, returns the same
- * reference.
+ * composition whose markers/overlays/audio would not change, returns the
+ * same reference.
  */
 export function applyContentShift(comp: EditorComposition, deltaMs: number): EditorComposition {
   const delta = roundMs(deltaMs);
@@ -840,17 +1021,45 @@ export function applyContentShift(comp: EditorComposition, deltaMs: number): Edi
     overlayClips.push(syncOverlayWindow(clip, startMs, endMs));
   }
 
-  if (!markersChanged && !overlaysChanged) return comp;
-  return { ...comp, markers, overlayClips };
+  // audio: a head shift removes the timeline range [0, delta) for audio too
+  const audio = remapAudioClips(comp.audioClips ?? [], (clip) => mapAudioClipRemove(clip, 0, delta));
+
+  let bleepsChanged = false;
+  const audioBleeps: AudioBleep[] = [];
+  for (const bleep of comp.audioBleeps ?? []) {
+    const win = mapBleepWindowRemove(bleep.startMs, bleep.endMs, 0, delta);
+    if (win === null) {
+      bleepsChanged = true;
+      continue;
+    }
+    const [ns, ne] = win;
+    if (ns === bleep.startMs && ne === bleep.endMs) {
+      audioBleeps.push(bleep);
+      continue;
+    }
+    bleepsChanged = true;
+    audioBleeps.push({ ...bleep, startMs: ns, endMs: ne });
+  }
+
+  if (!markersChanged && !overlaysChanged && !audio.changed && !bleepsChanged) return comp;
+  return {
+    ...comp,
+    markers,
+    overlayClips,
+    ...(audio.changed ? { audioClips: audio.audioClips } : {}),
+    ...(bleepsChanged ? { audioBleeps } : {}),
+  };
 }
 
 /**
- * Apply a video op's {@link DocEffect} to the composition's markers and
- * overlay clips — the generalised sibling of {@link applyContentShift}
- * (which stays exported as the headShift special case existing callers use;
- * `applyContentEffect(comp, {type:"headShift"})` delegates to it).
+ * Apply a video op's {@link DocEffect} to the composition's markers,
+ * overlay clips, placed audio clips and bleeps — the generalised sibling
+ * of {@link applyContentShift} (which stays exported as the headShift
+ * special case existing callers use; `applyContentEffect(comp,
+ * {type:"headShift"})` delegates to it).
  * Rules per effect type (all times timeline ms; "content" = a marker point
- * or an overlay window):
+ * or an overlay window; audio clips and bleeps follow the audio retiming
+ * rules documented with the audio helpers above):
  * - `rangeRemove` [s, e): markers INSIDE the range drop; markers at/after e
  *   shift by −duration. Overlays fully inside drop; an overlay SPANNING THE
  *   RANGE START is kept and clamped per the headShift precedent generalised
@@ -875,9 +1084,12 @@ export function applyContentEffect(comp: EditorComposition, effect: DocEffect): 
   if (effect.type === "headShift") return applyContentShift(comp, effect.deltaMs);
 
   // per-effect remapping: a marker point -> new point (null = drop);
-  // an overlay window -> new window (null = drop)
+  // an overlay window -> new window (null = drop); an audio clip -> its
+  // retimed pieces; a bleep window -> new window (null = drop)
   let mapPoint: (atMs: number) => number | null;
   let mapWindow: (startMs: number, endMs: number) => [number, number] | null;
+  let mapAudioClip: (clip: AudioClip) => AudioClip[];
+  let mapBleepWindow: (startMs: number, endMs: number) => [number, number] | null;
 
   if (effect.type === "rangeRemove") {
     const s = roundMs(effect.startMs);
@@ -891,6 +1103,8 @@ export function applyContentEffect(comp: EditorComposition, effect: DocEffect): 
       if (start >= s) return end <= e ? null : [s, end - dur]; // fully inside drops; spanning the end keeps its tail
       return end <= e ? [start, s] : [start, end - dur]; // spanning the start: clamp/shift the end
     };
+    mapAudioClip = (clip) => mapAudioClipRemove(clip, s, e);
+    mapBleepWindow = (start, end) => mapBleepWindowRemove(start, end, s, e);
   } else if (effect.type === "rangeInsert" || effect.type === "rangeShift") {
     const from = roundMs(effect.type === "rangeInsert" ? effect.atMs : effect.fromMs);
     const delta = roundMs(effect.type === "rangeInsert" ? effect.durationMs : effect.deltaMs);
@@ -901,6 +1115,15 @@ export function applyContentEffect(comp: EditorComposition, effect: DocEffect): 
       const ns = Math.max(0, start + delta);
       return [ns, ns + (end - start)];
     };
+    // the clip's start rules: starting at/after the point shifts whole
+    // (duration / source / fades untouched); spanning the point: left whole
+    mapAudioClip = (clip) => {
+      if (clip.startMs < from) return [clip];
+      const ns = Math.max(0, clip.startMs + delta);
+      if (ns === clip.startMs) return [clip];
+      return [retimedAudioClip(clip, { startMs: ns, sourceInMs: clip.sourceInMs, sourceOutMs: clip.sourceOutMs })];
+    };
+    mapBleepWindow = mapWindow;
   } else {
     // rangeScale
     const s = roundMs(effect.startMs);
@@ -917,6 +1140,24 @@ export function applyContentEffect(comp: EditorComposition, effect: DocEffect): 
       if (start >= e) return [start + delta, end + delta];
       const ns = remap(start);
       const ne = Math.max(remap(end), ns + MIN_OVERLAY_MS);
+      return [Math.max(0, ns), ne];
+    };
+    // NO time-stretch: the clip's start follows the marker rule and the
+    // whole clip moves with it (duration / source / fades unchanged); a
+    // clip starting before the range is left whole (see the audio rules)
+    mapAudioClip = (clip) => {
+      if (clip.startMs < s) return [clip];
+      const ns = Math.max(0, clip.startMs >= e ? clip.startMs + delta : remap(clip.startMs));
+      if (ns === clip.startMs) return [clip];
+      return [retimedAudioClip(clip, { startMs: ns, sourceInMs: clip.sourceInMs, sourceOutMs: clip.sourceOutMs })];
+    };
+    // bleeps mute the video's own (rescaled) speech, so both edges remap
+    // proportionally — the overlay window rule with a 1 ms floor, not 100 ms
+    mapBleepWindow = (start, end) => {
+      if (end <= s) return [start, end];
+      if (start >= e) return [start + delta, end + delta];
+      const ns = remap(start);
+      const ne = Math.max(remap(end), ns + 1);
       return [Math.max(0, ns), ne];
     };
   }
@@ -949,8 +1190,35 @@ export function applyContentEffect(comp: EditorComposition, effect: DocEffect): 
     overlayClips.push(syncOverlayWindow(clip, ns, ne));
   }
 
+  const audio = remapAudioClips(comp.audioClips ?? [], mapAudioClip);
+  if (audio.changed) changed = true;
+
+  let bleepsChanged = false;
+  const audioBleeps: AudioBleep[] = [];
+  for (const bleep of comp.audioBleeps ?? []) {
+    const win = mapBleepWindow(bleep.startMs, bleep.endMs);
+    if (win === null) {
+      bleepsChanged = true;
+      continue;
+    }
+    const [ns, ne] = win;
+    if (ns === bleep.startMs && ne === bleep.endMs) {
+      audioBleeps.push(bleep);
+      continue;
+    }
+    bleepsChanged = true;
+    audioBleeps.push({ ...bleep, startMs: ns, endMs: ne });
+  }
+  if (bleepsChanged) changed = true;
+
   if (!changed) return comp;
-  return { ...comp, markers, overlayClips };
+  return {
+    ...comp,
+    markers,
+    overlayClips,
+    ...(audio.changed ? { audioClips: audio.audioClips } : {}),
+    ...(bleepsChanged ? { audioBleeps } : {}),
+  };
 }
 
 /**

@@ -572,6 +572,10 @@ function restoreStepScope(current: PolishProjectState, entry: PolishStepRecord):
           videoClips: before.comp.videoClips,
           markers: before.comp.markers,
           overlayClips: before.comp.overlayClips,
+          // Phase 9 (W5): the content effects also retime placed audio
+          // clips + bleeps, so the trim scope restores them too
+          audioClips: before.comp.audioClips,
+          audioBleeps: before.comp.audioBleeps,
           durationMs: before.comp.durationMs,
           rangeStartMs: before.comp.rangeStartMs,
         },
