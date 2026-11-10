@@ -585,12 +585,12 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
           ))}
         </div>
         {sep}
-        {btn("Add a word at the playhead", <Plus className={icon} />, addWord)}
+        {btn("Add a word at the playhead", <Plus className={icon} />, addWord, { disabled: tracks.captions.locked })}
         {btn("Caption timing settings", <SlidersHorizontal className={icon} />, onOpenSettings)}
         {sep}
-        {btn("Split: start a new line at the selected word", <Scissors className={icon} />, onSplit, { disabled: noSel })}
-        {btn("Split caption at playhead (S)", <Scissors className={icon} />, onSplitAtPlayhead, { disabled: !canSplitAtPlayhead(pages, timeMs) })}
-        {btn("Join: merge the selected word's line with the previous one", <FoldHorizontal className={icon} />, onJoin, { disabled: noSel })}
+        {btn("Split: start a new line at the selected word", <Scissors className={icon} />, onSplit, { disabled: noSel || tracks.captions.locked })}
+        {btn("Split caption at playhead (S)", <Scissors className={icon} />, onSplitAtPlayhead, { disabled: tracks.captions.locked || !canSplitAtPlayhead(pages, timeMs) })}
+        {btn("Join: merge the selected word's line with the previous one", <FoldHorizontal className={icon} />, onJoin, { disabled: noSel || tracks.captions.locked })}
         {extraTools}
         {sep}
         {btn(snap ? "Snapping on" : "Snapping off", <Magnet className={icon} />, () => { setSnap(!snap); save("ce_tl_snap", snap ? "0" : "1"); }, { active: snap })}
@@ -665,7 +665,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
                   key={b.key}
                   onPointerDown={(e) => beginDrag(e, b, "move")}
                   onClick={(e) => { e.stopPropagation(); onSelect(b.firstId); onSeek(live.s + 1); }}
-                  onDoubleClick={(e) => { e.stopPropagation(); if (mode === "word") setRenaming(b.firstId); }}
+                  onDoubleClick={(e) => { e.stopPropagation(); if (mode === "word" && !tracks.captions.locked) setRenaming(b.firstId); }}
                   title={`${b.text}  ${fmtTime(live.s)} – ${fmtTime(live.e)}${mode === "word" ? "  (double-click to edit)" : ""}`}
                   className={`absolute top-1 bottom-1 cursor-grab touch-none overflow-hidden rounded-md border text-[11px] leading-tight ${b.inSelection ? "ring-2 ring-st-em " : ""}${b.selected ? "border-st-ink bg-st-lav text-[#FFFFEB] ring-2 ring-st-ink/20" : b.live ? "border-st-ink/30 bg-st-or text-[#141412]" : mode === "line" ? "border-st-ink/15 bg-st-hover text-[#FFFFEB] hover:bg-st-lav/60" : "border-st-ink/10 bg-st-lav/60 text-[#FFFFEB] hover:bg-st-lav"}`}
                   style={{ left: x(live.s) + groupOffsetPx, width: wpx }}

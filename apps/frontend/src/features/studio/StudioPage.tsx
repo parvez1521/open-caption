@@ -792,6 +792,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // No word qualifies (gap, first/last word of a card) → nothing happens, honestly.
   const splitAtPlayheadRef = useRef<() => void>(() => undefined);
   splitAtPlayheadRef.current = () => {
+    // Slice 5.5 (a): splitting a caption card is a caption edit — a locked captions track blocks it
+    if (captionsLockedRef.current) return;
     const wordId = splitWordIdAtPlayhead(pages, getPlayerMs());
     if (!wordId) return;
     s.edit((d) => splitCardAt(d, wordId));
@@ -989,6 +991,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onTime={setTimeMs}
       onPlayingChange={setPlaying}
       compact={!desktop}
+      platform={settings.platform}
     />
   ) : null;
 
@@ -1012,7 +1015,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const captions = doc && style ? (
     <div data-tour="captions" className="flex h-full min-h-0 flex-col">
       <div className={`min-h-0 flex-1 ${live ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
-        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWord} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} />
+        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWord} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} />
       </div>
       {live && liveView ? (
         // the captions that haven't been written yet: shimmering placeholders with the time left
@@ -1166,6 +1169,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   );
 
   const addWordAt = (atMs: number): string | null => {
+    // Slice 5.5 (a): adding a word is a caption edit — a locked captions track blocks it
+    if (editorComp?.trackState.captions.locked) return null;
     let created: string | null = null;
     s.edit((d) => {
       const before = [...d.words].filter((w) => !w.hidden && w.startMs <= atMs).pop() ?? null;
@@ -1201,11 +1206,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onSelect={selectWord}
       selectedWordIds={selectedWordIds}
       onWordSelectionChange={handleWordSelectionChange}
-      onShiftWords={(ids, deltaMs) => s.edit((d) => shiftWordsByIds(d, ids, deltaMs))}
-      onRetimeRun={(a, b, st, en, ripple) => s.edit((d) => retimeRun(d, a, b, st, en, ripple))}
-      onRename={(id, text) => s.edit((d) => setWordText(d, id, text))}
+      onShiftWords={(ids, deltaMs) => { if (!captionsLockedRef.current) s.edit((d) => shiftWordsByIds(d, ids, deltaMs)); }}
+      onRetimeRun={(a, b, st, en, ripple) => { if (!captionsLockedRef.current) s.edit((d) => retimeRun(d, a, b, st, en, ripple)); }}
+      onRename={(id, text) => { if (!captionsLockedRef.current) s.edit((d) => setWordText(d, id, text)); }}
       onAddWord={addWordAt}
-      onSplit={() => selected && s.edit((d) => splitCardAt(d, selected.id))}
+      onSplit={() => selected && !captionsLockedRef.current && s.edit((d) => splitCardAt(d, selected.id))}
       onSplitAtPlayhead={() => splitAtPlayheadRef.current()}
       composition={composition}
       selectedOverlayId={selectedOverlayId}
@@ -1234,7 +1239,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onDropAsset={onDropAsset}
       segmentAssetUrls={segmentAssetUrls}
       segmentAssetNames={segmentAssetNames}
-      onJoin={() => selected && s.edit((d) => mergeWithPrevious(d, selected.id))}
+      onJoin={() => selected && !captionsLockedRef.current && s.edit((d) => mergeWithPrevious(d, selected.id))}
       onOpenSettings={() => { setSection("timing"); setMobileTimeline(false); }}
       extraTools={extraTools}
       fill={!desktop}

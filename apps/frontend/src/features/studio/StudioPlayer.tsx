@@ -3,8 +3,10 @@
 import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { CaptionedVideo, type CaptionedVideoInput } from "@capseasy/compositions";
+import type { Platform } from "@capseasy/shared";
 import { Pause, Play } from "lucide-react";
 import { fmtTime } from "./controls";
+import { safeZoneFor, safeZoneStyle } from "./safeZone";
 
 interface Props {
   input: CaptionedVideoInput;
@@ -19,15 +21,25 @@ interface Props {
   /** phones: the Player's own controls would cover the captions, so a compact transport sits under the video
    *  instead, and the position grip moves to the frame edge (vertical drag) so it never covers the words */
   compact?: boolean;
+  /** the project's platform preset for the safe-zone guide; falls back to the input's settings, then "custom" */
+  platform?: Platform;
 }
 
 const clamp = (v: number) => Math.min(0.95, Math.max(0.05, v));
 
 /** The same CaptionedVideo composition that renders the export, plus a drag handle to place the captions. */
-export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, onTime, onPlayingChange, compact = false }, ref) {
+export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, onTime, onPlayingChange, compact = false, platform }, ref) {
   const innerRef = useRef<PlayerRef | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  // Slice 5.5 (b): the platform safe-zone guide is PREVIEW CHROME ONLY — local state plus a
+  // sibling overlay div; it is never written into `input`, so the composition the Player
+  // renders (and every export renders) is identical with the guide on or off.
+  const [showSafeZone, setShowSafeZone] = useState(false);
+  const zone = useMemo(
+    () => safeZoneFor(platform ?? (input.settings as { platform?: Platform } | undefined)?.platform ?? "custom"),
+    [platform, input.settings],
+  );
   const [nowMs, setNowMs] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const durationInFrames = Math.max(1, Math.ceil((durationMs / 1000) * fps));
@@ -96,6 +108,29 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
           numberOfSharedAudioTags={0}
         />
         {dragging ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-st-em/50" /> : null}
+        {showSafeZone ? (
+          <div data-safe-zone-guide="true" className="pointer-events-none absolute inset-0 z-10" aria-hidden>
+            {/* the edges platform UI covers, shaded; the clear rectangle in the middle is the safe area */}
+            <div className="absolute inset-x-0 top-0 bg-black/45" style={{ height: `${zone.safe.topPct}%` }} />
+            <div className="absolute inset-x-0 bottom-0 bg-black/45" style={{ height: `${100 - zone.safe.topPct - zone.safe.heightPct}%` }} />
+            <div className="absolute left-0 bg-black/45" style={{ top: `${zone.safe.topPct}%`, height: `${zone.safe.heightPct}%`, width: `${zone.safe.leftPct}%` }} />
+            <div className="absolute right-0 bg-black/45" style={{ top: `${zone.safe.topPct}%`, height: `${zone.safe.heightPct}%`, width: `${100 - zone.safe.leftPct - zone.safe.widthPct}%` }} />
+            <div className="absolute border-2 border-dashed border-white/85" style={safeZoneStyle(zone)} />
+            <span className="absolute left-1/2 top-1 -translate-x-1/2 whitespace-nowrap rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              {zone.label} safe zone — guide only, not in your export
+            </span>
+          </div>
+        ) : null}
+        <button
+          type="button"
+          aria-pressed={showSafeZone}
+          aria-label="Toggle platform safe-zone guide"
+          title="Show the area the platform's own buttons and text cover. Preview guide only — it is never in an export."
+          onClick={() => setShowSafeZone((v) => !v)}
+          className={`absolute left-2 top-2 z-20 rounded-md px-2 py-1 text-[11px] font-semibold shadow ${showSafeZone ? "bg-st-ink text-st-panel" : "bg-black/55 text-white hover:bg-black/75"}`}
+        >
+          Safe zone
+        </button>
         <div
           role="slider"
           aria-label="Caption position (drag)"

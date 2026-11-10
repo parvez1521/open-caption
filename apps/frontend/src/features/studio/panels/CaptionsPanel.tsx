@@ -25,6 +25,14 @@ interface Props {
    */
   selectedWordIds: Set<string>;
   onWordSelectionChange: (ids: Set<string>) => void;
+  /**
+   * Slice 5.5 (a): the captions track's lock (Timeline track controls). When true, EVERY
+   * caption edit in this panel is blocked — word text, find/replace, shift-all, group
+   * shift/delete, split/join/hide, subtitle import and drag-retime — while selecting and
+   * seeking stay available. Before this prop existed the panel ignored the lock entirely,
+   * so a "locked" captions track could still be edited from here.
+   */
+  locked?: boolean;
 }
 
 /**
@@ -39,7 +47,13 @@ type Gesture =
   | { kind: "select"; anchorId: string; startX: number; startY: number; active: boolean }
   | { kind: "retime"; ids: string[]; startX: number; startY: number; active: boolean; dx: number };
 
-export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit, heroSupported, selectedWordIds, onWordSelectionChange }) => {
+export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, heroSupported, selectedWordIds, onWordSelectionChange, locked = false }) => {
+  // The lock guard lives at this ONE chokepoint: every edit this panel makes (its own
+  // controls and the EmphasisSuggestions child) goes through `edit`, so wrapping it here
+  // blocks them all at once — no call site can forget the check.
+  const edit: Props["edit"] = (fn, opts) => {
+    if (!locked) editProp(fn, opts);
+  };
   const [find, setFind] = useState("");
   const [replace, setReplace] = useState("");
   const [showHidden, setShowHidden] = useState(false);
@@ -75,7 +89,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
     } catch {
       /* capture unsupported: container handlers still receive the moves */
     }
-    if (selectedWordIds.has(wordId) && selectedWordIds.size > 0) {
+    if (!locked && selectedWordIds.has(wordId) && selectedWordIds.size > 0) {
       gestureRef.current = { kind: "retime", ids: [...selectedWordIds], startX: e.clientX, startY: e.clientY, active: false, dx: 0 };
     } else {
       gestureRef.current = { kind: "select", anchorId: wordId, startX: e.clientX, startY: e.clientY, active: false };
@@ -146,10 +160,15 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
 
   return (
     <div className="flex h-full flex-col">
+      {locked ? (
+        <p role="note" className="shrink-0 border-b border-st-line bg-st-raised/60 px-3 py-2 text-xs text-st-muted">
+          Captions track is locked — unlock it from the timeline to edit the words. You can still select and play.
+        </p>
+      ) : null}
       <div className="space-y-2 border-b border-st-line p-3">
         <div className="flex gap-2">
-          <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="Find" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40" />
-          <input value={replace} onChange={(e) => setReplace(e.target.value)} placeholder="Replace with" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40" />
+          <input value={find} disabled={locked} onChange={(e) => setFind(e.target.value)} placeholder="Find" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
+          <input value={replace} disabled={locked} onChange={(e) => setReplace(e.target.value)} placeholder="Replace with" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
         </div>
         <div className="flex gap-2">
           <label className="ml-auto inline-flex cursor-pointer items-center rounded-lg border border-st-line bg-st-panel px-3 py-1 text-xs font-medium text-st-text hover:bg-st-hover" title="Replace the captions with an .srt or .vtt file (you can undo)">
@@ -158,6 +177,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
               type="file"
               accept=".srt,.vtt,text/vtt,application/x-subrip"
               hidden
+              disabled={locked}
               onChange={async (e) => {
                 const f = e.target.files?.[0];
                 e.target.value = "";
@@ -172,7 +192,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         {find ? (
           <div className="flex items-center justify-between text-xs text-st-muted">
             <span>{matchIds.size} match{matchIds.size === 1 ? "" : "es"}</span>
-            <Button disabled={matchIds.size === 0} onClick={() => { edit((d) => findReplace(d, find, replace).doc); setFind(""); setReplace(""); }} className="!py-1 text-xs">
+            <Button disabled={locked || matchIds.size === 0} onClick={() => { edit((d) => findReplace(d, find, replace).doc); setFind(""); setReplace(""); }} className="!py-1 text-xs">
               Replace all
             </Button>
           </div>
@@ -185,7 +205,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
             </p>
             <div className="flex flex-wrap gap-1.5">
               {[-1000, -500, -100, 100, 500, 1000].map((ms) => (
-                <Button key={ms} className="!py-1 text-xs" onClick={() => edit((d) => shiftAllWords(d, ms))}>
+                <Button key={ms} disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => shiftAllWords(d, ms))}>
                   {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
                 </Button>
               ))}
@@ -194,6 +214,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
               <input
                 type="number"
                 step="0.1"
+                disabled={locked}
                 value={shiftSec}
                 onChange={(e) => setShiftSec(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") applyShiftInput(); }}
@@ -201,7 +222,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                 aria-label="Shift all captions by this many seconds"
                 className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
               />
-              <Button className="!py-1 text-xs" onClick={applyShiftInput}>Apply shift</Button>
+              <Button disabled={locked} className="!py-1 text-xs" onClick={applyShiftInput}>Apply shift</Button>
             </div>
           </div>
         ) : null}
@@ -261,7 +282,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
             {showHidden ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 {hidden.map((w) => (
-                  <button key={w.id} onClick={() => edit((d) => setHidden(d, w.id, false))} className="rounded-md bg-st-raised/70 px-1.5 py-0.5 text-sm text-st-faint line-through hover:text-st-text" title="Click to restore">
+                  <button key={w.id} disabled={locked} onClick={() => edit((d) => setHidden(d, w.id, false))} className="rounded-md bg-st-raised/70 px-1.5 py-0.5 text-sm text-st-faint line-through hover:text-st-text disabled:opacity-50" title="Click to restore">
                     {w.text}
                   </button>
                 ))}
@@ -288,11 +309,11 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {[-500, -100, 100, 500].map((ms) => (
-              <Button key={ms} className="!py-1 text-xs" onClick={() => { const ids = selIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
+              <Button key={ms} disabled={locked} className="!py-1 text-xs" onClick={() => { const ids = selIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
                 {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
               </Button>
             ))}
-            <Button tone="danger" className="!py-1 text-xs" onClick={() => { const ids = selIds; edit((d) => deleteWordsByIds(d, ids)); onWordSelectionChange(new Set()); onSelect(null); }}>Delete selected</Button>
+            <Button tone="danger" disabled={locked} className="!py-1 text-xs" onClick={() => { const ids = selIds; edit((d) => deleteWordsByIds(d, ids)); onWordSelectionChange(new Set()); onSelect(null); }}>Delete selected</Button>
           </div>
         </div>
       ) : null}
@@ -302,6 +323,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           <div className="flex items-center gap-2">
             <input
               value={selected.text}
+              disabled={locked}
               onChange={(e) => edit((d) => setWordText(d, selected.id, e.target.value || " "), { coalesceKey: `t-${selected.id}` })}
               className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
               aria-label="Edit word"
@@ -310,13 +332,13 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           </div>
           <div className="flex flex-wrap gap-1.5">
             {heroSupported ? (
-              <Button className="!py-1 text-xs" onClick={() => edit((d) => setEmphasis(d, selected.id, selected.emphasis === "hero" ? "none" : "hero"))}>
+              <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => setEmphasis(d, selected.id, selected.emphasis === "hero" ? "none" : "hero"))}>
                 {selected.emphasis === "hero" ? "★ Key word" : "☆ Make key word"}
               </Button>
             ) : null}
-            <Button className="!py-1 text-xs" onClick={() => edit((d) => splitCardAt(d, selected.id))}>Split card here</Button>
-            <Button className="!py-1 text-xs" onClick={() => edit((d) => mergeWithPrevious(d, selected.id))}>Join previous</Button>
-            <Button tone="danger" className="!py-1 text-xs" onClick={() => { edit((d) => setHidden(d, selected.id, true)); onSelect(null); }}>Hide word</Button>
+            <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => splitCardAt(d, selected.id))}>Split card here</Button>
+            <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithPrevious(d, selected.id))}>Join previous</Button>
+            <Button tone="danger" disabled={locked} className="!py-1 text-xs" onClick={() => { edit((d) => setHidden(d, selected.id, true)); onSelect(null); }}>Hide word</Button>
           </div>
         </div>
       ) : null}
