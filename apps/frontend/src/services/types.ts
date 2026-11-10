@@ -22,6 +22,9 @@ export interface Project {
   deleted_at?: string;
   archived_at?: string;
   aspect_ratio?: string;
+  /** A15 organisation: single folder label (null = unfiled) + tags. Absent until the folders/tags database update is applied. */
+  folder?: string | null;
+  tags?: string[];
   video?: Video;
   transcript?: Transcript;
 }

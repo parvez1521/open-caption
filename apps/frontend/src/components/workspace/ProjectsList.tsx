@@ -9,7 +9,7 @@ import { useBrandNav } from "@/components/brand/BrandNav";
 import { LogoWave } from "@/components/brand/LogoWave";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { studioService } from "@/services/studio";
-import { countByView, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
+import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
 
 const STATUS_CHIP: Record<ProjectStatus, { label: string; cls: string; pulse?: boolean }> = {
   CREATED: { label: "draft", cls: "border border-sand-300 text-sand-700 bg-white" },
@@ -55,6 +55,13 @@ export default function ProjectsList() {
   const [view, setView] = useState<ProjectView>("active");
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [folderFilter, setFolderFilter] = useState("");
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [orgTarget, setOrgTarget] = useState<Project | null>(null);
+  const [orgFolder, setOrgFolder] = useState("");
+  const [orgTags, setOrgTags] = useState("");
+  const [orgSaving, setOrgSaving] = useState(false);
+  const [orgError, setOrgError] = useState<string | null>(null);
 
   useEffect(() => { void import("@/features/transcribe/browserWhisper").then((m) => m.warmSpeechModel()); }, []);
 
@@ -121,8 +128,40 @@ export default function ProjectsList() {
     }
   };
 
+  const orgReady = data?.orgReady ?? true;
+  const folders = distinctFolders(projects);
+  const allTags = distinctTags(projects);
+
+  const openOrgEditor = (project: Project) => {
+    setMenuFor(null);
+    setOrgTarget(project);
+    setOrgFolder(project.folder ?? "");
+    setOrgTags((project.tags ?? []).join(", "));
+    setOrgError(null);
+  };
+
+  const handleOrgSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orgTarget) return;
+    setOrgSaving(true);
+    setOrgError(null);
+    try {
+      const tags = orgTags.split(",").map((t) => t.trim()).filter(Boolean);
+      await projectsService.updateProjectOrg(orgTarget.id, { folder: orgFolder.trim() || null, tags });
+      setOrgTarget(null);
+      await refetch();
+    } catch (err: any) {
+      setOrgError(err?.message || "Couldn't save the folder and tags. Please try again.");
+    } finally {
+      setOrgSaving(false);
+    }
+  };
+
   const counts = countByView(projects);
-  const visible = filterProjects(projects, query, view).filter((p) => !hiding.includes(p.id));
+  const visible = filterProjects(projects, query, view, {
+    folder: folderFilter === "" ? null : folderFilter === "unfiled" ? "unfiled" : folderFilter,
+    tag: tagFilter,
+  }).filter((p) => !hiding.includes(p.id));
 
   return (
     <div>
@@ -144,6 +183,29 @@ export default function ProjectsList() {
         </button>
       </div>
       <p className="mt-3 text-[13px] text-sand-600">Signed-in projects are kept and never expire. Guest projects are removed after 30 days without edits.</p>
+      {/* A15 organisation filters — only when the folders/tags database update is applied */}
+      {data && !orgReady ? (
+        <p role="status" className="mt-3 rounded-lg border border-sand-300 bg-sand-50 px-4 py-3 text-[13px] text-sand-700">Folders and tags are pending a database update — your projects are all here, organising them unlocks once the update is applied.</p>
+      ) : data ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-[13px] text-sand-700">
+            Folder
+            <select value={folderFilter} onChange={(e) => setFolderFilter(e.target.value)} aria-label="Filter by folder" className="rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] text-ink outline-none cursor-pointer">
+              <option value="">All folders</option>
+              <option value="unfiled">No folder</option>
+              {folders.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </label>
+          {allTags.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5" aria-label="Filter by tag">
+              {allTags.map((t) => (
+                <button key={t} onClick={() => setTagFilter(tagFilter === t ? null : t)} aria-pressed={tagFilter === t} className={`rounded-full px-3 py-1 font-sora text-[11px] font-semibold transition-colors cursor-pointer ${tagFilter === t ? "bg-ink text-dune-white" : "border border-sand-300 text-sand-700 hover:text-ink"}`}>{t}</button>
+              ))}
+              {tagFilter ? <button onClick={() => setTagFilter(null)} className="rounded-full px-2 py-1 font-sora text-[11px] font-semibold text-sand-600 underline cursor-pointer">Clear tag</button> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {actionBusy ? <p role="status" className="mt-3 text-[13px] text-sand-700">{actionBusy}…</p> : null}
 
       <div className="pt-6">
@@ -176,6 +238,12 @@ export default function ProjectsList() {
                   <div className="min-w-0">
                     <h3 className="truncate pr-10 font-sora text-[15px] font-bold text-ink">{project.title}</h3>
                     <p className="mt-1 font-mono text-[11px] text-sand-600">{project.id.slice(0, 8)}{project.archived_at ? " · archived" : ""}</p>
+                    {orgReady && (project.folder || (project.tags ?? []).length > 0) ? (
+                      <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-sand-700">
+                        {project.folder ? <span className="rounded-full bg-sand-200 px-2 py-0.5 font-sora font-semibold">{project.folder}</span> : null}
+                        {(project.tags ?? []).map((t) => <span key={t} className="rounded-full border border-sand-300 px-2 py-0.5">{t}</span>)}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex items-center justify-between">
                     <span className={`rounded-full px-3 py-1 font-sora text-[11px] font-semibold ${chip.cls}`}>
@@ -195,6 +263,8 @@ export default function ProjectsList() {
                       <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuFor(null); }} />
                       <div role="menu" className="absolute right-2 top-11 z-20 w-44 rounded-xl border border-sand-200 bg-white p-1.5 shadow-sand-deep" onClick={(e) => e.stopPropagation()}>
                         <button role="menuitem" onClick={() => { setMenuFor(null); nav.go(`/projects/${project.id}`, "Opening your project"); }} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Open</button>
+                        <button role="menuitem" onClick={() => { setMenuFor(null); nav.go(`/projects/${project.id}/settings`, "Opening project settings"); }} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Settings</button>
+                        {orgReady ? <button role="menuitem" onClick={() => openOrgEditor(project)} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Folder &amp; tags…</button> : null}
                         <button role="menuitem" onClick={() => void runAction("Duplicating project", () => projectsService.duplicateProject(project.id))} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Duplicate</button>
                         {project.archived_at ? (
                           <button role="menuitem" onClick={() => void runAction("Restoring project", () => projectsService.unarchiveProject(project.id))} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Unarchive</button>
@@ -223,6 +293,32 @@ export default function ProjectsList() {
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setCreateOpen(false)} disabled={creating} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Cancel</button>
                 <button type="submit" disabled={creating || !newTitle.trim()} className="rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "Create project"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Folder & tags editor */}
+      {orgTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => !orgSaving && setOrgTarget(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-serif text-2xl font-semibold text-ink">Folder &amp; tags</h3>
+            <p className="mt-1 text-[13px] text-sand-800">Organise &quot;{orgTarget.title}&quot; — one folder, any number of tags.</p>
+            {orgError && <div className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{orgError}</div>}
+            <form onSubmit={handleOrgSave} className="mt-5 space-y-5">
+              <div className="space-y-1.5">
+                <label htmlFor="org-folder" className="block font-sora text-[12px] font-semibold text-sand-800">Folder (leave empty for none)</label>
+                <input id="org-folder" type="text" value={orgFolder} onChange={(e) => setOrgFolder(e.target.value)} list="org-folder-options" placeholder="e.g. Podcast" disabled={orgSaving} className="w-full rounded-lg border border-sand-300 bg-white px-4 py-3 text-[14px] text-ink placeholder:text-sand-500 outline-none transition-colors focus:border-sand-600 focus:ring-2 focus:ring-sand-200" />
+                <datalist id="org-folder-options">{folders.map((f) => <option key={f} value={f} />)}</datalist>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="org-tags" className="block font-sora text-[12px] font-semibold text-sand-800">Tags (comma-separated)</label>
+                <input id="org-tags" type="text" value={orgTags} onChange={(e) => setOrgTags(e.target.value)} placeholder="e.g. hook, client-work" disabled={orgSaving} className="w-full rounded-lg border border-sand-300 bg-white px-4 py-3 text-[14px] text-ink placeholder:text-sand-500 outline-none transition-colors focus:border-sand-600 focus:ring-2 focus:ring-sand-200" />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setOrgTarget(null)} disabled={orgSaving} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Cancel</button>
+                <button type="submit" disabled={orgSaving} className="rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{orgSaving ? "Saving…" : "Save"}</button>
               </div>
             </form>
           </div>
