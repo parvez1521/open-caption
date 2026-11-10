@@ -10,6 +10,7 @@ import {
 import { canExportInBrowser, exportMp4InBrowser, saveBlob } from "./browserExport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studioService, type ExportKind, type ExportRow } from "@/services/studio";
+import { EXPORT_OPTIONS, type ExportOption } from "./exportOptions";
 import { ApiError } from "@/services/api-client";
 import { Button, fmtBytes, fmtTime, triggerDownload } from "./controls";
 import { VideoReady } from "./VideoReady";
@@ -39,17 +40,10 @@ const QUALITY_OPTIONS = [
   { id: "small", label: "Smaller file", hint: "Smallest file, slightly softer. Good for WhatsApp or slow internet." },
 ] as const;
 
-interface Option { kind: ExportKind; title: string; desc: string; usesRange: boolean; popular?: boolean }
-/** Browser-first launch: the two exports that work everywhere with nothing installed. */
-const OPTIONS: Option[] = [
-  { kind: "mp4", title: "Video with captions (MP4)", desc: "Ready to post on Reels, Shorts and TikTok. Made right here in your browser.", usesRange: true, popular: true },
-  { kind: "srt", title: "Subtitles file (.srt)", desc: "For YouTube, LinkedIn, Premiere, CapCut and every editor.", usesRange: false },
-];
-
 /** wall-clock for "made in …" (kept out of render: only called from event handlers) */
 const clock = () => performance.now();
 
-const KIND_LABEL: Record<string, string> = { mp4: "MP4", mov_alpha: "ProRes overlay", webm_alpha: "WebM overlay", srt: "SRT", vtt: "VTT", ass: "ASS", txt: "TXT", json: "JSON" };
+const KIND_LABEL: Record<string, string> = { mp4: "MP4", mov_alpha: "ProRes overlay", webm_alpha: "WebM overlay", srt: "SRT", vtt: "VTT", ass: "ASS", txt: "TXT", json: "JSON", png: "PNG" };
 
 interface Props {
   projectId: string;
@@ -71,6 +65,8 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const qc = useQueryClient();
   const [busyKind, setBusyKind] = useState<ExportKind | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** set when a companion render (alpha overlay) was queued instead of made right away */
+  const [queuedNote, setQueuedNote] = useState<string | null>(null);
   const [quality, setQuality] = useState<"high" | "balanced" | "small">("high");
   const [trim, setTrim] = useState(false);
   const [startS, setStartS] = useState(0);
@@ -188,7 +184,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     }
   };
 
-  const start = async (o: Option) => {
+  const start = async (o: ExportOption) => {
     if (o.kind === "mp4") {
       // MP4 is made in the browser only; a click while the support check is still running waits for it
       if (mp4Block) {
@@ -207,6 +203,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       return;
     }
     setError(null);
+    setQueuedNote(null);
     setBusyKind(o.kind);
     try {
       await flushSave(); // never export stale captions
@@ -219,6 +216,13 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       };
       const created = await studioService.createExport(projectId, body);
       if (created.ready && created.downloadUrl) triggerDownload(created.downloadUrl);
+      // alpha overlays are not made here: the API queues a render for the paired desktop app, and
+      // with no companion online the job simply waits — say so instead of implying a file is coming
+      if (!created.ready) {
+        setQueuedNote(created.companionOnline
+          ? "Rendering on your paired computer now. Your file will appear under “Your exports” below when it is ready."
+          : "Queued. No paired computer is online right now, so this will start rendering when your desktop app is next online. It will appear under “Your exports” below.");
+      }
       track("export_done", { kind: o.kind });
       await qc.invalidateQueries({ queryKey: ["exports", projectId] });
       await qc.invalidateQueries({ queryKey: ["studio", projectId] });
@@ -294,7 +298,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           </div>
 
           <div className="grid gap-2">
-            {OPTIONS.map((o) => {
+            {EXPORT_OPTIONS.map((o) => {
               const unavailable = o.kind === "mp4" && (!!mp4Block || (web !== null && !webReady));
               return (
                 <button
@@ -327,6 +331,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
               {made ? <Button className="!px-2.5 !py-1 text-xs" onClick={() => setShowReady(true)}>Share</Button> : null}
             </div>
           ) : null}
+          {queuedNote ? <p role="status" className="mt-3 rounded-lg bg-st-raised/70 px-3 py-2 text-sm text-st-text">{queuedNote}</p> : null}
           {error ? <p role="alert" className="mt-3 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">{error}</p> : null}
 
           {rows.length > 0 ? (
