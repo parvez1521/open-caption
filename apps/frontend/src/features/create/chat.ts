@@ -34,6 +34,7 @@ import {
   type ScriptInput,
 } from "./scripts";
 import { mapChatThread, type ChatThread, type ContentItem, type ContentKind } from "./library";
+import { analysisContextText, readAnalysisBody } from "@/features/analyzer/breakdownItem";
 
 /* ---------------------------------- types ---------------------------------- */
 
@@ -496,11 +497,18 @@ export async function setThreadContext(id: string, contextItemId: string | null)
 
 /**
  * The plain text of a library item, used as attached chat context: a saved
+ * Reel Analyzer breakdown renders via analysisContextText, a saved
  * generated item copies out via itemCopyText, a saved script via
  * scriptToText, and anything else falls back to the item's title.
  */
 export function contextTextForItem(item: ContentItem): string {
   const body = item.body;
+  if (item.kind === "analysis") {
+    // A saved Reel Analyzer breakdown attaches as its measured plain-text
+    // rendering; a malformed analysis body falls through to the title below.
+    const analysis = readAnalysisBody(body);
+    if (analysis) return analysisContextText(analysis);
+  }
   if (isRecord(body.item)) {
     const generated = asGeneratedItem(body.item);
     if (generated) return itemCopyText(generated);
