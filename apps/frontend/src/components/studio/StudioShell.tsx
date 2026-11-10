@@ -8,6 +8,7 @@ import { Logo } from "@/components/brand/Logo";
 import { authService } from "@/services/auth";
 import { User } from "@/services/types";
 import { FEEDBACK_MAILTO } from "@/lib/legal";
+import { NAV_GROUPS, NAV_ITEMS, isNavActive } from "./nav";
 
 type HealthChecks = { database: boolean; queue: boolean };
 
@@ -19,45 +20,21 @@ const SHOW_HEALTH = process.env.NODE_ENV !== "production";
 const iconProps = { className: "w-4 h-4 shrink-0", fill: "none", stroke: "currentColor", strokeWidth: "1.8", viewBox: "0 0 24 24" } as const;
 
 /**
- * Primary navigation — four categories, every item a real page:
- * Dashboard (overview + exports history), Captions (project list), Creator Studio
- * (Brand presets, Generators), Video Editor (pick / continue a project; the editor itself is
- * per-project at /projects/[id]). Settings stays secondary at the foot.
+ * Navigation comes from ./nav — the single source of truth shared by the sidebar and the
+ * mobile top bar. This map only attaches each entry's inline-SVG icon (same style as before);
+ * labels, hrefs, grouping and active matching all live in the config.
  */
-const NAV_GROUPS: { heading: string | null; items: { href: string; label: string; icon: React.ReactNode }[] }[] = [
-  {
-    heading: null,
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: (<svg {...iconProps}><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg>) },
-      { href: "/exports", label: "Exports", icon: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>) },
-    ],
-  },
-  {
-    heading: "Captions",
-    items: [
-      { href: "/captions", label: "Captions", icon: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 12h4M7 15.5h7M14 12h3" strokeLinecap="round" /></svg>) },
-    ],
-  },
-  {
-    heading: "Creator Studio",
-    items: [
-      { href: "/brand", label: "Brand presets", icon: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.1 4.6L19 9l-3.6 3.3 1 4.9L12 14.7l-4.4 2.5 1-4.9L5 9l4.9-1.4L12 3z" /></svg>) },
-      { href: "/create", label: "Generators", icon: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>) },
-    ],
-  },
-  {
-    heading: "Video Editor",
-    items: [
-      { href: "/editor", label: "Video Editor", icon: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M8 5v5" strokeLinecap="round" /></svg>) },
-      { href: "/clipper", label: "Clipper", icon: (<svg {...iconProps}><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" strokeLinecap="round" /></svg>) },
-    ],
-  },
-];
-
-const NAV = [...NAV_GROUPS.flatMap((g) => g.items), { href: "/settings", label: "Settings", icon: (<svg {...iconProps}><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /></svg>) }];
-
-const isActive = (pathname: string, href: string) =>
-  pathname === href || (href === "/editor" && pathname.startsWith("/projects/"));
+const NAV_ICONS: Record<string, React.ReactNode> = {
+  dashboard: (<svg {...iconProps}><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg>),
+  create: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>),
+  captions: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 12h4M7 15.5h7M14 12h3" strokeLinecap="round" /></svg>),
+  editor: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M8 5v5" strokeLinecap="round" /></svg>),
+  library: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-4 4 3 3-2 6 4" /></svg>),
+  brand: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.1 4.6L19 9l-3.6 3.3 1 4.9L12 14.7l-4.4 2.5 1-4.9L5 9l4.9-1.4L12 3z" /></svg>),
+  clipper: (<svg {...iconProps}><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" strokeLinecap="round" /></svg>),
+  exports: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>),
+  settings: (<svg {...iconProps}><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /></svg>),
+};
 
 function HealthRow({ label, ok, pending }: { label: string; ok?: boolean; pending: boolean }) {
   return (
@@ -117,9 +94,9 @@ export default function StudioShell({ children }: { children: React.ReactNode })
           <Logo height={24} />
         </Link>
         <nav className="flex max-w-[62vw] items-center gap-1 overflow-x-auto">
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} aria-label={item.label} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-sora text-[12px] font-semibold ${pathname === item.href ? "bg-sand-200 text-ink" : "text-sand-700"}`}>
-              {item.icon}
+          {NAV_ITEMS.map((item) => (
+            <Link key={item.href} href={item.href} aria-label={item.label} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-sora text-[12px] font-semibold ${isNavActive(pathname, item) ? "bg-sand-200 text-ink" : "text-sand-700"}`}>
+              {NAV_ICONS[item.id]}
               <span className="whitespace-nowrap">{item.label}</span>
             </Link>
           ))}
@@ -140,13 +117,13 @@ export default function StudioShell({ children }: { children: React.ReactNode })
 
         <nav className="px-3 space-y-4 overflow-y-auto">
           {NAV_GROUPS.map((group) => (
-            <div key={group.heading ?? "main"} className="space-y-1">
+            <div key={group.id} className="space-y-1">
               {group.heading ? <p className="px-3 pb-1 font-sora text-[11px] font-semibold uppercase tracking-wider text-sand-500">{group.heading}</p> : null}
               {group.items.map((item) => {
-                const active = isActive(pathname, item.href);
+                const active = isNavActive(pathname, item);
                 return (
                   <Link key={item.href} href={item.href} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold transition-colors ${active ? "bg-sand-200 text-ink" : "text-sand-700 hover:bg-sand-100 hover:text-ink"}`}>
-                    {item.icon}
+                    {NAV_ICONS[item.id]}
                     {item.label}
                   </Link>
                 );
@@ -156,10 +133,6 @@ export default function StudioShell({ children }: { children: React.ReactNode })
         </nav>
 
         <div className="mt-auto">
-          <Link href="/settings" className={`mx-3 mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold transition-colors ${pathname === "/settings" ? "bg-sand-200 text-ink" : "text-sand-700 hover:bg-sand-100 hover:text-ink"}`}>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><circle cx="12" cy="12" r="3" /><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" /></svg>
-            Settings
-          </Link>
           <a href={FEEDBACK_MAILTO} className="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold text-sand-700 transition-colors hover:bg-sand-100 hover:text-ink">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v11H8l-4 4V5z" /></svg>
             Send feedback

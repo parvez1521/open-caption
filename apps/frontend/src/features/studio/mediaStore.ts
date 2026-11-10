@@ -67,6 +67,16 @@ export async function listProjectAssets(projectId: string): Promise<MediaAssetRe
   }
 }
 
+/** Every asset in the bin, across all projects, newest first — the Media Library's view of this device. */
+export async function listAllAssets(): Promise<MediaAssetRecord[]> {
+  try {
+    const all = (await run("readonly", (s) => s.getAll())) as MediaAssetRecord[];
+    return all.sort((a, b) => b.createdAt - a.createdAt);
+  } catch {
+    return [];
+  }
+}
+
 export async function saveAsset(rec: MediaAssetRecord): Promise<void> {
   void navigator.storage?.persist?.().catch(() => false);
   try {
