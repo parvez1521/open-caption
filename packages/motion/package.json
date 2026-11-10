@@ -1,0 +1,1 @@
+{"dependencies":{"@capseasy/shared":"workspace:*","zod":"^3.23.8"},"devDependencies":{"@types/node":"^20","typescript":"^5.6.0","vitest":"^4.1.9"},"main":"src/index.ts","name":"@capseasy/motion","private":true,"scripts":{"test":"vitest run --passWithNoTests","typecheck":"tsc --noEmit"},"type":"module","types":"src/index.ts","version":"1.0.0"}
