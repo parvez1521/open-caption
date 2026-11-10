@@ -3,7 +3,28 @@
 import React, { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { MOTION_TEMPLATES, defaultMotionConfig } from "@capseasy/motion";
+import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { FAQS } from "./faqs";
+
+/** A preview item for a motion template, built as a plain literal so this section's static
+ *  bundle stays light (the renderer itself arrives with the dynamically-imported MotionPreview). */
+function homeMotionItem(templateId: OverlaySocialVariant): OverlayItem {
+  const cfg = defaultMotionConfig(templateId);
+  return {
+    id: `home-motion-${templateId}`,
+    kind: "social",
+    variant: cfg.variant,
+    text: cfg.text,
+    startMs: 0,
+    endMs: cfg.durationMs,
+    x: 0.5,
+    y: 0.78,
+    scale: 1,
+    rotation: 0,
+    color: cfg.color,
+  };
+}
 import { PLANS } from "@capseasy/shared";
 import { Logo as BrandLogo } from "@/components/brand/Logo";
 import { LEGAL_PAGES } from "@/lib/legal";
@@ -13,6 +34,8 @@ import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/br
 const CyclingPreview = dynamic(() => import("./LivePreview").then((m) => m.CyclingPreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#0F3D2E]" /> });
 const LivePreview = dynamic(() => import("./LivePreview").then((m) => m.LivePreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#1f2b27]" /> });
 const HeroCylinder = dynamic(() => import("./HeroCylinder").then((m) => m.HeroCylinder), { ssr: false, loading: () => <div className="h-[320px] w-full animate-pulse rounded-2xl bg-[#1C1C1A] sm:h-[360px]" /> });
+// Motion Studio previews: the real animated graphics, loaded lazily like the other live previews
+const MotionPreview = dynamic(() => import("@/features/motion/MotionPreview").then((m) => m.MotionPreview), { ssr: false, loading: () => <div className="aspect-[700/360] w-full animate-pulse bg-[#141412]" /> });
 
 const INK = "#FFFFEB";
 export const GITHUB_URL = "https://github.com/parvez1521/open-caption";
@@ -374,6 +397,57 @@ export function ClipperSection() {
             </div>
             <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/45">Silences split the runs · short runs merge · long runs split at the biggest pause</p>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Motion Studio section: four featured templates from the motion registry, playing live in a
+ * horizontal scroll row (the same shared live-preview budget as the Studio picker keeps the
+ * simultaneous animations capped). The previews are the real graphics — the same OverlayView
+ * the Studio and the export draw — not posters or mock cards.
+ */
+export function MotionStudioSection() {
+  const featured = React.useMemo(
+    () =>
+      MOTION_TEMPLATES.filter((t) => t.featured)
+        .slice(0, 4)
+        .map((t) => ({ template: t, item: homeMotionItem(t.id) })),
+    [],
+  );
+  return (
+    <section id="motion" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="max-w-2xl">
+          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+            Motion Studio: graphics that <em className="font-normal italic text-[#34D399]">move.</em>
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-[#FFFFEB]/70">
+            Subscribe pills, follow cards, counters and titles — animated graphics you customise with
+            your own words and colour, then drop into a project. These four are playing live, exactly
+            as they render in your video.
+          </p>
+          <Link href="/motion" className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-6 py-3.5 text-base font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            Open Motion Studio <span aria-hidden>→</span>
+          </Link>
+        </div>
+        <div className="mt-10 flex gap-4 overflow-x-auto pb-2 [scrollbar-width:thin]">
+          {featured.map(({ template, item }) => (
+            <Link
+              key={template.id}
+              href={`/motion/${template.id}`}
+              className="w-[280px] shrink-0 overflow-hidden rounded-xl border border-[#FFFFEB]/10 bg-[#1C1C1A] transition hover:border-[#FFFFEB]/25 sm:w-[320px]"
+              aria-label={`Customise ${template.title}`}
+            >
+              <MotionPreview item={item} />
+              <span className="block px-4 py-3">
+                <span className="block font-styled text-[15px] font-bold text-[#FFFFEB]">{template.title}</span>
+                <span className="mt-0.5 block text-[13px] leading-snug text-[#FFFFEB]/65">{template.description}</span>
+              </span>
+            </Link>
+          ))}
         </div>
       </div>
     </section>
