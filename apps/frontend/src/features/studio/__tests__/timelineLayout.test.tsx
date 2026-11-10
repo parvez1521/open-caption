@@ -56,6 +56,9 @@ const renderTimeline = () =>
       onJoin={vi.fn()}
       onSplitAtPlayhead={vi.fn()}
       onOpenSettings={vi.fn()}
+      selectedOverlayId={null}
+      onSelectOverlay={vi.fn()}
+      onMoveOverlay={vi.fn()}
     />,
   );
 
