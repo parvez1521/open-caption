@@ -3,6 +3,7 @@
 import React from "react";
 import { NEUTRAL_VIDEO_ADJUST, type ProjectSettings } from "@capseasy/shared";
 import { Button, Section, Slider } from "../controls";
+import { ColorScopes } from "./ColorScopes";
 
 /** Adjust: colour grading for the video layer (Run 3 slice 4.9 extends the original
  *  brightness/contrast/saturation with exposure, highlights, shadows, temperature and tint).
@@ -35,6 +36,10 @@ export const AdjustPanel: React.FC<{
         <p className="text-xs text-st-faint">Highlights, shadows, temperature and tint are approximations of the photographic controls, matched between preview and export.</p>
         <Button onClick={() => patch({ videoAdjust: { ...NEUTRAL_VIDEO_ADJUST } })} disabled={neutral} className="w-full">Reset adjustments</Button>
       </Section>
+      {/* A14 scopes: mounted with NO props on purpose — the section is display-only
+          (it samples the preview frame itself) and must never receive the settings
+          write path above. */}
+      <ColorScopes />
     </div>
   );
 };
