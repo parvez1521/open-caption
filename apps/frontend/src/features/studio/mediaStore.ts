@@ -1,6 +1,6 @@
 "use client";
 
-import type { MediaAssetKind } from "./mediaAssets";
+import type { AssetLicenceRecord, MediaAssetKind } from "./mediaAssets";
 
 /**
  * The media bin's bytes: a sibling `assets` store in the SAME IndexedDB database the device-video
@@ -29,6 +29,13 @@ export interface MediaAssetRecord {
   thumb: Blob | null;
   /** normalised waveform peaks for audio rows (null otherwise) */
   peaks: number[] | null;
+  /**
+   * Licence record for stock-catalogue imports (A10): present on bundled
+   * starter-pack copies and Pixabay imports, absent/null on the user's own
+   * uploads and on records written before A10 (IndexedDB stores the record
+   * as-is, so the optional field needs no DB version bump).
+   */
+  licence?: AssetLicenceRecord | null;
   createdAt: number;
 }
 

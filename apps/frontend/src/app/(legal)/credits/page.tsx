@@ -3,10 +3,12 @@ import { TRANSLATION_MODELS } from "@capseasy/shared";
 import { pageMetadata } from "@/lib/seo";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import credits from "../../../../public/hero/credits.json";
+import stockManifest from "../../../../public/stock-sfx/manifest.json";
 
 export const metadata: Metadata = pageMetadata({ title: "Credits", description: "Sources and licences of the footage and the on-device translation models used by Open Caption.", path: "/credits" });
 
 type Credit = { title: string; license: string; source: string; lookName: string };
+type StockCredit = { title: string; author: string; sourceUrl: string; licence: string; retrievedAt: string; originalFile: string };
 
 export default function CreditsPage() {
   return (
@@ -21,6 +23,22 @@ export default function CreditsPage() {
             <li key={c.source}>
               <a href={c.source} className="font-semibold underline underline-offset-2" target="_blank" rel="noreferrer">{c.title}</a>
               <span className="text-obsidian/60"> · {c.license} · captioned with the {c.lookName} look</span>
+            </li>
+          ))}
+        </ul>
+      </Sec>
+      <Sec id="stock-sfx" title="Starter sound effects pack">
+        <p>
+          The sound effects bundled with the editor&apos;s stock audio catalogue are not ours: every
+          file is a CC0 (public domain) work by the author below, recorded per file at ingestion.
+          CC0 needs no attribution — these credits are kept so the record stays checkable. The same
+          record travels with each copy added to a project&apos;s media bin.
+        </p>
+        <ul className="space-y-3">
+          {(stockManifest.items as StockCredit[]).map((c) => (
+            <li key={`${c.sourceUrl}-${c.originalFile}`}>
+              <a href={c.sourceUrl} className="font-semibold underline underline-offset-2" target="_blank" rel="noreferrer">{c.title}</a>
+              <span className="text-obsidian/60"> · {c.author} · {c.licence} · retrieved {c.retrievedAt}</span>
             </li>
           ))}
         </ul>

@@ -6,6 +6,37 @@
 
 export type MediaAssetKind = "video" | "audio" | "image";
 
+/**
+ * Where a media-bin asset came from, licence-wise (Phase 8, A10). A record is
+ * stored WITH the asset (mediaStore) for anything that did not come from the
+ * user's own files: a bundled starter-pack item or a Pixabay browse-import.
+ * User uploads carry no record (null) — there is nothing to attribute.
+ * `contentIdRegistered` is Pixabay-only: true/false when the source data
+ * actually says, null when it does not say either way (the UI must then use
+ * the standing "check the track page" note, never claim the track is clear).
+ */
+export interface AssetLicenceRecord {
+  source: "kenney" | "freesound" | "pixabay";
+  /** the work's title at the source (for a pack item: pack name + original file name) */
+  title: string;
+  author: string | null;
+  /** the page the work came from — where a reader can re-check the licence themselves */
+  sourceUrl: string;
+  /** licence name as the source states it, e.g. "CC0 1.0" / "Pixabay Content License" */
+  licence: string;
+  /** ISO date (yyyy-mm-dd) the file was retrieved / imported */
+  retrievedAt: string;
+  /** honest format note when what we hold differs from the source's headline format */
+  formatNote?: string;
+  contentIdRegistered?: boolean | null;
+}
+
+/** One-line licence summary for an asset row: "Kenney · CC0 1.0" / "Pixabay Content License". */
+export function describeAssetLicence(l: AssetLicenceRecord): string {
+  const who = l.author ?? (l.source === "pixabay" ? "Pixabay" : l.source === "kenney" ? "Kenney" : "Freesound");
+  return `${who} · ${l.licence}`;
+}
+
 /** Per-file caps for the on-device bin: generous for video, small for stills. Over the cap the file
  *  is refused with an honest message (it is never truncated or silently dropped). */
 export const MEDIA_SIZE_CAPS: Record<MediaAssetKind, number> = {
