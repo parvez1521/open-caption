@@ -30,6 +30,8 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   captions: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 12h4M7 15.5h7M14 12h3" strokeLinecap="round" /></svg>),
   editor: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M8 5v5" strokeLinecap="round" /></svg>),
   growth: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M4 17l5-6 4 3 7-8" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 6h5v5" /></svg>),
+  planner: (<svg {...iconProps}><rect x="3" y="5" width="18" height="16" rx="2" /><path strokeLinecap="round" d="M3 10h18M8 3v4M16 3v4M7.5 14.5h3M13.5 14.5h3" /></svg>),
+  teleprompter: (<svg {...iconProps}><rect x="3" y="4" width="18" height="13" rx="2" /><path strokeLinecap="round" d="M7 8.5h10M7 12h6M12 21l-2.5-4h5L12 21z" /></svg>),
   library: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-4 4 3 3-2 6 4" /></svg>),
   brand: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.1 4.6L19 9l-3.6 3.3 1 4.9L12 14.7l-4.4 2.5 1-4.9L5 9l4.9-1.4L12 3z" /></svg>),
   clipper: (<svg {...iconProps}><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" strokeLinecap="round" /></svg>),

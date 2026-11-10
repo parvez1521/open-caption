@@ -21,10 +21,12 @@ describe("shell nav config", () => {
       ["primary", "Caption Studio", "/captions"],
       ["primary", "Video Editor", "/editor"],
       ["primary", "Growth Studio", "/growth"],
+      ["primary", "Content Planner", "/planner"],
       ["supporting", "Media Library", "/library"],
       ["supporting", "Brand Kit", "/brand"],
       ["supporting", "Clipper", "/clipper"],
       ["supporting", "Reel Analyzer", "/analyzer"],
+      ["supporting", "Teleprompter", "/prompter"],
       ["supporting", "Export History", "/exports"],
       ["supporting", "Settings", "/settings"],
     ]);
@@ -41,7 +43,9 @@ describe("shell nav config", () => {
   });
 
   it("does not mention sections that do not exist yet (no placeholder nav)", () => {
-    const forbidden = ["Content Planner", "Teleprompter", "Creator Analytics"];
+    // Content Planner + Teleprompter entered the nav in Phase 7, when their
+    // slices shipped; Creator Analytics (Phase 8) is still honestly absent.
+    const forbidden = ["Creator Analytics"];
     for (const item of NAV_ITEMS) {
       for (const label of forbidden) {
         expect(item.label).not.toBe(label);
