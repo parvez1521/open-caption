@@ -55,6 +55,16 @@ describe("segmentTimelineDurationMs", () => {
   it("a still's pseudo-span IS its duration — rate never applies", () => {
     expect(segmentTimelineDurationMs(seg({ id: "a", sourceInMs: 0, sourceOutMs: 2000, still: true, playbackRate: 4 }))).toBe(2000);
   });
+
+  it("Phase 9 divergence pin: the per-segment value is UNROUNDED (rounding happens once, in compositionDurationMs)", () => {
+    // @capseasy/shared's segmentTimelineDurationMs rounds each segment (1001/2 → 501);
+    // this studio layer deliberately does not — see the Phase 9 note in segmentView.ts.
+    expect(segmentTimelineDurationMs(seg({ id: "a", sourceInMs: 0, sourceOutMs: 1001, playbackRate: 2 }))).toBe(500.5);
+  });
+
+  it("Phase 9 divergence pin: a negative source span clamps to 0", () => {
+    expect(segmentTimelineDurationMs(seg({ id: "a", sourceInMs: 2000, sourceOutMs: 1000 }))).toBe(0);
+  });
 });
 
 describe("compositionDurationMs", () => {
@@ -72,6 +82,17 @@ describe("compositionDurationMs", () => {
 
   it("is 0 for no segments and never negative", () => {
     expect(compositionDurationMs([])).toBe(0);
+  });
+
+  it("Phase 9 divergence pin: rounds ONCE over the unrounded sum, not per segment", () => {
+    // Two 1001 ms segments at 2×: unrounded 500.5 + 500.5 = 1001 → round-once gives 1001.
+    // The shared formula (round per segment: 501 + 501) would give 1002 — the values are
+    // pinned DIFFERENT on purpose; see the Phase 9 note in segmentView.ts.
+    const segs = [
+      seg({ id: "a", sourceInMs: 0, sourceOutMs: 1001, playbackRate: 2 }),
+      seg({ id: "b", sourceInMs: 1001, sourceOutMs: 2002, playbackRate: 2 }),
+    ];
+    expect(compositionDurationMs(segs)).toBe(1001);
   });
 });
 
