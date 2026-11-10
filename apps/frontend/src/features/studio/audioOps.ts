@@ -1,7 +1,10 @@
 import {
   DEFAULT_AUDIO_CLIP_PROCESSORS,
   DEFAULT_AUDIO_DUCKING,
+  DEFAULT_BLEEP_LEVEL,
+  DEFAULT_BLEEP_TONE_HZ,
   newId,
+  type AudioBleep,
   type AudioCleanup,
   type AudioClip,
   type AudioDucking,
@@ -336,6 +339,84 @@ export function updateAudioClipProcessors(
     reverb === cur.reverb
   ) return comp;
   return replaceClip(comp, { ...clip, processors: { eq, cleanup, reverb } });
+}
+
+/* ------------------------------------------------------------------ */
+/* bleeps (Phase 5, A6) + noise suppression (Phase 5, A12)             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Store approved bleep ranges as mix params. This is the ONLY way bleeps enter
+ * a composition, and callers pass it ranges produced by
+ * `approvedBleepRanges(matches, approvedIds)` — so an unapproved transcript
+ * match can never become a bleep. A range identical (start+end) to an existing
+ * bleep is skipped; ranges are stored sorted by start. An empty input, or one
+ * where every range is invalid (end <= start) or already present, is a
+ * same-reference no-op. Batch-adding is ONE returned composition, hence one
+ * undo step for an "approve all" action. Tone params clamp to the schema
+ * ranges (200..4000 Hz, level 0..1).
+ */
+export function addAudioBleeps(
+  comp: EditorComposition,
+  ranges: readonly { startMs: number; endMs: number; wordText?: string; toneHz?: number; level?: number }[],
+): EditorComposition {
+  const existing = comp.audioBleeps ?? [];
+  const fresh: AudioBleep[] = [];
+  for (const r of ranges) {
+    const startMs = Math.max(0, roundMs(r.startMs));
+    const endMs = roundMs(r.endMs);
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) continue;
+    if (existing.some((b) => b.startMs === startMs && b.endMs === endMs)) continue;
+    if (fresh.some((b) => b.startMs === startMs && b.endMs === endMs)) continue;
+    fresh.push({
+      id: newId(),
+      startMs,
+      endMs,
+      toneHz: r.toneHz !== undefined && Number.isFinite(r.toneHz) ? clamp(r.toneHz, 200, 4000) : DEFAULT_BLEEP_TONE_HZ,
+      level: r.level !== undefined && Number.isFinite(r.level) ? clamp(r.level, 0, 1) : DEFAULT_BLEEP_LEVEL,
+      wordText: r.wordText ?? "",
+    });
+  }
+  if (fresh.length === 0) return comp;
+  const audioBleeps = [...existing, ...fresh].sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
+  return { ...comp, audioBleeps };
+}
+
+/** Remove one bleep (restoring the original sound in that range). Unknown id: no-op. */
+export function removeAudioBleep(comp: EditorComposition, bleepId: string): EditorComposition {
+  const existing = comp.audioBleeps ?? [];
+  if (!existing.some((b) => b.id === bleepId)) return comp;
+  return { ...comp, audioBleeps: existing.filter((b) => b.id !== bleepId) };
+}
+
+/** Patch one bleep's tone (frequency 200..4000 Hz, level 0..1). Unknown id / no change: no-op. */
+export function updateAudioBleep(
+  comp: EditorComposition,
+  bleepId: string,
+  patch: { toneHz?: number; level?: number },
+): EditorComposition {
+  const existing = comp.audioBleeps ?? [];
+  const bleep = existing.find((b) => b.id === bleepId);
+  if (!bleep) return comp;
+  const next: AudioBleep = {
+    ...bleep,
+    toneHz: patch.toneHz !== undefined && Number.isFinite(patch.toneHz) ? clamp(patch.toneHz, 200, 4000) : bleep.toneHz,
+    level: patch.level !== undefined && Number.isFinite(patch.level) ? clamp(patch.level, 0, 1) : bleep.level,
+  };
+  if (next.toneHz === bleep.toneHz && next.level === bleep.level) return comp;
+  return { ...comp, audioBleeps: existing.map((b) => (b.id === bleepId ? next : b)) };
+}
+
+/**
+ * Set (or clear, with null) the derived noise-suppressed WAV asset for the main
+ * source's audio (Phase 5, A12). The asset itself is produced by the denoise
+ * pipeline into the media bin; this op only stores the reference the mix plan
+ * reads. Setting the same value is a no-op.
+ */
+export function setNoiseSuppressionAsset(comp: EditorComposition, assetId: string | null): EditorComposition {
+  const next = assetId && assetId.length > 0 ? assetId : null;
+  if ((comp.audioNoiseSuppressionAssetId ?? null) === next) return comp;
+  return { ...comp, audioNoiseSuppressionAssetId: next };
 }
 
 /* ------------------------------------------------------------------ */

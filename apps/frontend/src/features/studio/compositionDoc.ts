@@ -4,6 +4,7 @@ import {
   DEFAULT_TRACK_STATE,
   IDENTITY_SEGMENT_TRANSFORM,
   segmentTimelineDurationMs,
+  type AudioBleep,
   type AudioClip,
   type AudioMaster,
   type AudioTrack,
@@ -129,6 +130,11 @@ export interface EditorComposition {
   audioTracks: AudioTrack[];
   audioClips: AudioClip[];
   audioMaster: AudioMaster;
+  /** Phase 5 (A6): approved profanity bleeps, carried verbatim to/from `settings.composition.audio.bleeps` */
+  audioBleeps: AudioBleep[];
+  /** Phase 5 (A12): media-bin asset id of the derived noise-suppressed WAV for the main
+   *  source's audio, or null — carried verbatim to/from `settings.composition.audio.noiseSuppressionAssetId` */
+  audioNoiseSuppressionAssetId: string | null;
 }
 
 const TRACK_KINDS: CompositionTrackKind[] = ["video", "captions", "text", "graphics"];
@@ -315,6 +321,8 @@ export function buildEditorComposition(input: {
     videoVolume: storedAudio?.master?.videoVolume ?? DEFAULT_AUDIO_MASTER.videoVolume,
     compressor: { ...DEFAULT_AUDIO_MASTER.compressor, ...(storedAudio?.master?.compressor ?? {}) },
   };
+  const audioBleeps: AudioBleep[] = (storedAudio?.bleeps ?? []).map((b) => ({ ...b }));
+  const audioNoiseSuppressionAssetId: string | null = storedAudio?.noiseSuppressionAssetId ?? null;
 
   return {
     version: 1,
@@ -329,6 +337,8 @@ export function buildEditorComposition(input: {
     audioTracks,
     audioClips,
     audioMaster,
+    audioBleeps,
+    audioNoiseSuppressionAssetId,
   };
 }
 
@@ -436,6 +446,8 @@ export function projectComposition(comp: EditorComposition, base: ProjectSetting
         master: comp.audioMaster
           ? { ...comp.audioMaster, compressor: { ...comp.audioMaster.compressor } }
           : { ...DEFAULT_AUDIO_MASTER, compressor: { ...DEFAULT_AUDIO_MASTER.compressor } },
+        bleeps: (comp.audioBleeps ?? []).map((b) => ({ ...b })),
+        noiseSuppressionAssetId: comp.audioNoiseSuppressionAssetId ?? null,
       },
     },
     overlays,

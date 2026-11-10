@@ -462,6 +462,30 @@ export const DEFAULT_AUDIO_MASTER: AudioMaster = {
   compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
 };
 
+/**
+ * One APPROVED profanity bleep (Phase 5, A6): a PROJECT-timeline range where the mix
+ * mutes every item and overlays a code-synthesised tone instead. This is a mix param,
+ * never a destructive edit — the source audio is untouched and removing the entry
+ * restores it exactly. Ranges are created ONLY from transcript matches the user
+ * approved in the review UI (see features/studio/audio/bleep.ts); `wordText` keeps the
+ * matched transcript word for that UI and is never rendered. The tone is synthesised
+ * from `toneHz`/`level` by the ONE shared function in mixMath, so the preview graph
+ * and the export mixdown produce the identical tone from these params.
+ */
+export const AudioBleepSchema = z
+  .object({
+    id: z.string().min(1),
+    startMs: z.number().min(0),
+    endMs: z.number().min(1),
+    toneHz: z.number().min(200).max(4000).default(1000),
+    level: z.number().min(0).max(1).default(0.5),
+    wordText: z.string().max(80).default(""),
+  })
+  .refine((b) => b.endMs > b.startMs, { message: "endMs must be after startMs", path: ["endMs"] });
+export type AudioBleep = z.infer<typeof AudioBleepSchema>;
+export const DEFAULT_BLEEP_TONE_HZ = 1000;
+export const DEFAULT_BLEEP_LEVEL = 0.5;
+
 /** The composition's whole audio slice: tracks + placed clips + master. Empty = the
  *  project has no audio-studio content and every audio behaviour is exactly Run 2's. */
 export const CompositionAudioSchema = z.object({
@@ -472,6 +496,19 @@ export const CompositionAudioSchema = z.object({
     videoVolume: 1,
     compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
   }),
+  /** Phase 5 (A6): approved profanity bleeps — see AudioBleepSchema. */
+  bleeps: z.array(AudioBleepSchema).default([]),
+  /**
+   * Phase 5 (A12, gated spike that PASSED — see features/studio/audio/denoise.ts):
+   * media-bin asset id of a noise-suppressed WAV derived ONCE from the main source's
+   * audio (decode → RNNoise → WAV in the media bin, the reverse-conform derived-asset
+   * pattern). When set, the mix plan reads the video items' audio from this asset
+   * instead of the main source, so preview and export consume IDENTICAL samples —
+   * there are no two live RNNoise implementations. Null = the source's own audio.
+   * Device-local like every media-bin asset: on another device the id resolves to
+   * nothing and the mix falls back to the source's own sound.
+   */
+  noiseSuppressionAssetId: z.string().nullable().default(null),
 });
 export type CompositionAudio = z.infer<typeof CompositionAudioSchema>;
 export const EMPTY_COMPOSITION_AUDIO: CompositionAudio = {
@@ -482,6 +519,8 @@ export const EMPTY_COMPOSITION_AUDIO: CompositionAudio = {
     videoVolume: 1,
     compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
   },
+  bleeps: [],
+  noiseSuppressionAssetId: null,
 };
 
 /**
@@ -617,6 +656,8 @@ export const EMPTY_COMPOSITION_SETTINGS: CompositionSettings = {
       videoVolume: 1,
       compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
     },
+    bleeps: [],
+    noiseSuppressionAssetId: null,
   },
 };
 export const DEFAULT_COMPOSITION_SETTINGS: CompositionSettings = EMPTY_COMPOSITION_SETTINGS;
@@ -689,6 +730,8 @@ export const ProjectSettingsSchema = z.object({
         videoVolume: 1,
         compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
       },
+      bleeps: [],
+      noiseSuppressionAssetId: null,
     },
   }),
 });

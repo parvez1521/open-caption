@@ -65,6 +65,9 @@ importers:
       '@sentry/nextjs':
         specifier: ^11.2.0
         version: 11.2.0(@babel/core@7.29.7)(next@16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react@19.2.4)(webpack@5.105.0(esbuild@0.28.1))
+      '@shiguredo/rnnoise-wasm':
+        specifier: 2025.1.5
+        version: 2025.1.5
       '@supabase/supabase-js':
         specifier: ^2.108.2
         version: 2.108.2
@@ -216,7 +219,7 @@ importers:
         version: link:../caption-engine
       '@remotion/bundler':
         specifier: 4.0.484
-        version: 4.0.484(@swc/helpers@0.5.15)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 4.0.484(@swc/helpers@0.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/google-fonts':
         specifier: 4.0.484
         version: 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -399,13 +402,13 @@ importers:
         version: link:../caption-engine
       '@remotion/bundler':
         specifier: 4.0.484
-        version: 4.0.484(@swc/helpers@0.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 4.0.484(@swc/helpers@0.5.15)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/captions':
         specifier: 4.0.484
         version: 4.0.484
       '@remotion/cli':
         specifier: 4.0.484
-        version: 4.0.484(@swc/helpers@0.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 4.0.484(@swc/helpers@0.5.15)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/layout-utils':
         specifier: 4.0.484
         version: 4.0.484
@@ -2102,6 +2105,10 @@ packages:
   '@sentry/vercel-edge@11.2.0':
     resolution: {integrity: sha512-veKfZprBeleLOTNcz8lGdl/BSVeqK06A1gXCvncDWTJHKBbhj29N/3eR+JPxIxGyKfnTrEDNxID6ufvNOPpyDQ==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
+
+  '@shiguredo/rnnoise-wasm@2025.1.5':
+    resolution: {integrity: sha512-9YJxzzHftlW936E5z9aEKK2CrPfUgc3HgZ2keyQ5e2Pb5bx+6tykYQ2Gyudvxd7Sxmlnar7SemDMFfx0OuVuGA==}
+    engines: {node: '>=20', pnpm: '>=10'}
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
@@ -5915,14 +5922,14 @@ snapshots:
 
   '@remotion/captions@4.0.484': {}
 
-  '@remotion/cli@4.0.484(@swc/helpers@0.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@remotion/cli@4.0.484(@swc/helpers@0.5.15)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@remotion/bundler': 4.0.484(@swc/helpers@0.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@remotion/bundler': 4.0.484(@swc/helpers@0.5.15)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/media-utils': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/player': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/renderer': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/studio': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@remotion/studio-server': 4.0.484(@swc/helpers@0.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@remotion/studio-server': 4.0.484(@swc/helpers@0.5.15)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/studio-shared': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       dotenv: 17.3.1
       minimist: 1.2.6
@@ -6047,11 +6054,11 @@ snapshots:
 
   '@remotion/streaming@4.0.484': {}
 
-  '@remotion/studio-server@4.0.484(@swc/helpers@0.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@remotion/studio-server@4.0.484(@swc/helpers@0.5.15)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@babel/parser': 7.24.1
       '@babel/types': 7.24.0
-      '@remotion/bundler': 4.0.484(@swc/helpers@0.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@remotion/bundler': 4.0.484(@swc/helpers@0.5.15)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/renderer': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/studio-shared': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       memfs: 3.4.3
@@ -6464,6 +6471,8 @@ snapshots:
       '@opentelemetry/api': 1.9.1
       '@sentry/core': 11.2.0
       '@sentry/server-utils': 11.2.0
+
+  '@shiguredo/rnnoise-wasm@2025.1.5': {}
 
   '@standard-schema/spec@1.1.0': {}
 

@@ -11,6 +11,7 @@ import {
   DEFAULT_AUDIO_CLEANUP,
   DEFAULT_AUDIO_MASTER,
   NEUTRAL_AUDIO_EQ,
+  type AudioBleep,
   type AudioCleanup,
   type AudioDucking,
   type AudioEq,
@@ -53,6 +54,9 @@ export interface MixPlan {
   durationMs: number;
   items: MixItem[];
   master: AudioMaster;
+  /** Phase 5 (A6): approved bleeps, clamped to the plan duration, in timeline order.
+   *  Consumers mute every item inside a range and add the shared synthesised tone. */
+  bleeps: AudioBleep[];
 }
 
 function masterDiffersFromDefault(master: AudioMaster): boolean {
@@ -86,6 +90,10 @@ function masterDiffersFromDefault(master: AudioMaster): boolean {
  */
 export function mixIsActive(comp: EditorComposition): boolean {
   if (comp.audioClips.length > 0) return true;
+  // Phase 5: an approved bleep or a derived noise-suppressed voice asset both need
+  // the mix engine (they change the video's own sound, which only the mix produces).
+  if ((comp.audioBleeps ?? []).length > 0) return true;
+  if (comp.audioNoiseSuppressionAssetId) return true;
   for (const track of comp.audioTracks) {
     if (track.volume !== 1 || track.muted || track.ducking.enabled) return true;
   }
@@ -121,7 +129,10 @@ export function buildMixPlan(comp: EditorComposition, durationMs: number): MixPl
       items.push({
         key: `video:${clip.id}`,
         kind: "video",
-        assetId: clip.assetId ?? null,
+        // Phase 5 (A12): the main source's audio is read from the derived
+        // noise-suppressed WAV when one is set (segments with their own asset —
+        // reversed/freeze conforms — keep theirs; their audio is already conformed).
+        assetId: clip.assetId ?? comp.audioNoiseSuppressionAssetId ?? null,
         timelineStartMs: clip.startMs,
         sourceStartMs: clip.sourceInMs,
         sourceDurationMs: clampedDuration,
@@ -170,5 +181,11 @@ export function buildMixPlan(comp: EditorComposition, durationMs: number): MixPl
     });
   }
 
-  return { durationMs: total, items, master: comp.audioMaster };
+  const bleeps: AudioBleep[] = (comp.audioBleeps ?? [])
+    .filter((b) => b.endMs > b.startMs && b.startMs < total)
+    .map((b) => ({ ...b, startMs: Math.max(0, b.startMs), endMs: Math.min(total, b.endMs) }))
+    .filter((b) => b.endMs > b.startMs)
+    .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
+
+  return { durationMs: total, items, master: comp.audioMaster, bleeps };
 }

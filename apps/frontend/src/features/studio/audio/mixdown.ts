@@ -22,6 +22,10 @@
  *    linearly interpolated between hops at sample resolution.
  * 6. Master: items are summed, multiplied by master.volume, the master compressor
  *    runs when enabled, and the result is hard-clamped to [-1, 1].
+ * Phase 5 (A6) slots into this pipeline without changing its order: the per-sample
+ * gain in step 1 is additionally multiplied by mixMath.bleepMuteGain (0 inside an
+ * approved bleep range), and the synthesised bleep tones (mixMath.bleepToneSample)
+ * are added to the master sum immediately BEFORE the master chain in step 6.
  *
  * The per-item PCM fetch is injectable (`opts.decodeRange`, defaulting to the real
  * Mediabunny decodeAudioRange): that seam is how tests drive the mixdown with
@@ -37,7 +41,7 @@ import {
   rateShift,
   resampleLinear,
 } from "./dsp";
-import { MIX_HOP_MS, combineVoicePeaks, duckEnvelope, fadeGainAt, peaksFromChannels } from "./mixMath";
+import { MIX_HOP_MS, bleepMuteGain, bleepToneSample, combineVoicePeaks, duckEnvelope, fadeGainAt, peaksFromChannels } from "./mixMath";
 import type { MixItem, MixPlan } from "./mixPlan";
 
 export const MIX_SAMPLE_RATE = 48000;
@@ -89,7 +93,7 @@ export async function renderMixedAudio(
   const sampleRate = MIX_SAMPLE_RATE;
   const totalSamples = Math.max(0, Math.round((plan.durationMs / 1000) * sampleRate));
   const master: [Float32Array, Float32Array] = [new Float32Array(totalSamples), new Float32Array(totalSamples)];
-  if (plan.items.length === 0 || totalSamples === 0) {
+  if (totalSamples === 0 || (plan.items.length === 0 && !(plan.bleeps ?? []).length)) {
     opts.onProgress?.(1);
     return { channels: master, sampleRate };
   }
@@ -124,13 +128,17 @@ export async function renderMixedAudio(
         channels = [rateShift(channels[0], item.rate), rateShift(channels[1], item.rate)];
       }
 
+      const bleeps = plan.bleeps ?? [];
       const itemSamples = Math.max(0, Math.round((item.sourceDurationMs / 1000) * sampleRate));
       const dry: [Float32Array, Float32Array] = [new Float32Array(itemSamples), new Float32Array(itemSamples)];
       for (let s = 0; s < itemSamples; s++) {
         const localMs = (s / sampleRate) * 1000;
+        // Phase 5 (A6): inside an approved bleep range the source is hard-muted
+        // (gain exactly 0) — the tone is added once at the master sum below.
         const g =
           item.baseGain *
-          fadeGainAt({ volume: 1, fadeInMs: item.fadeInMs, fadeOutMs: item.fadeOutMs }, localMs, item.sourceDurationMs);
+          fadeGainAt({ volume: 1, fadeInMs: item.fadeInMs, fadeOutMs: item.fadeOutMs }, localMs, item.sourceDurationMs) *
+          (bleeps.length ? bleepMuteGain(bleeps, item.timelineStartMs + localMs) : 1);
         if (g === 0) continue;
         dry[0][s] = (channels[0][s] ?? 0) * g;
         dry[1][s] = (channels[1][s] ?? 0) * g;
@@ -206,6 +214,21 @@ export async function renderMixedAudio(
         if (at >= target.length) break;
         target[at] = target[at]! + dry[s]! * dryScale + (wet ? wet[s]! * reverb : 0);
       }
+    }
+  }
+
+  // Phase 5 (A6): the bleep tones, synthesised from the ONE shared function in
+  // mixMath (the preview graph generates the identical samples), added to the
+  // summed master BEFORE master volume/compressor so a bleep sits in the mix
+  // like any other sound. Ranges were clamped to the plan duration by buildMixPlan.
+  for (const bleep of plan.bleeps ?? []) {
+    const startSample = Math.max(0, Math.round((bleep.startMs / 1000) * sampleRate));
+    const endSample = Math.min(totalSamples, Math.round((bleep.endMs / 1000) * sampleRate));
+    for (let s = startSample; s < endSample; s++) {
+      const tone = bleepToneSample(bleep, (s / sampleRate) * 1000);
+      if (tone === 0) continue;
+      master[0][s] = master[0][s]! + tone;
+      master[1][s] = master[1][s]! + tone;
     }
   }
 
