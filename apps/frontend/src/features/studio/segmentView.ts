@@ -1,4 +1,4 @@
-import type { VideoSegment } from "@capseasy/shared";
+import type { SegmentEffect, SegmentKeyframe, VideoSegment } from "@capseasy/shared";
 import type { EditorComposition, EditorVideoClip } from "./compositionDoc";
 
 /**
@@ -26,6 +26,8 @@ export interface SegmentTransform {
   scale: number;
   offsetX: number;
   offsetY: number;
+  /** Run 3 (4.7): base opacity 0..1 (also the "opacity" keyframe channel's base) */
+  opacity: number;
 }
 
 export const IDENTITY_TRANSFORM: SegmentTransform = {
@@ -39,6 +41,7 @@ export const IDENTITY_TRANSFORM: SegmentTransform = {
   scale: 1,
   offsetX: 0,
   offsetY: 0,
+  opacity: 1,
 };
 
 export type SegmentTransitionType = "fade" | "wipe" | "slide" | "zoom" | "blur";
@@ -53,6 +56,9 @@ export interface SegmentExtras {
   transitionIn: SegmentTransition | null;
   assetId: string | null;
   still: boolean;
+  /** Run 3 (4.7): segment-local keyframes + the ordered effects stack */
+  keyframes: SegmentKeyframe[];
+  effects: SegmentEffect[];
 }
 
 export const DEFAULT_SEGMENT_EXTRAS: SegmentExtras = {
@@ -61,6 +67,8 @@ export const DEFAULT_SEGMENT_EXTRAS: SegmentExtras = {
   transitionIn: null,
   assetId: null,
   still: false,
+  keyframes: [],
+  effects: [],
 };
 
 /** A stored segment or editor clip, with the Run-2 fields possibly absent (pre-Run-2 data). */
@@ -75,6 +83,8 @@ export function segmentExtras(seg: Partial<SegmentExtras> | null | undefined): S
     transitionIn: seg.transitionIn ?? null,
     assetId: seg.assetId ?? null,
     still: seg.still === true,
+    keyframes: seg.keyframes ?? [],
+    effects: seg.effects ?? [],
   };
 }
 
