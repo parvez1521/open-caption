@@ -8,7 +8,9 @@ import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { exportsService } from "@/services/exports";
 import StudioShell from "@/components/studio/StudioShell";
-import { canDownloadExport, exportStatusLabel, type GlobalExport } from "@/lib/workspace/exports";
+import { distinctExportKinds, exportDownloadState, exportStatusLabel, filterExports, type GlobalExport } from "@/lib/workspace/exports";
+
+const STATUS_FILTERS = ["ready", "expired", "queued", "rendering", "failed", "cancelled"] as const;
 
 function fmtSize(bytes: number | null): string {
   if (!bytes) return "—";
@@ -19,7 +21,10 @@ function fmtSize(bytes: number | null): string {
 
 function ExportRowView({ exp }: { exp: GlobalExport }) {
   const [busy, setBusy] = useState(false);
-  const downloadable = canDownloadExport(exp);
+  // Honest re-download: rows store no signed URL — the server mints a fresh
+  // 600s link per click while the export is ready and inside its retention
+  // window. Past expiry there is nothing to fetch, so no button is shown.
+  const downloadState = exportDownloadState(exp);
   const label = exportStatusLabel(exp);
 
   const download = async () => {
@@ -44,11 +49,15 @@ function ExportRowView({ exp }: { exp: GlobalExport }) {
       </div>
       <span className={`rounded-full px-3 py-1 font-sora text-[11px] font-semibold ${label === "ready" ? "bg-ink text-dune-white" : label === "expired" || label === "failed" ? "border border-orange-accent/60 text-obsidian bg-orange-accent/10" : "bg-sand-200 text-sand-800"}`}>{label}</span>
       <Link href={`/projects/${exp.project_id}`} className="rounded-full border border-sand-300 px-4 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors">Open project</Link>
-      {downloadable ? (
+      {downloadState === "downloadable" ? (
         <button onClick={() => void download()} disabled={busy} className="rounded-full bg-ink px-4 py-2 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{busy ? "Preparing…" : "Download"}</button>
-      ) : label === "expired" ? (
-        <span className="text-[12px] text-sand-600">Retention ended — export again from the project.</span>
-      ) : null}
+      ) : downloadState === "expired" ? (
+        <span className="text-[12px] text-sand-600">
+          Download link expired{exp.expires_at ? ` on ${new Date(exp.expires_at).toLocaleDateString()}` : ""} — the file is gone. To get it again, open the project and export it again.
+        </span>
+      ) : (
+        <span className="text-[12px] text-sand-600">{label === "failed" || label === "cancelled" ? "This export did not finish — export again from the project." : "Not ready yet."}</span>
+      )}
     </li>
   );
 }
@@ -71,6 +80,14 @@ export default function ExportsPage() {
     queryFn: () => exportsService.listExports(),
     enabled: signedIn,
   });
+
+  const [kindFilter, setKindFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [fromFilter, setFromFilter] = useState("");
+  const [toFilter, setToFilter] = useState("");
+  const kinds = distinctExportKinds(exports);
+  const visible = filterExports(exports, { kind: kindFilter || null, status: statusFilter || null, from: fromFilter || null, to: toFilter || null });
+  const filtersActive = !!(kindFilter || statusFilter || fromFilter || toFilter);
 
   return (
     <StudioShell>
@@ -97,9 +114,46 @@ export default function ExportsPage() {
               <Link href="/captions" className="mt-7 inline-block rounded-full bg-ink px-7 py-3 font-sora text-[13px] font-semibold text-dune-white hover:bg-sand-800 transition-all">Go to your projects</Link>
             </div>
           ) : (
-            <ul className="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-white">
-              {exports.map((exp) => <ExportRowView key={exp.id} exp={exp} />)}
-            </ul>
+            <>
+              <div className="mb-5 flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-[13px] text-sand-700">
+                  Kind
+                  <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} aria-label="Filter by kind" className="rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] text-ink outline-none cursor-pointer">
+                    <option value="">All kinds</option>
+                    {kinds.map((k) => <option key={k} value={k}>{k.toUpperCase()}</option>)}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-[13px] text-sand-700">
+                  Status
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status" className="rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] text-ink outline-none cursor-pointer">
+                    <option value="">Any status</option>
+                    {STATUS_FILTERS.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-[13px] text-sand-700">
+                  From
+                  <input type="date" value={fromFilter} onChange={(e) => setFromFilter(e.target.value)} aria-label="Filter from date" className="rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] text-ink outline-none" />
+                </label>
+                <label className="flex items-center gap-2 text-[13px] text-sand-700">
+                  To
+                  <input type="date" value={toFilter} onChange={(e) => setToFilter(e.target.value)} aria-label="Filter to date" className="rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] text-ink outline-none" />
+                </label>
+                {filtersActive ? (
+                  <button onClick={() => { setKindFilter(""); setStatusFilter(""); setFromFilter(""); setToFilter(""); }} className="rounded-full border border-sand-300 px-4 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear filters</button>
+                ) : null}
+                <span className="text-[12px] text-sand-600" role="status">{visible.length} of {exports.length} exports</span>
+              </div>
+              {visible.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-12 text-center">
+                  <p className="font-sora text-[14px] font-semibold text-ink">No exports match these filters.</p>
+                  <button onClick={() => { setKindFilter(""); setStatusFilter(""); setFromFilter(""); setToFilter(""); }} className="mt-4 rounded-full border border-sand-300 px-5 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear filters</button>
+                </div>
+              ) : (
+                <ul className="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-white">
+                  {visible.map((exp) => <ExportRowView key={exp.id} exp={exp} />)}
+                </ul>
+              )}
+            </>
           )}
         </div>
       </div>
