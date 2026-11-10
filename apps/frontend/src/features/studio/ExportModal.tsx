@@ -4,13 +4,14 @@ import * as Sentry from "@sentry/nextjs";
 import React, { useEffect, useRef, useState } from "react";
 import type { CaptionedVideoInput } from "@capseasy/compositions";
 import {
-  EXPORT_RESOLUTION_LABEL, exportDimensions, exportMemoryErrorMessage,
+  EXPORT_RESOLUTION_LABEL, exportMemoryErrorMessage,
   type ExportResolution, type ExportSettings,
 } from "@capseasy/shared";
 import { canExportInBrowser, exportMp4InBrowser, saveBlob } from "./browserExport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studioService, type ExportKind, type ExportRow } from "@/services/studio";
-import { EXPORT_OPTIONS, type ExportOption } from "./exportOptions";
+import { EXPORT_OPTIONS, exportDimsWithCanvas, type ExportOption } from "./exportOptions";
+import type { CanvasSettings } from "./canvas";
 import { ApiError } from "@/services/api-client";
 import { Button, fmtBytes, fmtTime, triggerDownload } from "./controls";
 import { VideoReady } from "./VideoReady";
@@ -59,9 +60,11 @@ interface Props {
   /** the project's saved export choice (resolution + frame rate), persisted per project via settings */
   exportSettings: ExportSettings;
   onExportSettings: (next: ExportSettings) => void;
+  /** the project's canvas choice: when its aspect isn't "source", exports are authored at that aspect */
+  canvas?: CanvasSettings | null;
 }
 
-export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings }) => {
+export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings, canvas = null }) => {
   const qc = useQueryClient();
   const [busyKind, setBusyKind] = useState<ExportKind | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,9 +75,11 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const [startS, setStartS] = useState(0);
   const [endS, setEndS] = useState(Math.round(video.durationMs / 100) / 10);
   const totalS = Math.round(video.durationMs / 100) / 10;
-  // the chosen resolution as absolute output dims, from the project's aspect (shared short-edge rule:
-  // 9:16 at 1080p is 1080x1920, 16:9 is 1920x1080). This drives BOTH render paths below.
-  const outDims = exportDimensions(video.width, video.height, exportSettings.resolution);
+  // the chosen resolution as absolute output dims, from the project's EFFECTIVE aspect — the
+  // canvas aspect when one is chosen, else the source's own (shared short-edge rule: 9:16 at
+  // 1080p is 1080x1920, 16:9 is 1920x1080). This drives BOTH render paths below: the in-browser
+  // render (exportHere) and the dims sent in the server/companion export payload (start).
+  const outDims = exportDimsWithCanvas(video, canvas, exportSettings.resolution);
   const outFps = exportSettings.fps;
   const trimValid = !trim || (endS - startS >= 0.5 && startS >= 0 && endS <= totalS + 0.05);
 

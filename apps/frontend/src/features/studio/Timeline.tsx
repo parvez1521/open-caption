@@ -10,6 +10,7 @@ import { snapMove, snapValue } from "./snap";
 import { canSplitAtPlayhead } from "./playheadSplit";
 import type { EditorComposition, EditorVideoClip } from "./compositionDoc";
 import { overlayTrackOf } from "./compositionOps";
+import { resolveSegmentView, segmentBadges } from "./segmentView";
 import { PEAKS_PER_SECOND } from "./useWaveform";
 import { useFilmstrip } from "./useFilmstrip";
 
@@ -65,6 +66,11 @@ interface Props {
   onOverlayTrackPatch?: (patch: Partial<TrackState>) => void;
   /** a media-bin asset dropped on the timeline (custom MIME payload from MediaPanel) */
   onDropAsset?: (assetId: string, kind: string, atMs: number) => void;
+  /** Run-2 segment assets resolved on this device (assetId → object URL): still segments show
+   *  their image from here; an id with no URL renders as a labelled block instead */
+  segmentAssetUrls?: Record<string, string>;
+  /** assetId → media-bin name, so a segment playing a reversed conform can badge itself */
+  segmentAssetNames?: Record<string, string>;
   /** split the caption card at the playhead (caption-engine splitCardAt via edit() in StudioPage) */
   onSplitAtPlayhead: () => void;
   onOpenSettings: () => void;
@@ -92,7 +98,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -633,11 +639,21 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
               })}
               <span className="absolute left-1.5 top-1 rounded bg-black/70 px-1.5 text-[10px] leading-4 text-[#FFFFEB]">{frames.length ? "Video" : "Video (loading frames)"}</span>
             </div>
-            {displayVideoClips.map((c, i) => (
+            {displayVideoClips.map((c, i) => {
+              // Run-2 segment dressing: stills show their image (or a labelled Freeze block
+              // when the asset isn't on this device), reversed / sped-up segments badge
+              // themselves, and a transitionIn chips the block's left boundary. The pure
+              // badge list lives in segmentView.ts (segmentBadges) so it is unit-tested.
+              const view = resolveSegmentView(c, i);
+              const badges = segmentBadges(view, view.assetId ? segmentAssetNames?.[view.assetId] ?? null : null);
+              const stillUrl = view.still && view.assetId ? segmentAssetUrls?.[view.assetId] : undefined;
+              const transitionBadge = badges.find((b) => b.kind === "transition");
+              const otherBadges = badges.filter((b) => b.kind !== "transition");
+              return (
               <div
                 key={c.id}
                 role="button"
-                aria-label={`Video segment ${i + 1}`}
+                aria-label={view.still ? `Freeze frame segment ${i + 1}` : `Video segment ${i + 1}`}
                 aria-pressed={c.id === selectedVideoClipId}
                 title={`Segment ${i + 1}  ${fmtTime(c.startMs)} – ${fmtTime(c.startMs + c.durationMs)}`}
                 onPointerDown={(e) => e.stopPropagation()}
@@ -645,9 +661,28 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
                 className={`absolute top-1 bottom-1 z-10 overflow-hidden rounded-md border text-[10px] leading-tight ${c.id === selectedVideoClipId ? "border-st-ink bg-white/15 ring-2 ring-st-ink/30" : "border-white/40 bg-black/10"}`}
                 style={{ left: x(c.startMs), width: Math.max(3, x(c.startMs + c.durationMs) - x(c.startMs) - 1) }}
               >
-                <span className="absolute bottom-1 left-1.5 rounded bg-black/70 px-1 text-[10px] leading-4 text-[#FFFFEB]">{i + 1}</span>
+                {view.still ? (
+                  stillUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={stillUrl} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover" />
+                  ) : (
+                    <span className="absolute inset-0 grid place-items-center bg-[#1C1C1A] text-[10px] font-semibold uppercase tracking-wide text-[#FFFFEB]/80">Freeze frame</span>
+                  )
+                ) : null}
+                {transitionBadge ? (
+                  <span className="absolute left-0 top-1 z-10 rounded-r bg-st-em px-1 text-[9px] font-semibold leading-4 text-[#141412]" title={`Transition in: ${transitionBadge.label}`}>⇋ {transitionBadge.label}</span>
+                ) : null}
+                {otherBadges.length ? (
+                  <span className="absolute right-1 top-1 z-10 flex gap-1">
+                    {otherBadges.map((b) => (
+                      <span key={b.kind} className="rounded bg-black/70 px-1 text-[9px] font-semibold leading-4 text-[#FFFFEB]">{b.label}</span>
+                    ))}
+                  </span>
+                ) : null}
+                <span className="absolute bottom-1 left-1.5 z-10 rounded bg-black/70 px-1 text-[10px] leading-4 text-[#FFFFEB]">{i + 1}</span>
               </div>
-            ))}
+              );
+            })}
             {!tracks.video.locked && onTrimVideoEdge
               ? displayVideoClips.flatMap((c, i) => {
                   const handles: React.ReactNode[] = [];
