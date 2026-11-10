@@ -65,4 +65,32 @@ describe("motion presets", () => {
     expect(saveMotionPreset("counter", { ...preset, name: "   " }, s)).toBe(false);
     expect(listMotionPresets("counter", s)).toEqual([]);
   });
+
+  it("refuses to save values the MotionConfig schema rejects (bad colour, out-of-bounds duration)", () => {
+    const s = fakeStorage();
+    expect(saveMotionPreset("counter", { ...preset, color: "red" }, s)).toBe(false);
+    expect(saveMotionPreset("counter", { ...preset, color: "#FFF" }, s)).toBe(false);
+    expect(saveMotionPreset("counter", { ...preset, durationMs: 999_999 }, s)).toBe(false);
+    expect(saveMotionPreset("counter", { ...preset, durationMs: 10 }, s)).toBe(false);
+    expect(saveMotionPreset("counter", { ...preset, text: "x".repeat(501) }, s)).toBe(false);
+    expect(saveMotionPreset("not-a-variant", preset, s)).toBe(false);
+    expect(listMotionPresets("counter", s)).toEqual([]);
+  });
+
+  it("drops hand-edited localStorage entries that fail MotionConfig validation on read", () => {
+    const s = fakeStorage({
+      [MOTION_PRESETS_KEY]: JSON.stringify({
+        counter: [
+          { ...preset, name: "Good", savedAt: 1 },
+          { ...preset, name: "BadColour", color: "javascript:x", savedAt: 2 },
+          { ...preset, name: "BadDuration", durationMs: 999_999, savedAt: 3 },
+          { ...preset, name: "NoStamp" },
+          "garbage",
+        ],
+        "not-a-variant": [{ ...preset, name: "Ghost", savedAt: 1 }],
+      }),
+    });
+    expect(listMotionPresets("counter", s).map((p) => p.name)).toEqual(["Good"]);
+    expect(listMotionPresets("not-a-variant", s)).toEqual([]);
+  });
 });

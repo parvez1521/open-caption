@@ -1,5 +1,5 @@
 import { ProjectSettingsSchema, newId, type OverlayItem, type ProjectSettings } from "@capseasy/shared";
-import type { MotionConfig } from "@capseasy/motion";
+import { MotionConfigSchema, type MotionConfig } from "@capseasy/motion";
 import { studioService } from "@/services/studio";
 import { buildStageCWritePatch, readCompositionSettings, STAGE_C_ENABLED } from "@/features/studio/stageC";
 import { makeSocialOverlay } from "@/features/studio/panels/overlayItems";
@@ -73,6 +73,10 @@ export async function addMotionToProject(
   projectId: string,
   input: { config: MotionConfig; assetId?: string | null },
 ): Promise<OverlayItem> {
+  // Boundary validation: the config is zod-parsed here, not just trusted from
+  // the caller — an invalid variant / colour / duration throws before anything
+  // is read or written, exactly as the project's stored settings are parsed below.
+  const config = MotionConfigSchema.parse(input.config);
   const data = await studioService.getStudio(projectId);
   const parsed = ProjectSettingsSchema.parse(data.project.settings_json ?? {});
   // resolve the effective composition exactly like useStudio does on open (Stage C)
@@ -86,8 +90,8 @@ export async function addMotionToProject(
   let asset: MotionAssetRef | null = null;
   if (input.assetId) asset = await copyAssetToProject(input.assetId, projectId);
 
-  const startMs = chooseMotionStartMs(settings.overlays, data.video?.durationMs ?? 0, input.config.durationMs);
-  const item = buildMotionOverlayItem(input.config, startMs, asset);
+  const startMs = chooseMotionStartMs(settings.overlays, data.video?.durationMs ?? 0, config.durationMs);
+  const item = buildMotionOverlayItem(config, startMs, asset);
   const next: ProjectSettings = { ...settings, overlays: [...settings.overlays, item] };
   await studioService.savePatch(projectId, {
     settings_json: next,

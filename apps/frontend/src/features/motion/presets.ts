@@ -16,9 +16,27 @@ export interface MotionPreset {
   savedAt: number;
 }
 
+import { MotionConfigSchema } from "@capseasy/motion";
+
 export const MOTION_PRESETS_KEY = "opencaption:motion-presets:v1";
 
 type PresetStore = Record<string, MotionPreset[]>;
+
+/**
+ * A stored preset is untrusted input (localStorage is user-editable): it only
+ * counts as a preset when its text / colour / duration form a valid
+ * MotionConfig for the template it is stored under — the same zod schema the
+ * customize page and the export validate against. Shape alone is not enough:
+ * a hand-edited colour like "red" or a duration of 999999 must never reach
+ * the preview or Add-to-project through Apply.
+ */
+function isValidPreset(templateId: string, p: unknown): p is MotionPreset {
+  if (!p || typeof p !== "object") return false;
+  const c = p as MotionPreset;
+  if (typeof c.name !== "string" || !c.name.trim()) return false;
+  if (typeof c.savedAt !== "number" || !Number.isFinite(c.savedAt)) return false;
+  return MotionConfigSchema.safeParse({ variant: templateId, text: c.text, color: c.color, durationMs: c.durationMs }).success;
+}
 
 function defaultStorage(): Storage | null {
   try {
@@ -38,14 +56,7 @@ function readStore(storage: Storage | null): PresetStore {
     const out: PresetStore = {};
     for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
       if (!Array.isArray(v)) continue;
-      out[k] = v.filter(
-        (p): p is MotionPreset =>
-          Boolean(p) && typeof p === "object" &&
-          typeof (p as MotionPreset).name === "string" &&
-          typeof (p as MotionPreset).text === "string" &&
-          typeof (p as MotionPreset).color === "string" &&
-          typeof (p as MotionPreset).durationMs === "number",
-      );
+      out[k] = v.filter((p) => isValidPreset(k, p));
     }
     return out;
   } catch {
@@ -76,6 +87,9 @@ export function saveMotionPreset(
 ): boolean {
   const name = preset.name.trim();
   if (!name) return false;
+  // refuse to persist values the graphic itself would reject (bad hex colour,
+  // out-of-bounds duration, over-long text) — a saved preset must always apply cleanly
+  if (!MotionConfigSchema.safeParse({ variant: templateId, text: preset.text, color: preset.color, durationMs: preset.durationMs }).success) return false;
   const store = readStore(storage);
   const list = (store[templateId] ?? []).filter((p) => p.name !== name);
   list.push({ ...preset, name, savedAt: now });

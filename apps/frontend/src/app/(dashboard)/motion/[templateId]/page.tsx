@@ -14,6 +14,7 @@ import {
 import StudioShell from "@/components/studio/StudioShell";
 import { ColorField } from "@/features/studio/controls";
 import { useMediaAssets } from "@/features/studio/useMediaAssets";
+import { validateImageFile } from "@/features/studio/mediaAssets";
 import { deleteAsset, listProjectAssets, type MediaAssetRecord } from "@/features/studio/mediaStore";
 import { MotionPreview } from "@/features/motion/MotionPreview";
 import { MotionExportSection } from "@/features/motion/MotionExportSection";
@@ -128,7 +129,7 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
     const name = presetName.trim();
     if (!name) return;
     const ok = saveMotionPreset(template.id, { name, text, color, durationMs });
-    setPresetNote(ok ? `Saved “${name}”.` : "Couldn't save the preset — this browser's storage is unavailable or full.");
+    setPresetNote(ok ? `Saved “${name}”.` : "Couldn't save the preset — check the colour and duration are valid, or this browser's storage is unavailable or full.");
     if (ok) {
       setPresetName("");
       setSavingPreset(false);
@@ -188,13 +189,21 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
 
   const onUploadImage = async (file: File) => {
     setAssetError(null);
+    // Image field: the generic media-bin importer also accepts video/audio, so
+    // enforce image-only HERE (type + size, decode is enforced by the probe)
+    // instead of trusting the file input's accept attribute alone.
+    const v = validateImageFile(file);
+    if (!v.ok) {
+      setAssetError(v.error);
+      return;
+    }
     const before = new Set((await listProjectAssets(MOTION_STAGING_PROJECT_ID)).map((a) => a.id));
     const errors = await staging.importFiles([file]);
     if (errors.length) {
       setAssetError(errors.map((e) => e.error).join(" "));
       return;
     }
-    const fresh = (await listProjectAssets(MOTION_STAGING_PROJECT_ID)).filter((a) => !before.has(a.id));
+    const fresh = (await listProjectAssets(MOTION_STAGING_PROJECT_ID)).filter((a) => !before.has(a.id) && a.kind === "image");
     const rec = fresh[fresh.length - 1];
     if (rec) {
       if (asset) void deleteAsset(asset.id);

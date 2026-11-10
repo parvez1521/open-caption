@@ -94,6 +94,17 @@ describe("addMotionToProject", () => {
     expect(item.assetName).toBe("qr.png");
   });
 
+  it("rejects a config that fails MotionConfigSchema before reading or writing anything", async () => {
+    await expect(
+      addMotionToProject("proj-1", { config: { variant: "counter", text: "x", color: "red", durationMs: 4000 } as never }),
+    ).rejects.toThrow();
+    await expect(
+      addMotionToProject("proj-1", { config: { variant: "counter", text: "x", color: "#FFA946", durationMs: 999_999 } }),
+    ).rejects.toThrow();
+    expect(h.getStudio).not.toHaveBeenCalled();
+    expect(h.savePatch).not.toHaveBeenCalled();
+  });
+
   it("inserts without an image when the staged asset is not on this device", async () => {
     const item = await addMotionToProject("proj-1", { config: { variant: "qr-frame", text: "Scan", color: "#34D399", durationMs: 4000 }, assetId: "gone" });
     expect(item.assetId).toBeUndefined();
