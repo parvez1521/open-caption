@@ -51,7 +51,7 @@ guest users after 7 days away) is separate: the Vercel cron
 | `APPLY-COMPOSITION-PRIMARY.sql` | `20261110030000_composition_primary.sql` | **Applied + verified live** (see Stage C section above). |
 | `APPLY-CAPTION-TRANSLATIONS.sql` | `20261110040000_caption_translations.sql` | **Applied + verified live** 2026-11-10 (table, RLS, owner policy, unique index checked after apply). |
 | `APPLY-GROWTH-STUDIO.sql` | `20261110050000_growth_studio.sql` | **Applied + verified live** 2026-11-10 (both tables, RLS + owner policies checked after apply). |
-| `APPLY-PROJECT-FOLDERS-TAGS.sql` | `20261110060000_project_folders_tags.sql` | **PENDING** — added in Phase 8 slice 8.3; until the owner runs it, the projects API degrades honestly (list works, `org_ready:false`, folder/tag writes answer "database update is pending"). |
+| `APPLY-PROJECT-FOLDERS-TAGS.sql` | `20261110060000_project_folders_tags.sql` | **Applied + verified live** 2026-11-10 ~22:52 IST (folder + tags columns, both indexes; RLS unchanged) — corrected in Phase 9 W1: this row still said PENDING after the apply. The honest-degradation path (`org_ready:false`, pending-message writes) remains in code for any not-yet-migrated environment. |
 
 ## Guest → account claim flow (code-level state, Phase 8 re-verification)
 
