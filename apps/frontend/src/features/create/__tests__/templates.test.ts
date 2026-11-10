@@ -7,6 +7,9 @@ import {
   HOOK_FRAMES,
   HOOK_MECHANISMS,
   LIBRARY_COUNTS,
+  LINKEDIN_FRAMES,
+  X_FRAMES,
+  YOUTUBE_DESCRIPTION_FRAMES,
 } from "../templates";
 import { CAPTION_TONES, HOOK_STYLES, IDEA_CATEGORIES, PLATFORMS } from "../model";
 import { EMPTY_VOICE, containsAvoidedWord, type BrandProfile } from "../brandProfile";
@@ -298,5 +301,26 @@ describe("profile consumption in the template engine", () => {
       profile,
     });
     for (const item of items) expect(item.title.toLowerCase()).toContain("home workouts");
+  });
+});
+
+describe("Caption & Hashtag Studio format banks (3.6)", () => {
+  it("meets the bank minimums and counts them in LIBRARY_COUNTS", () => {
+    expect(YOUTUBE_DESCRIPTION_FRAMES.length).toBeGreaterThanOrEqual(4);
+    expect(LINKEDIN_FRAMES.length).toBeGreaterThanOrEqual(4);
+    expect(X_FRAMES.length).toBeGreaterThanOrEqual(5);
+    expect(LIBRARY_COUNTS.youtubeDescriptionFrames).toBe(YOUTUBE_DESCRIPTION_FRAMES.length);
+    expect(LIBRARY_COUNTS.linkedinFrames).toBe(LINKEDIN_FRAMES.length);
+    expect(LIBRARY_COUNTS.xFrames).toBe(X_FRAMES.length);
+  });
+
+  it("instagram regression: the default path produces the pre-3.6 batch shape", () => {
+    const items = generateCaptions({ topic: "trail running", platform: "reels", tone: "friendly" });
+    expect(items).toHaveLength(3);
+    for (const item of items) {
+      expect(item.title).not.toContain("Chapters:");
+      expect(item.hashtags!.length).toBe(10);
+    }
+    expect(generateCaptions({ topic: "trail running", platform: "reels", tone: "friendly", format: "instagram" })).toEqual(items);
   });
 });

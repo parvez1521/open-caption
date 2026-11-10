@@ -15,11 +15,14 @@
  */
 import type { CaptionInput, HooksInput, IdeasInput } from "./templates";
 import { generateCaptions, generateHooks, generateIdeas, clampCount, HOOK_MECHANISMS } from "./templates";
+import type { RepurposeInput } from "./repurpose";
+import { generateRepurposed } from "./repurpose";
+import { applySponsored } from "./captionStudio";
 import { buildPrompt, parseModelOutput, MIN_MODEL_RATIO } from "./prompts";
 import type { GeneratedItem, GeneratorKind, Source } from "./model";
 import type { BrandProfile } from "./brandProfile";
 
-export type AnyInput = IdeasInput | HooksInput | CaptionInput;
+export type AnyInput = IdeasInput | HooksInput | CaptionInput | RepurposeInput;
 
 /** Runs one prompt on a model and resolves with its raw text. Supplied by cloudAi.ts / localModel.ts. */
 export type ModelRunner = (prompt: { system: string; user: string }) => Promise<string>;
@@ -54,11 +57,20 @@ export function templateBatch(kind: GeneratorKind, input: AnyInput, profile?: Br
   const effective: AnyInput = profile ? { ...input, profile: (input as AnyInput).profile ?? profile } : input;
   if (kind === "ideas") return withMechanism(kind, effective, generateIdeas(effective as IdeasInput));
   if (kind === "hooks") return withMechanism(kind, effective, generateHooks(effective as HooksInput));
+  if (kind === "repurpose") {
+    // Repurposing an empty source returns [] on purpose (repurpose.ts invents
+    // nothing): the batch surfaces empty and the PAGE must require source
+    // text before calling. Do not substitute filler content here.
+    return generateRepurposed(effective as RepurposeInput);
+  }
   return generateCaptions(effective as CaptionInput);
 }
 
+/** Parts a repurpose batch may carry at most on the model path (template transforms cap at 10). */
+const REPURPOSE_MAX_PARTS = 50;
+
 const wantedCount = (kind: GeneratorKind, input: AnyInput): number =>
-  kind === "captions" ? 3 : clampCount((input as IdeasInput | HooksInput).count);
+  kind === "captions" ? 3 : kind === "repurpose" ? REPURPOSE_MAX_PARTS : clampCount((input as IdeasInput | HooksInput).count);
 
 /** Run one runner and parse; null on ANY failure or when too few usable items came back. */
 async function tryRunner(
@@ -70,8 +82,17 @@ async function tryRunner(
   try {
     const raw = await runner(buildPrompt(kind, input, profile));
     const wanted = wantedCount(kind, input);
-    const items = parseModelOutput(kind, raw, wanted);
-    if (items.length < Math.max(1, Math.ceil(wanted * MIN_MODEL_RATIO))) return null;
+    const items = parseModelOutput(
+      kind,
+      raw,
+      wanted,
+      kind === "repurpose" ? (input as RepurposeInput).transform : undefined,
+    );
+    // Repurposing has no requested count — the part count comes from the
+    // source text — so the half-batch rule does not apply: any parsed part
+    // is a usable batch, and zero parts is the failure.
+    const minimum = kind === "repurpose" ? 1 : Math.max(1, Math.ceil(wanted * MIN_MODEL_RATIO));
+    if (items.length < minimum) return null;
     return withMechanism(kind, input, items);
   } catch {
     return null;
@@ -89,6 +110,23 @@ export interface GenerationDeps {
 }
 
 export async function generateContent(
+  kind: GeneratorKind,
+  input: AnyInput,
+  deps: GenerationDeps,
+): Promise<GenerationOutcome> {
+  const outcome = await generateRouted(kind, input, deps);
+  // Sponsored enforcement (3.6) runs LAST, on the final items from whichever
+  // source won — after any profile CTA the generator appended — so the
+  // sponsor's talking points and disclosure are present verbatim and the
+  // disclosure is truly the final line, on every source including templates.
+  if (kind === "captions") {
+    const sponsored = (input as CaptionInput).sponsored;
+    if (sponsored) return { ...outcome, items: applySponsored(outcome.items, sponsored) };
+  }
+  return outcome;
+}
+
+async function generateRouted(
   kind: GeneratorKind,
   input: AnyInput,
   deps: GenerationDeps,

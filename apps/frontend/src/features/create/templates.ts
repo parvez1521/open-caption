@@ -8,6 +8,7 @@
  * produce different batches. Pure module: no DOM, no storage, no network. Works fully offline.
  */
 import type {
+  CaptionFormat,
   CaptionTone,
   GeneratedItem,
   HookStyle,
@@ -16,6 +17,7 @@ import type {
   IdeaDuration,
   IdeaObjective,
   Platform,
+  SponsoredInput,
 } from "./model";
 import { platformLabel } from "./model";
 import type { BrandProfile } from "./brandProfile";
@@ -449,6 +451,45 @@ const CAPTION_FRAMES: Record<CaptionTone, string[]> = {
   ],
 };
 
+/**
+ * YouTube description frames (3.6), 4 total. Each assembles a multi-line
+ * description as one item title: a hook line, what the viewer gets, a chapters
+ * block with 00:00-style timestamps the creator replaces with real ones, and a
+ * subscribe line. {topic}/{Topic} are the caller's topic.
+ */
+export const YOUTUBE_DESCRIPTION_FRAMES: string[] = [
+  "{Topic} — the full breakdown, in one video.\n\nIn this video you get a clear walkthrough of {topic}: what it is, how it works, and the part most people get wrong first.\n\nChapters:\n00:00 Intro\n00:45 What {topic} actually is\n02:30 The step-by-step\n05:00 Common mistakes\n07:15 Recap and next step\n\nSubscribe for a new video like this every week, and tell us in the comments what to cover next.",
+  "Everything you need to know about {topic}, without the fluff.\n\nWatch this if you want {topic} explained in plain words, with examples you can copy the same day.\n\nChapters:\n00:00 The short answer\n01:10 Why {topic} matters\n03:20 Worked example\n06:00 What to do next\n\nNew here? Subscribe and turn on notifications so the next one finds you.",
+  "{Topic}, done properly — here is the process.\n\nThis video breaks {topic} into simple steps, shows the reasoning behind each one, and ends with a recap you can save.\n\nChapters:\n00:00 Start here\n01:00 The setup\n03:45 The method\n06:30 Results and lessons\n\nSubscribe for more practical videos on {topic} and the topics around it.",
+  "Your complete starter guide to {topic}.\n\nBy the end of this video you will understand the basics of {topic}, the mistakes to avoid, and the first action to take today.\n\nChapters:\n00:00 Overview\n00:50 The basics\n02:50 Mistakes to avoid\n05:10 Your first step\n\nIf this helped, subscribe — the next video goes one level deeper.",
+];
+
+/**
+ * LinkedIn post frames (3.6), 4 total. Each has a strong first line, a
+ * short-paragraph body with line breaks, and a closing question or takeaway.
+ */
+export const LINKEDIN_FRAMES: string[] = [
+  "{Topic} taught our team something we should have learned earlier.\n\nWe approached {topic} the usual way at first. It worked, but slowly — and the friction was hiding in one step nobody questioned.\n\nOnce we named that step, the rest got simpler: clearer decisions, less rework, better results.\n\nThe takeaway: progress on {topic} rarely needs more effort. It needs one honest look at the process.\n\nWhat has {topic} taught you?",
+  "A short note on {topic}.\n\nMost conversations about {topic} start with tools or tactics. Ours started with a simpler question: what outcome are we actually trying to produce?\n\nThat one question changed the plan, the order of work, and how we measured success.\n\nIf you work with {topic}, start there.\n\nAgree or disagree?",
+  "Three things I now believe about {topic}:\n\n1. The basics beat the shortcuts, every time.\n2. Consistency matters more than intensity.\n3. The results compound quietly, then suddenly.\n\nNone of this is complicated. All of it takes patience.\n\nWhat would you add to the list?",
+  "We documented our latest work on {topic} so other teams can use it.\n\nThe method is in the video: the setup, the decisions, and what we would repeat next time.\n\nSharing it because {topic} gets easier when teams compare notes in the open.\n\nIf you try it, I would like to hear how it goes.",
+];
+
+/**
+ * X post frames (3.6), 6 total. Deliberately short: generateCaptions also caps
+ * the topic it fills in for X, and chooses at most 2 hashtags, so a finished
+ * post (title + hashtags, via itemCopyText) stays within 280 characters even
+ * for a very long topic.
+ */
+export const X_FRAMES: string[] = [
+  "{Topic}. That is the whole post. Watch:",
+  "We tried {topic} so you do not have to guess. Here is what happened:",
+  "{Topic}, explained in one post. Thread below:",
+  "Day one of {topic}. Documenting everything here:",
+  "The {topic} lesson nobody posts about:",
+  "Quick take on {topic}: start small, stay consistent, share the results.",
+];
+
 /** Hashtag banks: 5 per platform plus 6 per topic cluster, written for this product. */
 const PLATFORM_TAGS: Record<Platform, string[]> = {
   reels: ["#reels", "#reelsinstagram", "#explorepage", "#viralreels", "#reelkarofeelkaro"],
@@ -470,17 +511,46 @@ const CLUSTERS: { keys: string[]; tags: string[] }[] = [
 
 const GENERIC_TAGS = ["#creator", "#contentcreator", "#daily", "#community", "#newpost", "#trending"];
 
-function tagsFor(topic: string, platform: Platform, rnd: () => number): string[] {
-  const lower = topic.toLowerCase();
-  const cluster = CLUSTERS.find((c) => c.keys.some((k) => lower.includes(k)));
-  const fromTopic = topic
+const topicTags = (topic: string): string[] =>
+  topic
     .split(/[^a-zA-Z0-9]+/)
     .filter((w) => w.length > 2)
     .slice(0, 3)
     .map((w) => `#${w.charAt(0).toUpperCase()}${w.slice(1)}`);
-  const pool = [...(cluster?.tags ?? []), ...PLATFORM_TAGS[platform], ...GENERIC_TAGS, ...fromTopic];
+
+function tagsFor(topic: string, platform: Platform, rnd: () => number): string[] {
+  const lower = topic.toLowerCase();
+  const cluster = CLUSTERS.find((c) => c.keys.some((k) => lower.includes(k)));
+  const pool = [...(cluster?.tags ?? []), ...PLATFORM_TAGS[platform], ...GENERIC_TAGS, ...topicTags(topic)];
   const unique = [...new Set(pool)];
   return shuffled(unique, rnd).slice(0, 10);
+}
+
+/**
+ * Format-aware tag path for Caption & Hashtag Studio (3.6). tagsFor is keyed by
+ * the video Platform union, which has no LinkedIn/X entry, so non-Instagram
+ * caption formats pass an override pool instead:
+ *   - linkedin: the business cluster + generic tags + topic tags (professional
+ *     clusters first), 4 tags — LinkedIn posts read better with few, relevant tags.
+ *   - youtube: the normal platform path for "youtube", trimmed to 4 tags.
+ *   - x: at most 2 short tags, so a post stays inside the length budget.
+ */
+function tagsForCaptionFormat(topic: string, format: CaptionFormat, platform: Platform, rnd: () => number): string[] {
+  if (format === "youtube") return tagsFor(topic, "youtube", rnd).slice(0, 4);
+  if (format === "x") {
+    return tagsFor(topic, platform, rnd)
+      .filter((tag) => tag.length <= 24)
+      .slice(0, 2);
+  }
+  if (format === "linkedin") {
+    // Two tags always come from the business cluster (that is what makes the
+    // set professional); the other two come from generic + topic tags.
+    const business = CLUSTERS.find((c) => c.keys.includes("business"));
+    const fromBusiness = shuffled([...(business?.tags ?? [])], rnd).slice(0, 2);
+    const rest = shuffled([...new Set([...GENERIC_TAGS, ...topicTags(topic)])], rnd).slice(0, 2);
+    return [...new Set([...fromBusiness, ...rest])];
+  }
+  return tagsFor(topic, platform, rnd);
 }
 
 export interface CaptionInput {
@@ -488,10 +558,20 @@ export interface CaptionInput {
   platform: Platform;
   tone: CaptionTone;
   profile?: BrandProfile | null;
+  /** Caption & Hashtag Studio format (3.6). Default "instagram" — the original behaviour. */
+  format?: CaptionFormat;
+  /**
+   * Sponsored requirements (3.6). The template engine does not apply these
+   * itself: the service enforces them on the final batch from whichever source
+   * won (see captionStudio.applySponsored), so disclosure is always last.
+   */
+  sponsored?: SponsoredInput;
 }
 
 /** Three caption options per run, each with its own hashtag set. */
 export function generateCaptions(input: CaptionInput): GeneratedItem[] {
+  const format: CaptionFormat = input.format ?? "instagram";
+  if (format !== "instagram") return generateFormattedCaptions(input, format);
   const topic = trimInput(input.topic, "your topic");
   const voice = input.profile?.voice;
   const rnd = mulberry32(hashSeed(JSON.stringify(["captions", topic, input.platform, input.tone])));
@@ -508,6 +588,44 @@ export function generateCaptions(input: CaptionInput): GeneratedItem[] {
   }));
 }
 
+/**
+ * Non-Instagram caption formats (3.6): YouTube descriptions, LinkedIn posts and
+ * X posts. The Instagram path above is untouched so its batches stay identical.
+ * The profile avoid list filters frames the same way (first surviving frames,
+ * no refill cycle), and profile CTAs rotate onto YouTube/LinkedIn items. X
+ * items never get a CTA line appended: a post has a hard length budget, and a
+ * CTA the user wants there belongs in the post text itself.
+ */
+function generateFormattedCaptions(input: CaptionInput, format: Exclude<CaptionFormat, "instagram">): GeneratedItem[] {
+  const rawTopic = trimInput(input.topic, "your topic");
+  // X budget: cap the filled-in topic so frame + topic + 2 hashtags can never
+  // pass 280 characters (itemCopyText joins title and hashtags with a newline).
+  const topic = format === "x" && rawTopic.length > 110 ? `${rawTopic.slice(0, 107).trimEnd()}…` : rawTopic;
+  const voice = input.profile?.voice;
+  const rnd = mulberry32(
+    hashSeed(JSON.stringify(["captions", format, rawTopic, input.platform, input.tone])),
+  );
+  const bank = format === "youtube" ? YOUTUBE_DESCRIPTION_FRAMES : format === "linkedin" ? LINKEDIN_FRAMES : X_FRAMES;
+  const frames = shuffled(bank, rnd);
+  const titles = frames.map((frame) => fill(frame, { Topic: lead(topic), topic }));
+  const surviving = voice ? titles.filter((title) => !containsAvoidedWord(title, voice)) : titles;
+  const ctas = (voice?.preferredCtas ?? []).filter((cta) => cta.trim().length > 0);
+  const wanted = format === "youtube" ? Math.min(3, surviving.length) : 3;
+  return surviving.slice(0, wanted).map((title, index) => {
+    const hashtags = tagsForCaptionFormat(rawTopic, format, input.platform, rnd);
+    let text = format !== "x" && ctas.length ? `${title}\n${ctas[index % ctas.length]}` : title;
+    if (format === "x") {
+      // Last-resort length guard (a very long hashtag set should never push a
+      // post over): drop hashtags, never the user's post text, until it fits.
+      const kept = [...hashtags];
+      while (kept.length && `${text}\n${kept.join(" ")}`.length > 280) kept.pop();
+      if (`${text}\n${kept.join(" ")}`.length > 280 && kept.length === 0) text = text.slice(0, 280);
+      return { title: text, hashtags: kept };
+    }
+    return { title: text, hashtags };
+  });
+}
+
 /** Pattern-library sizes, exported for tests and the report. */
 export const LIBRARY_COUNTS = {
   ideaFormatsPerPlatform: Object.fromEntries(Object.entries(IDEA_FORMATS).map(([k, v]) => [k, v.length])),
@@ -519,6 +637,9 @@ export const LIBRARY_COUNTS = {
   hookFramesPerStyle: Object.fromEntries(Object.entries(HOOK_FRAMES).map(([k, v]) => [k, v.length])),
   hookMechanisms: Object.keys(HOOK_MECHANISMS).length,
   captionFramesPerTone: Object.fromEntries(Object.entries(CAPTION_FRAMES).map(([k, v]) => [k, v.length])),
+  youtubeDescriptionFrames: YOUTUBE_DESCRIPTION_FRAMES.length,
+  linkedinFrames: LINKEDIN_FRAMES.length,
+  xFrames: X_FRAMES.length,
   platformTagBanks: Object.fromEntries(Object.entries(PLATFORM_TAGS).map(([k, v]) => [k, v.length])),
   topicClusters: CLUSTERS.length,
   clusterTags: CLUSTERS[0]!.tags.length,

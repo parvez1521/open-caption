@@ -10,7 +10,37 @@
  * Every batch of output carries its source, and `sourceBadge` is the single place that wording lives.
  */
 
-export type GeneratorKind = "ideas" | "hooks" | "captions";
+export type GeneratorKind = "ideas" | "hooks" | "captions" | "repurpose";
+export type ScriptFormat =
+  | "reel"
+  | "short"
+  | "long-form"
+  | "tutorial"
+  | "demo"
+  | "story"
+  | "educational"
+  | "brand-collab";
+export type CaptionFormat = "instagram" | "youtube" | "linkedin" | "x";
+export type RepurposeTransform =
+  | "reel-to-short"
+  | "long-to-shorts"
+  | "script-to-linkedin"
+  | "script-to-x-thread"
+  | "script-to-carousel";
+
+/**
+ * Sponsored-post requirements for a caption batch (Caption & Hashtag Studio, 3.6).
+ * Talking points and the disclosure are the user's / sponsor's exact words: the
+ * sponsored enforcement in captionStudio.ts appends them verbatim, and the
+ * disclosure is always the final line. Lives here so templates.ts (which carries
+ * it on CaptionInput) and captionStudio.ts (which enforces it) share one type
+ * without importing each other.
+ */
+export interface SponsoredInput {
+  talkingPoints: string[];
+  requiredTags: string[];
+  disclosure: string;
+}
 export type Platform = "reels" | "shorts" | "youtube" | "tiktok";
 export type HookStyle =
   | "curiosity"
@@ -84,6 +114,32 @@ export const IDEA_OBJECTIVES: { id: IdeaObjective; label: string }[] = [
   { id: "followers", label: "Followers" },
   { id: "sales", label: "Sales" },
   { id: "authority", label: "Authority" },
+];
+
+export const SCRIPT_FORMATS: { id: ScriptFormat; label: string }[] = [
+  { id: "reel", label: "Reel" },
+  { id: "short", label: "Short" },
+  { id: "long-form", label: "Long-form video" },
+  { id: "tutorial", label: "Tutorial" },
+  { id: "demo", label: "Demo" },
+  { id: "story", label: "Story" },
+  { id: "educational", label: "Educational" },
+  { id: "brand-collab", label: "Brand collaboration" },
+];
+
+export const CAPTION_FORMATS: { id: CaptionFormat; label: string }[] = [
+  { id: "instagram", label: "Instagram" },
+  { id: "youtube", label: "YouTube" },
+  { id: "linkedin", label: "LinkedIn" },
+  { id: "x", label: "X" },
+];
+
+export const REPURPOSE_TRANSFORMS: { id: RepurposeTransform; label: string }[] = [
+  { id: "reel-to-short", label: "Reel outline to Short outline" },
+  { id: "long-to-shorts", label: "Long script to Short concepts" },
+  { id: "script-to-linkedin", label: "Script to LinkedIn post" },
+  { id: "script-to-x-thread", label: "Script to X thread" },
+  { id: "script-to-carousel", label: "Script to carousel" },
 ];
 
 export const CAPTION_TONES: { id: CaptionTone; label: string }[] = [
