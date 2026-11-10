@@ -34,6 +34,43 @@ describe("filterLibraryAssets", () => {
   });
 });
 
+describe("filterLibraryAssets — cross-project search (slice 8.2)", () => {
+  const titles = new Map([
+    ["p1", "Podcast ep. 12"],
+    ["p2", "Cooking Reel"],
+  ]);
+  const cross: (LibraryAssetLike & { projectId: string })[] = [
+    { name: "intro.mp4", kind: "video", projectId: "p1" },
+    { name: "theme.mp3", kind: "audio", projectId: "p1" },
+    { name: "intro.mp4", kind: "video", projectId: "p2" },
+    { name: "sizzle.mp3", kind: "audio", projectId: "p2" },
+  ];
+
+  it("spans all projects: the same file name returns both projects' assets, each with its owner", () => {
+    const hits = filterLibraryAssets(cross, "intro", "all", titles);
+    expect(hits.map((a) => a.projectId).sort()).toEqual(["p1", "p2"]);
+  });
+
+  it("matches by owning project's title, returning only that project's assets", () => {
+    expect(filterLibraryAssets(cross, "podcast", "all", titles).map((a) => a.name)).toEqual(["intro.mp4", "theme.mp3"]);
+    expect(filterLibraryAssets(cross, "Cooking", "all", titles).map((a) => a.projectId)).toEqual(["p2", "p2"]);
+  });
+
+  it("matches by kind word across projects", () => {
+    expect(filterLibraryAssets(cross, "audio", "all", titles).map((a) => a.projectId).sort()).toEqual(["p1", "p2"]);
+  });
+
+  it("combines a project query with the kind filter", () => {
+    expect(filterLibraryAssets(cross, "podcast", "audio", titles).map((a) => a.name)).toEqual(["theme.mp3"]);
+    expect(filterLibraryAssets(cross, "podcast", "image", titles)).toEqual([]);
+  });
+
+  it("without a titles map, name/kind search still works and project titles simply don't match", () => {
+    expect(filterLibraryAssets(cross, "podcast", "all")).toEqual([]);
+    expect(filterLibraryAssets(cross, "intro", "all")).toHaveLength(2);
+  });
+});
+
 describe("countByKind", () => {
   it("counts the All total and each kind", () => {
     expect(countByKind(list)).toEqual({ all: 4, video: 2, audio: 1, image: 1 });

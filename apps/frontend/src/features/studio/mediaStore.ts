@@ -90,3 +90,20 @@ export async function saveAsset(rec: MediaAssetRecord): Promise<void> {
 export async function deleteAsset(id: string): Promise<void> {
   await run("readwrite", (s) => s.delete(id)).catch(() => undefined);
 }
+
+/**
+ * Strip a record's embedded PREVIEW data (thumbnail Blob + waveform peaks —
+ * see derivedCache.ts) in place, for the derived-cache cleanup. The record
+ * and its own media bytes are untouched; only the re-creatable preview
+ * fields are nulled, exactly the shape a probe that found nothing writes.
+ * Best-effort like deleteAsset: a failure leaves the record as it was.
+ */
+export async function clearAssetPreviews(id: string): Promise<void> {
+  try {
+    const rec = (await run("readonly", (s) => s.get(id))) as MediaAssetRecord | undefined;
+    if (!rec || (!rec.thumb && !rec.peaks)) return;
+    await run("readwrite", (s) => s.put({ ...rec, thumb: null, peaks: null }));
+  } catch {
+    // best-effort — the cleanup re-measures afterwards, so a miss shows up honestly there
+  }
+}
