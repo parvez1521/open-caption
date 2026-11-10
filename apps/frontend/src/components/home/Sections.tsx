@@ -15,7 +15,7 @@ const LivePreview = dynamic(() => import("./LivePreview").then((m) => m.LivePrev
 const HeroCylinder = dynamic(() => import("./HeroCylinder").then((m) => m.HeroCylinder), { ssr: false, loading: () => <div className="h-[320px] w-full animate-pulse rounded-2xl bg-[#1C1C1A] sm:h-[360px]" /> });
 
 const INK = "#FFFFEB";
-export const GITHUB_URL = "https://github.com/Ishaan-Gpt/Captions-Easy";
+export const GITHUB_URL = "https://github.com/parvez1521/open-caption";
 /** Product Hunt badge: set NEXT_PUBLIC_PRODUCT_HUNT_POST_ID (and _SLUG) on Vercel once the launch is scheduled; hidden until then. */
 const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID || "";
 const PH_SLUG = process.env.NEXT_PUBLIC_PRODUCT_HUNT_SLUG || "";
