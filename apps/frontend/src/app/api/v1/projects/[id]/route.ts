@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CaptionStyleSchema, PlatformSchema, ProjectSettingsSchema } from "@capseasy/shared";
+import { CaptionStyleSchema, CompositionSettingsSchema, PlatformSchema, ProjectSettingsSchema } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { PROJECT_COLUMNS, toApiProject } from "@/lib/api/projects";
@@ -25,6 +25,8 @@ const PatchBody = z
     template_id: z.string().max(80).nullable(),
     style_json: CaptionStyleSchema.partial().passthrough(),
     settings_json: ProjectSettingsSchema.partial(),
+    /** Stage C: the composition slice as a primary column value, validated/canonicalised by the same schema that defines the settings-embedded copy. */
+    composition_json: CompositionSettingsSchema,
   })
   .partial();
 

@@ -8,12 +8,16 @@
  * `projects.composition_json`, so the timeline can outgrow the settings
  * shape (multiple clips, multiple tracks, transforms, keyframes…).
  *
- * THIS MODULE IS PREPARATION ONLY. It is deliberately NOT imported by
- * useStudio, StudioPage, any route or any service, the migration that adds
- * the column is NOT applied, and the flag below stays OFF — so nothing in
- * here can change today's live behaviour. `readCompositionSettings` is
- * written so that, with the flag off, it is a pure pass-through of the
- * settings slice: the switch is provably inert until activation.
+ * STATUS (Phase 4 Run 2): activation steps 3–4 below are now IMPLEMENTED —
+ * this module IS imported by useStudio, the PATCH route accepts
+ * `composition_json`, PROJECT_COLUMNS/toApiProject carry it, the studio
+ * route selects it, and useStudio resolves loads through
+ * `readCompositionSettings` and dual-writes through
+ * `buildStageCWritePatch` (gated on the flag). The flag below stays OFF —
+ * so nothing in here can change today's live behaviour.
+ * `readCompositionSettings` is written so that, with the flag off, it is a
+ * pure pass-through of the settings slice, and the dual-write is omitted
+ * entirely: the switch is provably inert until activation.
  *
  * ACTIVATION CHECKLIST (Gate G4 — all steps, in this order):
  *   1. Owner go-ahead (Gate G4). Nothing below happens before it.
@@ -28,12 +32,16 @@
  *        - PROJECT_COLUMNS and toApiProject in
  *          apps/frontend/src/lib/api/projects.ts
  *          (select the column and map it onto the API project).
+ *      [DONE — Phase 4 Run 2]
  *   4. Wire this module into useStudio: adopt the composition via
  *      readCompositionSettings on project load, and include
  *      buildStageCWritePatch in the persist path so saves DUAL-WRITE —
  *      settings_json keeps its embedded copy AND composition_json gets
  *      the column copy — for the whole transition cycle.
+ *      [DONE — Phase 4 Run 2; the dual-write is gated on STAGE_C_ENABLED,
+ *      so it only starts once step 5 flips the flag.]
  *   5. Flip STAGE_C_ENABLED to true (separate commit, after 1–4 are live).
+ *      [REMAINS — the only step left.]
  *   6. After one full release cycle of dual-writing, a follow-up migration
  *      may drop the settings-embedded copy (settings_json -> 'composition')
  *      and the settings slice leaves ProjectSettingsSchema.
@@ -89,8 +97,9 @@ export function readCompositionSettings(src: {
 }
 
 /**
- * The PATCH body fragment the future save path sends ALONGSIDE
- * settings_json once activation step 4 lands: the dual-write that keeps
+ * The PATCH body fragment the save path sends ALONGSIDE settings_json
+ * once STAGE_C_ENABLED is true (activation step 4, wired in useStudio):
+ * the dual-write that keeps
  * the column copy and the settings copy identical for the whole transition
  * cycle, so they can never drift and rollback stays a flag flip.
  */

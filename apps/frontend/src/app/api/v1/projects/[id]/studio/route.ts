@@ -19,7 +19,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
   const [{ data: project }, { data: video }, { data: docHead }, { data: jobs }, { data: profile }] = await Promise.all([
     user.db
       .from("projects")
-      .select("id, title, status, language, aspect_ratio, look_id, template_id, style_json, settings_json, platform, updated_at")
+      .select("id, title, status, language, aspect_ratio, look_id, template_id, style_json, settings_json, composition_json, platform, updated_at")
       .eq("id", id)
       .is("deleted_at", null)
       .maybeSingle(),

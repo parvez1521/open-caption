@@ -6,6 +6,7 @@ import { CaptionDocSchema, ProjectSettingsSchema, type CaptionDoc, type CaptionS
 import { applyLook, getLook, resolveStyle, type LookDefinition } from "@capseasy/templates";
 import { hasActiveSession } from "@/features/transcribe/session";
 import { RevisionConflict, studioService, type StudioData } from "@/services/studio";
+import { STAGE_C_ENABLED, buildStageCWritePatch, readCompositionSettings } from "./stageC";
 
 export type SaveState = "saved" | "dirty" | "saving" | "offline" | "conflict";
 export const DEFAULT_LOOK = "hormozi_box";
@@ -264,7 +265,15 @@ export function useStudio(projectId: string) {
       const s = styleRef.current;
       if (!s) return;
       studioService
-        .savePatch(projectId, { style_json: s, settings_json: settingsRef.current, look_id: lookRef.current, template_id: s.templateId })
+        .savePatch(projectId, {
+          style_json: s,
+          settings_json: settingsRef.current,
+          look_id: lookRef.current,
+          template_id: s.templateId,
+          // Stage C dual-write (stageC.ts step 4): gated on the flag exactly, so with
+          // STAGE_C_ENABLED false the PATCH body is byte-identical to the pre-Stage-C body.
+          ...(STAGE_C_ENABLED ? buildStageCWritePatch(settingsRef.current.composition) : {}),
+        })
         .catch(() => setSaveState("offline"));
     }, SAVE_DEBOUNCE_MS);
   }, [projectId]);
@@ -274,6 +283,12 @@ export function useStudio(projectId: string) {
     initialised.current = true;
     const p = data.project;
     const parsedSettings = ProjectSettingsSchema.parse(p.settings_json ?? {});
+    // Stage C (stageC.ts step 4): resolve the effective composition from its two homes.
+    // With STAGE_C_ENABLED false this is a pure pass-through of the settings slice.
+    const resolvedComposition = readCompositionSettings({
+      settingsComposition: parsedSettings.composition,
+      compositionJson: p.composition_json,
+    });
     let s: CaptionStyleV2;
     let sett = parsedSettings;
     let look = p.look_id;
@@ -286,6 +301,11 @@ export function useStudio(projectId: string) {
       s = applied.style;
       sett = ProjectSettingsSchema.parse({ ...parsedSettings, ...applied.settings });
       look = l.id;
+    }
+    // the column copy wins when readCompositionSettings says so — override the settings'
+    // composition slice before the settings are adopted below
+    if (resolvedComposition.source === "column") {
+      sett = ProjectSettingsSchema.parse({ ...sett, composition: resolvedComposition.settings });
     }
     styleRef.current = s;
     settingsRef.current = sett;
