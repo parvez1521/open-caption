@@ -186,6 +186,110 @@ export function effectiveDurationMs(sourceDurationMs: number, clipRange: ClipRan
   return Math.max(0, end - clipRange.startMs);
 }
 
+/* ---------------- composition (CompositionDoc Stage B, Phase 4) ---------------- */
+
+/**
+ * The four timeline tracks the Stage-A composition view (and therefore the Stage-B editor
+ * model) always carries, in this order. Stage B adds no new track kinds; "audio" from the
+ * architecture's §2 model arrives with a later milestone, not with this storage slice.
+ */
+export const CompositionTrackKindSchema = z.enum(["video", "captions", "text", "graphics"]);
+export type CompositionTrackKind = z.infer<typeof CompositionTrackKindSchema>;
+
+/**
+ * Per-track editor state: `locked` blocks edits, `visible` hides the track's clips,
+ * `muted` silences it (only meaningful for the video track until audio tracks exist).
+ * Every flag defaults to the neutral state — unlocked, visible, unmuted — so a project
+ * that never touched a track control stores exactly the defaults and projects back
+ * to the pre-Stage-B settings shape (see the untouched-shape rule in compositionDoc.ts).
+ */
+export const TrackStateSchema = z.object({
+  locked: z.boolean().default(false),
+  visible: z.boolean().default(true),
+  muted: z.boolean().default(false),
+});
+export type TrackState = z.infer<typeof TrackStateSchema>;
+export const DEFAULT_TRACK_STATE: TrackState = { locked: false, visible: true, muted: false };
+
+/**
+ * One contiguous piece of the single source video, in SOURCE-video milliseconds.
+ * The stored segments, in array order, are an ordered partition of one contiguous
+ * source span: segment i+1 starts (in source time) where segment i ends. Split
+ * points create segments; Stage B has no jump-cut/removal representation, so a
+ * discontinuity between consecutive segments is invalid data, not a feature.
+ */
+export const VideoSegmentSchema = z
+  .object({
+    id: z.string().min(1),
+    sourceInMs: z.number().min(0),
+    sourceOutMs: z.number().min(0),
+  })
+  .refine((s) => s.sourceOutMs > s.sourceInMs, { message: "sourceOutMs must be after sourceInMs", path: ["sourceOutMs"] });
+export type VideoSegment = z.infer<typeof VideoSegmentSchema>;
+
+/** A named point on the PROJECT (rendered) timeline. `atMs` is project time, not source time. */
+export const CompositionMarkerSchema = z.object({
+  id: z.string().min(1),
+  atMs: z.number().min(0),
+  label: z.string().max(80).default(""),
+});
+export type CompositionMarker = z.infer<typeof CompositionMarkerSchema>;
+
+/** Track state for all four tracks; each track falls back to the neutral state on its own. */
+export const CompositionTracksSchema = z.object({
+  video: TrackStateSchema.default({ locked: false, visible: true, muted: false }),
+  captions: TrackStateSchema.default({ locked: false, visible: true, muted: false }),
+  text: TrackStateSchema.default({ locked: false, visible: true, muted: false }),
+  graphics: TrackStateSchema.default({ locked: false, visible: true, muted: false }),
+});
+export type CompositionTracks = z.infer<typeof CompositionTracksSchema>;
+export const DEFAULT_COMPOSITION_TRACKS: CompositionTracks = {
+  video: { locked: false, visible: true, muted: false },
+  captions: { locked: false, visible: true, muted: false },
+  text: { locked: false, visible: true, muted: false },
+  graphics: { locked: false, visible: true, muted: false },
+};
+
+/**
+ * The Stage-B "composition_json inside the settings patch" (STUDIO-ARCHITECTURE.md §1.2,
+ * Stage B): the timeline-only slice of the composition that does not already live
+ * elsewhere in settings. Caption words stay in the caption doc (its own revisioned
+ * payload) and overlays stay in `overlays` — this slice carries only what is new:
+ * the video segmentation, the markers, and per-track state. It rides `settings_json`
+ * through the existing settings patch, whose allow-list is this schema, so it must be
+ * a declared field here to survive the round trip; there is deliberately no
+ * `projects.composition_json` column at Stage B (that is Stage C).
+ *
+ * An empty slice (`videoSegments: []`) means "no segmentation stored": the editor
+ * synthesises the single video clip from `clipRange` / the full source instead, which
+ * is what keeps pre-Stage-B projects byte-identical in spirit after a build+project
+ * round trip.
+ */
+export const CompositionSettingsSchema = z.object({
+  version: z.literal(1).default(1),
+  videoSegments: z.array(VideoSegmentSchema).default([]),
+  markers: z.array(CompositionMarkerSchema).default([]),
+  tracks: CompositionTracksSchema.default({
+    video: { locked: false, visible: true, muted: false },
+    captions: { locked: false, visible: true, muted: false },
+    text: { locked: false, visible: true, muted: false },
+    graphics: { locked: false, visible: true, muted: false },
+  }),
+});
+export type CompositionSettings = z.infer<typeof CompositionSettingsSchema>;
+export const EMPTY_COMPOSITION_SETTINGS: CompositionSettings = {
+  version: 1,
+  videoSegments: [],
+  markers: [],
+  tracks: {
+    video: { locked: false, visible: true, muted: false },
+    captions: { locked: false, visible: true, muted: false },
+    text: { locked: false, visible: true, muted: false },
+    graphics: { locked: false, visible: true, muted: false },
+  },
+};
+export const DEFAULT_COMPOSITION_SETTINGS: CompositionSettings = EMPTY_COMPOSITION_SETTINGS;
+
 export const ProjectSettingsSchema = z.object({
   platform: PlatformSchema.default("custom"),
   maxWordsPerCard: z.number().int().min(1).max(12).default(DEFAULT_WORDS_PER_CARD),
@@ -211,6 +315,18 @@ export const ProjectSettingsSchema = z.object({
   exportSettings: ExportSettingsSchema.default({ resolution: "1080p", fps: 30 }),
   /** Clipper projects only: the source-video range this project is a clip of; null = whole video */
   clipRange: ClipRangeSchema.nullable().default(null),
+  /** Stage-B composition slice (video segments + markers + track state); empty = pre-Stage-B shape */
+  composition: CompositionSettingsSchema.default({
+    version: 1,
+    videoSegments: [],
+    markers: [],
+    tracks: {
+      video: { locked: false, visible: true, muted: false },
+      captions: { locked: false, visible: true, muted: false },
+      text: { locked: false, visible: true, muted: false },
+      graphics: { locked: false, visible: true, muted: false },
+    },
+  }),
 });
 export type ProjectSettings = z.infer<typeof ProjectSettingsSchema>;
 export const defaultSettings = (): ProjectSettings => ProjectSettingsSchema.parse({});
