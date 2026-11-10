@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
-import { CaptionDocSchema, effectiveDurationMs, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
+import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
 import { deleteWordsByIds, insertWordAfter, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Copy, EyeOff, Keyboard, Redo2, Scissors, Star, Trash2, Undo2 } from "lucide-react";
@@ -30,12 +30,14 @@ import { ElementsPanel } from "./panels/ElementsPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
 import { AudioPanel } from "./panels/AudioPanel";
 import { ClipperPanel } from "./panels/ClipperPanel";
+import { TranslatePanel } from "./panels/TranslatePanel";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
 import { Timeline } from "./Timeline";
 import { UploadPanel } from "./UploadPanel";
 import { SignupGate } from "./SignupGate";
 import { projectsService } from "@/services/projects";
+import { studioService } from "@/services/studio";
 import { useDeviceVideo } from "@/features/upload/useDeviceVideo";
 import { useCompatCopy } from "@/features/upload/useCompatCopy";
 import { etaText } from "./ProcessingPanel";
@@ -84,7 +86,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "clipper";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "clipper" | "translate";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -93,6 +95,7 @@ const railIcon = (children: React.ReactNode) => (
 const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?: "templates" | "style" }[] = [
   { id: "media", label: "Media", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M3 16l5-4 4 3 3-2 6 5" /></>) },
   { id: "captions", label: "Captions", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 10h6M7 14h10" /></>) },
+  { id: "translate", label: "Translate", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.3 3.9 5.2 3.9 8.5s-1.3 6.2-3.9 8.5c-2.6-2.3-3.9-5.2-3.9-8.5s1.3-6.2 3.9-8.5z" /></>) },
   { id: "templates", label: "Templates", tour: "templates", icon: railIcon(<><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="8" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" /></>) },
   { id: "style", label: "Style", tour: "style", icon: railIcon(<text x="12" y="17" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor" stroke="none">Aa</text>) },
   { id: "text", label: "Text", icon: railIcon(<path d="M5 5h14M12 5v14" />) },
@@ -560,6 +563,29 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const addMarkerRef = useRef<() => void>(() => undefined);
   addMarkerRef.current = addMarkerAtPlayhead;
 
+  // translated caption tracks (slice 5.1): loaded once per project from the translations API;
+  // the track for settings.translateTo is threaded into the one input object below as
+  // `translatedDoc`, so the Player preview and the in-browser export render the same bilingual
+  // line (the composition itself decides whether to draw it, via settings.bilingual).
+  const [translations, setTranslations] = useState<Record<string, CaptionDoc>>({});
+  useEffect(() => {
+    let live = true;
+    studioService
+      .getTranslations(projectId)
+      .then((r) => {
+        if (!live) return;
+        const byLang: Record<string, CaptionDoc> = {};
+        for (const t of r.translations) {
+          const parsed = CaptionDocSchema.safeParse(t.doc);
+          if (parsed.success) byLang[t.language] = parsed.data;
+        }
+        setTranslations(byLang);
+      })
+      .catch(() => { /* no tracks (or the translations table is not live yet): the panel reports it when used */ });
+    return () => { live = false; };
+  }, [projectId]);
+  const activeTranslatedDoc = settings.translateTo ? translations[settings.translateTo] : undefined;
+
   // resolved URLs for placed image overlays (device-local bytes → object URLs for this session);
   // threaded into the one input object, so the Player preview and the in-browser export agree
   const [overlayAssetUrls, setOverlayAssetUrls] = useState<Record<string, string>>({});
@@ -605,6 +631,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             // aspect fitted inside them) — the Player and the export render this same object
             media: { width: canvasSize.width, height: canvasSize.height, fps, durationMs, rotation: 0 },
             doc,
+            // bilingual track (slice 5.1): only spread when a saved track exists for the chosen
+            // target, so projects without one build exactly the pre-5.1 input object
+            ...(activeTranslatedDoc ? { translatedDoc: activeTranslatedDoc } : {}),
             style,
             settings,
             mode: "burn" as const,
@@ -616,7 +645,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             segmentAssets: segmentAssetUrls,
           }
         : null,
-    [doc, style, settings, video?.url, canvasSize.width, canvasSize.height, fps, durationMs, overlayAssetUrls, segmentAssetUrls],
+    [doc, style, settings, video?.url, canvasSize.width, canvasSize.height, fps, durationMs, overlayAssetUrls, segmentAssetUrls, activeTranslatedDoc],
   );
   // export reads frames: a video the decoder can't read uses the compatible copy instead
   const exportInput = useMemo(() => (input && compat.url ? { ...input, src: compat.url } : input), [input, compat.url]);
@@ -992,6 +1021,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           onUpdateMaster={(patch) => commitAudio(updateAudioMaster(editorComp, patch))}
         />
       ) : null)
+      : t === "translate" ? (doc ? <TranslatePanel projectId={projectId} doc={doc} settings={settings} patch={s.patchSettings} translations={translations} onTranslated={(lang, tdoc) => setTranslations((prev) => ({ ...prev, [lang]: tdoc }))} /> : null)
       : t === "clipper" ? (doc ? <ClipperPanel projectId={projectId} sourceTitle={data.project.title} sourceVideoId={data.video?.id ?? null} mediaDurationMs={settings.clipRange ? durationMs : (data.video?.durationMs ?? 0)} doc={doc} /> : null)
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
@@ -1119,7 +1149,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <>
       {showTour ? <TutorialTour onClose={() => setShowTour(false)} /> : null}
       {showSignup ? <SignupGate notice={signupNotice} onClose={() => { setShowSignup(false); setSignupNotice(null); }} onDone={() => { setShowSignup(false); setShowExport(true); }} /> : null}
-      {showExport ? <ExportModal projectId={projectId} title={data.project.title} video={{ width, height, durationMs, fps }} renderInput={exportRenderInput} mp4Block={mp4Block} saving={s.saveState === "saving" || s.saveState === "dirty"} flushSave={s.saveNow} exportSettings={settings.exportSettings} onExportSettings={(next) => s.patchSettings({ exportSettings: next })} canvas={canvasSettings} audioMix={audioMix} onClose={() => setShowExport(false)} /> : null}
+      {showExport ? <ExportModal projectId={projectId} title={data.project.title} video={{ width, height, durationMs, fps }} renderInput={exportRenderInput} mp4Block={mp4Block} saving={s.saveState === "saving" || s.saveState === "dirty"} flushSave={s.saveNow} exportSettings={settings.exportSettings} onExportSettings={(next) => s.patchSettings({ exportSettings: next })} canvas={canvasSettings} audioMix={audioMix} translationTracks={Object.keys(translations).map((lang) => ({ lang, label: translationModelFor(lang)?.targetLabel ?? lang }))} onClose={() => setShowExport(false)} /> : null}
       {showShortcuts ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowShortcuts(false)}>
           <div role="dialog" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()} className="st-rise w-full max-w-md rounded-2xl border border-st-line bg-st-panel p-6">

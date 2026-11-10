@@ -9,7 +9,7 @@ const FILE_DAYS = Number(process.env.STORAGE_FILE_DAYS ?? 1);
 /** per run, so one call always finishes inside the function time limit */
 const MAX_PER_RUN = 300;
 /** rows owned by a user, children first (job_events and document versions cascade) */
-const OWNED_TABLES = ["exports", "caption_documents", "jobs", "transcripts", "usage_events", "videos", "projects", "user_looks", "favorite_looks", "brand_kits", "user_fonts", "workers"];
+const OWNED_TABLES = ["exports", "caption_documents", "caption_translations", "jobs", "transcripts", "usage_events", "videos", "projects", "user_looks", "favorite_looks", "brand_kits", "user_fonts", "workers"];
 
 /**
  * Daily (Vercel Cron, see vercel.json). 1) Delete stale anonymous guests. Their storage files go first (through the

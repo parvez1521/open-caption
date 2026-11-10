@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TranslationTargetSchema } from "./translate";
 
 export const PlatformSchema = z.enum(["tiktok", "reels", "shorts", "youtube", "linkedin", "podcast", "custom"]);
 export type Platform = z.infer<typeof PlatformSchema>;
@@ -649,7 +650,13 @@ export const ProjectSettingsSchema = z.object({
   customVocabulary: z.array(z.string()).default([]),
   romanize: z.boolean().default(false),
   language: z.string().default("auto"),
-  translateTo: z.string().nullable().default(null),
+  /**
+   * On-device translation target (slice 5.1): only VERIFIED OPUS-MT pairs from the registry in
+   * translate.ts are valid — an unregistered language fails validation instead of silently
+   * doing nothing (this field was a dead free string until 5.1 wired it).
+   */
+  translateTo: TranslationTargetSchema.nullable().default(null),
+  /** bilingual display: the translated track renders as a secondary line under each caption card */
   bilingual: z.boolean().default(false),
   /** editor elements (Slice 1d): video filter adjustments + timed text/shape overlays */
   videoAdjust: VideoAdjustSchema.default({

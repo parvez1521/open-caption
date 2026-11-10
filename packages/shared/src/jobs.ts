@@ -48,6 +48,12 @@ export const RenderJobSchema = z.object({
   crf: z.number().int().min(0).max(51).default(21),
   range: z.object({ startMs: z.number().nonnegative(), endMs: z.number().positive() }).optional(),
   docSnapshot: CaptionDocSchema,
+  /**
+   * The translated caption track for `settings.translateTo` at enqueue time (slice 5.1), when one
+   * exists. Optional so pre-5.1 queued jobs still validate; the composition only draws it when
+   * `settings.bilingual` is on, exactly like the preview/browser paths.
+   */
+  translatedDocSnapshot: CaptionDocSchema.optional(),
   style: CaptionStyleSchema,
   settings: ProjectSettingsSchema,
   fonts: z.array(FontRefSchema).default([]),

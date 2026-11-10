@@ -10,7 +10,7 @@ import {
 import { canExportInBrowser, exportMp4InBrowser, saveBlob } from "./browserExport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studioService, type ExportKind, type ExportRow } from "@/services/studio";
-import { EXPORT_OPTIONS, exportDimsWithCanvas, type ExportOption } from "./exportOptions";
+import { EXPORT_OPTIONS, exportDimsWithCanvas, optionKey, translatedTextOptions, type ExportOption } from "./exportOptions";
 import type { CanvasSettings } from "./canvas";
 import { ApiError } from "@/services/api-client";
 import { Button, fmtBytes, fmtTime, triggerDownload } from "./controls";
@@ -66,11 +66,15 @@ interface Props {
    *  applied to the browser-rendered MP4 before it is saved. renderInput is already muted in
    *  that case, so the muxed mix is the file's only sound. */
   audioMix?: { note: string; apply: (videoBlob: Blob) => Promise<Blob> } | null;
+  /** saved translated tracks (slice 5.1): each adds translated SRT/VTT export rows */
+  translationTracks?: { lang: string; label: string }[];
 }
 
-export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings, canvas = null, audioMix = null }) => {
+export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings, canvas = null, audioMix = null, translationTracks = [] }) => {
   const qc = useQueryClient();
-  const [busyKind, setBusyKind] = useState<ExportKind | null>(null);
+  const allOptions: ExportOption[] = [...EXPORT_OPTIONS, ...translatedTextOptions(translationTracks)];
+  /** busy identity is the option KEY (kind, or kind:language for translated rows), not just the kind */
+  const [busyKind, setBusyKind] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** set when a companion render (alpha overlay) was queued instead of made right away */
   const [queuedNote, setQueuedNote] = useState<string | null>(null);
@@ -229,11 +233,13 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     }
     setError(null);
     setQueuedNote(null);
-    setBusyKind(o.kind);
+    setBusyKind(optionKey(o));
     try {
       await flushSave(); // never export stale captions
       const body = {
         kind: o.kind,
+        // translated rows export the translated track (slice 5.1); the API validates the language
+        ...(o.language ? { language: o.language } : {}),
         crf: quality === "high" ? 20 : quality === "balanced" ? 24 : 29,
         // the same chosen resolution + fps the browser path uses, as absolute dims for the render job
         ...(o.usesRange ? { width: outDims.width, height: outDims.height, fps: outFps } : {}),
@@ -323,17 +329,17 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           </div>
 
           <div className="grid gap-2">
-            {EXPORT_OPTIONS.map((o) => {
+            {allOptions.map((o) => {
               const unavailable = o.kind === "mp4" && (!!mp4Block || (web !== null && !webReady));
               return (
                 <button
-                  key={o.kind}
+                  key={optionKey(o)}
                   disabled={busyKind !== null || webProgress !== null || unavailable || (o.usesRange && !trimValid)}
                   onClick={() => void start(o)}
                   className={`relative rounded-xl border p-4 text-left transition disabled:opacity-50 ${o.popular ? "border-st-ink bg-st-lav/40 hover:bg-st-lav/60" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
                 >
                   {o.popular ? <span className="absolute -top-2.5 right-3 rounded-full bg-st-or px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Most popular</span> : null}
-                  <div className={`text-sm ${o.popular ? "font-semibold" : "font-medium"} text-st-text`}>{busyKind === o.kind ? "Working…" : o.title}</div>
+                  <div className={`text-sm ${o.popular ? "font-semibold" : "font-medium"} text-st-text`}>{busyKind === optionKey(o) ? "Working…" : o.title}</div>
                   <div className="mt-0.5 text-xs text-st-muted">{unavailable ? mp4Block?.reason ?? web?.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari." : o.desc}</div>
                   {o.kind === "mp4" && audioMix ? <div className="mt-0.5 text-xs text-st-muted">{audioMix.note}</div> : null}
                 </button>

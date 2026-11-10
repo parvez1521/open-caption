@@ -25,6 +25,13 @@ export const CaptionedVideoProps = z.object({
   outputHeight: z.number().int().positive().optional(),
   outputFps: z.number().positive().optional(),
   doc: CaptionDocSchema.default(emptyDoc()),
+  /**
+   * The translated caption track (slice 5.1): a second, real CaptionDoc in `settings.translateTo`'s
+   * language, produced on-device by OPUS-MT. It is only DRAWN when `settings.bilingual` is on and
+   * its language matches `settings.translateTo`; otherwise the render is exactly the pre-5.1 one.
+   * Optional on purpose: render payloads without a translation (every pre-5.1 job) stay valid.
+   */
+  translatedDoc: CaptionDocSchema.optional(),
   style: CaptionStyleSchema.default({}),
   settings: ProjectSettingsSchema.default({}),
   /** "burn" composites over the video; "overlay" is transparent captions only */

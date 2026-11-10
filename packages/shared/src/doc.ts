@@ -57,6 +57,20 @@ export const CaptionDocSchema = z.object({
       userEdited: z.boolean().default(false),
       createdFromTranscriptId: z.string().optional(),
       enrichedAt: z.string().optional(),
+      /**
+       * Provenance for a machine-translated track (slice 5.1): present ONLY on a doc produced by
+       * on-device OPUS-MT translation. `derivedWordTimings` is always true there — the model
+       * translates whole caption cards, so per-word timings are split proportionally across the
+       * source card's window (see caption-engine buildTranslatedDoc); they are NOT measured.
+       */
+      translatedFrom: z
+        .object({
+          sourceLanguage: z.string(),
+          modelId: z.string(),
+          modelRevision: z.string(),
+          derivedWordTimings: z.literal(true),
+        })
+        .optional(),
     })
     .default({}),
 });

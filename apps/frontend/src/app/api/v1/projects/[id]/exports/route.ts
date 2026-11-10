@@ -1,6 +1,6 @@
 import { rateLimit } from "@/lib/api/rateLimit";
 import {
-  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, EXPORT_EXTENSIONS, ProjectSettingsSchema, TEXT_EXPORT_KINDS, TEXT_EXPORT_MIME, planFor, type RenderJob, type TextExportKind,
+  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, EXPORT_EXTENSIONS, ProjectSettingsSchema, TEXT_EXPORT_KINDS, TEXT_EXPORT_MIME, planFor, translationModelFor, type CaptionDoc, type RenderJob, type TextExportKind,
 } from "@capseasy/shared";
 import { exportDimsWithCanvas } from "@/features/studio/exportOptions";
 import { canvasOf } from "@/features/studio/canvas";
@@ -52,9 +52,31 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const safeTitle = String(project.title || "captions").replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 60);
   const admin = getAdmin();
 
+  // ---- translated tracks (slice 5.1) ----
+  // Loaded once, used by both branches below: text exports with `language` export THAT track;
+  // render jobs carry it as translatedDocSnapshot so a bilingual MP4 shows the same secondary
+  // line as the preview. A missing table (migration not applied yet) or missing track simply
+  // means "no translation" for renders — but an explicitly requested translated TEXT export
+  // fails honestly instead of silently exporting the primary doc under a foreign name.
+  const loadTranslation = async (language: string): Promise<{ doc: CaptionDoc; revision: number } | null> => {
+    const { data } = await user.db.from("caption_translations").select("revision, doc").eq("project_id", projectId).eq("language", language).maybeSingle();
+    if (!data) return null;
+    const parsed = CaptionDocSchema.safeParse(data.doc);
+    return parsed.success ? { doc: parsed.data, revision: data.revision } : null;
+  };
+  let requestedTranslation: { doc: CaptionDoc; revision: number } | null = null;
+  if (body.language) {
+    const model = translationModelFor(body.language);
+    if (!model) throw new ApiFailure("VALIDATION", `"${body.language}" is not a translation language this app offers.`);
+    requestedTranslation = await loadTranslation(body.language);
+    if (!requestedTranslation && (TEXT_EXPORT_KINDS as readonly string[]).includes(body.kind)) {
+      throw new ApiFailure("CONFLICT", `There is no ${model.targetLabel} translation for this project yet — translate it from the Translate panel first.`);
+    }
+  }
+
   // ---- text formats: generated right now ----
   if ((TEXT_EXPORT_KINDS as readonly string[]).includes(body.kind)) {
-    let d = doc;
+    let d = requestedTranslation?.doc ?? doc;
     if (settings.removeFillers) d = applyFillerFilter(d, settings.fillerList.length ? settings.fillerList : undefined, true);
     if (settings.profanity !== "off") d = applyProfanity(d, settings.profanity);
     const pages = derivePages(d, settings);
@@ -64,16 +86,17 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
       body.kind === "srt" ? toSrt(pages)
       : body.kind === "vtt" ? toVtt(pages)
       : body.kind === "txt" ? toTxt(pages)
-      : body.kind === "json" ? toJson(doc)
+      : body.kind === "json" ? toJson(d)
       : toAss(pages, style, { width: w, height: h });
     const path = `${user.id}/${projectId}/exports/${exportId}.${EXPORT_EXTENSIONS[body.kind]}`;
     await putObject(path, text, TEXT_EXPORT_MIME[body.kind as TextExportKind] ?? "text/plain");
     const { error } = await admin.from("exports").insert({
       id: exportId, project_id: projectId, owner_id: user.id, kind: body.kind, status_v2: "ready", status: "completed",
-      storage_path: path, file_size: new TextEncoder().encode(text).length, doc_revision: docRow.revision, style: project.look_id,
+      storage_path: path, file_size: new TextEncoder().encode(text).length, doc_revision: requestedTranslation?.revision ?? docRow.revision, style: project.look_id,
     });
     if (error) throw new ApiFailure("INTERNAL", "Could not record the export", error.message);
-    return ok({ exportId, ready: true, downloadUrl: await signedGet(path, 600, `${safeTitle}.${EXPORT_EXTENSIONS[body.kind]}`) }, 201);
+    const downloadName = `${safeTitle}${body.language ? `-${body.language}` : ""}.${EXPORT_EXTENSIONS[body.kind]}`;
+    return ok({ exportId, ready: true, downloadUrl: await signedGet(path, 600, downloadName) }, 201);
   }
 
   // ---- video formats: queue a render for the companion ----
@@ -102,13 +125,21 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   });
   if (exErr) throw new ApiFailure("INTERNAL", "Could not create the export", exErr.message);
 
+  // bilingual renders carry the translated track for the project's chosen target (slice 5.1);
+  // the composition decides whether to draw it (settings.bilingual), same as the preview
+  const renderTranslation = settings.translateTo
+    ? requestedTranslation?.doc ?? (await loadTranslation(settings.translateTo))?.doc ?? undefined
+    : undefined;
+
   const job = await enqueueJob({
     ownerId: user.id,
     projectId,
     kind: "render",
     payload: {
       kind: "render", exportId, format, width, height, fps, crf: body.crf ?? 21, range: body.range,
-      docSnapshot: doc, style, settings, fonts: [], sourceVideoId: video.id,
+      docSnapshot: doc,
+      ...(renderTranslation ? { translatedDocSnapshot: renderTranslation } : {}),
+      style, settings, fonts: [], sourceVideoId: video.id,
     },
     idempotencyKey: `render:${exportId}`,
   });
