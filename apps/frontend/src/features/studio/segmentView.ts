@@ -1,54 +1,39 @@
-import type { SegmentEffect, SegmentKeyframe, VideoSegment } from "@capseasy/shared";
+import {
+  IDENTITY_SEGMENT_TRANSFORM,
+  type SegmentEffect,
+  type SegmentKeyframe,
+  type SegmentTransform,
+  type SegmentTransition,
+  type VideoSegment,
+} from "@capseasy/shared";
 import type { EditorComposition, EditorVideoClip } from "./compositionDoc";
 
 /**
  * Run-2 segment view layer (Worker D — studio UI).
  *
  * The pinned Run-2 segment fields (playbackRate / transform / transitionIn / assetId / still)
- * are owned by the shared schema + composition workers (Workers B/C). On the base this branch
- * was cut from (main @ 751f699) those fields do not exist yet in `VideoSegment` /
- * `EditorVideoClip`, so this module is the ONE place in the UI that knows their shape: every
- * read of a segment's Run-2 fields goes through the resolvers here, which apply the pinned
- * identity defaults when a stored segment predates them. When B/C's fields land, stored
- * segments simply start carrying the values and nothing here changes.
+ * are owned by the shared schema (Workers B/C) and HAVE landed in @capseasy/shared.
+ *
+ * Phase 9 (W4) unification: the segment TYPES below are the shared schema's own —
+ * SegmentTransform / SegmentTransition are re-exported, SegmentTransitionType is the
+ * shared union, and IDENTITY_TRANSFORM is the shared IDENTITY_SEGMENT_TRANSFORM value.
+ * What stays local is the RESOLVER layer (SegmentExtras / SegmentLike / segmentExtras):
+ * the shared schema types the stored shape (fields required-with-defaults), while this
+ * module is defined over segments whose Run-2 fields may be entirely absent (pre-Run-2
+ * data) and resolves them to fully-populated extras with the pinned identity defaults.
+ * The duration helpers also stay local — see the Phase 9 note on
+ * segmentTimelineDurationMs for the two pinned semantic differences from the shared
+ * formulas that make delegation a behaviour change.
  *
  * Times are milliseconds throughout, matching the rest of the studio.
  */
 
-export interface SegmentTransform {
-  cropLeft: number;
-  cropTop: number;
-  cropRight: number;
-  cropBottom: number;
-  rotateDeg: number;
-  flipH: boolean;
-  flipV: boolean;
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-  /** Run 3 (4.7): base opacity 0..1 (also the "opacity" keyframe channel's base) */
-  opacity: number;
-}
+export type { SegmentTransform, SegmentTransition };
+/** The shared transition-type union (was a local literal union, identical members). */
+export type SegmentTransitionType = SegmentTransition["type"];
 
-export const IDENTITY_TRANSFORM: SegmentTransform = {
-  cropLeft: 0,
-  cropTop: 0,
-  cropRight: 0,
-  cropBottom: 0,
-  rotateDeg: 0,
-  flipH: false,
-  flipV: false,
-  scale: 1,
-  offsetX: 0,
-  offsetY: 0,
-  opacity: 1,
-};
-
-export type SegmentTransitionType = "fade" | "wipe" | "slide" | "zoom" | "blur";
-export interface SegmentTransition {
-  type: SegmentTransitionType;
-  durationMs: number;
-}
+/** The pinned identity transform — the shared schema's own constant, aliased. */
+export const IDENTITY_TRANSFORM: SegmentTransform = IDENTITY_SEGMENT_TRANSFORM;
 
 export interface SegmentExtras {
   playbackRate: number;
@@ -92,6 +77,25 @@ export function segmentExtras(seg: Partial<SegmentExtras> | null | undefined): S
  * How long a segment occupies on the rendered timeline:
  * - a still's sourceIn/Out are a pseudo-span that IS its on-screen duration (rate never applies);
  * - a video segment plays its source span at `playbackRate`, so the timeline span is span / rate.
+ *
+ * Phase 9 (W4) — why this is NOT delegated to @capseasy/shared's segmentTimelineDurationMs
+ * (kept local deliberately; the differences are pinned in segmentView.test.ts):
+ * 1. STILLS: the shared formula divides by the stored rate unconditionally — the render
+ *    path is safe only because stills are CREATED at rate 1 (compositionOps'
+ *    insertStillSegmentAt) and its own timelineDurationMs special-cases stills exactly
+ *    like this one. This view layer is defined over raw stored segments and pins the
+ *    rule itself: a still with a stored rate of 4 still lasts its pseudo-span
+ *    (segmentView.test.ts), where the shared formula would return span / 4.
+ * 2. ROUNDING PLACEMENT: this helper returns the UNROUNDED span / rate and
+ *    compositionDurationMs below rounds ONCE at the end; the shared helpers round EACH
+ *    segment. Discriminator: two 1001 ms segments at 2× give 1001 here vs 1002 via
+ *    shared. The unrounded per-segment value also feeds SegmentView.timelineDurationMs
+ *    (the inspector's playhead-inside test) and applyReversedSegment's durationMs, so
+ *    switching to per-segment rounding would change those consumers' values.
+ * 3. SPAN CLAMP: the span is clamped at 0 here; the shared formula does not clamp.
+ * Unifying would need still-aware, round-once semantics in shared — a behaviour change
+ * for one of the two call families, not a refactor. Do not "fix" one side to match the
+ * other without a deliberate product decision + test updates on both sides.
  */
 export function segmentTimelineDurationMs(seg: SegmentLike): number {
   const span = Math.max(0, seg.sourceOutMs - seg.sourceInMs);
@@ -104,6 +108,7 @@ export function segmentTimelineDurationMs(seg: SegmentLike): number {
  * The rendered duration of a whole composition: the sum of the segments' timeline durations
  * MINUS the transition durations — each segment with a `transitionIn` (other than the first,
  * which has nothing to transition from) overlaps its predecessor by that much.
+ * Kept local with segmentTimelineDurationMs — see its Phase 9 note (still rule + round-once).
  */
 export function compositionDurationMs(segments: readonly SegmentLike[]): number {
   let total = 0;

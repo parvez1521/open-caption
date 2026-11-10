@@ -1,18 +1,34 @@
 import type { CSSProperties } from "react";
 import {
   DEFAULT_TRACK_STATE,
+  IDENTITY_SEGMENT_TRANSFORM,
   NEUTRAL_VIDEO_ADJUST,
+  compositionDurationMs as sharedCompositionDurationMs,
   framesForDurationMs,
+  segmentTimelineDurationMs as sharedSegmentTimelineDurationMs,
   type ClipRange,
   type CompositionTrackKind,
   type OverlayItem,
   type ProjectSettings,
   type SegmentEffect,
   type SegmentKeyframe,
+  type SegmentTransform,
+  type SegmentTransition,
   type TrackState,
   type VideoAdjust,
   type VideoSegment,
 } from "@capseasy/shared";
+
+/**
+ * Phase 9 (W4) unification: the segment transform/transition TYPES and the identity
+ * transform are the shared schema's own (packages/shared/src/settings.ts) — this
+ * package no longer keeps structural copies. Re-exported here so existing import
+ * sites (`from "./overlayMath"` / the package index) keep working unchanged.
+ */
+export type { SegmentTransform, SegmentTransition };
+export { IDENTITY_SEGMENT_TRANSFORM };
+/** The shared transition-type union (was a local literal union, identical members). */
+export type SegmentTransitionType = SegmentTransition["type"];
 
 /**
  * Pure helpers for the Slice 1(d) editor elements: the CSS filter string for the video layer and the
@@ -160,50 +176,26 @@ export function resolveVideoSegments(input: { settings?: Partial<ProjectSettings
  * PINNED INTERFACE (Worker B, packages/shared): VideoSegment gains playbackRate (default 1),
  * transform {crop*, rotateDeg, flipH/flipV, scale, offsetX/offsetY}, transitionIn, assetId and
  * still; ProjectSettings gains canvas {aspect, background}; shared gains the helpers
- * segmentTimelineDurationMs / compositionDurationMs. Until that lands on main, the fields are
- * read STRUCTURALLY here (every field optional, defaults applied at read time) so this package
- * compiles and behaves identically against both the old and the new shared schema. The local
- * helper implementations below mirror the pinned shared formulas exactly; on merged main they
- * are value-identical to the shared ones.
+ * segmentTimelineDurationMs / compositionDurationMs.
+ *
+ * Phase 9 (W4) unification: that interface HAS landed in @capseasy/shared, so the segment
+ * types above are re-exports of the shared ones and the two duration helpers below DELEGATE
+ * to the shared implementations. What stays local is only the raw-data ADAPTER: this package
+ * renders props verbatim (see withRawSegmentExtensions), so its inputs can be unparsed —
+ * the Run-2 fields may be absent or invalid — while the shared helpers take the parsed
+ * shape (playbackRate required, transition durations already schema-valid). The adapter
+ * therefore sanitizes the rate (segmentPlaybackRate), clamps raw transition durations to
+ * ≥ 0, and clamps the < 2-segment result at 0 — exactly the behaviour the previous local
+ * implementations had; the tests in overlayMath.test.ts now pin the ADAPTER (including its
+ * equality with the shared helpers on parsed-shape inputs).
  */
 
-export interface SegmentTransform {
-  cropLeft: number;
-  cropTop: number;
-  cropRight: number;
-  cropBottom: number;
-  rotateDeg: number;
-  flipH: boolean;
-  flipV: boolean;
-  scale: number;
-  offsetX: number;
-  offsetY: number;
-  /** Run 3 (4.7): base opacity 0..1, also the "opacity" keyframe channel's base value. */
-  opacity: number;
-}
-
-export const IDENTITY_SEGMENT_TRANSFORM: SegmentTransform = {
-  cropLeft: 0,
-  cropTop: 0,
-  cropRight: 0,
-  cropBottom: 0,
-  rotateDeg: 0,
-  flipH: false,
-  flipV: false,
-  scale: 1,
-  offsetX: 0,
-  offsetY: 0,
-  opacity: 1,
-};
-
-export type SegmentTransitionType = "fade" | "wipe" | "slide" | "zoom" | "blur";
-
-export interface SegmentTransition {
-  type: SegmentTransitionType;
-  durationMs: number;
-}
-
-/** A stored segment plus the Run-2/Run-3 extension fields, all optional (absent = the pinned defaults). */
+/**
+ * A stored segment plus the Run-2/Run-3 extension fields, all optional (absent = the pinned
+ * defaults). This is an adapter type over the shared VideoSegment for raw/unparsed data —
+ * NOT a copy of the schema type: the shared type has these fields required-with-defaults,
+ * this one keeps them optional so pre-Run-2 / strip-parsed payloads type-check as-is.
+ */
 export type RenderVideoSegment = VideoSegment & {
   playbackRate?: number;
   transform?: Partial<SegmentTransform> | null;
@@ -223,24 +215,41 @@ export function segmentPlaybackRate(segment: Pick<RenderVideoSegment, "playbackR
 }
 
 /**
- * PINNED shared formula: how long a segment occupies on the PROJECT timeline —
- * `round((sourceOut − sourceIn) / playbackRate)`. For stills, sourceIn/Out are a pseudo-span
- * (the on-screen duration) and the stored rate is 1, so the formula is the duration itself.
+ * How long a segment occupies on the PROJECT timeline — the shared formula
+ * `round((sourceOut − sourceIn) / playbackRate)`, delegated to @capseasy/shared with the
+ * rate sanitized first (the shared input requires a valid rate; raw segments may carry a
+ * missing / non-finite / non-positive one, which segmentPlaybackRate maps to 1). For stills,
+ * sourceIn/Out are a pseudo-span (the on-screen duration) and the stored rate is 1, so the
+ * formula is the duration itself.
  */
 export function segmentTimelineDurationMs(segment: RenderVideoSegment): number {
-  return Math.round((segment.sourceOutMs - segment.sourceInMs) / segmentPlaybackRate(segment));
+  return sharedSegmentTimelineDurationMs({
+    sourceInMs: segment.sourceInMs,
+    sourceOutMs: segment.sourceOutMs,
+    playbackRate: segmentPlaybackRate(segment),
+  });
 }
 
 /**
- * PINNED shared formula: the whole chain's project duration — the sum of timeline durations
- * minus every boundary transition (transitionIn lives on segments[1..]; a transitionIn stored
- * on the first segment has no boundary and is ignored), clamped at 0.
+ * The whole chain's project duration — the shared formula (sum of timeline durations minus
+ * every boundary transition; transitionIn lives on segments[1..], so one stored on the first
+ * segment is ignored), delegated to @capseasy/shared via the raw-data adapter: rates are
+ * sanitized per segment and raw transition durations are clamped to ≥ 0 before the shared
+ * call (parsed data already satisfies both; raw data may not), and the result is clamped
+ * at 0 for the < 2-segment case the shared helper returns unclamped. Value-identical to
+ * the previous local implementation for every input.
  */
 export function compositionDurationMs(segments: readonly RenderVideoSegment[]): number {
   if (segments.length === 0) return 0;
-  const total = segments.reduce((sum, s) => sum + segmentTimelineDurationMs(s), 0);
-  const transitions = segments.slice(1).reduce((sum, s) => sum + Math.max(0, s.transitionIn?.durationMs ?? 0), 0);
-  return Math.max(0, total - transitions);
+  const adapted = segments.map((s) => ({
+    sourceInMs: s.sourceInMs,
+    sourceOutMs: s.sourceOutMs,
+    playbackRate: segmentPlaybackRate(s),
+    transitionIn: s.transitionIn
+      ? { type: s.transitionIn.type, durationMs: Math.max(0, s.transitionIn.durationMs ?? 0) }
+      : (s.transitionIn ?? null),
+  }));
+  return Math.max(0, sharedCompositionDurationMs(adapted));
 }
 
 /** The segment's full transform with every pinned default applied. */

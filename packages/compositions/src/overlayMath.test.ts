@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TRACK_STATE, NEUTRAL_VIDEO_ADJUST, ProjectSettingsSchema, type OverlayItem, type VideoSegment } from "@capseasy/shared";
+import { DEFAULT_TRACK_STATE, NEUTRAL_VIDEO_ADJUST, ProjectSettingsSchema, compositionDurationMs as sharedCompositionDurationMs, segmentTimelineDurationMs as sharedSegmentTimelineDurationMs, type OverlayItem, type VideoSegment } from "@capseasy/shared";
 import { CaptionedVideoProps } from "./props";
 import { framesForDurationMs } from "@capseasy/shared";
 import { buildAdjustOverlays, buildSegmentEffects, buildVideoFilter, compositionDurationMs, grainBackground, isIdentitySegmentTransform, overlayFrames, overlayTrackKind, overlayVisibleAt, resolveCanvasSettings, resolveOverlays, resolveSegmentTransform, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, segmentTimelineDurationMs, segmentTransformStyle, videoSegmentFrames, videoTransitionLayout, withRawSegmentExtensions } from "./overlayMath";
@@ -389,6 +389,32 @@ describe("segmentTimelineDurationMs / compositionDurationMs (pinned shared formu
     // timeline: 2000 + 1000 + 1000 = 4000; transitions: 300 + 200 = 500
     expect(compositionDurationMs(segs)).toBe(3500);
     expect(compositionDurationMs([])).toBe(0);
+  });
+
+  it("Phase 9 adapter pin: equals the shared helpers exactly on parsed-shape inputs", () => {
+    // The local helpers delegate to @capseasy/shared; on inputs that already satisfy the
+    // shared shape (valid rate present, schema-valid transitions) there is no adapter
+    // behaviour left, so the values must be the shared values, bit for bit.
+    const parsed = [
+      { sourceInMs: 0, sourceOutMs: 2001, playbackRate: 2, transitionIn: { type: "fade" as const, durationMs: 900 } },
+      { sourceInMs: 2001, sourceOutMs: 4001, playbackRate: 0.5, transitionIn: { type: "wipe" as const, durationMs: 300 } },
+      { sourceInMs: 4001, sourceOutMs: 5001, playbackRate: 1, transitionIn: null },
+    ];
+    for (const s of parsed) expect(segmentTimelineDurationMs(s as never)).toBe(sharedSegmentTimelineDurationMs(s));
+    expect(compositionDurationMs(parsed as never)).toBe(sharedCompositionDurationMs(parsed));
+    expect(compositionDurationMs([parsed[0]] as never)).toBe(sharedCompositionDurationMs([parsed[0]]));
+    expect(compositionDurationMs([])).toBe(sharedCompositionDurationMs([]));
+  });
+
+  it("Phase 9 adapter pin: raw transition durations are clamped to >= 0 before delegating", () => {
+    // Raw (unparsed) segments can carry a negative transition duration; the previous local
+    // implementation clamped it, the shared helper (parsed inputs only) does not — the
+    // adapter must keep the clamp: 2000 + 2000 − max(0, −500) = 4000, not 4500.
+    const segs = [
+      seg("a", 0, 2000),
+      seg("b", 2000, 4000, { transitionIn: { type: "fade", durationMs: -500 } }),
+    ];
+    expect(compositionDurationMs(segs)).toBe(4000);
   });
 });
 
