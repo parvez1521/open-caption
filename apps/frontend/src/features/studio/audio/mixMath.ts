@@ -105,6 +105,56 @@ export function duckEnvelope(
   return out;
 }
 
+/* ------------------------------------------------------------------ */
+/* Bleeps (Phase 5, A6): range mute + synthesised tone                 */
+/* ------------------------------------------------------------------ */
+
+/** The minimal bleep shape the mix maths reads — the shared `AudioBleep` satisfies it. */
+export interface BleepRange {
+  startMs: number;
+  endMs: number;
+  toneHz: number;
+  level: number;
+}
+
+/** Edge ramp of the bleep tone, ms: long enough to avoid a click, short enough
+ *  that a short word still gets a clear tone. Applied symmetrically. */
+export const BLEEP_EDGE_MS = 5;
+
+/** The bleep active at a project-timeline instant, or null. Ranges are [startMs, endMs). */
+export function bleepAt(bleeps: readonly BleepRange[], timelineMs: number): BleepRange | null {
+  for (const b of bleeps) {
+    if (timelineMs >= b.startMs && timelineMs < b.endMs) return b;
+  }
+  return null;
+}
+
+/**
+ * Gain of the SOURCE audio at a project-timeline instant under the bleeps:
+ * exactly 0 inside an approved bleep range, exactly 1 outside — a hard mute,
+ * so the original signal inside a bleep is fully suppressed, not ducked.
+ */
+export function bleepMuteGain(bleeps: readonly BleepRange[], timelineMs: number): number {
+  return bleepAt(bleeps, timelineMs) ? 0 : 1;
+}
+
+/**
+ * One sample of the synthesised bleep tone at a project-timeline instant:
+ * `level * sin(2π · toneHz · t)` with t measured from the range START (so the
+ * tone always starts at a zero crossing), shaped by a linear BLEEP_EDGE_MS
+ * ramp in and out. 0 outside the range. Both mix consumers — the export
+ * mixdown and the preview graph — generate the tone from THIS function, so
+ * the tone is sample-identical between preview and export.
+ */
+export function bleepToneSample(bleep: BleepRange, timelineMs: number): number {
+  const localMs = timelineMs - bleep.startMs;
+  const durationMs = bleep.endMs - bleep.startMs;
+  if (localMs < 0 || localMs >= durationMs || !(durationMs > 0)) return 0;
+  const edge = Math.min(BLEEP_EDGE_MS, durationMs / 2);
+  const ramp = edge > 0 ? Math.min(1, localMs / edge, (durationMs - localMs) / edge) : 1;
+  return bleep.level * ramp * Math.sin((2 * Math.PI * bleep.toneHz * localMs) / 1000);
+}
+
 /**
  * Max-combine several placed peak trains onto one zeroed timeline of `totalHops` hops.
  * Each entry contributes its peaks starting at `startHop`; overlapping regions take

@@ -339,6 +339,8 @@ describe("trimVideoClipEdge — tail trim / extend", () => {
       audioTracks: [],
       audioClips: [],
       audioMaster: plainComp().audioMaster,
+      audioBleeps: [],
+      audioNoiseSuppressionAssetId: null,
     };
     const before = snapshot(comp);
     const { comp: out } = trimVideoClipEdge(comp, "only", "end", 25_000);

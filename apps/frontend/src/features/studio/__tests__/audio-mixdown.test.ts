@@ -65,7 +65,7 @@ function item(partial: Partial<MixItem>): MixItem {
   };
 }
 function plan(items: MixItem[], durationMs: number, master: AudioMaster = DEFAULT_AUDIO_MASTER): MixPlan {
-  return { durationMs, items, master };
+  return { durationMs, items, master, bleeps: [] };
 }
 
 describe("renderMixedAudio — measurements", () => {

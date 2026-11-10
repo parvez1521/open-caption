@@ -5,6 +5,7 @@ import type { AudioDucking, AudioMaster, AudioTrack } from "@capseasy/shared";
 import { Button, Section, Select, Slider, Toggle } from "../controls";
 import type { EditorComposition } from "../compositionDoc";
 import type { MediaAssetRecord } from "../mediaStore";
+import { approvedBleepRanges, findProfanityMatches, type BleepWordInput } from "../audio/bleep";
 
 /**
  * Audio panel (Phase 4 Run 3, slice 4.8): the presentational half of the
@@ -39,7 +40,27 @@ export interface AudioPanelProps {
     },
   ) => void;
   onUpdateMaster: (patch: { volume?: number; videoVolume?: number; compressor?: Partial<AudioMaster["compressor"]> }) => void;
+  /** Phase 5 (A6): the caption document's words, for the profanity review list */
+  words?: BleepWordInput[];
+  /** Phase 5 (A6): store approved bleep ranges as mix params (one undo step) */
+  onApplyBleeps?: (ranges: { startMs: number; endMs: number; wordText: string }[]) => void;
+  onRemoveBleep?: (id: string) => void;
+  onUpdateBleep?: (id: string, patch: { toneHz?: number; level?: number }) => void;
+  /** Phase 5 (A12): noise suppression derived-asset control (StudioPage owns the async work) */
+  noiseSuppression?: {
+    active: boolean;
+    busy: boolean;
+    error: string | null;
+    onToggle: (enable: boolean) => void;
+  };
 }
+
+const fmtTime = (ms: number): string => {
+  const totalSec = Math.max(0, ms) / 1000;
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec - m * 60;
+  return `${m}:${s.toFixed(1).padStart(4, "0")}`;
+};
 
 const ROLE_OPTIONS = [
   { value: "voice", label: "Voice" },
@@ -51,7 +72,28 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
   comp, assets, selectedClipId, playheadMs, onSelectClip,
   onAddTrack, onUpdateTrack, onSetDucking, onRemoveTrack, onPlaceClip,
   onMoveClip, onSplitClip, onDuplicateClip, onRemoveClip, onUpdateClip, onUpdateProcessors, onUpdateMaster,
+  words, onApplyBleeps, onRemoveBleep, onUpdateBleep, noiseSuppression,
 }) => {
+  // Phase 5 (A6): profanity review state — which listed matches the user has ticked.
+  // NOTHING is approved by default and nothing is altered until a button below
+  // sends the approved ranges up; unapproved matches are never touched.
+  const matches = React.useMemo(() => findProfanityMatches(words ?? []), [words]);
+  const [approvedIds, setApprovedIds] = React.useState<ReadonlySet<string>>(new Set());
+  const bleeps = comp.audioBleeps ?? [];
+  const isBleeped = (m: { startMs: number; endMs: number }) =>
+    bleeps.some((b) => b.startMs <= m.startMs && b.endMs >= m.endMs);
+  const pendingMatches = matches.filter((m) => !isBleeped(m));
+  const toggleApproved = (wordId: string, on: boolean) =>
+    setApprovedIds((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(wordId); else next.delete(wordId);
+      return next;
+    });
+  const applyApproved = (ids: ReadonlySet<string>) => {
+    if (!onApplyBleeps || ids.size === 0) return;
+    onApplyBleeps(approvedBleepRanges(matches, ids));
+    setApprovedIds(new Set());
+  };
   const master = comp.audioMaster;
   const compOn = master.compressor.enabled;
   const audioAssets = assets.filter((a) => a.kind === "audio");
@@ -72,6 +114,87 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
           </>
         ) : null}
       </Section>
+
+      <Section title="Bleep profanity" hint="Words from the built-in list that appear in your transcript. A word is only silenced — with a tone over it — after you approve it here; the original audio is never edited, and removing a bleep restores it.">
+        <p className="text-xs text-st-faint">This matches listed words in the transcript; it can miss slang or mis-transcribed words.</p>
+        {matches.length === 0 ? (
+          <p className="text-xs text-st-faint">No listed words found in the transcript.</p>
+        ) : (
+          <>
+            <div className="space-y-1.5">
+              {matches.map((m) => {
+                const done = isBleeped(m);
+                return (
+                  <div key={`${m.wordId}-${m.startMs}`} className="flex items-center gap-2 rounded-lg bg-st-raised/60 px-2.5 py-2">
+                    {done ? (
+                      <span className="text-xs font-medium text-st-text/80">Bleeped</span>
+                    ) : (
+                      <input
+                        type="checkbox"
+                        aria-label={`Approve bleep for ${m.wordText}`}
+                        checked={approvedIds.has(m.wordId)}
+                        onChange={(e) => toggleApproved(m.wordId, e.target.checked)}
+                        className="h-4 w-4 shrink-0 accent-[#34D399]"
+                      />
+                    )}
+                    <p className="min-w-0 flex-1 truncate text-sm text-st-text" title={m.wordText}>{m.wordText}</p>
+                    <span className="text-xs text-st-faint">{fmtTime(m.startMs)}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {pendingMatches.length > 0 && onApplyBleeps ? (
+              <div className="flex flex-wrap gap-1.5">
+                <Button disabled={approvedIds.size === 0} onClick={() => applyApproved(approvedIds)}>
+                  {`Bleep selected (${approvedIds.size})`}
+                </Button>
+                <Button onClick={() => applyApproved(new Set(pendingMatches.map((m) => m.wordId)))}>
+                  Bleep all
+                </Button>
+              </div>
+            ) : null}
+          </>
+        )}
+        {bleeps.length > 0 ? (
+          <div className="space-y-1.5">
+            {bleeps.map((b) => (
+              <div key={b.id} className="space-y-2 rounded-lg border border-st-line bg-st-raised/40 px-2.5 py-2">
+                <div className="flex items-center gap-2">
+                  <p className="min-w-0 flex-1 truncate text-sm text-st-text" title={b.wordText || "Bleep"}>
+                    {b.wordText || "Bleep"} <span className="text-xs text-st-faint">{fmtTime(b.startMs)} – {fmtTime(b.endMs)}</span>
+                  </p>
+                  {onRemoveBleep ? <Button tone="danger" className="!px-2 !py-1 text-xs" onClick={() => onRemoveBleep(b.id)}>Remove</Button> : null}
+                </div>
+                {onUpdateBleep ? (
+                  <>
+                    <Slider label="Tone" value={b.toneHz} min={200} max={4000} step={50} unit=" Hz" onChange={(v) => onUpdateBleep(b.id, { toneHz: v })} />
+                    <Slider label="Tone level" value={b.level} min={0} max={1} step={0.05} onChange={(v) => onUpdateBleep(b.id, { level: v })} format={(v) => `${Math.round(v * 100)}%`} />
+                  </>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Section>
+
+      {noiseSuppression ? (
+        <Section title="Noise suppression" hint="Removes steady background noise (fans, hiss, hum) from the video's own sound using RNNoise, on this device.">
+          <p className="text-xs text-st-faint">
+            It makes a cleaned copy of the audio here and the mix uses that copy — your original recording is untouched, and turning this off goes back to it. It works best on steady noise; it is not the same as the per-clip basic cleanup.
+          </p>
+          {noiseSuppression.active ? (
+            <>
+              <p className="text-xs text-st-text/85">Noise suppression is on for this project.</p>
+              <Button disabled={noiseSuppression.busy} onClick={() => noiseSuppression.onToggle(false)}>Turn off</Button>
+            </>
+          ) : (
+            <Button disabled={noiseSuppression.busy} onClick={() => noiseSuppression.onToggle(true)}>
+              {noiseSuppression.busy ? "Cleaning the audio…" : "Create noise-suppressed copy"}
+            </Button>
+          )}
+          {noiseSuppression.error ? <p className="text-xs text-red-300">{noiseSuppression.error}</p> : null}
+        </Section>
+      ) : null}
 
       <Section title="Tracks" hint="Each track is a lane on the timeline. Locking a track protects its clips from edits.">
         {comp.audioTracks.length === 0 ? <p className="text-xs text-st-faint">No audio tracks yet. Add one below, then place audio from the media bin.</p> : null}

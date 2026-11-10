@@ -234,7 +234,7 @@ describe("composition (Stage-B composition slice in settings)", () => {
     const s = ProjectSettingsSchema.parse({});
     expect(s.composition).toEqual({
       version: 1, videoSegments: [], markers: [], tracks: allDefaultTracks,
-      audio: { tracks: [], clips: [], master: { volume: 1, videoVolume: 1, compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 } } },
+      audio: { tracks: [], clips: [], master: { volume: 1, videoVolume: 1, compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 } }, bleeps: [], noiseSuppressionAssetId: null },
     });
     expect(s.composition).toEqual(EMPTY_COMPOSITION_SETTINGS);
     expect(defaultSettings().composition).toEqual(EMPTY_COMPOSITION_SETTINGS);

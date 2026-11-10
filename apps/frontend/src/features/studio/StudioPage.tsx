@@ -66,16 +66,17 @@ import {
 } from "./segmentView";
 import { SegmentInspector, type SegmentProductionState } from "./panels/SegmentInspector";
 import { getLocalVideo } from "@/features/upload/localVideos";
-import { listProjectAssets } from "./mediaStore";
+import { listProjectAssets, saveAsset } from "./mediaStore";
 import { splitWordIdAtPlayhead } from "./playheadSplit";
 import { resolveDeleteAction } from "./deleteSelection";
 import { useMediaAssets } from "./useMediaAssets";
 import { makeImageOverlay } from "./panels/overlayItems";
 import {
-  addAudioTrack, duplicateAudioClip, moveAudioClip, placeAudioClip, removeAudioClip, removeAudioTrack,
-  setAudioDucking, splitAudioClipAt, trimAudioClip, updateAudioClip, updateAudioClipProcessors,
+  addAudioBleeps, addAudioTrack, duplicateAudioClip, moveAudioClip, placeAudioClip, removeAudioBleep, removeAudioClip, removeAudioTrack,
+  setAudioDucking, setNoiseSuppressionAsset, splitAudioClipAt, trimAudioClip, updateAudioBleep, updateAudioClip, updateAudioClipProcessors,
   updateAudioMaster, updateAudioTrack,
 } from "./audioOps";
+import { makeNoiseSuppressedWav, noiseSuppressedAssetRecord } from "./audio/denoise";
 import { buildMixPlan, mixIsActive } from "./audio/mixPlan";
 import { renderMixedAudio } from "./audio/mixdown";
 import { muxMixedAudioIntoMp4 } from "./audio/exportMix";
@@ -179,6 +180,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const [selVideoClipId, setSelVideoClipId] = useState<string | null>(null);
   const [selMarkerId, setSelMarkerId] = useState<string | null>(null);
   const [selAudioClipId, setSelAudioClipId] = useState<string | null>(null);
+  /** Phase 5 (A12): noise-suppression production state (the derived-asset build is async) */
+  const [noiseBusy, setNoiseBusy] = useState(false);
+  const [noiseError, setNoiseError] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   // one selection kind at a time: picking a word / overlay / video segment / marker clears the
   // others, so Delete and the contextual timeline tools always act on what the user just picked
@@ -504,6 +508,36 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mediaBin.assets, data?.video?.id, video?.url]);
+
+  /* Phase 5 (A12): build the noise-suppressed derived WAV once (decode → RNNoise →
+   * WAV in the media bin) and point the composition's audio slice at it; turning it
+   * off just clears the reference. The mix (preview + export) reads the derived
+   * asset through the ONE mix plan — RNNoise never runs live in either consumer. */
+  const toggleNoiseSuppression = async (enable: boolean) => {
+    if (!editorComp) return;
+    if (!enable) {
+      setNoiseError(null);
+      commitAudio(setNoiseSuppressionAsset(editorComp, null));
+      return;
+    }
+    if (editorComp.audioNoiseSuppressionAssetId) return;
+    setNoiseBusy(true);
+    setNoiseError(null);
+    try {
+      const srcBlob = await getAudioBlob(null);
+      if (!srcBlob) throw new Error("This project's video isn't on this device, so its sound can't be cleaned here.");
+      const wav = await makeNoiseSuppressedWav(srcBlob);
+      if (!wav) throw new Error("That video has no audio track to clean.");
+      const rec = noiseSuppressedAssetRecord({ projectId, blob: wav, durationMs: sourceDurationMs || durationMs || null });
+      await saveAsset(rec);
+      await mediaBin.refresh();
+      commitAudio(setNoiseSuppressionAsset(editorComp, rec.id));
+    } catch (e) {
+      setNoiseError(e instanceof Error ? e.message : "Noise suppression failed on this device.");
+    } finally {
+      setNoiseBusy(false);
+    }
+  };
 
   const reverseSelectedSegment = async () => {
     if (!editorComp || !selSegmentView || videoLocked) return;
@@ -1070,6 +1104,16 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           onUpdateClip={(id, patch) => commitAudio(updateAudioClip(editorComp, id, patch))}
           onUpdateProcessors={(id, patch) => commitAudio(updateAudioClipProcessors(editorComp, id, patch))}
           onUpdateMaster={(patch) => commitAudio(updateAudioMaster(editorComp, patch))}
+          words={doc?.words ?? []}
+          onApplyBleeps={(ranges) => commitAudio(addAudioBleeps(editorComp, ranges))}
+          onRemoveBleep={(id) => commitAudio(removeAudioBleep(editorComp, id))}
+          onUpdateBleep={(id, patch) => commitAudio(updateAudioBleep(editorComp, id, patch))}
+          noiseSuppression={{
+            active: Boolean(editorComp.audioNoiseSuppressionAssetId),
+            busy: noiseBusy,
+            error: noiseError,
+            onToggle: (enable) => { void toggleNoiseSuppression(enable); },
+          }}
         />
       ) : null)
       : t === "translate" ? (doc ? <TranslatePanel projectId={projectId} doc={doc} settings={settings} patch={s.patchSettings} translations={translations} onTranslated={(lang, tdoc) => setTranslations((prev) => ({ ...prev, [lang]: tdoc }))} /> : null)

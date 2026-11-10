@@ -5,7 +5,7 @@ import type { EditorComposition } from "./compositionDoc";
 import { buildMixPlan, type MixPlan } from "./audio/mixPlan";
 import { decodeAudioRange } from "./audio/decode";
 import { applyCleanup, generateImpulse } from "./audio/dsp";
-import { MIX_HOP_MS, combineVoicePeaks, duckEnvelope, fadeGainAt, peaksFromChannels } from "./audio/mixMath";
+import { MIX_HOP_MS, bleepMuteGain, bleepToneSample, combineVoicePeaks, duckEnvelope, fadeGainAt, peaksFromChannels } from "./audio/mixMath";
 
 /**
  * Preview audio for the audio studio (Phase 4 Run 3, slice 4.8).
@@ -264,6 +264,8 @@ export function useAudioPreview(opts: UseAudioPreviewOpts): void {
             const localMs = skipMs + i * MIX_HOP_MS;
             let g = base;
             try { g *= fadeGainAt({ volume: 1, fadeInMs: it.fadeInMs ?? 0, fadeOutMs: it.fadeOutMs ?? 0 }, localMs, durMs); } catch { /* keep base */ }
+            // Phase 5 (A6): the same hard range-mute the export mixdown applies
+            if (plan.bleeps?.length) g *= bleepMuteGain(plan.bleeps, startMs + localMs);
             if (envelope) {
               const hop = Math.floor((startMs + localMs) / MIX_HOP_MS);
               g *= envelope[Math.min(hop, envelope.length - 1)] ?? 1;
@@ -294,6 +296,29 @@ export function useAudioPreview(opts: UseAudioPreviewOpts): void {
           try { src.start(when, Math.min(offsetSec, Math.max(0, buffer.duration - 0.01))); sources.push(src); }
           catch { /* item skipped */ }
         }
+        // Phase 5 (A6): bleep tones — buffers generated sample-by-sample from the
+        // SAME mixMath function the export mixdown uses, so the previewed tone is
+        // sample-identical to the exported one; scheduled like any other item.
+        for (const bleep of plan.bleeps ?? []) {
+          const durMs = bleep.endMs - bleep.startMs;
+          if (!(durMs > 0) || bleep.startMs + durMs <= posMs) continue;
+          try {
+            const frames = Math.max(1, Math.round((durMs / 1000) * ctx.sampleRate));
+            const toneBuffer = ctx.createBuffer(2, frames, ctx.sampleRate);
+            for (let c = 0; c < 2; c++) {
+              const data = toneBuffer.getChannelData(c);
+              for (let i = 0; i < frames; i++) data[i] = bleepToneSample(bleep, bleep.startMs + (i / ctx.sampleRate) * 1000);
+            }
+            const toneSrc = ctx.createBufferSource();
+            toneSrc.buffer = toneBuffer;
+            toneSrc.connect(masterGain);
+            const when = t0 + Math.max(0, (bleep.startMs - posMs) / 1000);
+            const skipSec = Math.max(0, (posMs - bleep.startMs) / 1000);
+            toneSrc.start(when, Math.min(skipSec, Math.max(0, toneBuffer.duration - 0.01)));
+            sources.push(toneSrc);
+          } catch { /* a missing tone never breaks the preview */ }
+        }
+
         sourcesRef.current = sources;
         void ctx.resume().catch(() => undefined);
       } catch {
