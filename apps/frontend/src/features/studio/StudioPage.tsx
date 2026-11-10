@@ -153,11 +153,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   );
   const doc = s.doc ?? draft;
   const live = !s.doc && !!draft;
-  // the server takes over the moment the run is saved (or has ended)
+  // the server takes over the moment the run is saved (or has ended — "detached" means the
+  // job was finished/taken elsewhere, so the server's transcript is the one to fetch)
   const phase = liveView?.phase;
   const refetchStudio = s.refetch;
   useEffect(() => {
-    if (phase === "saved" || phase === "failed" || phase === "stopped") void refetchStudio();
+    if (phase === "saved" || phase === "failed" || phase === "stopped" || phase === "detached") void refetchStudio();
   }, [phase, refetchStudio]);
   // first-run mini tutorial: the first time generated captions land (the session's "saved" transition,
   // or the first adopted document with words) and the seen flag is unset, start the tour after a beat

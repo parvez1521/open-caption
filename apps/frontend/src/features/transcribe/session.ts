@@ -28,7 +28,7 @@ import { deleteProgress, getProgress, saveProgress } from "@/features/upload/loc
  * last saved window and the job is claimed again. Nothing ever sits on a frozen progress bar.
  */
 
-export type Phase = "starting" | "running" | "saving" | "saved" | "failed" | "stopped";
+export type Phase = "starting" | "running" | "saving" | "saved" | "failed" | "stopped" | "detached";
 
 export interface SessionView {
   phase: Phase;
@@ -117,6 +117,14 @@ export class TranscriptionSession {
   private durationMs = 0;
   private jobId: string | null = null;
   private claimed = false;
+  /**
+   * Phase 9 (W2, quirk a): the server job was finished or taken by someone else (claim 409/404),
+   * so THIS session can never save its words — the server's copy is the only transcript. The run
+   * must still END when the worker finishes (see maybeComplete): before this flag existed the
+   * session sat in "running" at 100% forever, hasActiveSession() stayed true, the studio's
+   * polling stayed off, and the completed transcript never took over in this tab.
+   */
+  private detached = false;
   private finished: { device: string; noAudio: boolean } | null = null;
   private completing = false;
   private worker: Worker | null = null;
@@ -149,9 +157,9 @@ export class TranscriptionSession {
     emit();
   }
 
-  /** Called when the run has ended for good (saved, failed or stopped). */
+  /** Called when the run has ended for good (saved, failed, stopped or detached). */
   onSettled(fn: () => void) {
-    if (["saved", "failed", "stopped"].includes(this.view.phase)) fn();
+    if (["saved", "failed", "stopped", "detached"].includes(this.view.phase)) fn();
     else this.settled.push(fn);
     return () => void (this.settled = this.settled.filter((f) => f !== fn));
   }
@@ -164,7 +172,7 @@ export class TranscriptionSession {
   }
 
   stop() {
-    if (["saved", "failed", "stopped"].includes(this.view.phase)) return;
+    if (["saved", "failed", "stopped", "detached"].includes(this.view.phase)) return;
     if (this.worker) dropWorker(this.worker);
     this.worker = null;
     this.set({ phase: "stopped" });
@@ -269,11 +277,17 @@ export class TranscriptionSession {
     try {
       await this.call({ action: "claim" });
       this.claimed = true;
+      this.detached = false;
     } catch (e) {
       const status = (e as { status?: number }).status;
-      // someone else finished or took it (another tab): ours is a draft only
+      // someone else finished or took it (another tab): ours is a draft only. The run is NOT
+      // over — the worker keeps writing the draft — but it must end as "detached" the moment
+      // the worker finishes, or it would sit in "running" forever and block the studio from
+      // ever polling for the server's completed transcript (Phase 9 W2, quirk a).
       if (status === 409 || status === 404) {
         this.jobId = null;
+        this.detached = true;
+        void this.maybeComplete();
         return;
       }
     }
@@ -302,6 +316,15 @@ export class TranscriptionSession {
   }
 
   private async maybeComplete() {
+    // Detached (quirk a): the words are finished but this session never held the job, so there
+    // is nothing it may save — the job's owner saved (or is saving) the transcript. End the run
+    // so the studio refetches and the server's document takes over in this tab.
+    if (this.detached && this.finished) {
+      this.set({ phase: "detached", progress: 1 });
+      if (this.worker) { dropWorker(this.worker); this.worker = null; }
+      this.settle();
+      return;
+    }
     if (!this.finished || !this.jobId || !this.claimed || this.completing) return;
     this.completing = true;
     this.set({ phase: "saving", status: { stage: "save", progress: 1, device: this.finished.device } });
