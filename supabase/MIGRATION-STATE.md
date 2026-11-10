@@ -51,7 +51,7 @@ guest users after 7 days away) is separate: the Vercel cron
 | `APPLY-COMPOSITION-PRIMARY.sql` | `20261110030000_composition_primary.sql` | **Applied + verified live** (see Stage C section above). |
 | `APPLY-CAPTION-TRANSLATIONS.sql` | `20261110040000_caption_translations.sql` | **Applied + verified live** 2026-11-10 (table, RLS, owner policy, unique index checked after apply). |
 | `APPLY-GROWTH-STUDIO.sql` | `20261110050000_growth_studio.sql` | **Applied + verified live** 2026-11-10 (both tables, RLS + owner policies checked after apply). |
-| `APPLY-PROJECT-FOLDERS-TAGS.sql` | `20261110060000_project_folders_tags.sql` | **PENDING** — added in Phase 8 slice 8.3; until the owner runs it, the projects API degrades honestly (list works, `org_ready:false`, folder/tag writes answer "database update is pending"). |
+| `APPLY-PROJECT-FOLDERS-TAGS.sql` | `20261110060000_project_folders_tags.sql` | **Applied + verified live** 2026-11-10 ~22:52 IST (folder + tags columns, both indexes; RLS unchanged) — corrected in Phase 9 W1: this row still said PENDING after the apply. The honest-degradation path (`org_ready:false`, pending-message writes) remains in code for any not-yet-migrated environment. |
 
 ## Guest → account claim flow (code-level state, Phase 8 re-verification)
 
@@ -63,6 +63,14 @@ to an anonymous guest, then re-owners every guest-owned table (projects,
 videos, transcripts, caption documents + versions + translations, jobs,
 exports, user looks, brand kits, user fonts, usage events) and merges
 `favorite_looks`. Linking an identity onto the guest user (email/Google
-link) keeps the same user id, so no move is needed on that path. There
-are currently **no dedicated route tests** for the claim endpoint — see
-the Phase 8 W4 report; the flow is covered by code inspection only.
+link) keeps the same user id, so no move is needed on that path.
+**Dedicated tests landed in Phase 9 W1 (2026-11-10):**
+`apps/frontend/src/app/api/v1/guest/claim/__tests__/route.test.ts`
+(13 tests: re-ownership across all OWNED tables, favorite_looks merge,
+token-verification no-ops, double-claim idempotency, no-rollback
+failure behaviour) and
+`apps/frontend/src/services/auth/__tests__/guest-claim.test.ts`
+(8 tests for the stash/claim helpers). The helper suite caught W1-A1:
+the stash was deleted before the claim request, so a transient failure
+permanently orphaned the guest's work — fixed; the stash now clears
+only after a successful hand-off (or on expiry/corruption).
