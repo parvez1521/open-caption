@@ -62,6 +62,76 @@ describe("normalize", () => {
   });
 });
 
+/**
+ * Multilingual gate (Phase 5, Slice 5.2): Devanagari Hindi word timings, in the exact shape the browser Whisper
+ * worker emits (leading-space word chunks, millisecond spans, sub-word splits without a leading space), must pass
+ * the SAME alignment guarantees the English fixtures above enforce — monotonic starts, no overlaps, end > start,
+ * clamped to the media duration, no dropped or duplicated words. This proves the aligner handles Devanagari; it
+ * does not prove real-audio transcription accuracy, which is an on-device pass.
+ */
+describe("normalize — Devanagari Hindi (multilingual gate)", () => {
+  const HINDI_CHUNKS = [
+    { text: " नमस्", startMs: 0, endMs: 180 },
+    { text: "ते", startMs: 180, endMs: 420 }, // sub-word continuation: merges into नमस्ते
+    { text: " दोस्तों", startMs: 420, endMs: 900 },
+    { text: " यह", startMs: 1000, endMs: 1250 },
+    { text: " ट्रिक", startMs: 1250, endMs: 1650 },
+    { text: " कमाल", startMs: 1650, endMs: 2050 },
+    { text: " है।", startMs: 2050, endMs: 2400 },
+  ];
+
+  it("merges Devanagari sub-word tokens and keeps the script untouched (no romanize by default)", () => {
+    const words = fromWhisperCaptions(HINDI_CHUNKS, { durationMs: 2400 });
+    expect(words.map((w) => w.text)).toEqual(["नमस्ते", "दोस्तों", "यह", "ट्रिक", "कमाल", "है।"]);
+    expect(words[0]!.endMs).toBe(420);
+  });
+
+  it("makes Devanagari timings monotonic without overlaps, clamped to the media duration", () => {
+    const words = normalizeTokens(
+      [
+        { text: "दूसरा", startMs: 1000, endMs: 1500 },
+        { text: "पहला", startMs: 900, endMs: 1300 },
+        { text: "तीसरा", startMs: 1200, endMs: 1200 },
+        { text: "बाहर", startMs: 9000, endMs: 9500 },
+      ],
+      { durationMs: 2000 },
+    );
+    expect(words.map((w) => w.text)).toEqual(["पहला", "दूसरा", "तीसरा"]);
+    for (let i = 1; i < words.length; i++) expect(words[i]!.startMs).toBeGreaterThanOrEqual(words[i - 1]!.startMs);
+    for (let i = 0; i < words.length - 1; i++) expect(words[i]!.endMs).toBeLessThanOrEqual(words[i + 1]!.startMs);
+    expect(words.every((w) => w.endMs > w.startMs && w.startMs >= 0 && w.endMs <= 2000)).toBe(true);
+  });
+
+  it("removes a Devanagari hallucination loop and keeps the real words", () => {
+    const loop = Array.from({ length: 6 }, (_, i) => ({ text: " धन्यवाद।", startMs: 600 + i * 300, endMs: 600 + i * 300 + 250 }));
+    const words = fromWhisperCaptions([{ text: " असली", startMs: 0, endMs: 300 }, { text: " बात", startMs: 300, endMs: 600 }, ...loop]);
+    expect(words.map((w) => w.text)).toEqual(["असली", "बात", "धन्यवाद।"]);
+  });
+
+  it("parses Devanagari Whisper verbose_json words", () => {
+    const words = fromWhisperVerboseJson({ words: [{ word: "नमस्ते", start: 0, end: 0.42 }, { word: "दोस्तों", start: 0.42, end: 0.9 }] });
+    expect(words.map((w) => w.text)).toEqual(["नमस्ते", "दोस्तों"]);
+    expect(words[1]!.startMs).toBe(420);
+  });
+
+  it("derives pages over Devanagari words: danda ends a sentence, no word dropped or duplicated", () => {
+    const ws = [
+      mk("नमस्ते", 0, 400), mk("दोस्तों", 400, 800), mk("यह", 800, 1100), mk("है।", 1100, 1500),
+      mk("अब", 2100, 2400), mk("दूसरा", 2400, 2800), mk("वाक्य", 2800, 3200), mk("है।", 3200, 3600),
+    ];
+    const pages = derivePages(docOf(ws), settings());
+    // every input word appears on exactly one page, in order
+    expect(pages.flatMap((p) => p.words.map((w) => w.text))).toEqual(ws.map((w) => w.text));
+    // a page never crosses the danda sentence boundary
+    for (const p of pages) {
+      const idx = p.words.findIndex((w) => /।$/.test(w.text));
+      if (idx !== -1) expect(idx).toBe(p.words.length - 1);
+    }
+    for (let i = 0; i < pages.length - 1; i++) expect(pages[i]!.endMs).toBeLessThanOrEqual(pages[i + 1]!.startMs);
+    expect(pages.every((p) => p.endMs > p.startMs)).toBe(true);
+  });
+});
+
 describe("derivePages", () => {
   const ws = [mk("Hello", 0, 300), mk("there", 300, 600), mk("my", 600, 800), mk("friend.", 800, 1200), mk("How", 1300, 1500), mk("are", 1500, 1700), mk("you?", 1700, 2000)];
 

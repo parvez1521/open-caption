@@ -182,7 +182,29 @@ describe("dropRepeatedRuns", () => {
   });
 });
 
+describe("dropRepeatedRuns — Devanagari", () => {
+  const w = (s: string) => s.split(" ").map((text) => ({ text }));
+  it("keeps ordinary Hindi repetition", () => {
+    expect(dropRepeatedRuns(w("नहीं नहीं बिल्कुल नहीं")).length).toBe(4);
+    expect(dropRepeatedRuns(w("धन्यवाद दोस्तों धन्यवाद दोस्तों")).length).toBe(4); // said twice: kept whole
+  });
+  it("cuts a runaway Devanagari word to two copies", () => {
+    expect(dropRepeatedRuns(w("चलिए धन्यवाद धन्यवाद धन्यवाद धन्यवाद धन्यवाद शुरू")).map((x) => x.text).join(" ")).toBe("चलिए धन्यवाद धन्यवाद शुरू");
+  });
+  it("does not mistake words that differ only in vowel signs for the same word", () => {
+    // काल (long) vs कल (short): with the vowel signs stripped these would collide into one "word" and a
+    // 4x alternation could be misread as a loop; as written they are a two-word phrase said twice — kept.
+    expect(dropRepeatedRuns(w("काल कल काल कल")).length).toBe(4);
+  });
+});
+
 describe("capWordEnd", () => {
+  it("caps a stretched Devanagari word by the same length rule", () => {
+    const start = 7.16;
+    const capped = capWordEnd(" है।", start, 14.68, 20);
+    expect(capped).toBeCloseTo(start + 0.6 + 0.12 * "है।".length, 5);
+    expect(capped).toBeGreaterThan(start);
+  });
   it("keeps normal words as they are", () => {
     expect(capWordEnd(" hai", 2, 2.3, 10)).toBe(2.3);
   });

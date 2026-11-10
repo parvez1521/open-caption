@@ -5,7 +5,7 @@ import { fromWhisperCaptions } from "@motion-ai/caption-engine/core";
 import type { Word } from "@capseasy/shared";
 import { apiClient } from "@/services/api-client";
 import { decodeAudio, dropWorker, sendToWorker, speechWorker, withRetry, type BrowserStatus, type Out } from "./browserWhisper";
-import { MODELS, markWebgpuBroken, modelKeyOf, speechLanguageOf, webgpuMarkedBroken, type SpeechLanguage, type SpeechModel } from "./runtime";
+import { MODELS, PROJECT_LANGUAGE, markWebgpuBroken, modelKeyOf, speechLanguageOf, webgpuMarkedBroken, type SpeechLanguage, type SpeechModel } from "./runtime";
 import { dropRepeatedRuns } from "./speech";
 import { mark, note, report } from "./timing";
 import { track } from "@/lib/track";
@@ -136,8 +136,9 @@ export class TranscriptionSession {
     this.videoId = o.videoId;
     this.file = o.file;
     this.model = MODELS[speechLanguageOf(o.language)];
-    // English and Hinglish are decoded with the model's own language token; older "auto" projects keep auto-detect
-    this.language = this.model.key === "hinglish" || (o.language && o.language !== "auto") ? this.model.language : null;
+    // Every shipped non-English choice is decoded with its model's own language token (Hinglish "en", Hindi "hi");
+    // English uses its token when the project names a language, and older "auto" projects keep auto-detect.
+    this.language = this.model.key !== "en" || (o.language && o.language !== "auto") ? this.model.language : null;
     this.view = { phase: "starting", model: this.model.key, status: null, words: [], progress: 0, windowsDone: 0, windowsTotal: 0, durationMs: 0, audioEndMs: 0, device: null, error: null, detail: null, resumed: false, startedAt: Date.now(), etaSec: null };
     mark(this.runId, "drop");
     note(this.runId, { fileMb: Math.round(o.file.size / 1048576), model: this.model.key, ...o.info });
@@ -306,7 +307,7 @@ export class TranscriptionSession {
     this.set({ phase: "saving", status: { stage: "save", progress: 1, device: this.finished.device } });
     try {
       const words = this.finished.noAudio ? [] : fromWhisperCaptions(dropRepeatedRuns(this.raw), { durationMs: this.durationMs });
-      const body = { action: "complete", language: this.model.key === "hinglish" ? "hi-Latn" : (this.language ?? "en"), model: this.model.label, ...(this.finished!.noAudio ? {} : { durationMs: Math.round(this.durationMs) }), words };
+      const body = { action: "complete", language: this.model.key === "en" ? (this.language ?? "en") : PROJECT_LANGUAGE[this.model.key], model: this.model.label, ...(this.finished!.noAudio ? {} : { durationMs: Math.round(this.durationMs) }), words };
       try {
         await withRetry(() => this.call(body));
       } catch (e) {

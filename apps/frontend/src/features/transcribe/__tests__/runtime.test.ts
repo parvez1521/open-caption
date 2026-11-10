@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isConstrainedDevice, runtimeFor } from "../runtime";
+import { MODELS, PROJECT_LANGUAGE, SHIPPED_LANGUAGES, isConstrainedDevice, modelFiles, runtimeFor, savedSpeechLanguage, speechLanguageOf } from "../runtime";
 
 const PHONE_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
@@ -48,5 +48,60 @@ describe("constrained-device policy (phones must not get the heavy runtime)", ()
     setNavigator({ userAgent: DESKTOP_UA, gpu, deviceMemory: 8 });
     const rt = await import("../runtime");
     await expect(rt.pickRuntime()).resolves.toMatchObject({ device: "webgpu" });
+  });
+});
+
+describe("multilingual model map (Slice 5.2: Devanagari Hindi)", () => {
+  it("Hindi (Devanagari) is backed by the multilingual Whisper base model with the 'hi' token", () => {
+    expect(MODELS.hindi.id).toBe("onnx-community/whisper-base_timestamped");
+    expect(MODELS.hindi.language).toBe("hi");
+    expect(MODELS.hindi.licence).toBe("MIT");
+    expect(MODELS.hindi.approxDownloadMb).toBeGreaterThan(0);
+  });
+
+  it("Hindi downloads exactly the English model's files (same repo + revision): no second download", () => {
+    expect(MODELS.hindi.id).toBe(MODELS.en.id);
+    expect(MODELS.hindi.revision).toBe(MODELS.en.revision);
+    expect(modelFiles(MODELS.hindi, runtimeFor("wasm"))).toEqual(modelFiles(MODELS.en, runtimeFor("wasm")));
+    expect(modelFiles(MODELS.hindi, runtimeFor("webgpu"))).toEqual(modelFiles(MODELS.en, runtimeFor("webgpu")));
+    expect(MODELS.hindi.approxDownloadMb).toBe(MODELS.en.approxDownloadMb);
+  });
+
+  it("the Roman-Hinglish choice is untouched: its own fine-tune, decoded with 'en', stored as hi-Latn", () => {
+    expect(MODELS.hinglish.id).toContain("hinglish");
+    expect(MODELS.hinglish.language).toBe("en");
+    expect(PROJECT_LANGUAGE.hinglish).toBe("hi-Latn");
+    expect(PROJECT_LANGUAGE.hindi).toBe("hi");
+    expect(PROJECT_LANGUAGE.en).toBe("en");
+  });
+
+  it("project language -> model: hi-Latn stays Roman, bare hi is Devanagari, everything else is English", () => {
+    expect(speechLanguageOf("hi-Latn")).toBe("hinglish");
+    expect(speechLanguageOf("hinglish")).toBe("hinglish");
+    expect(speechLanguageOf("hi")).toBe("hindi");
+    expect(speechLanguageOf("hi-Deva")).toBe("hindi");
+    expect(speechLanguageOf("hi-IN")).toBe("hindi");
+    expect(speechLanguageOf("en")).toBe("en");
+    expect(speechLanguageOf("auto")).toBe("en");
+    expect(speechLanguageOf(null)).toBe("en");
+    expect(speechLanguageOf("fr")).toBe("en"); // unshipped languages are never promised: they fall back, not listed
+  });
+
+  it("only shipped languages are offered, each with label, hint and download size from the one map", () => {
+    expect(SHIPPED_LANGUAGES.map((m) => m.key)).toEqual(["en", "hinglish", "hindi"]);
+    for (const m of SHIPPED_LANGUAGES) {
+      expect(m.choiceLabel.length).toBeGreaterThan(0);
+      expect(m.choiceHint.length).toBeGreaterThan(0);
+      expect(m.approxDownloadMb).toBeGreaterThan(0);
+      expect(m.licence.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("remembers a Hindi choice like any other", () => {
+    localStorage.setItem("ce:speech-language", "hindi");
+    expect(savedSpeechLanguage()).toBe("hindi");
+    localStorage.setItem("ce:speech-language", "hinglish");
+    expect(savedSpeechLanguage()).toBe("hinglish");
+    localStorage.removeItem("ce:speech-language");
   });
 });
