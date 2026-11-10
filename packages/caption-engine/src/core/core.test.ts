@@ -218,14 +218,46 @@ describe("derivePages", () => {
     expect(pageAt(pages, 99999)).toBeNull();
   });
 
+  // Perf guard — Phase 9 W6 investigation (2026-11-10, this repo's shared 4-vCPU VM; full data in the
+  // commit message). The original version timed ONE cold call with docOf()/settings() evaluated after
+  // t0 and asserted dt < 500, and it flaked under parallel CPU contention. Measured facts:
+  //  - The timed region was ~half fixture setup: Zod-parsing 10k words alone is 17–21 ms median,
+  //    vs 17–23 ms median for warmed derivePages itself. JIT warmup is real too: cold first run
+  //    131–140 ms decaying to ~44 ms by run 5 (quiet machine).
+  //  - The algorithm is NOT the problem: scaling is linear, 1.4–2.2 µs/word flat from 1k to 40k words.
+  //  - Contention is the problem, and it is huge on this host: with 4 saturating busy-loops the
+  //    original test reproduced at dt = 1217 ms and 977 ms; warmed single runs spiked to 771 ms and
+  //    even the MEDIAN of samples reached 609 ms in a full-suite run — so median-of-N at 500 still
+  //    flakes (proven, not theorised). The statistic that stays stable is the MINIMUM: contention only
+  //    ever adds time, and across every loaded window observed the min of a sample set stayed at
+  //    80–200 ms while medians swung 20 → 609 ms.
+  // Method: parse outside the timed region, 2 warmup runs, 9 timed runs, assert on min + median.
+  // Budgets: min < 300 ms is ~19x the quiet min (~16 ms) and 1.5x above the worst loaded min observed
+  // (200 ms); median < 1500 ms is ~2.5x the worst loaded median observed (609 ms). A genuine 10x
+  // algorithmic regression fails both under the loaded conditions where the flake lived (min ~800 ms+,
+  // median ~4000 ms+) and trips the min at ~19x on a quiet machine. The 30 s test timeout exists only
+  // because collecting 11 samples on a saturated host takes wall-time (observed >5 s, the vitest
+  // default, which was itself one of the flake's failure modes); it is not a retry or a loosened budget.
   it("handles 10k words fast", () => {
     const words = Array.from({ length: 10000 }, (_, i) => mk(`w${i}`, i * 250, i * 250 + 200, `id${i}`));
-    const t0 = performance.now();
-    const pages = derivePages(docOf(words), settings({ maxWordsPerCard: 4 }));
-    const dt = performance.now() - t0;
+    const doc = docOf(words);
+    const st = settings({ maxWordsPerCard: 4 });
+    let pages = derivePages(doc, st);
     expect(pages.length).toBeGreaterThan(2000);
-    expect(dt).toBeLessThan(500);
-  });
+    for (let i = 0; i < 2; i++) derivePages(doc, st); // JIT warmup
+    const times: number[] = [];
+    for (let i = 0; i < 9; i++) {
+      const t0 = performance.now();
+      pages = derivePages(doc, st);
+      times.push(performance.now() - t0);
+    }
+    expect(pages.length).toBeGreaterThan(2000);
+    times.sort((a, b) => a - b);
+    const min = times[0]!;
+    const median = times[4]!;
+    expect(min).toBeLessThan(300);
+    expect(median).toBeLessThan(1500);
+  }, 30_000);
 });
 
 describe("hero + emotion", () => {
