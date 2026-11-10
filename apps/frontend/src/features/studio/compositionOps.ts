@@ -1,10 +1,16 @@
 import {
   CaptionDocSchema,
   IDENTITY_SEGMENT_TRANSFORM,
+  KEYFRAME_VALUE_RANGES,
   newId,
   type CaptionDoc,
   type CompositionTrackKind,
+  type KeyframeEasing,
   type OverlayItem,
+  type SegmentEffect,
+  type SegmentEffectType,
+  type SegmentKeyframe,
+  type SegmentKeyframeProperty,
   type SegmentTransform,
   type SegmentTransition,
   type TrackState,
@@ -139,6 +145,49 @@ function relayout(comp: EditorComposition, clips: readonly EditorVideoClip[]): E
   };
 }
 
+/**
+ * Run 3 (4.7): remap a clip's segment-LOCAL keyframes when its head moves by
+ * `deltaMs` TIMELINE ms (delta > 0 = material removed from the head, delta
+ * < 0 = head extended with earlier material). Per PROPERTY channel (channels
+ * are independent in the sampler):
+ * - delta > 0: keyframes shift by −delta; ones landing < 0 are dropped EXCEPT
+ *   the last one before 0 (greatest atMs < delta), which is clamped to atMs 0
+ *   so the value at the cut survives — unless a keyframe on that property
+ *   already lands exactly at 0 (it sat at atMs === delta), which wins and the
+ *   clamp candidate is dropped.
+ * - delta < 0: every keyframe shifts later by −delta; nothing is dropped.
+ * - delta = 0 (or no keyframes): the input array is returned as-is.
+ */
+function remapKeyframesForHeadTrim(
+  keyframes: readonly SegmentKeyframe[],
+  deltaMs: number,
+): SegmentKeyframe[] {
+  const delta = roundMs(deltaMs);
+  if (delta === 0 || keyframes.length === 0) return keyframes as SegmentKeyframe[];
+  if (delta < 0) return keyframes.map((k) => ({ ...k, atMs: k.atMs - delta }));
+  // per-property clamp candidate: index of the last keyframe before the cut
+  const clampIndex = new Map<SegmentKeyframeProperty, number>();
+  const properties = new Set(keyframes.map((k) => k.property));
+  for (const property of properties) {
+    const hasZero = keyframes.some((k) => k.property === property && k.atMs === delta);
+    if (hasZero) continue;
+    let best = -1;
+    keyframes.forEach((k, i) => {
+      if (k.property === property && k.atMs < delta && (best < 0 || k.atMs >= keyframes[best]!.atMs)) best = i;
+    });
+    if (best >= 0) clampIndex.set(property, best);
+  }
+  const out: SegmentKeyframe[] = [];
+  keyframes.forEach((k, i) => {
+    if (k.atMs < delta) {
+      if (clampIndex.get(k.property) === i) out.push({ ...k, atMs: 0 });
+      return;
+    }
+    out.push(k.atMs === delta ? { ...k, atMs: 0 } : { ...k, atMs: k.atMs - delta });
+  });
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /* video ops                                                           */
 /* ------------------------------------------------------------------ */
@@ -165,7 +214,18 @@ export function splitVideoClipAt(comp: EditorComposition, atMs: number): VideoOp
   if (leftMs < MIN_SPLIT_MS || rightMs < MIN_SPLIT_MS) return noOp(comp);
   const rate = clip.still ? 1 : (clip.playbackRate ?? 1);
   const sourceMidMs = clip.sourceInMs + roundMs(leftMs * rate);
-  const first: EditorVideoClip = { ...clip, sourceOutMs: sourceMidMs };
+  // Run 3 (4.7): keyframes are segment-LOCAL, so the split partitions them at
+  // Δt = leftMs — the first half keeps atMs < Δt verbatim (same ids/objects);
+  // the second half gets atMs >= Δt shifted by −Δt with FRESH ids. Effects are
+  // copied to BOTH halves; the second half's copies get fresh ids.
+  const keyframes = clip.keyframes ?? [];
+  const effects = clip.effects ?? [];
+  const first: EditorVideoClip = {
+    ...clip,
+    sourceOutMs: sourceMidMs,
+    keyframes: keyframes.filter((k) => k.atMs < leftMs),
+    effects: [...effects],
+  };
   const second: EditorVideoClip = {
     ...clip,
     id: newId(),
@@ -174,6 +234,8 @@ export function splitVideoClipAt(comp: EditorComposition, atMs: number): VideoOp
     sourceInMs: sourceMidMs,
     transitionIn: null,
     transform: clip.transform ? { ...clip.transform } : { ...IDENTITY_SEGMENT_TRANSFORM },
+    keyframes: keyframes.filter((k) => k.atMs >= leftMs).map((k) => ({ ...k, id: newId(), atMs: k.atMs - leftMs })),
+    effects: effects.map((e) => ({ ...e, id: newId() })),
   };
   const clips = [...comp.videoClips.slice(0, idx), first, second, ...comp.videoClips.slice(idx + 1)];
   return done(relayout(comp, clips));
@@ -239,7 +301,12 @@ export function trimVideoClipEdge(
     const delta = target - clip.startMs; // clip.startMs is 0 by the invariant
     if (delta <= 0) return noOp(comp);
     if (clip.durationMs - delta < MIN_VIDEO_MS) return noOp(comp);
-    const first: EditorVideoClip = { ...clip, sourceInMs: clip.sourceInMs + roundMs(delta * rate) };
+    const first: EditorVideoClip = {
+      ...clip,
+      sourceInMs: clip.sourceInMs + roundMs(delta * rate),
+      // Run 3: head trim removes `delta` timeline ms of material — keyframes shift by −delta
+      keyframes: remapKeyframesForHeadTrim(clip.keyframes ?? [], delta),
+    };
     const clips = [first, ...comp.videoClips.slice(1)];
     return done(relayout(comp, clips), { type: "headShift", deltaMs: delta });
   }
@@ -254,15 +321,21 @@ export function trimVideoClipEdge(
     const minSource = -(prev.durationMs - MIN_VIDEO_MS) * rateOf(prev);
     const sourceDelta = roundMs(Math.max(minSource, Math.min(rawDelta * rate, maxSource)));
     if (sourceDelta === 0) return noOp(comp);
+    // Run 3: this clip's head moves by sourceDelta ÷ its rate (timeline ms);
+    // the previous clip only changes its END edge, so its keyframes are unchanged.
+    const headDeltaMs = roundMs(sourceDelta / rate);
     const clips = comp.videoClips.map((c, i) => {
       if (i === idx - 1) return { ...c, sourceOutMs: c.sourceOutMs + sourceDelta };
-      if (i === idx) return { ...c, sourceInMs: c.sourceInMs + sourceDelta };
+      if (i === idx)
+        return { ...c, sourceInMs: c.sourceInMs + sourceDelta, keyframes: remapKeyframesForHeadTrim(c.keyframes ?? [], headDeltaMs) };
       return c;
     });
     return done(relayout(comp, clips));
   }
 
   // --- tail trim / extend: end edge of the last clip (source advance = delta × rate) ---
+  // Run 3: END-edge trims leave keyframes unchanged — any beyond the new
+  // duration are inert (the sampler never reaches them).
   if (idx === lastIdx) {
     const clipEndMs = clip.startMs + clip.durationMs;
     const rawDelta = target - clipEndMs;
@@ -290,9 +363,13 @@ export function trimVideoClipEdge(
   const minSource = -(clip.durationMs - MIN_VIDEO_MS) * rate;
   const sourceDelta = roundMs(Math.max(minSource, Math.min(rawDelta * rate, maxSource)));
   if (sourceDelta === 0) return noOp(comp);
+  // Run 3: this clip only changes its END edge (keyframes unchanged); the NEXT
+  // clip's head moves by sourceDelta ÷ the next clip's rate (timeline ms).
+  const nextHeadDeltaMs = roundMs(sourceDelta / rateOf(next));
   const clips = comp.videoClips.map((c, i) => {
     if (i === idx) return { ...c, sourceOutMs: c.sourceOutMs + sourceDelta };
-    if (i === idx + 1) return { ...c, sourceInMs: c.sourceInMs + sourceDelta };
+    if (i === idx + 1)
+      return { ...c, sourceInMs: c.sourceInMs + sourceDelta, keyframes: remapKeyframesForHeadTrim(c.keyframes ?? [], nextHeadDeltaMs) };
     return c;
   });
   return done(relayout(comp, clips));
@@ -375,6 +452,9 @@ export function duplicateVideoSegment(comp: EditorComposition, clipId: string): 
     id: newId(),
     transitionIn: null,
     transform: clip.transform ? { ...clip.transform } : { ...IDENTITY_SEGMENT_TRANSFORM },
+    // Run 3: the copy's keyframes/effects are copies with FRESH ids
+    keyframes: (clip.keyframes ?? []).map((k) => ({ ...k, id: newId() })),
+    effects: (clip.effects ?? []).map((e) => ({ ...e, id: newId() })),
   };
   const clips = [...comp.videoClips.slice(0, idx + 1), copy, ...comp.videoClips.slice(idx + 1)];
   return done(relayout(comp, clips), {
@@ -405,7 +485,21 @@ export function setSegmentPlaybackRate(comp: EditorComposition, clipId: string, 
   if (next === (clip.playbackRate ?? 1)) return noOp(comp);
   const newDurationMs = Math.round((clip.sourceOutMs - clip.sourceInMs) / next);
   if (newDurationMs < MIN_VIDEO_MS) return noOp(comp);
-  const clips = comp.videoClips.map((c, i) => (i === idx ? { ...c, playbackRate: next } : c));
+  // Run 3: keyframe atMs are segment-local TIMELINE ms, so a rate change
+  // rescales them by oldTimelineDuration / newTimelineDuration (rounded).
+  const scaleK = clip.durationMs / newDurationMs;
+  const clips = comp.videoClips.map((c, i) =>
+    i === idx
+      ? {
+          ...c,
+          playbackRate: next,
+          keyframes: (c.keyframes ?? []).map((k) => {
+            const atMs = roundMs(k.atMs * scaleK);
+            return atMs === k.atMs ? k : { ...k, atMs };
+          }),
+        }
+      : c,
+  );
   return done(relayout(comp, clips), {
     type: "rangeScale",
     startMs: roundMs(clip.startMs),
@@ -480,6 +574,161 @@ export function setSegmentTransform(
   const clips = comp.videoClips.map((c, i) => (i === idx ? { ...c, transform: { ...current, ...patch } } : c));
   // no timing changes, so no relayout: untouched clips keep their references
   return done({ ...comp, videoClips: clips });
+}
+
+/* ------------------------------------------------------------------ */
+/* Run 3 (4.7): keyframe + effects ops                                 */
+/* ------------------------------------------------------------------ */
+
+const clampKeyframeValue = (property: SegmentKeyframeProperty, value: number): number => {
+  const range = KEYFRAME_VALUE_RANGES[property];
+  return Math.max(range.min, Math.min(range.max, value));
+};
+const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+
+/** Replace one clip (by index) with a patched copy; no timing changes, so no relayout. */
+function replaceVideoClip(comp: EditorComposition, idx: number, patch: Partial<EditorVideoClip>): VideoOpResult {
+  const clips = comp.videoClips.map((c, i) => (i === idx ? { ...c, ...patch } : c));
+  return done({ ...comp, videoClips: clips });
+}
+
+/**
+ * Add a keyframe to one segment at segment-LOCAL `atMs` (rounded, clamped to
+ * [0, the clip's timeline duration]) with `value` clamped to the property's
+ * {@link KEYFRAME_VALUE_RANGES} range and easing "linear". If a keyframe on
+ * the SAME property exists within 1 ms of the clamped atMs (|Δ| ≤ 1), its
+ * value is REPLACED instead (its id, atMs and easing are kept; if the value
+ * is unchanged that is a no-op). Refusals (same-reference no-op): unknown
+ * clip, a non-finite atMs/value, and STILL clips — a still has no internal
+ * motion, so keyframes on it are meaningless.
+ * docEffect: none — keyframes move no timing.
+ */
+export function addSegmentKeyframe(
+  comp: EditorComposition,
+  clipId: string,
+  property: SegmentKeyframeProperty,
+  atMs: number,
+  value: number,
+): VideoOpResult {
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return noOp(comp);
+  const clip = comp.videoClips[idx]!;
+  if (clip.still) return noOp(comp);
+  if (!Number.isFinite(atMs) || !Number.isFinite(value)) return noOp(comp);
+  const at = Math.max(0, Math.min(roundMs(atMs), clip.durationMs));
+  const v = clampKeyframeValue(property, value);
+  const keyframes = clip.keyframes ?? [];
+  const existingIdx = keyframes.findIndex((k) => k.property === property && Math.abs(k.atMs - at) <= 1);
+  if (existingIdx >= 0) {
+    const existing = keyframes[existingIdx]!;
+    if (existing.value === v) return noOp(comp);
+    const next = keyframes.map((k, i) => (i === existingIdx ? { ...k, value: v } : k));
+    return replaceVideoClip(comp, idx, { keyframes: next });
+  }
+  const keyframe: SegmentKeyframe = { id: newId(), atMs: at, property, value: v, easing: "linear" };
+  return replaceVideoClip(comp, idx, { keyframes: [...keyframes, keyframe] });
+}
+
+/**
+ * Patch one keyframe (atMs / value / easing), with the same clamps as
+ * {@link addSegmentKeyframe} (value clamped against the keyframe's own
+ * property). A patch that changes nothing — including an empty patch, a
+ * non-finite field, or an unknown clip/keyframe id — is a no-op.
+ */
+export function updateSegmentKeyframe(
+  comp: EditorComposition,
+  clipId: string,
+  keyframeId: string,
+  patch: { atMs?: number; value?: number; easing?: KeyframeEasing },
+): VideoOpResult {
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return noOp(comp);
+  const clip = comp.videoClips[idx]!;
+  const keyframes = clip.keyframes ?? [];
+  const kIdx = keyframes.findIndex((k) => k.id === keyframeId);
+  if (kIdx < 0) return noOp(comp);
+  const current = keyframes[kIdx]!;
+  const next: SegmentKeyframe = { ...current };
+  if (patch.atMs !== undefined && Number.isFinite(patch.atMs)) next.atMs = Math.max(0, Math.min(roundMs(patch.atMs), clip.durationMs));
+  if (patch.value !== undefined && Number.isFinite(patch.value)) next.value = clampKeyframeValue(current.property, patch.value);
+  if (patch.easing !== undefined) next.easing = patch.easing;
+  if (next.atMs === current.atMs && next.value === current.value && next.easing === current.easing) return noOp(comp);
+  return replaceVideoClip(comp, idx, { keyframes: keyframes.map((k, i) => (i === kIdx ? next : k)) });
+}
+
+/** Remove one keyframe. Unknown clip/keyframe ids are same-reference no-ops. */
+export function removeSegmentKeyframe(comp: EditorComposition, clipId: string, keyframeId: string): VideoOpResult {
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return noOp(comp);
+  const clip = comp.videoClips[idx]!;
+  const keyframes = clip.keyframes ?? [];
+  if (!keyframes.some((k) => k.id === keyframeId)) return noOp(comp);
+  return replaceVideoClip(comp, idx, { keyframes: keyframes.filter((k) => k.id !== keyframeId) });
+}
+
+/**
+ * Append an effect of `type` to one segment's ordered effects stack, with
+ * the pinned defaults `{ enabled: true, amount: 0.5, color: "#FFA946" }`
+ * (the colour is only read for glow). Unknown clip: no-op. Effects ARE
+ * allowed on stills (a blur/vignette over a freeze frame is meaningful).
+ */
+export function addSegmentEffect(comp: EditorComposition, clipId: string, type: SegmentEffectType): VideoOpResult {
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return noOp(comp);
+  const clip = comp.videoClips[idx]!;
+  const effect: SegmentEffect = { id: newId(), type, enabled: true, amount: 0.5, color: "#FFA946" };
+  return replaceVideoClip(comp, idx, { effects: [...(clip.effects ?? []), effect] });
+}
+
+/**
+ * Patch one effect (amount clamped to 0..1 / enabled / color). A patch that
+ * changes nothing, or an unknown clip/effect id, is a no-op.
+ */
+export function updateSegmentEffect(
+  comp: EditorComposition,
+  clipId: string,
+  effectId: string,
+  patch: { amount?: number; enabled?: boolean; color?: string },
+): VideoOpResult {
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return noOp(comp);
+  const clip = comp.videoClips[idx]!;
+  const effects = clip.effects ?? [];
+  const eIdx = effects.findIndex((e) => e.id === effectId);
+  if (eIdx < 0) return noOp(comp);
+  const current = effects[eIdx]!;
+  const next: SegmentEffect = { ...current };
+  if (patch.amount !== undefined && Number.isFinite(patch.amount)) next.amount = clamp01(patch.amount);
+  if (patch.enabled !== undefined) next.enabled = patch.enabled;
+  if (patch.color !== undefined) next.color = patch.color;
+  if (next.amount === current.amount && next.enabled === current.enabled && next.color === current.color) return noOp(comp);
+  return replaceVideoClip(comp, idx, { effects: effects.map((e, i) => (i === eIdx ? next : e)) });
+}
+
+/** Remove one effect. Unknown clip/effect ids are same-reference no-ops. */
+export function removeSegmentEffect(comp: EditorComposition, clipId: string, effectId: string): VideoOpResult {
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return noOp(comp);
+  const clip = comp.videoClips[idx]!;
+  const effects = clip.effects ?? [];
+  if (!effects.some((e) => e.id === effectId)) return noOp(comp);
+  return replaceVideoClip(comp, idx, { effects: effects.filter((e) => e.id !== effectId) });
+}
+
+/** Swap one effect with its neighbour (`dir` −1 = earlier, +1 = later). At either end, or for unknown ids, a no-op. */
+export function moveSegmentEffect(comp: EditorComposition, clipId: string, effectId: string, dir: -1 | 1): VideoOpResult {
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return noOp(comp);
+  const clip = comp.videoClips[idx]!;
+  const effects = clip.effects ?? [];
+  const eIdx = effects.findIndex((e) => e.id === effectId);
+  if (eIdx < 0) return noOp(comp);
+  const swapIdx = eIdx + dir;
+  if (swapIdx < 0 || swapIdx >= effects.length) return noOp(comp);
+  const next = [...effects];
+  next[eIdx] = effects[swapIdx]!;
+  next[swapIdx] = effects[eIdx]!;
+  return replaceVideoClip(comp, idx, { effects: next });
 }
 
 /**

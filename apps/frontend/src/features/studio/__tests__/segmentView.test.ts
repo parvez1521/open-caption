@@ -25,6 +25,24 @@ describe("segmentExtras defaults", () => {
     expect(x.transform.rotateDeg).toBe(45);
     expect(x.transform.scale).toBe(1);
   });
+
+  it("Run 3: identity transform carries opacity 1; pre-Run-3 data resolves keyframes/effects to []", () => {
+    expect(IDENTITY_TRANSFORM.opacity).toBe(1);
+    const x = segmentExtras(seg({ id: "a" }));
+    expect(x.keyframes).toEqual([]);
+    expect(x.effects).toEqual([]);
+    expect(x.transform.opacity).toBe(1);
+    expect(segmentExtras(null)).toEqual(expect.objectContaining({ keyframes: [], effects: [] }));
+  });
+
+  it("Run 3: a stored segment's keyframes/effects + opacity surface verbatim", () => {
+    const keyframes = [{ id: "k1", atMs: 500, property: "scale" as const, value: 1.5, easing: "ease-out" as const }];
+    const effects = [{ id: "e1", type: "glow" as const, enabled: true, amount: 0.7, color: "#FF0000" }];
+    const x = segmentExtras(seg({ id: "a", keyframes, effects, transform: { ...IDENTITY_TRANSFORM, opacity: 0.4 } }));
+    expect(x.keyframes).toEqual(keyframes);
+    expect(x.effects).toEqual(effects);
+    expect(x.transform.opacity).toBe(0.4);
+  });
 });
 
 describe("segmentTimelineDurationMs", () => {
@@ -82,6 +100,17 @@ describe("resolveSegmentView", () => {
     expect(view.playbackRate).toBe(1);
     expect(view.timelineDurationMs).toBe(2000);
     expect(view.still).toBe(false);
+  });
+
+  it("Run 3: surfaces a stored segment's keyframes/effects; pre-Run-3 stored data gives []", () => {
+    const keyframes = [{ id: "k1", atMs: 250, property: "opacity" as const, value: 0.5, easing: "linear" as const }];
+    const effects = [{ id: "e1", type: "blur" as const, enabled: false, amount: 0.25, color: "#FFA946" }];
+    const view = resolveSegmentView(clip, 0, seg({ id: "c1", sourceInMs: 1000, sourceOutMs: 3000, keyframes, effects }));
+    expect(view.keyframes).toEqual(keyframes);
+    expect(view.effects).toEqual(effects);
+    const preRun3 = resolveSegmentView(clip, 0, seg({ id: "c1", sourceInMs: 1000, sourceOutMs: 3000 }));
+    expect(preRun3.keyframes).toEqual([]);
+    expect(preRun3.effects).toEqual([]);
   });
 });
 

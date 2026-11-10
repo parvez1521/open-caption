@@ -24,10 +24,17 @@ import {
   removeMarker,
   rippleDeleteOverlayClip,
   rippleDeleteVideoSegment,
+  addSegmentEffect,
+  addSegmentKeyframe,
+  moveSegmentEffect,
+  removeSegmentEffect,
+  removeSegmentKeyframe,
   setSegmentPlaybackRate,
   setSegmentTransform,
   setSegmentTransition,
   setTrackState,
+  updateSegmentEffect,
+  updateSegmentKeyframe,
   splitOverlayClipAt,
   splitVideoClipAt,
   trimOverlayClip,
@@ -1150,5 +1157,307 @@ describe("Run 2: insertStillSegmentAt", () => {
     expect(split.videoClips[1]).toMatchObject({ still: true, sourceInMs: 0, sourceOutMs: 1000, durationMs: 1000 });
     expect(split.videoClips[2]).toMatchObject({ still: true, sourceInMs: 1000, sourceOutMs: 3000, durationMs: 2000 });
     expectValidPartition(split, segmentedSettings);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Run 3 (4.7): keyframes + effects ops and the remapping rules        */
+/* ------------------------------------------------------------------ */
+
+const kfSettings = ProjectSettingsSchema.parse({
+  clipRange: { startMs: 10_000, endMs: 55_000 },
+  composition: {
+    version: 1,
+    videoSegments: [
+      {
+        id: "seg-1", sourceInMs: 10_000, sourceOutMs: 25_000,
+        keyframes: [
+          { id: "h-1", atMs: 1000, property: "scale", value: 1.1, easing: "linear" },
+          { id: "h-2", atMs: 3000, property: "scale", value: 1.5, easing: "linear" },
+          { id: "h-3", atMs: 5000, property: "scale", value: 2, easing: "ease-out" },
+          { id: "h-op", atMs: 2000, property: "opacity", value: 0.8, easing: "linear" },
+        ],
+      },
+      {
+        id: "seg-2", sourceInMs: 25_000, sourceOutMs: 40_000,
+        keyframes: [
+          { id: "k-early", atMs: 1000, property: "scale", value: 1.2, easing: "linear" },
+          { id: "k-mid", atMs: 5000, property: "scale", value: 2, easing: "ease-in" },
+          { id: "k-op", atMs: 5000, property: "opacity", value: 0.5, easing: "linear" },
+          { id: "k-rot", atMs: 12_000, property: "rotateDeg", value: 45, easing: "linear" },
+        ],
+        effects: [
+          { id: "e-blur", type: "blur", enabled: true, amount: 0.5, color: "#FFA946" },
+          { id: "e-glow", type: "glow", enabled: false, amount: 0.3, color: "#00FF00" },
+        ],
+      },
+      {
+        id: "seg-3", sourceInMs: 40_000, sourceOutMs: 55_000,
+        keyframes: [{ id: "t-1", atMs: 12_000, property: "scale", value: 1.3, easing: "linear" }],
+      },
+    ],
+    markers: [{ id: "mk-1", atMs: 5000, label: "Hook" }],
+  },
+});
+const kfComp = (): EditorComposition =>
+  buildEditorComposition({ view: viewFor(kfSettings, 120_000, 45_000), settings: kfSettings, sourceDurationMs: 120_000 });
+const clipOf = (comp: EditorComposition, id: string) => comp.videoClips.find((c) => c.id === id)!;
+
+describe("Run 3: addSegmentKeyframe", () => {
+  it("appends a linear keyframe, rounding atMs and clamping atMs + value to their ranges", () => {
+    const comp = kfComp();
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = addSegmentKeyframe(comp, "seg-2", "scale", 99_999.6, 99);
+    expect(docEffect).toEqual({ type: "none" });
+    const kfs = clipOf(out, "seg-2").keyframes;
+    expect(kfs).toHaveLength(5);
+    expect(kfs.slice(0, 4)).toEqual(clipOf(comp, "seg-2").keyframes);
+    expect(kfs[4]).toMatchObject({ atMs: 15_000, property: "scale", value: 4, easing: "linear" });
+    expect(kfs[4]!.id.length).toBeGreaterThan(0);
+    const low = addSegmentKeyframe(comp, "seg-2", "offsetX", -500, -99).comp;
+    expect(clipOf(low, "seg-2").keyframes[4]).toMatchObject({ atMs: 0, property: "offsetX", value: -1 });
+    expectValidPartition(out, kfSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("replaces the value of a same-property keyframe within 1 ms, keeping its id/atMs/easing", () => {
+    const comp = kfComp();
+    const { comp: out } = addSegmentKeyframe(comp, "seg-2", "scale", 5001, 3);
+    const kfs = clipOf(out, "seg-2").keyframes;
+    expect(kfs).toHaveLength(4);
+    expect(kfs[1]).toEqual({ id: "k-mid", atMs: 5000, property: "scale", value: 3, easing: "ease-in" });
+    // a keyframe on a DIFFERENT property at the same time is not a replacement target
+    const other = addSegmentKeyframe(comp, "seg-2", "offsetY", 5000, 0.25).comp;
+    expect(clipOf(other, "seg-2").keyframes).toHaveLength(5);
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("no-ops for an unknown clip, a still clip, and a replacement with the same value", () => {
+    const comp = kfComp();
+    expect(addSegmentKeyframe(comp, "nope", "scale", 100, 2).comp).toBe(comp);
+    expect(addSegmentKeyframe(comp, "seg-2", "scale", 5000, 2).comp).toBe(comp);
+    const withStill = insertStillSegmentAt(comp, 15_000, 3000, "still-asset").comp;
+    const still = withStill.videoClips.find((c) => c.still)!;
+    expect(addSegmentKeyframe(withStill, still.id, "scale", 100, 2).comp).toBe(withStill);
+  });
+});
+
+describe("Run 3: updateSegmentKeyframe / removeSegmentKeyframe", () => {
+  it("patches atMs (rounded + clamped), value (clamped per property) and easing exactly", () => {
+    const comp = kfComp();
+    const before = snapshot(comp);
+    const { comp: out } = updateSegmentKeyframe(comp, "seg-2", "k-rot", { atMs: 99_999, value: 999, easing: "hold" });
+    expect(clipOf(out, "seg-2").keyframes[3]).toEqual({ id: "k-rot", atMs: 15_000, property: "rotateDeg", value: 180, easing: "hold" });
+    const rounded = updateSegmentKeyframe(comp, "seg-2", "k-early", { atMs: 1234.6 }).comp;
+    expect(clipOf(rounded, "seg-2").keyframes[0]!.atMs).toBe(1235);
+    expectValidPartition(out, kfSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("no-ops when nothing changes, and for unknown ids", () => {
+    const comp = kfComp();
+    expect(updateSegmentKeyframe(comp, "seg-2", "k-mid", { atMs: 5000, value: 2, easing: "ease-in" }).comp).toBe(comp);
+    expect(updateSegmentKeyframe(comp, "seg-2", "k-mid", {}).comp).toBe(comp);
+    expect(updateSegmentKeyframe(comp, "seg-2", "nope", { value: 3 }).comp).toBe(comp);
+    expect(updateSegmentKeyframe(comp, "nope", "k-mid", { value: 3 }).comp).toBe(comp);
+  });
+
+  it("removes exactly that keyframe; unknown ids no-op", () => {
+    const comp = kfComp();
+    const before = snapshot(comp);
+    const { comp: out } = removeSegmentKeyframe(comp, "seg-2", "k-op");
+    expect(clipOf(out, "seg-2").keyframes.map((k) => k.id)).toEqual(["k-early", "k-mid", "k-rot"]);
+    expect(removeSegmentKeyframe(comp, "seg-2", "nope").comp).toBe(comp);
+    expect(removeSegmentKeyframe(comp, "nope", "k-op").comp).toBe(comp);
+    expectValidPartition(out, kfSettings);
+    expectUnmutated(comp, before);
+  });
+});
+
+describe("Run 3: segment effects ops", () => {
+  it("addSegmentEffect appends the pinned defaults", () => {
+    const comp = kfComp();
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = addSegmentEffect(comp, "seg-2", "vignette");
+    expect(docEffect).toEqual({ type: "none" });
+    const fx = clipOf(out, "seg-2").effects;
+    expect(fx).toHaveLength(3);
+    expect(fx.slice(0, 2)).toEqual(clipOf(comp, "seg-2").effects);
+    expect(fx[2]).toMatchObject({ type: "vignette", enabled: true, amount: 0.5, color: "#FFA946" });
+    expect(fx[2]!.id.length).toBeGreaterThan(0);
+    expect(addSegmentEffect(comp, "nope", "blur").comp).toBe(comp);
+    expectValidPartition(out, kfSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("updateSegmentEffect clamps amount to 0..1 and patches enabled/color; no-change no-ops", () => {
+    const comp = kfComp();
+    const { comp: out } = updateSegmentEffect(comp, "seg-2", "e-glow", { amount: 2, enabled: true, color: "#123456" });
+    expect(clipOf(out, "seg-2").effects[1]).toEqual({ id: "e-glow", type: "glow", enabled: true, amount: 1, color: "#123456" });
+    expect(updateSegmentEffect(comp, "seg-2", "e-blur", { amount: 0.5, enabled: true }).comp).toBe(comp);
+    expect(updateSegmentEffect(comp, "seg-2", "nope", { amount: 1 }).comp).toBe(comp);
+    expect(updateSegmentEffect(comp, "nope", "e-blur", { amount: 1 }).comp).toBe(comp);
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("removeSegmentEffect removes exactly that effect; unknown ids no-op", () => {
+    const comp = kfComp();
+    const { comp: out } = removeSegmentEffect(comp, "seg-2", "e-blur");
+    expect(clipOf(out, "seg-2").effects.map((e) => e.id)).toEqual(["e-glow"]);
+    expect(removeSegmentEffect(comp, "seg-2", "nope").comp).toBe(comp);
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("moveSegmentEffect swaps with the neighbour and no-ops at the ends", () => {
+    const comp = kfComp();
+    const down = moveSegmentEffect(comp, "seg-2", "e-blur", 1).comp;
+    expect(clipOf(down, "seg-2").effects.map((e) => e.id)).toEqual(["e-glow", "e-blur"]);
+    // the swapped entries are the same objects, just reordered
+    expect(clipOf(down, "seg-2").effects[0]).toBe(clipOf(comp, "seg-2").effects[1]);
+    const up = moveSegmentEffect(comp, "seg-2", "e-glow", -1).comp;
+    expect(clipOf(up, "seg-2").effects.map((e) => e.id)).toEqual(["e-glow", "e-blur"]);
+    expect(moveSegmentEffect(comp, "seg-2", "e-blur", -1).comp).toBe(comp);
+    expect(moveSegmentEffect(comp, "seg-2", "e-glow", 1).comp).toBe(comp);
+    expect(moveSegmentEffect(comp, "seg-2", "nope", 1).comp).toBe(comp);
+    expectValidPartition(down, kfSettings);
+  });
+});
+
+describe("Run 3: keyframe/effect remapping in the existing ops", () => {
+  it("split: first half keeps atMs < Δt verbatim, second half shifts by −Δt with fresh ids; effects copied to both, second fresh", () => {
+    const comp = kfComp();
+    const before = snapshot(comp);
+    const { comp: out } = splitVideoClipAt(comp, 20_000); // Δt = 5000 inside seg-2 (starts 15000)
+    const first = clipOf(out, "seg-2");
+    const second = out.videoClips[out.videoClips.indexOf(first) + 1]!;
+    expect(first.keyframes).toEqual([{ id: "k-early", atMs: 1000, property: "scale", value: 1.2, easing: "linear" }]);
+    expect(first.keyframes[0]).toBe(clipOf(comp, "seg-2").keyframes[0]); // verbatim
+    expect(second.keyframes.map((k) => [k.atMs, k.property, k.value, k.easing])).toEqual([
+      [0, "scale", 2, "ease-in"],
+      [0, "opacity", 0.5, "linear"],
+      [7000, "rotateDeg", 45, "linear"],
+    ]);
+    const originalKfIds = ["k-early", "k-mid", "k-op", "k-rot"];
+    expect(second.keyframes.every((k) => !originalKfIds.includes(k.id))).toBe(true);
+    expect(first.effects).toEqual(clipOf(comp, "seg-2").effects);
+    expect(second.effects.map((e) => [e.type, e.amount])).toEqual([["blur", 0.5], ["glow", 0.3]]);
+    expect(second.effects.every((e) => e.id !== "e-blur" && e.id !== "e-glow")).toBe(true);
+    expectValidPartition(out, kfSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("head trim with a keyframe landing exactly at 0: that keyframe wins per property, the earlier clamp candidate drops", () => {
+    const comp = kfComp();
+    const { comp: out, docEffect } = trimVideoClipEdge(comp, "seg-1", "start", 5000);
+    expect(docEffect).toEqual({ type: "headShift", deltaMs: 5000 });
+    // scale: h-3 sat at 5000 → lands at 0 and wins over h-1/h-2; opacity: no keyframe at
+    // the cut, so its last pre-cut keyframe (h-op) is clamped to 0 and survives
+    expect(clipOf(out, "seg-1").keyframes).toEqual([
+      { id: "h-3", atMs: 0, property: "scale", value: 2, easing: "ease-out" },
+      { id: "h-op", atMs: 0, property: "opacity", value: 0.8, easing: "linear" },
+    ]);
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("head trim with nothing landing at 0: the last pre-cut keyframe per property clamps to 0, later ones shift", () => {
+    const comp = kfComp();
+    const { comp: out } = trimVideoClipEdge(comp, "seg-1", "start", 4000);
+    expect(clipOf(out, "seg-1").keyframes).toEqual([
+      { id: "h-2", atMs: 0, property: "scale", value: 1.5, easing: "linear" },
+      { id: "h-3", atMs: 1000, property: "scale", value: 2, easing: "ease-out" },
+      { id: "h-op", atMs: 0, property: "opacity", value: 0.8, easing: "linear" },
+    ]);
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("boundary roll (start edge): the rolled clip's keyframes remap by its head delta; the previous clip's are unchanged", () => {
+    const comp = kfComp();
+    const { comp: out } = trimVideoClipEdge(comp, "seg-2", "start", 18_000); // head delta +3000 at rate 1
+    expect(clipOf(out, "seg-2").keyframes).toEqual([
+      { id: "k-early", atMs: 0, property: "scale", value: 1.2, easing: "linear" }, // clamped: last scale keyframe before the cut
+      { id: "k-mid", atMs: 2000, property: "scale", value: 2, easing: "ease-in" },
+      { id: "k-op", atMs: 2000, property: "opacity", value: 0.5, easing: "linear" },
+      { id: "k-rot", atMs: 9000, property: "rotateDeg", value: 45, easing: "linear" },
+    ]);
+    expect(clipOf(out, "seg-1").keyframes).toEqual(clipOf(comp, "seg-1").keyframes); // end edge only
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("boundary roll (end edge): this clip's keyframes unchanged, the next clip's remap by its head delta", () => {
+    const comp = kfComp();
+    const { comp: out } = trimVideoClipEdge(comp, "seg-1", "end", 18_000);
+    expect(clipOf(out, "seg-1").keyframes).toEqual(clipOf(comp, "seg-1").keyframes);
+    expect(clipOf(out, "seg-2").keyframes.map((k) => [k.id, k.atMs])).toEqual([
+      ["k-early", 0], ["k-mid", 2000], ["k-op", 2000], ["k-rot", 9000],
+    ]);
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("tail trim (end edge of the last clip): keyframes unchanged, even beyond the new duration (inert)", () => {
+    const comp = kfComp();
+    const { comp: out } = trimVideoClipEdge(comp, "seg-3", "end", 40_000); // seg-3 shrinks to 10000 ms
+    expect(clipOf(out, "seg-3").durationMs).toBe(10_000);
+    expect(clipOf(out, "seg-3").keyframes).toEqual([{ id: "t-1", atMs: 12_000, property: "scale", value: 1.3, easing: "linear" }]);
+    expect(clipOf(out, "seg-3").keyframes).toBe(clipOf(comp, "seg-3").keyframes);
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("playback rate: keyframe atMs scale by oldTimelineDuration / newTimelineDuration, rounded", () => {
+    const comp = kfComp();
+    const before = snapshot(comp);
+    const { comp: out } = setSegmentPlaybackRate(comp, "seg-2", 2); // 15000 → 7500, scale ×2
+    expect(clipOf(out, "seg-2").keyframes.map((k) => [k.id, k.atMs])).toEqual([
+      ["k-early", 2000], ["k-mid", 10_000], ["k-op", 10_000], ["k-rot", 24_000],
+    ]);
+    expect(clipOf(out, "seg-2").effects).toEqual(clipOf(comp, "seg-2").effects);
+    expectValidPartition(out, kfSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("duplicate: the copy's keyframes/effects carry fresh ids with identical values", () => {
+    const comp = kfComp();
+    const { comp: out } = duplicateVideoSegment(comp, "seg-2");
+    const copy = out.videoClips[out.videoClips.findIndex((c) => c.id === "seg-2") + 1]!;
+    expect(copy.keyframes.map((k) => [k.atMs, k.property, k.value, k.easing])).toEqual(
+      clipOf(comp, "seg-2").keyframes.map((k) => [k.atMs, k.property, k.value, k.easing]),
+    );
+    expect(copy.keyframes.every((k) => !["k-early", "k-mid", "k-op", "k-rot"].includes(k.id))).toBe(true);
+    expect(copy.effects.map((e) => [e.type, e.enabled, e.amount, e.color])).toEqual(
+      clipOf(comp, "seg-2").effects.map((e) => [e.type, e.enabled, e.amount, e.color]),
+    );
+    expect(copy.effects.every((e) => e.id !== "e-blur" && e.id !== "e-glow")).toBe(true);
+    expect(clipOf(out, "seg-2").keyframes).toEqual(clipOf(comp, "seg-2").keyframes); // original untouched
+    expectValidPartition(out, kfSettings);
+  });
+
+  it("an op result round-trips through projectComposition with keyframes/effects intact", () => {
+    const comp = kfComp();
+    const { comp: out } = addSegmentEffect(addSegmentKeyframe(comp, "seg-2", "opacity", 7500, 0.25).comp, "seg-2", "grain");
+    const projected = projectComposition(out, kfSettings);
+    const seg2 = projected.composition.videoSegments.find((s) => s.id === "seg-2")!;
+    expect(seg2.keyframes).toEqual(clipOf(out, "seg-2").keyframes);
+    expect(seg2.effects).toEqual(clipOf(out, "seg-2").effects);
+    expect(seg2.keyframes[4]).toMatchObject({ atMs: 7500, property: "opacity", value: 0.25, easing: "linear" });
+    expect(seg2.effects[2]).toMatchObject({ type: "grain", enabled: true, amount: 0.5 });
+  });
+
+  it("no Run-3 op (or remapping op) mutates a deep-frozen composition", () => {
+    const comp = deepFreeze(kfComp());
+    const before = snapshot(comp);
+    addSegmentKeyframe(comp, "seg-2", "scale", 8000, 2.5);
+    updateSegmentKeyframe(comp, "seg-2", "k-mid", { atMs: 6000, value: 3, easing: "hold" });
+    removeSegmentKeyframe(comp, "seg-2", "k-op");
+    addSegmentEffect(comp, "seg-2", "grain");
+    updateSegmentEffect(comp, "seg-2", "e-glow", { amount: 0.9, enabled: true });
+    removeSegmentEffect(comp, "seg-2", "e-blur");
+    moveSegmentEffect(comp, "seg-2", "e-blur", 1);
+    splitVideoClipAt(comp, 20_000);
+    trimVideoClipEdge(comp, "seg-1", "start", 4000);
+    trimVideoClipEdge(comp, "seg-2", "start", 18_000);
+    trimVideoClipEdge(comp, "seg-1", "end", 18_000);
+    trimVideoClipEdge(comp, "seg-3", "end", 40_000);
+    setSegmentPlaybackRate(comp, "seg-2", 2);
+    duplicateVideoSegment(comp, "seg-2");
+    expect(comp).toEqual(before);
   });
 });
