@@ -11,6 +11,11 @@ import {
 } from "@capseasy/shared";
 import { Button, ColorField, Section, Select, Slider, Toggle } from "../controls";
 import {
+  AUTO_ZOOM_INTENSITY_LABEL,
+  AUTO_ZOOM_PAUSE_MS,
+  type AutoZoomIntensity,
+} from "../autoZooms";
+import {
   formatPlaybackRate,
   type SegmentTransition,
   type SegmentTransitionType,
@@ -61,6 +66,10 @@ export interface SegmentInspectorProps {
   onAddKeyframe: (property: SegmentKeyframeProperty, atMs: number, value: number) => void;
   onUpdateKeyframe: (id: string, patch: { atMs?: number; value?: number; easing?: KeyframeEasing }) => void;
   onRemoveKeyframe: (id: string) => void;
+  /** A4 (Phase 5): auto punch-in zooms for the whole project — optional so existing mounts/tests are unchanged */
+  onAutoZooms?: (intensity: AutoZoomIntensity) => void;
+  /** how many zooms the deterministic generator would add right now (0 hides the action's point) */
+  autoZoomCount?: number;
   onAddEffect: (type: SegmentEffectType) => void;
   onUpdateEffect: (id: string, patch: { amount?: number; enabled?: boolean; color?: string }) => void;
   onRemoveEffect: (id: string) => void;
@@ -112,9 +121,11 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
   onDuplicate, onRippleDelete, onReverse, onFreeze,
   keyframes, effects, onAddKeyframe, onUpdateKeyframe, onRemoveKeyframe,
   onAddEffect, onUpdateEffect, onRemoveEffect, onMoveEffect,
+  onAutoZooms, autoZoomCount,
 }) => {
   const t = segment.transform;
   const [kfProperty, setKfProperty] = React.useState<SegmentKeyframeProperty>("scale");
+  const [zoomIntensity, setZoomIntensity] = React.useState<AutoZoomIntensity>("medium");
   const [effectType, setEffectType] = React.useState<SegmentEffectType>("blur");
   const baseKeyframeValue = (property: SegmentKeyframeProperty): number =>
     property === "offsetX" ? t.offsetX
@@ -256,6 +267,21 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
               </div>
             );
           })}
+        </Section>
+      ) : null}
+
+      {!segment.still && onAutoZooms ? (
+        <Section title="Auto zooms" hint={`Emphasis-based and deterministic — not AI. Punch-in zooms are added across the project where your captions mark key words, where a word starts after a pause of ${AUTO_ZOOM_PAUSE_MS} ms or more, and at loud waveform peaks. They are ordinary scale keyframes: move, retime or delete them in the Keyframes section above like any other, and deleting them all restores the untouched picture.`}>
+          <Select
+            label="Intensity"
+            value={zoomIntensity}
+            options={(Object.keys(AUTO_ZOOM_INTENSITY_LABEL) as AutoZoomIntensity[]).map((v) => ({ value: v, label: AUTO_ZOOM_INTENSITY_LABEL[v] }))}
+            onChange={(v) => setZoomIntensity(v as AutoZoomIntensity)}
+          />
+          <Button onClick={() => onAutoZooms(zoomIntensity)} disabled={!autoZoomCount}>
+            Add auto zooms{autoZoomCount ? ` (${autoZoomCount})` : ""}
+          </Button>
+          {!autoZoomCount ? <p className="text-xs text-st-faint">No zoom points found — mark a key word in your captions, or check back once the waveform is ready.</p> : null}
         </Section>
       ) : null}
 

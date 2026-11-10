@@ -6,6 +6,7 @@ import { Button, Section } from "../controls";
 import { overlayItemsOf, type Composition } from "../composition";
 import { OverlayEditor, OverlayRow } from "./OverlayEditor";
 import { makeTextOverlay } from "./overlayItems";
+import { TitleCardControl } from "./TitleCardControl";
 
 export interface OverlayPanelProps {
   settings: ProjectSettings;
@@ -18,8 +19,20 @@ export interface OverlayPanelProps {
   composition?: Composition | null;
 }
 
+export interface TextPanelProps extends OverlayPanelProps {
+  /** A5 (Phase 5): the auto title card — transcript + project title for the routed
+   *  generation, and an optional composition-commit placer (StudioPage supplies it so
+   *  the place is one undo step through the composition path; absent = the panel's
+   *  own settings patch, exactly like "Add text"). Optional: existing mounts unchanged. */
+  titleCard?: {
+    sourceTitle: string;
+    transcriptText: string;
+    onPlace?: (item: OverlayItem) => void;
+  };
+}
+
 /** Text: timed text overlays. They render above the video (below the captions) in the preview and the exported MP4. */
-export const TextPanel: React.FC<OverlayPanelProps> = ({ settings, patch, selectedId, onSelect, getTimeMs, durationMs, composition }) => {
+export const TextPanel: React.FC<TextPanelProps> = ({ settings, patch, selectedId, onSelect, getTimeMs, durationMs, composition, titleCard }) => {
   const texts = composition ? overlayItemsOf(composition, "text") : settings.overlays.filter((o) => o.kind === "text");
   const selected = texts.find((o) => o.id === selectedId) ?? null;
   const replace = (next: OverlayItem) => patch({ overlays: settings.overlays.map((o) => (o.id === next.id ? next : o)) });
@@ -28,9 +41,22 @@ export const TextPanel: React.FC<OverlayPanelProps> = ({ settings, patch, select
     patch({ overlays: [...settings.overlays, item] });
     onSelect(item.id);
   };
+  const placeTitleCard = (item: OverlayItem) => {
+    if (titleCard?.onPlace) titleCard.onPlace(item);
+    else patch({ overlays: [...settings.overlays, item] });
+    onSelect(item.id);
+  };
   return (
     <div className="h-full overflow-y-auto">
       <Section title="Text overlays" hint="Text that appears over the video at a set time, and is burned into the exported MP4.">
+        {titleCard ? (
+          <TitleCardControl
+            sourceTitle={titleCard.sourceTitle}
+            transcriptText={titleCard.transcriptText}
+            durationMs={durationMs}
+            onPlace={placeTitleCard}
+          />
+        ) : null}
         <Button tone="primary" onClick={add} className="w-full">Add text</Button>
         {texts.length ? (
           <div className="space-y-1.5">
