@@ -10,19 +10,40 @@ import type { IdeasInput } from "./templates";
 import type { GeneratedItem, GeneratorKind } from "./model";
 import { clampCount } from "./templates";
 import { platformLabel } from "./model";
+import type { BrandProfile } from "./brandProfile";
+import { profilePromptBlock } from "./brandProfile";
 
 export interface ChatPrompt { system: string; user: string }
 
 const SYSTEM =
   "You write short social media content. Follow the requested format exactly: one item per line, no numbering, no bullet points, no explanations, nothing before or after the lines.";
 
-export function buildPrompt(kind: GeneratorKind, input: IdeasInput | HooksInput | CaptionInput): ChatPrompt {
+const withProfile = (user: string, profile?: BrandProfile | null): string => {
+  if (!profile) return user;
+  const block = profilePromptBlock(profile);
+  return block ? `${user}\n\n${block}` : user;
+};
+
+export function buildPrompt(
+  kind: GeneratorKind,
+  input: IdeasInput | HooksInput | CaptionInput,
+  profile?: BrandProfile | null,
+): ChatPrompt {
+  // An explicit argument wins; otherwise fall back to a profile carried on the input itself.
+  const effectiveProfile = profile ?? (input as IdeasInput | HooksInput | CaptionInput).profile ?? null;
   if (kind === "ideas") {
     const i = input as IdeasInput;
     const count = clampCount(i.count);
+    const category = i.category ?? "educational";
+    const difficulty = i.difficulty ?? "medium";
+    const duration = i.duration ?? "30-60s";
+    const objective = i.objective ?? "engagement";
     return {
       system: SYSTEM,
-      user: `Write ${count} video content ideas about "${i.niche}" for ${platformLabel(i.platform)}, aimed at ${i.audience || "beginners"}. Format each line exactly as: Title :: one-line angle`,
+      user: withProfile(
+        `Write ${count} video content ideas about "${i.niche}" for ${platformLabel(i.platform)}, aimed at ${i.audience || "beginners"}. Category: ${category}. Difficulty: ${difficulty}. Duration: ${duration}. Objective: ${objective}. Format each line exactly as: Title :: one-line angle`,
+        effectiveProfile,
+      ),
     };
   }
   if (kind === "hooks") {
@@ -30,13 +51,19 @@ export function buildPrompt(kind: GeneratorKind, input: IdeasInput | HooksInput 
     const count = clampCount(i.count);
     return {
       system: SYSTEM,
-      user: `Write ${count} opening hooks in the ${i.style} style about "${i.topic}" for ${platformLabel(i.platform)}. Each hook is one line of at most 18 words, spoken in the first three seconds of a video.`,
+      user: withProfile(
+        `Write ${count} opening hooks in the ${i.style} style about "${i.topic}" for ${platformLabel(i.platform)}. Each hook is one line of at most 18 words, spoken in the first three seconds of a video.`,
+        effectiveProfile,
+      ),
     };
   }
   const i = input as CaptionInput;
   return {
     system: SYSTEM,
-    user: `Write 3 social media captions in a ${i.tone} tone about "${i.topic}" for ${platformLabel(i.platform)}. Format each line exactly as: Caption text :: #hashtag1 #hashtag2 #hashtag3`,
+    user: withProfile(
+      `Write 3 social media captions in a ${i.tone} tone about "${i.topic}" for ${platformLabel(i.platform)}. Format each line exactly as: Caption text :: #hashtag1 #hashtag2 #hashtag3`,
+      effectiveProfile,
+    ),
   };
 }
 

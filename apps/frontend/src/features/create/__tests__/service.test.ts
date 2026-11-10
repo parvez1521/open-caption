@@ -1,7 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
-import { generateContent, type ModelRunner } from "../service";
+import { generateContent, templateBatch, type ModelRunner } from "../service";
 import { buildPrompt, parseModelOutput } from "../prompts";
 import { CLOUD_AI, LOCAL_MODEL, sourceBadge, sourceNote } from "../model";
+import { HOOK_MECHANISMS } from "../templates";
+import { EMPTY_VOICE, type BrandProfile } from "../brandProfile";
+
+const makeProfile = (voice: Partial<BrandProfile["voice"]>): BrandProfile => ({
+  id: "profile-1",
+  name: "Test profile",
+  isActive: true,
+  colors: [],
+  fontId: null,
+  voice: { ...EMPTY_VOICE, ...voice },
+  createdAt: "2026-11-10T00:00:00.000Z",
+  updatedAt: "2026-11-10T00:00:00.000Z",
+});
 
 const ideas = { niche: "home workouts", platform: "reels" as const, audience: "busy parents", count: 4 };
 const hooks = { topic: "morning routines", style: "curiosity" as const, platform: "shorts" as const, count: 3 };
@@ -184,5 +197,118 @@ describe("honest labelling", () => {
     expect(CLOUD_AI.modelId).toBe("openai/gpt-oss-120b");
     expect(sourceNote("cloud")).toContain("nothing ran on your device");
     expect(sourceNote("cloud")).toContain("sent to Groq");
+  });
+});
+
+describe("hook mechanisms on every source", () => {
+  it("template hooks carry the mechanism for the requested style", async () => {
+    const out = await generateContent("hooks", hooks, { modelEnabled: false });
+    expect(out.source).toBe("template");
+    for (const item of out.items) expect(item.mechanism).toBe(HOOK_MECHANISMS.curiosity);
+  });
+
+  it("local-model hooks carry the mechanism for the requested style", async () => {
+    const out = await generateContent("hooks", hooks, { modelEnabled: true, runModel: goodHooks });
+    expect(out.source).toBe("model");
+    for (const item of out.items) expect(item.mechanism).toBe(HOOK_MECHANISMS.curiosity);
+  });
+
+  it("cloud hooks carry the mechanism for the requested style", async () => {
+    const out = await generateContent("hooks", hooks, { runCloud: goodHooks, modelEnabled: false });
+    expect(out.source).toBe("cloud");
+    for (const item of out.items) expect(item.mechanism).toBe(HOOK_MECHANISMS.curiosity);
+  });
+
+  it("templateBatch hooks carry the mechanism, including for a new style", () => {
+    const items = templateBatch("hooks", { topic: "chess", style: "open-loop", platform: "reels", count: 3 });
+    for (const item of items) expect(item.mechanism).toBe(HOOK_MECHANISMS["open-loop"]);
+  });
+
+  it("parseModelOutput itself leaves mechanism unset (the service attaches it)", () => {
+    const items = parseModelOutput("hooks", "Stop scrolling for this one\nNobody films the first step", 2);
+    for (const item of items) expect(item.mechanism).toBeUndefined();
+  });
+});
+
+describe("profile plumbing through the service and prompts", () => {
+  it("buildPrompt appends the profile block for all three kinds, and only when the voice is non-empty", () => {
+    const profile = makeProfile({ niche: "home workouts", wordsToAvoid: ["guaranteed"] });
+    for (const [kind, input] of [
+      ["ideas", ideas],
+      ["hooks", hooks],
+      ["captions", captions],
+    ] as const) {
+      const prompt = buildPrompt(kind, input, profile);
+      expect(prompt.user).toContain("Brand voice");
+      expect(prompt.user).toContain("AVOID");
+      expect(prompt.user).toContain("guaranteed");
+    }
+    expect(buildPrompt("ideas", ideas, makeProfile({})).user).not.toContain("Brand voice");
+    expect(buildPrompt("ideas", ideas).user).not.toContain("Brand voice");
+  });
+
+  it("buildPrompt for ideas names category, difficulty, duration and objective explicitly", () => {
+    const prompt = buildPrompt("ideas", {
+      ...ideas,
+      category: "series",
+      difficulty: "easy",
+      duration: "under-30s",
+      objective: "sales",
+    });
+    expect(prompt.user).toContain("Category: series");
+    expect(prompt.user).toContain("Difficulty: easy");
+    expect(prompt.user).toContain("Duration: under-30s");
+    expect(prompt.user).toContain("Objective: sales");
+    const defaults = buildPrompt("ideas", ideas);
+    expect(defaults.user).toContain("Category: educational");
+    expect(defaults.user).toContain("Difficulty: medium");
+    expect(defaults.user).toContain("Duration: 30-60s");
+    expect(defaults.user).toContain("Objective: engagement");
+  });
+
+  it("the cloud runner receives a prompt containing the profile block, and cloud hooks keep the mechanism", async () => {
+    const profile = makeProfile({ niche: "home workouts", tone: "direct", wordsToAvoid: ["guaranteed"] });
+    let captured: { system: string; user: string } | null = null;
+    const runCloud: ModelRunner = async (prompt) => {
+      captured = prompt;
+      return "Stop scrolling for this one\nNobody films the first step\nYour mornings are lying to you";
+    };
+    const out = await generateContent("hooks", hooks, { runCloud, modelEnabled: false, profile });
+    expect(out.source).toBe("cloud");
+    expect(out.items).toHaveLength(3);
+    for (const item of out.items) expect(item.mechanism).toBe(HOOK_MECHANISMS.curiosity);
+    expect(captured!.user).toContain("Brand voice");
+    expect(captured!.user).toContain("AVOID");
+    expect(captured!.user).toContain("guaranteed");
+  });
+
+  it("the local runner also receives the profile block", async () => {
+    const profile = makeProfile({ niche: "home workouts" });
+    let captured: { system: string; user: string } | null = null;
+    const runModel: ModelRunner = async (prompt) => {
+      captured = prompt;
+      return "Home workout wins :: Start with the mistake\nTwo-minute mornings :: The angle nobody films\nNo-equipment strength :: Proof over promises\nParent-friendly circuits :: Fits a nap window";
+    };
+    const out = await generateContent("ideas", ideas, { modelEnabled: true, runModel, profile });
+    expect(out.source).toBe("model");
+    expect(captured!.user).toContain("Brand voice");
+    expect(captured!.user).toContain("home workouts");
+  });
+
+  it("template fallback through the service respects the profile avoid list and appends caption CTAs", async () => {
+    const profile = makeProfile({ wordsToAvoid: ["HYPE"], preferredCtas: ["Follow for more"] });
+    const out = await generateContent("captions", captions, { modelEnabled: false, profile });
+    expect(out.source).toBe("template");
+    for (const item of out.items) {
+      expect(item.title.toLowerCase()).not.toContain("hype");
+      expect(item.title.endsWith("\nFollow for more")).toBe(true);
+    }
+  });
+
+  it("templateBatch accepts a profile as its third argument without breaking existing call sites", () => {
+    const profile = makeProfile({ wordsToAvoid: ["NOBODY"] });
+    const withProfile = templateBatch("hooks", hooks, profile);
+    for (const item of withProfile) expect(item.title.toLowerCase()).not.toContain("nobody");
+    expect(templateBatch("hooks", hooks)).toHaveLength(3);
   });
 });
