@@ -16,7 +16,6 @@ import {
 } from "@/features/create/library";
 import { readWeeklyPlan, type WeeklyPlanBody } from "@/features/growth/plan";
 import {
-  PLANNER_PLATFORMS,
   PLANNER_STATUSES,
   computeReminders,
   emptyCardBody,
@@ -395,20 +394,19 @@ export default function PlannerPage() {
             Content <em className="italic text-sand-600">Planner</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Plan what goes out, and when: cards on a calendar, each with its caption, hashtags
-            and attachments, ready to copy out when the day comes.
+            Plan what goes out, and when. Open Caption doesn&apos;t post for you — each card
+            gives you the caption and hashtags to copy into the platform yourself.
           </p>
-          <div className="mt-3 max-w-[68ch] space-y-1.5 rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            <p>Weeks start on Monday.</p>
-            <p>
-              Reminders live here in the Planner — Open Caption doesn&apos;t send push or email
-              reminders.
-            </p>
-            <p>
-              Open Caption doesn&apos;t post to your accounts. Each card has a copy-out pack —
-              you paste it into the platform yourself.
-            </p>
-          </div>
+          <details className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
+            <summary className="cursor-pointer font-semibold text-sand-800">How planning works here</summary>
+            <div className="mt-1.5 space-y-1.5">
+              <p>Weeks start on Monday.</p>
+              <p>
+                Reminders live here in the Planner — Open Caption doesn&apos;t send push or email
+                reminders.
+              </p>
+            </div>
+          </details>
         </div>
 
         {loading ? (
@@ -457,7 +455,12 @@ export default function PlannerPage() {
                   </div>
                 </div>
               </section>
-            ) : null}
+            ) : (
+              <section className="pt-8" aria-label="Reminders">
+                <h2 className={sectionTitleCls}>Reminders</h2>
+                <p className="mt-2 text-[13px] text-sand-700">Nothing overdue or due today.</p>
+              </section>
+            )}
 
             {/* -------------------------------------------------- Calendar */}
             <section className="pt-10" aria-label="Calendar">
@@ -744,11 +747,8 @@ export default function PlannerPage() {
               )}
             </section>
 
-            {/* Platform labels reference (keeps chips self-explanatory) */}
-            <p className="pb-2 text-[12px] text-sand-600">
-              Platforms: {PLANNER_PLATFORMS.map((p) => p.label).join(" · ")}. Card statuses:{" "}
-              {PLANNER_STATUSES.map((s) => s.label).join(" · ")}.
-            </p>
+            {/* (The old footer line listing every platform and status was removed: it only
+                restated the options inside the card editor itself.) */}
           </>
         )}
       </div>

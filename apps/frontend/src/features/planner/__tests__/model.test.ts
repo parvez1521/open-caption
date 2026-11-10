@@ -215,7 +215,7 @@ describe("buildPostPreview", () => {
       heading: "Launch",
       text: "My caption",
       hashtagsLine: "#tech",
-      charCount: ("My caption" + "#tech").length,
+      charCount: ("My caption" + "\n\n#tech").length,
       charLimit: null,
       overLimit: false,
       mediaNote: "Video: Launch Project",
@@ -239,10 +239,11 @@ describe("buildPostPreview", () => {
 
     const exact = buildPostPreview({
       title: "Post",
-      body: body({ platform: "x", caption: "a".repeat(270), hashtags: ["#one", "#two"] }),
+      body: body({ platform: "x", caption: "a".repeat(268), hashtags: ["#one", "#two"] }),
     });
     expect(exact.hashtagsLine).toBe("#one #two");
-    expect(exact.charCount).toBe(270 + "#one #two".length);
+    // the count includes the blank line the copy pack puts between caption and hashtags
+    expect(exact.charCount).toBe(268 + "\n\n#one #two".length);
     expect(exact.overLimit).toBe(false);
   });
   it("uses the title as the heading on YouTube too", () => {

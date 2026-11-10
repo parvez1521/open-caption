@@ -23,18 +23,21 @@ export interface PlannerCard {
 /**
  * Parse the hashtags text input into stored tags.
  *
- * Storage convention: tags are stored WITHOUT a leading '#' (the model and
- * buildPostPreview/buildCopyPack join them as-is). The input field shows
- * them the same way — as typed, minus any '#'. Splitting accepts commas
- * and/or whitespace as separators, strips one leading '#' per token, trims,
- * drops empties, and dedupes preserving first-seen order.
+ * Storage convention: tags are stored WITH a single leading '#' (the canonical
+ * form — see model.normalizeHashtag). Splitting accepts commas and/or whitespace
+ * as separators, normalises any leading '#'s to one, trims, drops empties, and
+ * dedupes preserving first-seen order.
  */
 export function parseHashtagsInput(s: string): string[] {
   const seen = new Set<string>();
   const tags: string[] = [];
   for (const raw of s.split(/[\s,]+/)) {
-    const tag = raw.trim().replace(/^#/, "");
-    if (!tag || seen.has(tag)) continue;
+    const bare = raw.trim().replace(/^#+/, "");
+    if (!bare) continue;
+    // canonical stored form carries the '#' (see model.normalizeHashtag) — the editor used
+    // to strip it, which is why editor-made tags reached the copy pack as bare words
+    const tag = `#${bare}`;
+    if (seen.has(tag)) continue;
     seen.add(tag);
     tags.push(tag);
   }
@@ -42,7 +45,7 @@ export function parseHashtagsInput(s: string): string[] {
 }
 
 /**
- * Format stored tags for the text input: the raw tags (no '#') joined with
+ * Format stored tags for the text input: the stored tags (with '#') joined with
  * ", " — the mirror of parseHashtagsInput, so an untouched field round-trips.
  */
 export function formatHashtagsInput(tags: string[]): string {

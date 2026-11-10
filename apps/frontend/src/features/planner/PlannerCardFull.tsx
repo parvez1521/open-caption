@@ -10,6 +10,7 @@ import {
   PLANNER_STATUSES,
   buildCopyPack,
   buildPostPreview,
+  hashtagsLineOf,
   type PlannerPlatform,
 } from "./model";
 import type { PlannerCard } from "./view";
@@ -154,7 +155,7 @@ export default function PlannerCardFull({
         <p className="mt-2 line-clamp-3 text-[13px] leading-relaxed text-sand-800">{body.caption}</p>
       ) : null}
       {body.hashtags.length ? (
-        <p className="mt-1 text-[12px] text-sand-600">{body.hashtags.map((t) => `#${t}`).join(" ")}</p>
+        <p className="mt-1 text-[12px] text-sand-600">{hashtagsLineOf(body.hashtags)}</p>
       ) : null}
 
       {body.scriptItemId || body.captionItemId || body.projectId ? (
@@ -203,7 +204,7 @@ export default function PlannerCardFull({
           Preview post
         </button>
         <button type="button" className={smallBtn} onClick={() => void copyPack()}>
-          Copy post pack
+          Copy caption + hashtags
         </button>
         {copied ? <span role="status" className="self-center text-[12px] font-medium text-sand-800">Copied.</span> : null}
       </div>
@@ -211,7 +212,7 @@ export default function PlannerCardFull({
       {videoNote ? <p className="mt-2 text-[12px] leading-relaxed text-sand-600">{videoNote}</p> : null}
       {copyFallback !== null ? (
         <div className="mt-2">
-          <p className="text-[12px] text-sand-600">Automatic copy was blocked — copy the pack by hand:</p>
+          <p className="text-[12px] text-sand-600">Automatic copy was blocked — copy it by hand:</p>
           <textarea readOnly rows={4} value={copyFallback} aria-label="Post pack text" className="mt-1 w-full rounded-lg border border-sand-300 bg-sand-50 px-3 py-2 text-[13px] text-ink" />
         </div>
       ) : null}
@@ -233,7 +234,7 @@ export default function PlannerCardFull({
             ))}
           </div>
           <p className="mt-3 text-[12px] leading-relaxed text-sand-600">
-            How your copy pack reads on {preview.platformLabel} — a text preview, not the
+            How your post reads on {preview.platformLabel} — a text preview, not the
             platform&apos;s own composer.
           </p>
           <p className="mt-2 font-sora text-[14px] font-bold text-ink">{preview.heading}</p>

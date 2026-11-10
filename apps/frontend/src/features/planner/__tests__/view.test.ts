@@ -28,18 +28,19 @@ const card = (id: string, title: string, patch: Partial<PlannerCardBody> = {}): 
 
 describe("parseHashtagsInput", () => {
   it("splits on commas and whitespace", () => {
-    expect(parseHashtagsInput("tech, tools free")).toEqual(["tech", "tools", "free"]);
-    expect(parseHashtagsInput("tech,tools, free")).toEqual(["tech", "tools", "free"]);
-    expect(parseHashtagsInput("a\tb\nc")).toEqual(["a", "b", "c"]);
+    expect(parseHashtagsInput("tech, tools free")).toEqual(["#tech", "#tools", "#free"]);
+    expect(parseHashtagsInput("tech,tools, free")).toEqual(["#tech", "#tools", "#free"]);
+    expect(parseHashtagsInput("a\tb\nc")).toEqual(["#a", "#b", "#c"]);
   });
 
-  it("strips a leading '#' from each token (tags are stored without '#')", () => {
-    expect(parseHashtagsInput("#tech #tools")).toEqual(["tech", "tools"]);
-    expect(parseHashtagsInput("#tech,tools")).toEqual(["tech", "tools"]);
+  it("normalises each token to the canonical stored form (one leading '#')", () => {
+    expect(parseHashtagsInput("#tech #tools")).toEqual(["#tech", "#tools"]);
+    expect(parseHashtagsInput("#tech,tools")).toEqual(["#tech", "#tools"]);
+    expect(parseHashtagsInput("##tech")).toEqual(["#tech"]);
   });
 
   it("trims tokens and drops empties", () => {
-    expect(parseHashtagsInput("  tech , , tools  ")).toEqual(["tech", "tools"]);
+    expect(parseHashtagsInput("  tech , , tools  ")).toEqual(["#tech", "#tools"]);
     expect(parseHashtagsInput("#")).toEqual([]);
   });
 
@@ -50,20 +51,20 @@ describe("parseHashtagsInput", () => {
   });
 
   it("dedupes preserving first-seen order, including '#' variants", () => {
-    expect(parseHashtagsInput("tools tech tools")).toEqual(["tools", "tech"]);
-    expect(parseHashtagsInput("#tech tech #tech")).toEqual(["tech"]);
+    expect(parseHashtagsInput("tools tech tools")).toEqual(["#tools", "#tech"]);
+    expect(parseHashtagsInput("#tech tech #tech")).toEqual(["#tech"]);
   });
 });
 
 describe("formatHashtagsInput", () => {
-  it("joins raw tags with ', ' and no '#'", () => {
-    expect(formatHashtagsInput(["tech", "tools"])).toBe("tech, tools");
-    expect(formatHashtagsInput(["solo"])).toBe("solo");
+  it("joins stored tags with ', '", () => {
+    expect(formatHashtagsInput(["#tech", "#tools"])).toBe("#tech, #tools");
+    expect(formatHashtagsInput(["#solo"])).toBe("#solo");
     expect(formatHashtagsInput([])).toBe("");
   });
 
   it("round-trips through parseHashtagsInput", () => {
-    const tags = ["tech", "free-tools", "ai"];
+    const tags = ["#tech", "#free-tools", "#ai"];
     expect(parseHashtagsInput(formatHashtagsInput(tags))).toEqual(tags);
   });
 });

@@ -82,8 +82,8 @@ export function readPlannerCard(body: unknown): PlannerCardBody | null {
   if (!Array.isArray(body.hashtags)) return null;
   const hashtags = body.hashtags
     .filter((h): h is string => typeof h === "string")
-    .map((h) => h.trim())
-    .filter((h) => h.length > 0);
+    .map((h) => normalizeHashtag(h))
+    .filter((h) => h.length > 1);
   return {
     version: 1,
     date: body.date,
@@ -242,6 +242,16 @@ export interface PostPreview {
 const resolveText = (body: PlannerCardBody, opts?: PostPreviewOptions): string =>
   body.caption ? body.caption : (opts?.attachedCaptionText ?? "");
 
+/**
+ * The ONE canonical hashtag form: stored WITH a single leading '#'. The editor used to
+ * strip it while the weekly-plan import kept it, so the same card showed '#tech' on the
+ * card, bare 'tech' in the preview/copy pack, or '##tech' — depending on which door it
+ * came through. Every boundary (load, edit, preview, copy) normalises through here.
+ */
+export const normalizeHashtag = (tag: string): string => `#${tag.trim().replace(/^#+/, "")}`;
+
+export const hashtagsLineOf = (tags: string[]): string => tags.map(normalizeHashtag).join(" ");
+
 export function buildPostPreview(
   card: { title: string; body: PlannerCardBody },
   opts?: PostPreviewOptions,
@@ -249,8 +259,10 @@ export function buildPostPreview(
   const { body } = card;
   const platformLabel = PLANNER_PLATFORMS.find((p) => p.id === body.platform)?.label ?? body.platform;
   const text = resolveText(body, opts);
-  const hashtagsLine = body.hashtags.join(" ");
-  const charCount = (text + hashtagsLine).length;
+  const hashtagsLine = hashtagsLineOf(body.hashtags);
+  // Count exactly what the copy pack produces (caption + blank line + hashtags), so the
+  // X limit judges the text that will actually be posted — not a shorter fiction.
+  const charCount = (text + (hashtagsLine ? `\n\n${hashtagsLine}` : "")).length;
   const charLimit = body.platform === "x" ? 280 : null;
   return {
     platform: body.platform,
@@ -270,7 +282,7 @@ export function buildCopyPack(
   opts?: PostPreviewOptions,
 ): { copyText: string; videoNote: string } {
   const text = resolveText(card.body, opts);
-  const hashtagsLine = card.body.hashtags.join(" ");
+  const hashtagsLine = hashtagsLineOf(card.body.hashtags);
   return {
     copyText: text + (hashtagsLine ? `\n\n${hashtagsLine}` : ""),
     videoNote: opts?.projectTitle
