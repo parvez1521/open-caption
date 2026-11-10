@@ -155,12 +155,17 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
         {!apiKey ? (
           <>
             <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
-              Searching Pixabay needs a Pixabay API key, and Open Caption doesn&apos;t have one of its
-              own to lend you. A key is free: create a Pixabay account, open{" "}
-              <a href={PIXABAY_API_PAGE} target="_blank" rel="noreferrer" className="underline underline-offset-2">Pixabay&apos;s API page</a>,
-              and copy the key shown for your account. Paste it here and it is saved in this browser
-              on this device only — it is sent only to api.pixabay.com when you search, never to us.
+              Pixabay search needs your own free Pixabay API key — get one on{" "}
+              <a href={PIXABAY_API_PAGE} target="_blank" rel="noreferrer" className="underline underline-offset-2">Pixabay&apos;s API page</a>{" "}
+              after creating an account.
             </p>
+            <details className="mt-1.5">
+              <summary className="cursor-pointer text-xs font-medium text-st-muted">Where the key is kept</summary>
+              <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
+                The key is saved in this browser on this device only. It is sent only to
+                api.pixabay.com when you search — never to us.
+              </p>
+            </details>
             <div className="mt-2 flex gap-1.5">
               <input
                 type="password"

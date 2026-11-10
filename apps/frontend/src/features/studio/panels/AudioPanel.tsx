@@ -179,9 +179,9 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
       </Section>
 
       {noiseSuppression ? (
-        <Section title="Noise suppression" hint="Removes steady background noise (fans, hiss, hum) from the video's own sound using RNNoise, on this device.">
+        <Section title="Noise suppression" hint="Removes steady background noise (fans, hiss, hum) from the video's sound, on this device.">
           <p className="text-xs text-st-faint">
-            It makes a cleaned copy of the audio here and the mix uses that copy — your original recording is untouched, and turning this off goes back to it. It works best on steady noise; it is not the same as the per-clip basic cleanup.
+            It works on a cleaned copy — your original recording is untouched, and turning this off goes back to it. Best on steady noise; different from the per-clip basic cleanup.
           </p>
           {noiseSuppression.active ? (
             <>

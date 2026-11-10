@@ -17,7 +17,7 @@ describe("StockAudioSection", () => {
 
   it("without a key: explains the user's-own-key deal, links Pixabay's API page, offers no search box", () => {
     render(<StockAudioSection projectId="p1" />);
-    expect(screen.getByText(/doesn't have one of its own/)).toBeTruthy();
+    expect(screen.getByText(/needs your own free Pixabay API key/)).toBeTruthy();
     expect(screen.getByText(/sent only to api\.pixabay\.com/)).toBeTruthy();
     const link = screen.getByRole("link", { name: /Pixabay's API page/ });
     expect(link.getAttribute("href")).toBe(PIXABAY_API_PAGE);

@@ -158,7 +158,6 @@ export const PolishPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
                           {step.badge ? <SourceBadge source={step.badge.source} /> : null}
                         </div>
                         <p className="mt-1 text-sm text-st-muted">{step.detail}</p>
-                        {step.badge ? <p className="mt-1 text-[11px] leading-snug text-st-faint">{sourceNote(step.badge.source)}</p> : null}
                         {step.badge?.note ? <p className="mt-1 text-[11px] leading-snug text-st-muted">{step.badge.note}</p> : null}
                       </div>
                     </div>
@@ -166,6 +165,11 @@ export const PolishPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
                 );
               })
             )}
+            {/* Each source's explanation prints ONCE for the whole plan (it used to repeat
+                under every step that carried the badge). */}
+            {[...new Set(plan.steps.map((s) => s.badge?.source).filter((s): s is NonNullable<typeof s> => !!s))].map((src) => (
+              <p key={src} className="text-[11px] leading-snug text-st-faint">{sourceNote(src)}</p>
+            ))}
             <Button tone="primary" disabled={checkedCount === 0} onClick={apply} className="w-full">
               {checkedCount === 0 ? "No steps checked" : `Apply ${checkedCount} step${checkedCount === 1 ? "" : "s"} — one undo step`}
             </Button>

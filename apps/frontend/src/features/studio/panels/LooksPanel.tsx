@@ -104,17 +104,29 @@ export const TemplateCard = React.memo(function TemplateCard({
   onChoose: (look: LookDefinition) => void;
   onRemove?: (look: LookDefinition) => void;
 }) {
+  const choose = () => {
+    // warm the chosen template's fonts in parallel with the (synchronous, local) apply: the studio
+    // keeps rendering with the current pages until they land, then recomputes metrics — no blank gap
+    void loadFontFamily(look.style.fontId);
+    if (look.style.hero.fontId) void loadFontFamily(look.style.hero.fontId);
+    onChoose(look);
+  };
   return (
-    <button
-      onClick={() => {
-        // warm the chosen template's fonts in parallel with the (synchronous, local) apply: the studio
-        // keeps rendering with the current pages until they land, then recomputes metrics — no blank gap
-        void loadFontFamily(look.style.fontId);
-        if (look.style.hero.fontId) void loadFontFamily(look.style.hero.fontId);
-        onChoose(look);
+    // A div with button semantics, not a <button>: the card contains a real delete
+    // <button>, and a button inside a button is invalid HTML (the old span role="button"
+    // workaround was neither focusable nor reliably clickable for keyboards).
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={choose}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          choose();
+        }
       }}
       aria-pressed={chosen}
-      className={`group block w-full overflow-hidden rounded-2xl border bg-st-panel text-left transition ${chosen ? "border-st-ink shadow-[0_0_0_3px_var(--color-st-lav)]" : "border-st-line hover:border-st-ink/30 hover:shadow-[0_8px_20px_-14px_rgba(0,0,0,0.5)]"}`}
+      className={`group block w-full cursor-pointer overflow-hidden rounded-2xl border bg-st-panel text-left transition ${chosen ? "border-st-ink shadow-[0_0_0_3px_var(--color-st-lav)]" : "border-st-line hover:border-st-ink/30 hover:shadow-[0_8px_20px_-14px_rgba(0,0,0,0.5)]"}`}
     >
       <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
         <span className="truncate text-sm font-bold text-st-text">
@@ -122,7 +134,7 @@ export const TemplateCard = React.memo(function TemplateCard({
           {look.number ? <span className="ml-1.5 font-medium text-st-faint">#{look.number}</span> : null}
         </span>
         {onRemove ? (
-          <span role="button" aria-label={`Delete ${look.name}`} onClick={(e) => { e.stopPropagation(); onRemove(look); }} className="rounded px-1 text-xs text-st-faint hover:bg-st-or/30 hover:text-st-text">✕</span>
+          <button type="button" aria-label={`Delete ${look.name}`} onClick={(e) => { e.stopPropagation(); onRemove(look); }} className="rounded px-1 text-xs text-st-faint hover:bg-st-or/30 hover:text-st-text">✕</button>
         ) : chosen ? (
           <span className="rounded-full bg-st-em px-2 py-0.5 text-[10px] font-semibold text-[#141412]">In use</span>
         ) : null}
@@ -136,7 +148,7 @@ export const TemplateCard = React.memo(function TemplateCard({
           <span key={t} className="rounded-md bg-st-raised px-2 py-0.5 text-[11px] font-medium text-st-muted">{t}</span>
         ))}
       </div>
-    </button>
+    </div>
   );
 });
 

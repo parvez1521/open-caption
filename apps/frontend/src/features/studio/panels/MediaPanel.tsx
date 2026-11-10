@@ -80,7 +80,7 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
           ))}
         </dl>
       </Section>
-      <Section title="Media bin" hint="Video, audio and image files for this project, kept in this browser only — they are not uploaded, and opening this project in another browser shows an empty bin there. Audio files can be dragged onto the timeline or placed from the Audio panel.">
+      <Section title="Media bin" hint="This project's files, kept in this browser only — not uploaded. Another browser shows an empty bin. Audio can be dragged onto the timeline or placed from the Audio panel.">
         <Button disabled={importing} onClick={() => binRef.current?.click()} className="w-full">{importing ? "Importing…" : "Import media"}</Button>
         <input
           ref={binRef}
@@ -120,7 +120,7 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
           <p className="text-xs text-st-faint">Nothing imported yet. Add B-roll, music or a logo image and it stays here for this project.</p>
         )}
       </Section>
-      <Section title="Stock audio" hint="A bundled CC0 starter pack of sound effects, plus Pixabay music and sounds you can import with your own free Pixabay API key. Stock audio lands in the media bin above, exactly like an imported file, with its licence record attached.">
+      <Section title="Stock audio" hint="A bundled CC0 pack of sound effects, plus Pixabay music and sounds imported with your own free Pixabay key. Imports land in the media bin with their licence record attached.">
         <StockAudioSection projectId={stockProjectId ?? null} onAdded={onStockAdded} tone="studio" />
       </Section>
       <Section title="Where the video lives" hint="Your video stays on this device. Only the captions and settings are saved to your account, so opening this project on another device asks you to pick the video file again.">

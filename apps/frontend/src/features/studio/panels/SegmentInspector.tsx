@@ -205,7 +205,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
         <Section title="Reverse & freeze" hint="Freeze and reverse clips are stored on this device, like your other media. Browser exports include them when you export on this device; a render on another device can't see them.">
           <div className="flex flex-wrap gap-1.5">
             <Button onClick={onReverse} disabled={busy}>{production.kind === "working" && production.action === "reverse" ? "Reversing…" : "Reverse"}</Button>
-            <Button onClick={onFreeze} disabled={busy || !playheadInside} title={playheadInside ? undefined : "Move the playhead inside this segment first"}>Freeze frame</Button>
+            <Button onClick={onFreeze} disabled={busy || !playheadInside}>Freeze frame</Button>
           </div>
           <p className="text-xs text-st-faint">Reversing renders a new copy on this device — it can take a while on long videos.</p>
           {!playheadInside ? <p className="text-xs text-st-faint">Freeze frame uses the frame under the playhead — move the playhead inside this segment to use it.</p> : null}
@@ -271,7 +271,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
       ) : null}
 
       {!segment.still && onAutoZooms ? (
-        <Section title="Auto zooms" hint={`Emphasis-based and deterministic — not AI. Punch-in zooms are added across the project where your captions mark key words, where a word starts after a pause of ${AUTO_ZOOM_PAUSE_MS} ms or more, and at loud waveform peaks. They are ordinary scale keyframes: move, retime or delete them in the Keyframes section above like any other, and deleting them all restores the untouched picture.`}>
+        <Section title="Auto zooms" hint={`Not AI: punch-in zooms are added where your captions mark key words, after a pause of ${AUTO_ZOOM_PAUSE_MS} ms or more, and at loud peaks. They are ordinary scale keyframes — edit or delete them in Keyframes above; deleting them all restores the untouched picture.`}>
           <Select
             label="Intensity"
             value={zoomIntensity}

@@ -20,6 +20,7 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [ready, setReady] = useState(false);
+  const [checked, setChecked] = useState(false);
 
   // Supabase establishes a recovery session client-side from the email link's
   // URL fragment before firing PASSWORD_RECOVERY; updatePassword() needs that
@@ -30,8 +31,11 @@ export default function ResetPasswordPage() {
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setReady(true);
+      setChecked(true);
     });
-    return () => subscription.unsubscribe();
+    // Fallback: if neither signal arrives, stop showing the neutral state.
+    const fallback = setTimeout(() => setChecked(true), 2500);
+    return () => { subscription.unsubscribe(); clearTimeout(fallback); };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,6 +70,19 @@ export default function ResetPasswordPage() {
         <div className="flex items-center gap-3 text-sand-700">
           <span className="h-4 w-4 animate-spin rounded-full border-2 border-sand-300 border-t-sand-700" />
           <span className="text-[13px]">Redirecting…</span>
+        </div>
+      </AuthShell>
+    );
+  }
+
+  if (!ready && !checked) {
+    // First paint used to be the failure-flavoured guidance below — even for a valid
+    // reset link whose recovery session just hadn't landed yet. Neutral state first.
+    return (
+      <AuthShell title="Choose a new password" subtitle="Checking your reset link…">
+        <div className="flex items-center gap-3 text-sand-700">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-sand-300 border-t-sand-700" />
+          <span className="text-[13px]">One moment…</span>
         </div>
       </AuthShell>
     );

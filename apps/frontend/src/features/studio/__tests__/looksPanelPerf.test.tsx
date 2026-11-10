@@ -62,7 +62,8 @@ describe("LooksPanel selection re-render scope", () => {
       </QueryClientProvider>,
     );
     const target = LOOKS[3]!;
-    const btn = [...view.container.querySelectorAll("button")].find((b) => b.textContent?.includes(target.name));
+    // cards are divs with role="button" (a real <button> cannot contain the delete button)
+    const btn = [...view.container.querySelectorAll('[role="button"]')].find((b) => b.textContent?.includes(target.name));
     expect(btn).toBeTruthy();
     fireEvent.click(btn!);
     expect(onChoose).toHaveBeenCalledTimes(1);

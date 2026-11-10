@@ -36,7 +36,7 @@ describe("SegmentInspector — Auto zooms (A4)", () => {
         keyframes={[]} effects={[]} onAutoZooms={onAutoZooms} autoZoomCount={3} />,
     );
     expect(container.textContent).toContain("Auto zooms");
-    expect(container.textContent).toContain("deterministic — not AI");
+    expect(container.textContent).toContain("Not AI: punch-in zooms");
     expect(container.textContent).toContain("ordinary scale keyframes");
     const select = [...container.querySelectorAll("select")].find((s) => [...s.options].some((o) => o.value === "strong"))!;
     fireEvent.change(select, { target: { value: "strong" } });

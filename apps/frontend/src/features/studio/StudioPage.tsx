@@ -993,7 +993,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
               .finally(() => void qc.invalidateQueries({ queryKey: ["projects"] }));
           }}
         >
-          🗑
+          🗑 Delete
         </Button>
         <Button data-tour="export" tone="primary" disabled={!hasEditor || live} title={live ? "Available when the captions are finished" : undefined} onClick={() => void openExport()} className="!rounded-full !px-4">Export</Button>
       </div>
