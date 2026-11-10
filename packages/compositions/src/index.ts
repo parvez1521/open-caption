@@ -1,9 +1,11 @@
-export { CaptionedVideo, prepareDoc, computePages } from "./CaptionedVideo";
+export { CaptionedVideo, SegmentFx, prepareDoc, computePages } from "./CaptionedVideo";
 export { Root, calculateMetadata } from "./Root";
 export { CaptionedVideoProps, MediaMetaSchema } from "./props";
 export type { CaptionedVideoInput } from "./props";
-export { buildVideoFilter, compositionDurationMs, overlayFrames, overlayTrackKind, overlayVisibleAt, resolveCanvasSettings, resolveOverlays, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, segmentPlaybackRate, segmentTimelineDurationMs, segmentTransformStyle, videoSegmentFrames, videoTransitionLayout, withRawSegmentExtensions } from "./overlayMath";
-export type { CanvasSettings, RenderVideoSegment, SegmentTransform, SegmentTransition } from "./overlayMath";
+export { buildAdjustOverlays, buildSegmentEffects, buildVideoFilter, compositionDurationMs, grainBackground, overlayFrames, overlayTrackKind, overlayVisibleAt, resolveCanvasSettings, resolveOverlays, resolveSegmentTransform, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, segmentPlaybackRate, segmentTimelineDurationMs, segmentTransformStyle, segmentTransformStyleForTransform, videoSegmentFrames, videoTransitionLayout, withRawSegmentExtensions } from "./overlayMath";
+export type { CanvasSettings, RenderVideoSegment, SegmentEffectsResult, SegmentTransform, SegmentTransition } from "./overlayMath";
+export { KEYFRAME_EASING_FNS, sampleChannel, sampleSegmentAnimation } from "./keyframes";
+export type { SampledSegmentAnimation } from "./keyframes";
 export { BlurPresentation, blurPresentation, ZoomPresentation, zoomPresentation } from "./transitions";
 export { OVERLAY_SHAPE_META, OverlayShapeSvg, OverlayView, SHAPE_BASE_PX, TEXT_DEFAULT_FONT_PX } from "./overlays";
 export { SOCIAL_META, SocialOverlayView, overlayPhase, bellRingDeg, counterAt, chatStackAt, orbitAngle, searchBarAt, socialSeededUnit, shade } from "./social";

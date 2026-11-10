@@ -7,6 +7,8 @@ import {
   type CompositionTrackKind,
   type OverlayItem,
   type ProjectSettings,
+  type SegmentEffect,
+  type SegmentKeyframe,
   type TrackState,
   type VideoAdjust,
   type VideoSegment,
@@ -17,13 +19,80 @@ import {
  * Sequence timing for overlays. Kept free of React/Remotion so they can be unit-tested directly.
  */
 
-/** `brightness() contrast() saturate()` for the video layer, or undefined when everything is neutral
- *  (the filter is then omitted entirely, so untouched projects render exactly as before). */
+/** Round to 4 decimal places (the pinned formatting quantum for the 4.9 colour mapping). */
+export const round4 = (n: number): number => Math.round(n * 10000) / 10000;
+/** Format a number rounded to 4 decimal places with trailing zeros trimmed (1.2000 -> "1.2"). */
+export const fmt4 = (n: number): string => String(round4(n));
+/** Round to 2 decimal places (the pinned quantum for effect fragment sizes). */
+export const round2 = (n: number): number => Math.round(n * 100) / 100;
+/** Format a number rounded to 2 decimal places with trailing zeros trimmed. */
+export const fmt2 = (n: number): string => String(round2(n));
+
+/**
+ * Slice 4.9 colour mapping — THE single source for every render path (Player preview,
+ * @remotion/web-renderer browser export and server renderMedia all evaluate this one
+ * function, so the paths cannot drift).
+ *
+ * PINNED mapping (fmt = round to 4 decimal places, trailing zeros trimmed):
+ *   B = brightness * exposure * (1 + 0.15*shadows − 0.08*highlights)
+ *   C = contrast   * (1 − 0.12*shadows + 0.10*highlights)
+ *   S = saturation * (1 + 0.10*temperature)
+ *   filter = brightness(B) contrast(C) saturate(S), plus sepia(0.35*temperature)
+ *   appended ONLY when temperature > 0.
+ * Returns undefined iff B == 1 && C == 1 && S == 1 && temperature <= 0 (compared on the
+ * rounded values) — the filter key is then omitted entirely, so all-neutral projects
+ * (and every pre-Run-3 project) render exactly as before.
+ *
+ * Honest approximation note: temperature/tint are colour-wash approximations (see
+ * buildAdjustOverlays for the tint / cool-temperature washes) and exposure /
+ * highlights / shadows are brightness/contrast cross-terms — the photographic names
+ * are approximations of what CSS filters can express; this mapping is what defines
+ * them in this product.
+ */
 export function buildVideoFilter(adjust: VideoAdjust | null | undefined): string | undefined {
   if (!adjust) return undefined;
-  const { brightness, contrast, saturation } = adjust;
-  if (brightness === 1 && contrast === 1 && saturation === 1) return undefined;
-  return `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+  // Missing fields (a pre-Run-3 partial adjust) mean their neutral values.
+  const brightness = adjust.brightness ?? 1;
+  const contrast = adjust.contrast ?? 1;
+  const saturation = adjust.saturation ?? 1;
+  const exposure = adjust.exposure ?? 1;
+  const highlights = adjust.highlights ?? 0;
+  const shadows = adjust.shadows ?? 0;
+  const temperature = adjust.temperature ?? 0;
+  const B = round4(brightness * exposure * (1 + 0.15 * shadows - 0.08 * highlights));
+  const C = round4(contrast * (1 - 0.12 * shadows + 0.1 * highlights));
+  const S = round4(saturation * (1 + 0.1 * temperature));
+  if (B === 1 && C === 1 && S === 1 && temperature <= 0) return undefined;
+  const parts = [`brightness(${fmt4(B)})`, `contrast(${fmt4(C)})`, `saturate(${fmt4(S)})`];
+  if (temperature > 0) parts.push(`sepia(${fmt4(0.35 * temperature)})`);
+  return parts.join(" ");
+}
+
+/**
+ * Slice 4.9 colour-wash overlays (the half of the colour mapping CSS filters cannot
+ * express as a filter function): rgba() backgrounds painted over the video layer, in
+ * order. Cool temperature is a blue wash; tint is a green wash when positive and a
+ * magenta wash when negative. Warm temperature needs no wash (it is the sepia term
+ * in buildVideoFilter). Zero-alpha entries are skipped; neutral -> [] (no overlay
+ * divs are rendered at all, so untouched projects stay pixel-identical).
+ */
+export function buildAdjustOverlays(adjust: VideoAdjust | null | undefined): string[] {
+  if (!adjust) return [];
+  const temperature = adjust.temperature ?? 0;
+  const tint = adjust.tint ?? 0;
+  const overlays: string[] = [];
+  if (temperature < 0) {
+    const a = round4(0.16 * Math.abs(temperature));
+    if (a !== 0) overlays.push(`rgba(96, 150, 255, ${a})`);
+  }
+  if (tint > 0) {
+    const a = round4(0.1 * tint);
+    if (a !== 0) overlays.push(`rgba(80, 255, 150, ${a})`);
+  } else if (tint < 0) {
+    const a = round4(0.1 * Math.abs(tint));
+    if (a !== 0) overlays.push(`rgba(255, 80, 190, ${a})`);
+  }
+  return overlays;
 }
 
 /** Frame window for an overlay item at a given fps (mirrors how caption pages are sequenced). */
@@ -109,6 +178,8 @@ export interface SegmentTransform {
   scale: number;
   offsetX: number;
   offsetY: number;
+  /** Run 3 (4.7): base opacity 0..1, also the "opacity" keyframe channel's base value. */
+  opacity: number;
 }
 
 export const IDENTITY_SEGMENT_TRANSFORM: SegmentTransform = {
@@ -122,6 +193,7 @@ export const IDENTITY_SEGMENT_TRANSFORM: SegmentTransform = {
   scale: 1,
   offsetX: 0,
   offsetY: 0,
+  opacity: 1,
 };
 
 export type SegmentTransitionType = "fade" | "wipe" | "slide" | "zoom" | "blur";
@@ -131,13 +203,17 @@ export interface SegmentTransition {
   durationMs: number;
 }
 
-/** A stored segment plus the Run-2 extension fields, all optional (absent = the pinned defaults). */
+/** A stored segment plus the Run-2/Run-3 extension fields, all optional (absent = the pinned defaults). */
 export type RenderVideoSegment = VideoSegment & {
   playbackRate?: number;
   transform?: Partial<SegmentTransform> | null;
   transitionIn?: SegmentTransition | null;
   assetId?: string | null;
   still?: boolean;
+  /** Run 3 (4.7): keyframes over the transform/opacity channels (see keyframes.ts). */
+  keyframes?: SegmentKeyframe[];
+  /** Run 3 (4.7): the ordered effects stack (see buildSegmentEffects). */
+  effects?: SegmentEffect[];
 };
 
 /** The segment's playback rate, sanitized: a missing / non-finite / non-positive rate is 1. */
@@ -182,6 +258,7 @@ export function resolveSegmentTransform(segment: Pick<RenderVideoSegment, "trans
     scale: typeof t.scale === "number" && Number.isFinite(t.scale) && t.scale > 0 ? t.scale : 1,
     offsetX: t.offsetX ?? 0,
     offsetY: t.offsetY ?? 0,
+    opacity: typeof t.opacity === "number" && Number.isFinite(t.opacity) ? Math.min(1, Math.max(0, t.opacity)) : 1,
   };
 }
 
@@ -196,7 +273,8 @@ export function isIdentitySegmentTransform(t: SegmentTransform): boolean {
     !t.flipV &&
     t.scale === 1 &&
     t.offsetX === 0 &&
-    t.offsetY === 0
+    t.offsetY === 0 &&
+    t.opacity === 1
   );
 }
 
@@ -211,7 +289,17 @@ export function isIdentitySegmentTransform(t: SegmentTransform): boolean {
  * fractions of the inner box's own size (translate %). Flip folds into the scale signs.
  */
 export function segmentTransformStyle(segment: Pick<RenderVideoSegment, "transform">): { wrapper: CSSProperties; inner: CSSProperties } | null {
-  const t = resolveSegmentTransform(segment);
+  return segmentTransformStyleForTransform(resolveSegmentTransform(segment));
+}
+
+/**
+ * The same wrapper/inner styles for an already-RESOLVED transform (Run 3: the keyframe
+ * sampler produces an effective transform per frame; SegmentFx styles that, not the
+ * stored base). Note opacity is part of identity here — a transform whose only
+ * non-identity field is opacity still needs the box (SegmentFx paints the opacity
+ * itself on the inner div) — but the returned styles never carry an opacity key.
+ */
+export function segmentTransformStyleForTransform(t: SegmentTransform): { wrapper: CSSProperties; inner: CSSProperties } | null {
   if (isIdentitySegmentTransform(t)) return null;
   const widthDen = Math.max(0.02, 1 - t.cropLeft - t.cropRight);
   const heightDen = Math.max(0.02, 1 - t.cropTop - t.cropBottom);
@@ -254,8 +342,68 @@ export function withRawSegmentExtensions<T extends VideoSegment>(segments: reado
     if (r.transitionIn !== undefined) merged.transitionIn = r.transitionIn;
     if (r.assetId !== undefined) merged.assetId = r.assetId;
     if (r.still !== undefined) merged.still = r.still;
+    if (r.keyframes !== undefined) merged.keyframes = r.keyframes;
+    if (r.effects !== undefined) merged.effects = r.effects;
     return merged;
   });
+}
+
+/* ---------------- Phase 4 Run 3: per-segment effects stack (slice 4.7) ---------------- */
+
+export interface SegmentEffectsResult {
+  /** CSS filter fragments (blur / glow) joined in stored stack order, or undefined when none. */
+  filter: string | undefined;
+  /** Opacity of the vignette layer's outer stop (0 = no vignette layer). */
+  vignetteAlpha: number;
+  /** Film-grain layer: opacity + the frame-cycled noise seed; null when no grain effect. */
+  grain: { opacity: number; seedIndex: number } | null;
+}
+
+/**
+ * Map a segment's ordered effects stack onto render primitives. PURE — the frame is an
+ * argument, never read from a clock, so preview ≡ export by construction.
+ *
+ * Rules (pinned): only effects with `enabled !== false` count, considered IN ARRAY
+ * ORDER (that order is the filter-fragment order). blur -> `blur(round2(amount*20)px)`;
+ * glow -> `drop-shadow(0 0 round2(amount*30)px color)`. Vignette and grain are LAYERS,
+ * not filters, and layers don't stack meaningfully — the LAST enabled vignette wins
+ * (vignetteAlpha = amount*0.85, 0 when none) and the LAST enabled grain wins
+ * (opacity = amount*0.5, seedIndex = frame % 8, null when none).
+ */
+export function buildSegmentEffects(segment: Pick<RenderVideoSegment, "effects">, frame: number): SegmentEffectsResult {
+  const fragments: string[] = [];
+  let vignetteAlpha = 0;
+  let grain: SegmentEffectsResult["grain"] = null;
+  for (const effect of segment.effects ?? []) {
+    if (!effect || effect.enabled === false) continue;
+    const amount = typeof effect.amount === "number" && Number.isFinite(effect.amount) ? effect.amount : 0.5;
+    switch (effect.type) {
+      case "blur":
+        fragments.push(`blur(${fmt2(amount * 20)}px)`);
+        break;
+      case "glow":
+        fragments.push(`drop-shadow(0 0 ${fmt2(amount * 30)}px ${effect.color ?? "#FFA946"})`);
+        break;
+      case "vignette":
+        vignetteAlpha = amount * 0.85;
+        break;
+      case "grain":
+        grain = { opacity: amount * 0.5, seedIndex: frame % 8 };
+        break;
+    }
+  }
+  return { filter: fragments.length ? fragments.join(" ") : undefined, vignetteAlpha, grain };
+}
+
+/**
+ * Film-grain background for a seed: a data-URI SVG feTurbulence (fractalNoise,
+ * baseFrequency 0.9, numOctaves 2, seed = seedIndex, stitchTiles) at 180x180.
+ * It is an IMAGE (not an SVG filter reference) so every renderer — including the
+ * web-renderer's canvas capture — rasterises it identically.
+ */
+export function grainBackground(seedIndex: number): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="${seedIndex}" stitchTiles="stitch"/></filter><rect width="180" height="180" filter="url(#n)"/></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
 export type CanvasAspect = "source" | "9:16" | "16:9" | "1:1" | "4:5";

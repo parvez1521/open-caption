@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_TRACK_STATE, ProjectSettingsSchema, type OverlayItem, type VideoSegment } from "@capseasy/shared";
+import { DEFAULT_TRACK_STATE, NEUTRAL_VIDEO_ADJUST, ProjectSettingsSchema, type OverlayItem, type VideoSegment } from "@capseasy/shared";
 import { CaptionedVideoProps } from "./props";
 import { framesForDurationMs } from "@capseasy/shared";
-import { buildVideoFilter, compositionDurationMs, overlayFrames, overlayTrackKind, overlayVisibleAt, resolveCanvasSettings, resolveOverlays, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, segmentTimelineDurationMs, segmentTransformStyle, videoSegmentFrames, videoTransitionLayout, withRawSegmentExtensions } from "./overlayMath";
+import { buildAdjustOverlays, buildSegmentEffects, buildVideoFilter, compositionDurationMs, grainBackground, isIdentitySegmentTransform, overlayFrames, overlayTrackKind, overlayVisibleAt, resolveCanvasSettings, resolveOverlays, resolveSegmentTransform, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, segmentTimelineDurationMs, segmentTransformStyle, videoSegmentFrames, videoTransitionLayout, withRawSegmentExtensions } from "./overlayMath";
 
 describe("buildVideoFilter", () => {
-  it("is undefined when all three adjustments are neutral (filter omitted entirely)", () => {
-    expect(buildVideoFilter({ brightness: 1, contrast: 1, saturation: 1 })).toBeUndefined();
+  it("is undefined when all adjustments are neutral (filter omitted entirely)", () => {
+    expect(buildVideoFilter({ ...NEUTRAL_VIDEO_ADJUST })).toBeUndefined();
+    expect(buildVideoFilter(NEUTRAL_VIDEO_ADJUST)).toBeUndefined();
   });
 
   it("is undefined for a missing adjustment", () => {
@@ -14,9 +15,95 @@ describe("buildVideoFilter", () => {
     expect(buildVideoFilter(null)).toBeUndefined();
   });
 
-  it("builds the exact CSS filter string", () => {
-    expect(buildVideoFilter({ brightness: 1.2, contrast: 0.9, saturation: 1.1 })).toBe("brightness(1.2) contrast(0.9) saturate(1.1)");
-    expect(buildVideoFilter({ brightness: 0.5, contrast: 1, saturation: 1 })).toBe("brightness(0.5) contrast(1) saturate(1)");
+  it("builds the exact CSS filter string (legacy 3-field behaviour preserved)", () => {
+    expect(buildVideoFilter({ ...NEUTRAL_VIDEO_ADJUST, brightness: 1.2, contrast: 0.9, saturation: 1.1 })).toBe("brightness(1.2) contrast(0.9) saturate(1.1)");
+    expect(buildVideoFilter({ ...NEUTRAL_VIDEO_ADJUST, brightness: 0.5 })).toBe("brightness(0.5) contrast(1) saturate(1)");
+  });
+
+  it("applies the pinned 4.9 mapping: exposure multiplier and highlights/shadows cross-terms", () => {
+    // B = 1.1*1.5*(1 + 0.15*(-0.4) − 0.08*0.5) = 1.485; C = 0.95*(1 − 0.12*(-0.4) + 0.10*0.5) = 1.0431; S = 1.2*(1 + 0.10*0.6) = 1.272
+    expect(
+      buildVideoFilter({ brightness: 1.1, contrast: 0.95, saturation: 1.2, exposure: 1.5, highlights: 0.5, shadows: -0.4, temperature: 0.6, tint: 0 }),
+    ).toBe("brightness(1.485) contrast(1.0431) saturate(1.272) sepia(0.21)");
+    expect(buildVideoFilter({ ...NEUTRAL_VIDEO_ADJUST, shadows: 1, highlights: 1 })).toBe("brightness(1.07) contrast(0.98) saturate(1)");
+    expect(buildVideoFilter({ ...NEUTRAL_VIDEO_ADJUST, exposure: 2 })).toBe("brightness(2) contrast(1) saturate(1)");
+  });
+
+  it("appends sepia only for warm temperature; cool temperature only cools saturation", () => {
+    expect(buildVideoFilter({ ...NEUTRAL_VIDEO_ADJUST, temperature: 1 })).toBe("brightness(1) contrast(1) saturate(1.1) sepia(0.35)");
+    expect(buildVideoFilter({ ...NEUTRAL_VIDEO_ADJUST, temperature: -0.5 })).toBe("brightness(1) contrast(1) saturate(0.95)");
+  });
+
+  it("rounds to 4 decimal places with trailing zeros trimmed", () => {
+    expect(buildVideoFilter({ ...NEUTRAL_VIDEO_ADJUST, exposure: 1.23456 })).toBe("brightness(1.2346) contrast(1) saturate(1)");
+  });
+});
+
+describe("buildAdjustOverlays (4.9 colour washes)", () => {
+  it("is empty for neutral / missing adjustments and for warm temperature", () => {
+    expect(buildAdjustOverlays(NEUTRAL_VIDEO_ADJUST)).toEqual([]);
+    expect(buildAdjustOverlays(undefined)).toEqual([]);
+    expect(buildAdjustOverlays(null)).toEqual([]);
+    expect(buildAdjustOverlays({ ...NEUTRAL_VIDEO_ADJUST, temperature: 0.8 })).toEqual([]);
+  });
+
+  it("cool temperature is a blue wash at 0.16 alpha per unit", () => {
+    expect(buildAdjustOverlays({ ...NEUTRAL_VIDEO_ADJUST, temperature: -1 })).toEqual(["rgba(96, 150, 255, 0.16)"]);
+    expect(buildAdjustOverlays({ ...NEUTRAL_VIDEO_ADJUST, temperature: -0.5 })).toEqual(["rgba(96, 150, 255, 0.08)"]);
+  });
+
+  it("tint is a green wash when positive and a magenta wash when negative, at 0.10 per unit", () => {
+    expect(buildAdjustOverlays({ ...NEUTRAL_VIDEO_ADJUST, tint: 0.5 })).toEqual(["rgba(80, 255, 150, 0.05)"]);
+    expect(buildAdjustOverlays({ ...NEUTRAL_VIDEO_ADJUST, tint: -0.25 })).toEqual(["rgba(255, 80, 190, 0.025)"]);
+  });
+
+  it("stacks the temperature wash before the tint wash and skips zero-alpha entries", () => {
+    expect(buildAdjustOverlays({ ...NEUTRAL_VIDEO_ADJUST, temperature: -1, tint: 1 })).toEqual([
+      "rgba(96, 150, 255, 0.16)",
+      "rgba(80, 255, 150, 0.1)",
+    ]);
+    // alpha rounds to 0 at 4dp -> the entry is skipped entirely
+    expect(buildAdjustOverlays({ ...NEUTRAL_VIDEO_ADJUST, temperature: -0.0001 })).toEqual([]);
+  });
+});
+
+describe("buildSegmentEffects / grainBackground (4.7 effects mapping)", () => {
+  const eff = (type: string, amount: number, extra: Record<string, unknown> = {}) =>
+    ({ id: `e-${type}-${amount}`, type, enabled: true, amount, color: "#FFA946", ...extra }) as never;
+  const seg = (effects: unknown[]) => ({ effects }) as never;
+
+  it("no effects (or none enabled) maps to no filter, no vignette, no grain", () => {
+    expect(buildSegmentEffects(seg([]), 0)).toEqual({ filter: undefined, vignetteAlpha: 0, grain: null });
+    expect(buildSegmentEffects(seg([eff("blur", 0.5, { enabled: false })]), 0)).toEqual({ filter: undefined, vignetteAlpha: 0, grain: null });
+    expect(buildSegmentEffects({} as never, 3)).toEqual({ filter: undefined, vignetteAlpha: 0, grain: null });
+  });
+
+  it("blur and glow fragments use the pinned round2 scalings", () => {
+    expect(buildSegmentEffects(seg([eff("blur", 0.5)]), 0).filter).toBe("blur(10px)");
+    expect(buildSegmentEffects(seg([eff("blur", 0.333)]), 0).filter).toBe("blur(6.66px)");
+    expect(buildSegmentEffects(seg([eff("glow", 0.5, { color: "#00FF00" })]), 0).filter).toBe("drop-shadow(0 0 15px #00FF00)");
+  });
+
+  it("filter fragments keep the stored stack order; disabled effects are skipped", () => {
+    const effects = [eff("glow", 0.5, { color: "#00FF00" }), eff("blur", 1, { enabled: false }), eff("blur", 0.25)];
+    expect(buildSegmentEffects(seg(effects), 0).filter).toBe("drop-shadow(0 0 15px #00FF00) blur(5px)");
+  });
+
+  it("vignette and grain are last-enabled-wins layers, not filters", () => {
+    const effects = [eff("vignette", 1), eff("grain", 0.4), eff("vignette", 0.5), eff("grain", 0.8)];
+    const out = buildSegmentEffects(seg(effects), 13);
+    expect(out.filter).toBeUndefined();
+    expect(out.vignetteAlpha).toBe(0.425); // last vignette: 0.5 * 0.85
+    expect(out.grain).toEqual({ opacity: 0.4, seedIndex: 5 }); // last grain: 0.8 * 0.5, 13 % 8
+  });
+
+  it("grainBackground is a data-URI SVG feTurbulence image for the seed", () => {
+    const uri = grainBackground(3);
+    expect(uri.startsWith("data:image/svg+xml,")).toBe(true);
+    const svg = decodeURIComponent(uri.slice("data:image/svg+xml,".length));
+    expect(svg).toBe(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" stitchTiles="stitch"/></filter><rect width="180" height="180" filter="url(#n)"/></svg>',
+    );
   });
 });
 
@@ -49,7 +136,7 @@ describe("CaptionedVideoProps editor elements", () => {
     const p = CaptionedVideoProps.parse({});
     expect(p.videoAdjust).toBeUndefined();
     expect(p.overlays).toBeUndefined();
-    expect(p.settings.videoAdjust).toEqual({ brightness: 1, contrast: 1, saturation: 1 });
+    expect(p.settings.videoAdjust).toEqual(NEUTRAL_VIDEO_ADJUST);
     expect(p.settings.overlays).toEqual([]);
   });
 
@@ -58,7 +145,7 @@ describe("CaptionedVideoProps editor elements", () => {
       videoAdjust: { brightness: 1.3, contrast: 1, saturation: 0.8 },
       overlays: [{ id: "o1", kind: "shape", shape: "star", startMs: 0, endMs: 2000, color: "#FFA946" }],
     });
-    expect(p.videoAdjust).toEqual({ brightness: 1.3, contrast: 1, saturation: 0.8 });
+    expect(p.videoAdjust).toEqual({ ...NEUTRAL_VIDEO_ADJUST, brightness: 1.3, saturation: 0.8 });
     expect(p.overlays).toHaveLength(1);
     expect(p.overlays?.[0]).toMatchObject({ id: "o1", shape: "star", scale: 1 });
   });
@@ -76,18 +163,18 @@ describe("resolve helpers (props win, settings are the fallback)", () => {
   const explicitOverlay: OverlayItem = { id: "p1", kind: "text", text: "From props", startMs: 0, endMs: 1000, x: 0.5, y: 0.5, scale: 1, rotation: 0, color: "#FFFFFF" };
 
   it("falls back to settings when no top-level props are given (server/companion payload shape)", () => {
-    expect(resolveVideoAdjust({ settings })).toEqual({ brightness: 1.4, contrast: 1, saturation: 1 });
+    expect(resolveVideoAdjust({ settings })).toEqual({ ...NEUTRAL_VIDEO_ADJUST, brightness: 1.4 });
     expect(resolveOverlays({ settings }).map((o) => o.id)).toEqual(["s1"]);
   });
 
   it("prefers explicit props over settings", () => {
-    expect(resolveVideoAdjust({ videoAdjust: { brightness: 0.7, contrast: 1, saturation: 1 }, settings }).brightness).toBe(0.7);
+    expect(resolveVideoAdjust({ videoAdjust: { ...NEUTRAL_VIDEO_ADJUST, brightness: 0.7 }, settings }).brightness).toBe(0.7);
     expect(resolveOverlays({ overlays: [explicitOverlay], settings })).toEqual([explicitOverlay]);
     expect(resolveOverlays({ overlays: [], settings })).toEqual([]);
   });
 
   it("defaults to neutral / empty with neither source", () => {
-    expect(resolveVideoAdjust({})).toEqual({ brightness: 1, contrast: 1, saturation: 1 });
+    expect(resolveVideoAdjust({})).toEqual(NEUTRAL_VIDEO_ADJUST);
     expect(resolveOverlays({})).toEqual([]);
   });
 });
@@ -115,10 +202,12 @@ describe("resolveVideoSegments (Stage-B segmentation)", () => {
     // defaults (rate 1, identity transform, no transition/asset, not a still).
     const run2Defaults = {
       playbackRate: 1,
-      transform: { cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0, flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0 },
+      transform: { cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0, flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0, opacity: 1 },
       transitionIn: null,
       assetId: null,
       still: false,
+      keyframes: [],
+      effects: [],
     };
     expect(segments).toEqual([
       { id: "seg-1", sourceInMs: 10_000, sourceOutMs: 25_000, ...run2Defaults },
@@ -409,6 +498,19 @@ describe("segmentTransformStyle", () => {
   it("flipV alone flips the Y scale sign", () => {
     expect(segmentTransformStyle(seg({ flipV: true }))?.inner.transform).toBe("scale(1, -1)");
   });
+
+  it("opacity defaults to 1, is clamped to 0..1, and counts toward identity (Run 3)", () => {
+    expect(resolveSegmentTransform(seg()).opacity).toBe(1);
+    expect(resolveSegmentTransform(seg({ opacity: 0.5 })).opacity).toBe(0.5);
+    expect(resolveSegmentTransform(seg({ opacity: 2 })).opacity).toBe(1);
+    expect(isIdentitySegmentTransform(resolveSegmentTransform(seg()))).toBe(true);
+    expect(isIdentitySegmentTransform(resolveSegmentTransform(seg({ opacity: 0.5 })))).toBe(false);
+    // an opacity-only transform still needs the wrapper box (SegmentFx paints the opacity)
+    const style = segmentTransformStyle(seg({ opacity: 0.5 }));
+    expect(style).not.toBeNull();
+    expect(style?.inner.width).toBe("100%");
+    expect(style?.inner).not.toHaveProperty("opacity");
+  });
 });
 
 describe("withRawSegmentExtensions / resolveCanvasSettings (raw settings win)", () => {
@@ -421,6 +523,16 @@ describe("withRawSegmentExtensions / resolveCanvasSettings (raw settings win)", 
     const merged = withRawSegmentExtensions(parsed, raw);
     expect(merged[0]).toMatchObject({ id: "a", playbackRate: 2 });
     expect(merged[1]).toMatchObject({ id: "b", assetId: "asset-9", still: true });
+  });
+
+  it("merges Run-3 keyframes / effects from raw settings too", () => {
+    const parsed = [{ id: "a", sourceInMs: 0, sourceOutMs: 1000 }] as never[];
+    const keyframes = [{ id: "k1", atMs: 0, property: "scale", value: 2, easing: "linear" }];
+    const effects = [{ id: "e1", type: "blur", enabled: true, amount: 0.5, color: "#FFA946" }];
+    const raw = { composition: { videoSegments: [{ keyframes, effects }] } };
+    const merged = withRawSegmentExtensions(parsed, raw);
+    expect(merged[0].keyframes).toEqual(keyframes);
+    expect(merged[0].effects).toEqual(effects);
   });
 
   it("returns the parsed segments untouched when raw is absent or length-mismatched", () => {

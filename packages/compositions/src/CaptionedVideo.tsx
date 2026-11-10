@@ -10,23 +10,30 @@ import { applyFillerFilter, applyProfanity, derivePages } from "@motion-ai/capti
 import { EMOJI_FONT, PageView, VideoFrameBus, VideoFrameContext, famCss, getTemplate, layoutBox, measure, resolveStyle, scaleOf, useFontsReady, wordGapEm, wordGapPx, type Canvas } from "@capseasy/templates";
 import type { CaptionedVideoInput } from "./props";
 import {
+  buildAdjustOverlays,
+  buildSegmentEffects,
   buildVideoFilter,
+  grainBackground,
   overlayFrames,
   resolveCanvasSettings,
   resolveClipRange,
   resolveOverlays,
+  resolveSegmentTransform,
   resolveTrackState,
   resolveVideoAdjust,
   resolveVideoSegments,
   segmentPlaybackRate,
-  segmentTransformStyle,
+  segmentTransformStyleForTransform,
   videoSegmentFrames,
   videoTransitionLayout,
   videoTrimFrames,
   withRawSegmentExtensions,
   type RenderVideoSegment,
+  type SegmentEffectsResult,
+  type SegmentTransform,
   type SegmentTransitionType,
 } from "./overlayMath";
+import { sampleSegmentAnimation } from "./keyframes";
 import { OverlayView } from "./overlays";
 import { blurPresentation, zoomPresentation } from "./transitions";
 
@@ -81,6 +88,97 @@ const OverlaySequenceInner: React.FC<{ item: import("@capseasy/shared").OverlayI
   return <OverlayView item={item} sc={sc} assetSrc={assetSrc} localMs={(frame / fps) * 1000} />;
 };
 
+/**
+ * Run 3 (4.7) per-segment animation + effects wrapper — the ONE place keyframes and the
+ * effects stack are evaluated for a segment's media element, for every chain variant.
+ *
+ * Local time: `useCurrentFrame()` inside a Sequence / TransitionSeries.Sequence is
+ * SEQUENCE-local, so (frame / fps) * 1000 is the segment's own clock — the same clock
+ * its source trims use — and keyframes (stored in segment-local ms) line up with the
+ * picture in the plain chain, the transition chain and the single-segment path alike.
+ * (On the no-Sequence single-layer path the composition frame IS the segment clock.)
+ *
+ * Regression pin: a segment with NO keyframes, NO enabled effects and effective
+ * opacity 1 renders EXACTLY the pre-Run-3 structure — segmentTransformStyle's
+ * wrapper-or-bare, nothing added. Otherwise the wrapper structure below paints the
+ * sampled effective transform (flip/crop stay at their base values; offsets / scale /
+ * rotation / opacity come from the sampler), the effects filter on the inner div, and
+ * the vignette / grain layers above the media.
+ *
+ * The "background" variant (blurred-cover backdrop chain) applies the transform
+ * sampling ONLY — no opacity, no effects — so the backdrop stays a plain blurred
+ * cover, consistent with how static transforms already apply to both variants.
+ */
+export const SegmentFx: React.FC<{ segment: RenderVideoSegment; variant: "main" | "background"; children: React.ReactNode }> = ({ segment, variant, children }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const localMs = (frame / Math.max(1, fps)) * 1000;
+  const background = variant === "background";
+  const base = resolveSegmentTransform(segment);
+  const sampled = sampleSegmentAnimation(segment, localMs);
+  const effective: SegmentTransform = {
+    ...base,
+    offsetX: sampled.offsetX,
+    offsetY: sampled.offsetY,
+    scale: sampled.scale,
+    rotateDeg: sampled.rotateDeg,
+    opacity: background ? 1 : sampled.opacity,
+  };
+  const effectiveOpacity = background ? 1 : sampled.opacity;
+  const hasKeyframes = (segment.keyframes?.length ?? 0) > 0;
+  const hasEnabledEffects = !background && (segment.effects?.some((e) => e && e.enabled !== false) ?? false);
+
+  if (!hasKeyframes && !hasEnabledEffects && effectiveOpacity === 1) {
+    // Exactly today's structure (for the background variant the effective transform
+    // has opacity forced to 1, so its style is the base transform's style).
+    const tStyle = segmentTransformStyleForTransform(effective);
+    if (!tStyle) return <>{children}</>;
+    return (
+      <AbsoluteFill style={tStyle.wrapper}>
+        <div style={tStyle.inner}>{children}</div>
+      </AbsoluteFill>
+    );
+  }
+
+  const effects: SegmentEffectsResult = hasEnabledEffects
+    ? buildSegmentEffects(segment, frame)
+    : { filter: undefined, vignetteAlpha: 0, grain: null };
+  const tStyle = segmentTransformStyleForTransform(effective);
+  if (background && !tStyle) return <>{children}</>;
+  const wrapperStyle: React.CSSProperties = tStyle?.wrapper ?? { position: "absolute", inset: 0, overflow: "hidden" };
+  const innerStyle: React.CSSProperties = {
+    ...(tStyle?.inner ?? { width: "100%", height: "100%" }),
+    ...(!background && effectiveOpacity !== 1 ? { opacity: effectiveOpacity } : {}),
+    ...(!background && effects.filter ? { filter: effects.filter } : {}),
+  };
+  return (
+    <AbsoluteFill style={wrapperStyle}>
+      <div style={innerStyle}>{children}</div>
+      {!background && effects.vignetteAlpha > 0 ? (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            background: `radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,${effects.vignetteAlpha}) 100%)`,
+          }}
+        />
+      ) : null}
+      {!background && effects.grain ? (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            backgroundImage: `url("${grainBackground(effects.grain.seedIndex)}")`,
+            opacity: effects.grain.opacity,
+          }}
+        />
+      ) : null}
+    </AbsoluteFill>
+  );
+};
+
 const PageSequence: React.FC<{ page: Page; fromFrame: number; canvas: Canvas; style: CaptionStyleV2 }> = ({ page, fromFrame, canvas, style }) => {
   const frame = useCurrentFrame();
   // absolute media time, derived from frames only (never a wall clock)
@@ -111,6 +209,9 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
     [parsedAdjust, settings],
   );
   const videoFilter = useMemo(() => buildVideoFilter(videoAdjust), [videoAdjust]);
+  // 4.9 colour-wash overlays (temperature/tint): painted inside the main chain's
+  // wrapper, above the picture — see buildAdjustOverlays for the pinned mapping.
+  const adjustOverlays = useMemo(() => buildAdjustOverlays(videoAdjust), [videoAdjust]);
   const overlays = useMemo(
     () => resolveOverlays({ overlays: parsedOverlays?.success ? parsedOverlays.data : undefined, settings }),
     [parsedOverlays, settings],
@@ -222,12 +323,13 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
     } else {
       element = <OffthreadVideo src={segSrc} style={fillStyle} {...(opts.trim ?? {})} {...segMuteProps} {...rateProps} />;
     }
-    const tStyle = segment ? segmentTransformStyle(segment) : null;
-    if (!tStyle) return element;
+    // segment === null keeps today's exact bare return; a real segment goes through
+    // SegmentFx, which renders today's exact structure when nothing is animated.
+    if (!segment) return element;
     return (
-      <AbsoluteFill style={tStyle.wrapper}>
-        <div style={tStyle.inner}>{element}</div>
-      </AbsoluteFill>
+      <SegmentFx segment={segment} variant={opts.variant}>
+        {element}
+      </SegmentFx>
     );
   };
 
@@ -295,6 +397,11 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
             }}
           >
             {renderChain("main")}
+            {adjustOverlays.length > 0
+              ? adjustOverlays.map((colour, i) => (
+                  <div key={i} style={{ position: "absolute", inset: 0, pointerEvents: "none", background: colour }} />
+                ))
+              : null}
           </AbsoluteFill>
         </>
       ) : mode === "burn" && !src && backdrop ? (
