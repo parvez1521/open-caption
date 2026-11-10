@@ -12,9 +12,29 @@
 
 export type GeneratorKind = "ideas" | "hooks" | "captions";
 export type Platform = "reels" | "shorts" | "youtube" | "tiktok";
-export type HookStyle = "curiosity" | "problem-solution" | "story" | "controversial" | "pattern-interrupt";
+export type HookStyle =
+  | "curiosity"
+  | "problem-solution"
+  | "story"
+  | "controversial"
+  | "pattern-interrupt"
+  | "contrarian"
+  | "numbers"
+  | "open-loop"
+  | "unexpected";
 export type CaptionTone = "friendly" | "professional" | "bold" | "funny" | "minimal";
 export type Source = "template" | "model" | "cloud";
+export type IdeaCategory =
+  | "educational"
+  | "entertainment"
+  | "tutorial"
+  | "storytelling"
+  | "problem-solution"
+  | "industry"
+  | "series";
+export type IdeaDifficulty = "easy" | "medium" | "advanced";
+export type IdeaDuration = "under-30s" | "30-60s" | "1-3min" | "long-form";
+export type IdeaObjective = "reach" | "engagement" | "followers" | "sales" | "authority";
 
 export const PLATFORMS: { id: Platform; label: string }[] = [
   { id: "reels", label: "Instagram Reels" },
@@ -25,10 +45,45 @@ export const PLATFORMS: { id: Platform; label: string }[] = [
 
 export const HOOK_STYLES: { id: HookStyle; label: string }[] = [
   { id: "curiosity", label: "Curiosity" },
-  { id: "problem-solution", label: "Problem and solution" },
-  { id: "story", label: "Story" },
+  { id: "problem-solution", label: "Problem-based" },
+  { id: "story", label: "Storytelling" },
   { id: "controversial", label: "Controversial" },
   { id: "pattern-interrupt", label: "Pattern interrupt" },
+  { id: "contrarian", label: "Contrarian" },
+  { id: "numbers", label: "Numbers and statistics" },
+  { id: "open-loop", label: "Open loop" },
+  { id: "unexpected", label: "Unexpected statement" },
+];
+
+export const IDEA_CATEGORIES: { id: IdeaCategory; label: string }[] = [
+  { id: "educational", label: "Educational" },
+  { id: "entertainment", label: "Entertainment" },
+  { id: "tutorial", label: "Tutorial" },
+  { id: "storytelling", label: "Storytelling" },
+  { id: "problem-solution", label: "Problem-solution" },
+  { id: "industry", label: "Industry" },
+  { id: "series", label: "Series" },
+];
+
+export const IDEA_DIFFICULTIES: { id: IdeaDifficulty; label: string }[] = [
+  { id: "easy", label: "Easy" },
+  { id: "medium", label: "Medium" },
+  { id: "advanced", label: "Advanced" },
+];
+
+export const IDEA_DURATIONS: { id: IdeaDuration; label: string }[] = [
+  { id: "under-30s", label: "Under 30 seconds" },
+  { id: "30-60s", label: "30–60 seconds" },
+  { id: "1-3min", label: "1–3 minutes" },
+  { id: "long-form", label: "Long-form" },
+];
+
+export const IDEA_OBJECTIVES: { id: IdeaObjective; label: string }[] = [
+  { id: "reach", label: "Reach" },
+  { id: "engagement", label: "Engagement" },
+  { id: "followers", label: "Followers" },
+  { id: "sales", label: "Sales" },
+  { id: "authority", label: "Authority" },
 ];
 
 export const CAPTION_TONES: { id: CaptionTone; label: string }[] = [
@@ -46,6 +101,8 @@ export interface GeneratedItem {
   title: string;
   detail?: string;
   hashtags?: string[];
+  /** Hooks only: the written psychology explanation for the hook's style (templates.ts HOOK_MECHANISMS). */
+  mechanism?: string;
 }
 
 /** The text a Copy button puts on the clipboard for one item. */

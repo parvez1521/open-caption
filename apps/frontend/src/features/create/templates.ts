@@ -7,8 +7,19 @@
  * frames and angles combine, so the same inputs always produce the same batch and different inputs
  * produce different batches. Pure module: no DOM, no storage, no network. Works fully offline.
  */
-import type { CaptionTone, GeneratedItem, HookStyle, Platform } from "./model";
+import type {
+  CaptionTone,
+  GeneratedItem,
+  HookStyle,
+  IdeaCategory,
+  IdeaDifficulty,
+  IdeaDuration,
+  IdeaObjective,
+  Platform,
+} from "./model";
 import { platformLabel } from "./model";
+import type { BrandProfile } from "./brandProfile";
+import { containsAvoidedWord } from "./brandProfile";
 
 /* ---------------------------------- seeded selection ---------------------------------- */
 
@@ -114,30 +125,131 @@ const IDEA_ANGLES: string[] = [
   "Angle: bust the myth first, then give {audience} the replacement habit.",
 ];
 
-export interface IdeasInput { niche: string; platform: Platform; audience: string; count: number }
+/** Per-category title frames, 4 per category, 28 total. Mixed with the platform formats so the category really changes the titles. */
+export const CATEGORY_FORMATS: Record<IdeaCategory, { title: string }[]> = {
+  educational: [
+    { title: "{Niche}, explained clearly: the lesson most explainers skip" },
+    { title: "What {niche} actually means, in plain words" },
+    { title: "The {niche} concept that unlocks everything else" },
+    { title: "Teach {niche} like a teacher: one idea, fully understood" },
+  ],
+  entertainment: [
+    { title: "The funniest thing about {niche}, acted out honestly" },
+    { title: "{Niche} bingo: how many of these have you lived?" },
+    { title: "If {niche} had a blooper reel, this would open it" },
+    { title: "Rating {niche} moments purely for entertainment value" },
+  ],
+  tutorial: [
+    { title: "How to do {niche}: a step-by-step walkthrough you can follow along" },
+    { title: "{Niche} tutorial: follow these exact steps in order" },
+    { title: "Do {niche} with me, step by step, no steps skipped" },
+    { title: "The hands-on {niche} tutorial: pause, copy, continue" },
+  ],
+  storytelling: [
+    { title: "The {niche} story I have never told in full before" },
+    { title: "How {niche} changed one ordinary week into a turning point" },
+    { title: "A {niche} story in three acts: hope, failure, second attempt" },
+    { title: "The day {niche} stopped being a plan and became a story" },
+  ],
+  "problem-solution": [
+    { title: "The {niche} problem nobody admits to, and a working fix" },
+    { title: "Diagnosing your {niche} problem: cause first, solution second" },
+    { title: "One stubborn {niche} problem, solved on camera" },
+    { title: "Why your {niche} keeps breaking, and the fix that holds" },
+  ],
+  industry: [
+    { title: "Inside {niche}: what people in the industry actually do all day" },
+    { title: "The {niche} industry shift insiders are quietly preparing for" },
+    { title: "{Niche} from the inside: terms and habits outsiders never hear" },
+    { title: "What professionals in {niche} wish the public understood" },
+  ],
+  series: [
+    { title: "{Niche} series, part one: start the journey with me" },
+    { title: "Episode one: my {niche} series begins with the hardest part" },
+    { title: "A seven-part {niche} series: this is the roadmap episode" },
+    { title: "{Niche}, the series: one chapter at a time, starting today" },
+  ],
+};
+
+const DURATION_LABELS: Record<IdeaDuration, string> = {
+  "under-30s": "Under 30 seconds",
+  "30-60s": "30–60 seconds",
+  "1-3min": "1–3 minutes",
+  "long-form": "Long-form (3+ minutes)",
+};
+
+const DIFFICULTY_NOTES: Record<IdeaDifficulty, string> = {
+  easy: "Easy to film (one take, no props)",
+  medium: "Medium to film (a few takes, simple setup)",
+  advanced: "Advanced to film (multiple setups and edits)",
+};
+
+const OBJECTIVE_PHRASES: Record<IdeaObjective, string> = {
+  reach: "reach new viewers",
+  engagement: "engagement",
+  followers: "grow your followers",
+  sales: "sales",
+  authority: "build authority",
+};
+
+export interface IdeasInput {
+  niche: string;
+  platform: Platform;
+  audience: string;
+  count: number;
+  category?: IdeaCategory;
+  difficulty?: IdeaDifficulty;
+  duration?: IdeaDuration;
+  objective?: IdeaObjective;
+  profile?: BrandProfile | null;
+}
 
 export function generateIdeas(input: IdeasInput): GeneratedItem[] {
-  const niche = trimInput(input.niche, "your niche");
-  const audience = trimInput(input.audience, "beginners");
+  const profile = input.profile ?? null;
+  const voice = profile?.voice;
+  // Profile fallbacks come BEFORE the trimInput defaults: an empty field takes the profile's value.
+  const niche = trimInput(input.niche?.trim() ? input.niche : (voice?.niche ?? ""), "your niche");
+  const audience = trimInput(input.audience?.trim() ? input.audience : (voice?.audience ?? ""), "beginners");
+  const category: IdeaCategory = input.category ?? "educational";
+  const difficulty: IdeaDifficulty = input.difficulty ?? "medium";
+  const duration: IdeaDuration = input.duration ?? "30-60s";
+  const objective: IdeaObjective = input.objective ?? "engagement";
   const count = clampCount(input.count);
-  const rnd = mulberry32(hashSeed(JSON.stringify(["ideas", niche, input.platform, audience])));
-  const formats = shuffled(IDEA_FORMATS[input.platform], rnd);
+  const rnd = mulberry32(
+    hashSeed(JSON.stringify(["ideas", niche, input.platform, audience, category, difficulty, duration, objective])),
+  );
+  const platformFormats = shuffled(IDEA_FORMATS[input.platform], rnd);
+  const categoryFormats = shuffled(CATEGORY_FORMATS[category], rnd);
+  // Interleave platform and category formats so category frames are guaranteed to appear in the
+  // batch (pooling + shuffling alone could leave a batch with no category title at all).
+  const formats: { title: string }[] = [];
+  const maxLen = Math.max(platformFormats.length, categoryFormats.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (i < categoryFormats.length) formats.push(categoryFormats[i]!);
+    if (i < platformFormats.length) formats.push(platformFormats[i]!);
+  }
   const angles = shuffled(IDEA_ANGLES, rnd);
+  const plan = `Plan: ${DURATION_LABELS[duration]} · ${DIFFICULTY_NOTES[difficulty]} · Goal: ${OBJECTIVE_PHRASES[objective]}.`;
   const out: GeneratedItem[] = [];
-  for (let i = 0; i < count; i++) {
-    const format = formats[i % formats.length]!;
-    const angle = angles[(i + Math.floor(i / formats.length)) % angles.length]!;
-    out.push({
+  // Refill rule (profile avoid list): keep cycling the format pool for up to 3 cycles, dropping
+  // any item whose title or detail uses an avoided word; return what survives if still short.
+  const maxAttempts = formats.length * 3;
+  for (let attempt = 0; attempt < maxAttempts && out.length < count; attempt++) {
+    const format = formats[attempt % formats.length]!;
+    const angle = angles[(attempt + Math.floor(attempt / formats.length)) % angles.length]!;
+    const item: GeneratedItem = {
       title: fill(format.title, { Niche: lead(niche), niche }),
-      detail: fill(angle, { audience }),
-    });
+      detail: `${fill(angle, { audience })} ${plan}`,
+    };
+    if (voice && (containsAvoidedWord(item.title, voice) || containsAvoidedWord(item.detail ?? "", voice))) continue;
+    out.push(item);
   }
   return out;
 }
 
 /* ---------------------------------- hooks ---------------------------------- */
 
-/** Opening-line frames per style, 8 each, 40 total. {topic} and {Topic} are the caller's topic. */
+/** Opening-line frames per style, 8 each, 72 total. {topic} and {Topic} are the caller's topic. */
 export const HOOK_FRAMES: Record<HookStyle, string[]> = {
   curiosity: [
     "Nobody tells you this about {topic}, and it changes everything.",
@@ -189,23 +301,104 @@ export const HOOK_FRAMES: Record<HookStyle, string[]> = {
     "Three words for your {topic}: not like that.",
     "Wait. Before you try {topic} again, watch what happens here.",
   ],
+  contrarian: [
+    "Everyone does {topic} this way. I stopped, and here is what happened instead.",
+    "The best {topic} advice I ever got was to ignore the most popular {topic} advice.",
+    "I do the opposite of what most {topic} guides say. Let me show you why.",
+    "If everyone agrees on {topic}, someone is not thinking. Here is the other side.",
+    "I quit the standard {topic} routine and my results got simpler, not worse.",
+    "The {topic} advice you hear everywhere? I tested the reverse for a month.",
+    "Popular {topic} wisdom says go bigger. I went smaller, on purpose.",
+    "You do not need a better {topic} method. You need to drop the fashionable one.",
+  ],
+  numbers: [
+    "3 numbers tell you more about {topic} than a month of guessing.",
+    "I tracked {topic} for 30 days. These 5 numbers changed my approach.",
+    "90% of {topic} comes down to these 4 measurable things.",
+    "Two minutes, seven {topic} facts, zero opinions. Starting now.",
+    "The one {topic} number nobody checks, and it explains almost everything.",
+    "I measured {topic} 100 times. Here is the pattern in the data.",
+    "By the numbers: what 6 weeks of {topic} actually produced.",
+    "If you only remember 3 {topic} statistics, make it these three.",
+  ],
+  "open-loop": [
+    "I will show you the {topic} result at the end. First, watch what caused it.",
+    "There is one {topic} moment in this video I cannot explain yet. Keep watching.",
+    "This {topic} story has a missing piece, and it arrives in the last ten seconds.",
+    "I opened a {topic} question yesterday and I still owe you the answer. Here it is, at the end.",
+    "Do not skip: the {topic} detail I plant now pays off right before the finish.",
+    "Something about {topic} goes wrong halfway through this video. See if you spot it first.",
+    "I am leaving this {topic} thread open on purpose. It closes at the end.",
+    "Remember this first {topic} clip. You will need it to understand the ending.",
+  ],
+  unexpected: [
+    "My {topic} started working the day I made it worse on purpose.",
+    "The most useful {topic} tool I own is not a tool at all.",
+    "I learned more about {topic} from failing publicly than from any course.",
+    "This {topic} video begins with the ending, because the beginning makes no sense yet.",
+    "A completely unrelated hobby fixed my {topic}. Stay with me on this one.",
+    "The {topic} breakthrough came from the attempt I almost deleted.",
+    "I asked a child to explain {topic}. Their answer was better than the experts'.",
+    "Nothing about this {topic} setup should work. Watch it work anyway.",
+  ],
 };
 
-export interface HooksInput { topic: string; style: HookStyle; platform: Platform; count: number }
+/**
+ * Psychology explanations for each hook style — written content, attached to every hook.
+ * Each explains why the style can hold attention; none promises reach or any outcome.
+ */
+export const HOOK_MECHANISMS: Record<HookStyle, string> = {
+  curiosity:
+    "Curiosity works through the information gap: the line names something the viewer does not yet know, and the mind wants to close that gap. The payoff has to arrive in the video, or the gap feels like a trick.",
+  "problem-solution":
+    "This style starts from pain-point recognition: the viewer sees their own frustration named accurately in the first seconds. Naming the problem clearly also opens a resolution, which gives them a reason to stay for the fix.",
+  story:
+    "Story hooks use narrative transportation: once a viewer is following a person through a sequence of events, attention follows the outcome. An unfinished personal story is harder to abandon than a list of facts.",
+  controversial:
+    "A strong opinion creates opinion arousal: viewers who agree feel recognised and viewers who disagree feel a pull to respond. That tension holds attention, as long as the position is one you can actually defend.",
+  "pattern-interrupt":
+    "A pattern interrupt violates a prediction: the opening does not match what the viewer expected this kind of video to do. The mismatch forces a brief re-evaluation, and that pause is the moment attention resets.",
+  contrarian:
+    "Contrarian hooks challenge a belief the viewer already holds, which touches identity as well as information. Defending or revising a belief takes mental work, and that work keeps the viewer engaged with the argument.",
+  numbers:
+    "Specific numbers make a claim feel concrete and checkable rather than vague. A stated count also sets an expectation the viewer can track, which gives the rest of the video a simple structure to follow.",
+  "open-loop":
+    "An open loop leaves a question deliberately unanswered, and the Zeigarnik effect means unfinished tasks stay active in memory. The viewer keeps watching to close the loop, provided the video actually closes it.",
+  unexpected:
+    "An unexpected statement creates novelty and surprise: it does not fit the viewer's existing picture of the topic. Surprise signals that there may be something new to learn, which earns a few more seconds of attention.",
+};
+
+export interface HooksInput {
+  topic: string;
+  style: HookStyle;
+  platform: Platform;
+  count: number;
+  profile?: BrandProfile | null;
+}
 
 export function generateHooks(input: HooksInput): GeneratedItem[] {
   const topic = trimInput(input.topic, "your topic");
+  const voice = input.profile?.voice;
   const count = clampCount(input.count);
   const rnd = mulberry32(hashSeed(JSON.stringify(["hooks", topic, input.style, input.platform])));
   const frames = shuffled(HOOK_FRAMES[input.style], rnd);
+  const mechanism = HOOK_MECHANISMS[input.style];
   const out: GeneratedItem[] = [];
-  for (let i = 0; i < count; i++) {
-    const frame = frames[i % frames.length]!;
-    const again = i >= frames.length;
-    out.push({
+  // Refill rule (profile avoid list): keep cycling the shuffled frames for up to 3 cycles,
+  // dropping any item whose title or detail uses an avoided word; return what survives if short.
+  const maxAttempts = frames.length * 3;
+  for (let attempt = 0; attempt < maxAttempts && out.length < count; attempt++) {
+    const frame = frames[attempt % frames.length]!;
+    const again = attempt >= frames.length;
+    const item: GeneratedItem = {
       title: fill(frame, { Topic: lead(topic), topic }),
-      detail: again ? `Variation for ${platformLabel(input.platform)}: same line, new delivery, slower first three words.` : `Made for ${platformLabel(input.platform)}: say it in the first three seconds.`,
-    });
+      detail: again
+        ? `Variation for ${platformLabel(input.platform)}: same line, new delivery, slower first three words.`
+        : `Made for ${platformLabel(input.platform)}: say it in the first three seconds.`,
+      mechanism,
+    };
+    if (voice && (containsAvoidedWord(item.title, voice) || containsAvoidedWord(item.detail ?? "", voice))) continue;
+    out.push(item);
   }
   return out;
 }
@@ -290,15 +483,27 @@ function tagsFor(topic: string, platform: Platform, rnd: () => number): string[]
   return shuffled(unique, rnd).slice(0, 10);
 }
 
-export interface CaptionInput { topic: string; platform: Platform; tone: CaptionTone }
+export interface CaptionInput {
+  topic: string;
+  platform: Platform;
+  tone: CaptionTone;
+  profile?: BrandProfile | null;
+}
 
 /** Three caption options per run, each with its own hashtag set. */
 export function generateCaptions(input: CaptionInput): GeneratedItem[] {
   const topic = trimInput(input.topic, "your topic");
+  const voice = input.profile?.voice;
   const rnd = mulberry32(hashSeed(JSON.stringify(["captions", topic, input.platform, input.tone])));
   const frames = shuffled(CAPTION_FRAMES[input.tone], rnd);
-  return frames.slice(0, 3).map((frame) => ({
-    title: fill(frame, { Topic: lead(topic), topic }),
+  const titles = frames.map((frame) => fill(frame, { Topic: lead(topic), topic }));
+  // Profile avoid list: captions have a fixed pool of 6 frames and always return 3, so there is
+  // no refill cycle — pick the first 3 surviving frames in shuffled order. If fewer than 3
+  // survive, return the survivors (in practice at least 1, unless the topic itself is avoided).
+  const surviving = voice ? titles.filter((title) => !containsAvoidedWord(title, voice)) : titles;
+  const ctas = (voice?.preferredCtas ?? []).filter((cta) => cta.trim().length > 0);
+  return surviving.slice(0, 3).map((title, index) => ({
+    title: ctas.length ? `${title}\n${ctas[index % ctas.length]}` : title,
     hashtags: tagsFor(topic, input.platform, rnd),
   }));
 }
@@ -307,7 +512,12 @@ export function generateCaptions(input: CaptionInput): GeneratedItem[] {
 export const LIBRARY_COUNTS = {
   ideaFormatsPerPlatform: Object.fromEntries(Object.entries(IDEA_FORMATS).map(([k, v]) => [k, v.length])),
   ideaAngles: IDEA_ANGLES.length,
+  categoryFormatsPerCategory: Object.fromEntries(
+    Object.entries(CATEGORY_FORMATS).map(([k, v]) => [k, v.length]),
+  ),
+  categoryFormats: Object.values(CATEGORY_FORMATS).reduce((total, frames) => total + frames.length, 0),
   hookFramesPerStyle: Object.fromEntries(Object.entries(HOOK_FRAMES).map(([k, v]) => [k, v.length])),
+  hookMechanisms: Object.keys(HOOK_MECHANISMS).length,
   captionFramesPerTone: Object.fromEntries(Object.entries(CAPTION_FRAMES).map(([k, v]) => [k, v.length])),
   platformTagBanks: Object.fromEntries(Object.entries(PLATFORM_TAGS).map(([k, v]) => [k, v.length])),
   topicClusters: CLUSTERS.length,

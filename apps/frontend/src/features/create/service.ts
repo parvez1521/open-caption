@@ -14,9 +14,10 @@
  * Runners are injected functions, so tests drive every path with fakes — no network, no downloads.
  */
 import type { CaptionInput, HooksInput, IdeasInput } from "./templates";
-import { generateCaptions, generateHooks, generateIdeas, clampCount } from "./templates";
+import { generateCaptions, generateHooks, generateIdeas, clampCount, HOOK_MECHANISMS } from "./templates";
 import { buildPrompt, parseModelOutput, MIN_MODEL_RATIO } from "./prompts";
 import type { GeneratedItem, GeneratorKind, Source } from "./model";
+import type { BrandProfile } from "./brandProfile";
 
 export type AnyInput = IdeasInput | HooksInput | CaptionInput;
 
@@ -37,22 +38,41 @@ const CLOUD_FALLBACK_NOTE = "The free AI service was not available for this batc
 const CLOUD_TO_LOCAL_NOTE = "The free AI service was not available for this batch, so the local model wrote it instead.";
 const CLOUD_AND_LOCAL_NOTE = "The free AI service and the local model were both unavailable for this batch, so it came from the template engine instead.";
 
-export function templateBatch(kind: GeneratorKind, input: AnyInput): GeneratedItem[] {
-  if (kind === "ideas") return generateIdeas(input as IdeasInput);
-  if (kind === "hooks") return generateHooks(input as HooksInput);
-  return generateCaptions(input as CaptionInput);
+/**
+ * Attach the written mechanism explanation for the requested hook style. The mechanism is our
+ * explanation of the style the user picked, so it is honest on every source (template, local
+ * model and cloud alike): parseModelOutput leaves it unset, and this is where it is added.
+ */
+function withMechanism(kind: GeneratorKind, input: AnyInput, items: GeneratedItem[]): GeneratedItem[] {
+  if (kind !== "hooks") return items;
+  const mechanism = HOOK_MECHANISMS[(input as HooksInput).style];
+  if (!mechanism) return items;
+  return items.map((item) => ({ ...item, mechanism }));
+}
+
+export function templateBatch(kind: GeneratorKind, input: AnyInput, profile?: BrandProfile | null): GeneratedItem[] {
+  const effective: AnyInput = profile ? { ...input, profile: (input as AnyInput).profile ?? profile } : input;
+  if (kind === "ideas") return withMechanism(kind, effective, generateIdeas(effective as IdeasInput));
+  if (kind === "hooks") return withMechanism(kind, effective, generateHooks(effective as HooksInput));
+  return generateCaptions(effective as CaptionInput);
 }
 
 const wantedCount = (kind: GeneratorKind, input: AnyInput): number =>
   kind === "captions" ? 3 : clampCount((input as IdeasInput | HooksInput).count);
 
 /** Run one runner and parse; null on ANY failure or when too few usable items came back. */
-async function tryRunner(runner: ModelRunner, kind: GeneratorKind, input: AnyInput): Promise<GeneratedItem[] | null> {
+async function tryRunner(
+  runner: ModelRunner,
+  kind: GeneratorKind,
+  input: AnyInput,
+  profile?: BrandProfile | null,
+): Promise<GeneratedItem[] | null> {
   try {
-    const raw = await runner(buildPrompt(kind, input));
+    const raw = await runner(buildPrompt(kind, input, profile));
     const wanted = wantedCount(kind, input);
     const items = parseModelOutput(kind, raw, wanted);
-    return items.length >= Math.max(1, Math.ceil(wanted * MIN_MODEL_RATIO)) ? items : null;
+    if (items.length < Math.max(1, Math.ceil(wanted * MIN_MODEL_RATIO))) return null;
+    return withMechanism(kind, input, items);
   } catch {
     return null;
   }
@@ -64,6 +84,8 @@ export interface GenerationDeps {
   /** The on-device model, when the visitor opted in and it finished loading. */
   modelEnabled: boolean;
   runModel?: ModelRunner;
+  /** The active Brand Voice profile, when one is selected. Flows into prompts and the template engine. */
+  profile?: BrandProfile | null;
 }
 
 export async function generateContent(
@@ -71,28 +93,29 @@ export async function generateContent(
   input: AnyInput,
   deps: GenerationDeps,
 ): Promise<GenerationOutcome> {
+  const profile = deps.profile ?? null;
   let cloudFailed = false;
   if (deps.runCloud) {
-    const items = await tryRunner(deps.runCloud, kind, input);
+    const items = await tryRunner(deps.runCloud, kind, input, profile);
     if (items) return { items, source: "cloud", fellBack: false };
     cloudFailed = true;
   }
   if (deps.modelEnabled && deps.runModel) {
-    const items = await tryRunner(deps.runModel, kind, input);
+    const items = await tryRunner(deps.runModel, kind, input, profile);
     if (items) {
       return cloudFailed
         ? { items, source: "model", fellBack: true, note: CLOUD_TO_LOCAL_NOTE }
         : { items, source: "model", fellBack: false };
     }
     return {
-      items: templateBatch(kind, input),
+      items: templateBatch(kind, input, profile),
       source: "template",
       fellBack: true,
       note: cloudFailed ? CLOUD_AND_LOCAL_NOTE : FALLBACK_NOTE,
     };
   }
   if (cloudFailed) {
-    return { items: templateBatch(kind, input), source: "template", fellBack: true, note: CLOUD_FALLBACK_NOTE };
+    return { items: templateBatch(kind, input, profile), source: "template", fellBack: true, note: CLOUD_FALLBACK_NOTE };
   }
-  return { items: templateBatch(kind, input), source: "template", fellBack: false };
+  return { items: templateBatch(kind, input, profile), source: "template", fellBack: false };
 }
