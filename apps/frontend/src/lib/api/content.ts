@@ -8,6 +8,11 @@ import { ApiFailure } from "./http";
  * live in features/create/library.ts — the kind list below mirrors the
  * ContentKind union there; change both together.
  *
+ * Kinds: idea, hook, caption, script, repurpose, shot-list, calendar,
+ * carousel, hashtag-group, chat-output, plus analysis and weekly-plan
+ * (Phase 6 — Reel Analyzer breakdowns and weekly plans). The DB column is
+ * free text, so new kinds need no migration; this list is the validation.
+ *
  * Honest degradation: there is no Supabase CLI/token in the build pipeline,
  * so the schema lands when the owner pastes the APPLY file into the SQL
  * Editor. Until then the tables simply do not exist and every query fails
@@ -27,6 +32,8 @@ export const CONTENT_KINDS = [
   "carousel",
   "hashtag-group",
   "chat-output",
+  "analysis",
+  "weekly-plan",
 ] as const;
 
 export const CONTENT_ITEM_COLUMNS =
