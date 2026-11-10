@@ -45,7 +45,9 @@ import { useCompatCopy } from "@/features/upload/useCompatCopy";
 import { etaText } from "./ProcessingPanel";
 import { getSession, useSessionView } from "@/features/transcribe/session";
 import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError } from "@/services/auth/guest";
-import { useWaveform } from "./useWaveform";
+import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
+import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
+import { appendTitleCardClip, transcriptTextOf } from "./titleCard";
 import { toComposition } from "./composition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
@@ -559,6 +561,20 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     }
   };
 
+  /* ---------- A4 (Phase 5): auto punch-in zooms — deterministic plan over the doc +
+   * waveform peaks; applying threads the plan through addSegmentKeyframe and commits
+   * ONCE, so the whole batch is one undo step and every keyframe stays editable. */
+  const autoZoomPeaks = wave.peaks ? { peaks: wave.peaks, hopMs: 1000 / PEAKS_PER_SECOND } : null;
+  const autoZoomCount = editorComp && doc
+    ? generateAutoZoomPlan({ words: doc.words, clips: editorComp.videoClips, peaks: autoZoomPeaks, intensity: "medium" }).zooms.length
+    : 0;
+  const addAutoZooms = (intensity: AutoZoomIntensity) => {
+    if (!editorComp || !doc) return;
+    const plan = generateAutoZoomPlan({ words: doc.words, clips: editorComp.videoClips, peaks: autoZoomPeaks, intensity });
+    const r = applyAutoZooms(editorComp, plan);
+    if (r.comp !== editorComp) commitComposition(r.comp);
+  };
+
   const segmentInspector = selSegmentView && editorComp ? (
     <SegmentInspector
       segment={selSegmentView}
@@ -580,6 +596,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onUpdateEffect={(id, patch) => { const r = updateSegmentEffect(editorComp, selSegmentView.id, id, patch); commitComposition(r.comp, r.docEffect); }}
       onRemoveEffect={(id) => { const r = removeSegmentEffect(editorComp, selSegmentView.id, id); commitComposition(r.comp, r.docEffect); }}
       onMoveEffect={(id, dir) => { const r = moveSegmentEffect(editorComp, selSegmentView.id, id, dir); commitComposition(r.comp, r.docEffect); }}
+      onAutoZooms={addAutoZooms}
+      autoZoomCount={autoZoomCount}
     />
   ) : null;
   const splitVideoRef = useRef<() => void>(() => undefined);
@@ -1021,7 +1039,16 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} />
       : t === "templates" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
       : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} composition={composition} onRelink={device.attach} assets={mediaBin.assets} importing={mediaBin.importing} onImport={mediaBin.importFiles} onDeleteAsset={mediaBin.remove} onPlaceImage={placeImage} />
-      : t === "text" ? <TextPanel {...overlayPanelProps} />
+      : t === "text" ? <TextPanel {...overlayPanelProps} titleCard={doc ? {
+          sourceTitle: data.project.title,
+          transcriptText: transcriptTextOf(doc),
+          // A5: place through the composition commit path — one undo step, and the
+          // item lands in settings.overlays via projectComposition like any overlay
+          onPlace: (item) => {
+            if (editorComp) commitComposition(appendTitleCardClip(editorComp, item));
+            else s.patchSettings({ overlays: [...settings.overlays, item] });
+          },
+        } : undefined} />
       : t === "elements" ? <ElementsPanel {...overlayPanelProps} />
       : t === "adjust" ? <AdjustPanel settings={settings} patch={s.patchSettings} />
       : t === "audio" ? (editorComp ? (
