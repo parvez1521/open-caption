@@ -10,7 +10,8 @@ import { ApiFailure } from "./http";
  *
  * Kinds: idea, hook, caption, script, repurpose, shot-list, calendar,
  * carousel, hashtag-group, chat-output, plus analysis and weekly-plan
- * (Phase 6 — Reel Analyzer breakdowns and weekly plans). The DB column is
+ * (Phase 6 — Reel Analyzer breakdowns and weekly plans), plus planner-card
+ * (Phase 7 — Content Planner cards). The DB column is
  * free text, so new kinds need no migration; this list is the validation.
  *
  * Honest degradation: there is no Supabase CLI/token in the build pipeline,
@@ -34,6 +35,7 @@ export const CONTENT_KINDS = [
   "chat-output",
   "analysis",
   "weekly-plan",
+  "planner-card",
 ] as const;
 
 export const CONTENT_ITEM_COLUMNS =
