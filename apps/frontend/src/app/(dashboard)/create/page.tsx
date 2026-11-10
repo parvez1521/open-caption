@@ -169,6 +169,9 @@ export default function GeneratorsPage() {
   const [repurposeTransform, setRepurposeTransform] = useState<RepurposeTransform>("script-to-linkedin");
   const [repurposeSourceText, setRepurposeSourceText] = useState("");
   const [repurposeError, setRepurposeError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [groupError, setGroupError] = useState<Record<number, string>>({});
+  const [libraryError, setLibraryError] = useState<string | null>(null);
   const [repurposePickId, setRepurposePickId] = useState("");
 
   const [batch, setBatch] = useState<Batch | null>(null);
@@ -308,6 +311,17 @@ export default function GeneratorsPage() {
       setRepurposeError("Add the source text you want to repurpose first.");
       return;
     }
+    // Every generator needs its subject: without one the engines used to write literal
+    // "your topic" content. And sponsored mode must never switch itself off silently —
+    // a cleared disclosure used to drop ALL sponsored enforcement without a word.
+    setFormError(null);
+    if (tab === "scripts" && !scriptTopic.trim()) return setFormError("Add a topic for the script first.");
+    if (tab === "hooks" && !topic.trim()) return setFormError("Add a topic for the hooks first.");
+    if (tab === "ideas" && !niche.trim()) return setFormError("Add your niche or topic first.");
+    if (tab === "captions" && !captionTopic.trim()) return setFormError("Add a topic for the captions first.");
+    if (tab === "captions" && sponsoredOn && !sponsoredDisclosure.trim()) {
+      return setFormError("Sponsored mode needs a disclosure line (for example #ad). Add one above, or turn Sponsored mode off.");
+    }
     setRepurposeError(null);
     setBusy(true);
     try {
@@ -440,7 +454,11 @@ export default function GeneratorsPage() {
       });
       setHashtagGroups((prev) => [created, ...prev]);
       setGroupSaved((prev) => ({ ...prev, [index]: true }));
-    } catch { /* group not saved; the tags stay on the caption itself */ }
+      setGroupError((prev) => ({ ...prev, [index]: "" }));
+    } catch {
+      // never silent: the button must not sit there looking identical after a failed save
+      setGroupError((prev) => ({ ...prev, [index]: "Couldn't save that group — try again." }));
+    }
   };
 
   const updateBeat = (index: number, field: "dialogue" | "onScreenText", value: string) => {
@@ -453,7 +471,12 @@ export default function GeneratorsPage() {
   const deleteLibraryItem = async (id: string) => {
     try {
       await deleteContentItem(id);
-    } catch { /* still remove it from the list on screen; a refresh would show the server truth */ }
+    } catch {
+      // the item stays on screen — removing it anyway would claim a delete that never happened
+      setLibraryError("Couldn't delete that item — it is still saved. Try again.");
+      return;
+    }
+    setLibraryError(null);
     setLibraryItems((prev) => prev.filter((it) => it.id !== id));
     setHashtagGroups((prev) => prev.filter((it) => it.id !== id));
   };
@@ -475,16 +498,14 @@ export default function GeneratorsPage() {
     <StudioShell>
       <div className="px-4 sm:px-10 py-8 sm:py-10 max-w-3xl mx-auto">
         <div className="pb-8 border-b border-sand-200">
-          <p className="font-sora text-[11px] font-semibold uppercase tracking-wider text-sand-500">Creator Studio</p>
           <h1 className="mt-2 font-serif text-3xl sm:text-4xl font-semibold tracking-[-0.015em] text-ink">
-            Content <em className="italic text-sand-600">generators</em>
+            Creator <em className="italic text-sand-600">Studio</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Ideas, opening hooks, full scripts, captions and repurposing, in plainly labelled modes. The template
-            engine builds results from patterns and your inputs: it works offline, instantly, and it is not a model.
-            When the free AI is switched on for this site, a full-size model on a server writes instead — nothing
-            runs on your device. There is also an optional model below that runs on your own device. Every batch
-            shows which one wrote it, and the results you save are kept in your library below.
+            Ideas, opening hooks, full scripts, captions and repurposing. Three writers, and every
+            batch is labelled with the one that wrote it: the free AI (a full-size model on a
+            server), an optional model on your own device, or templates — patterns built from your
+            inputs, instant and offline, not a model.
           </p>
           <div className="mt-4">
             <a href="/create/chat" className={ghostBtn}>AI Studio Chat</a>
@@ -498,13 +519,18 @@ export default function GeneratorsPage() {
               <div className="max-w-xl">
                 <h2 className="font-sora text-[15px] font-bold text-ink">Free AI</h2>
                 <p className="mt-1 text-[13px] text-sand-700">
-                  Switched on for this site. Batches are written by {cloud.modelName} ({cloud.provider}), a
-                  full-size model running on {cloud.provider}&rsquo;s servers — nothing is downloaded to or run on
-                  your device. Your topic text is sent to {cloud.provider} when you generate, and generations are
-                  rate-limited per account so the shared free service lasts. If it is ever unavailable, the template
-                  engine{modelReady ? " or the local model" : ""} steps in automatically — the badge on every batch
-                  always says which one wrote it.
+                  On for this site. {cloud.modelName} ({cloud.provider}) writes your batches — your
+                  topic text is sent to {cloud.provider} when you generate.
                 </p>
+                <details className="mt-2 text-[13px] text-sand-700">
+                  <summary className="cursor-pointer font-semibold text-sand-800">How it works</summary>
+                  <p className="mt-1">
+                    Nothing is downloaded to or run on your device. Generations are rate-limited per
+                    account so the shared free service lasts. If the free AI is ever unavailable, the
+                    template engine{modelReady ? " or the local model" : ""} steps in automatically —
+                    the badge on every batch always says which one wrote it.
+                  </p>
+                </details>
               </div>
               <p className="font-sora text-[12px] font-semibold text-sand-800">On — it writes your batches</p>
             </div>
@@ -517,11 +543,14 @@ export default function GeneratorsPage() {
             <div className="max-w-xl">
               <h2 className="font-sora text-[15px] font-bold text-ink">Optional local model</h2>
               <p className="mt-1 text-[13px] text-sand-700">
-                {LOCAL_MODEL.name} ({LOCAL_MODEL.id}), licence {LOCAL_MODEL.licence}. One-time download of{" "}
-                {LOCAL_MODEL.approxDownloadLabel}, then it runs entirely in this browser tab and is cached for next
-                time. Nothing you type is sent to a server. It is off by default, and the template engine keeps
-                working whether it is on, off or unavailable.
+                Runs entirely in this browser tab — nothing you type is sent to a server. One-time
+                download of {LOCAL_MODEL.approxDownloadLabel}, then it is cached for next time. Off
+                by default; the template engine works either way.
               </p>
+              <details className="mt-2 text-[13px] text-sand-700">
+                <summary className="cursor-pointer font-semibold text-sand-800">Model details</summary>
+                <p className="mt-1">{LOCAL_MODEL.name} ({LOCAL_MODEL.id}), licence {LOCAL_MODEL.licence}.</p>
+              </details>
             </div>
             {modelState.status === "ready" ? (
               <div className="space-y-2 text-right">
@@ -546,7 +575,7 @@ export default function GeneratorsPage() {
             )}
           </div>
           {!canRunLocalModel() ? (
-            <p className="mt-3 text-[12px] text-sand-600">This browser cannot run a local model (it needs Web Workers and WebAssembly). The template engine below works as normal.</p>
+            <p className="mt-3 text-[12px] text-sand-600">This browser can&apos;t run a local model. The template engine below works as normal.</p>
           ) : null}
           {modelState.status === "error" || modelError ? (
             <p className="mt-3 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-3 py-2 text-[12px] text-obsidian">
@@ -561,7 +590,6 @@ export default function GeneratorsPage() {
             <div className="flex flex-wrap items-center gap-4">
               <p className="text-[13px] text-sand-800">
                 Using profile: <span className="font-semibold text-ink">{activeProfile.name}</span>
-                {!useProfile ? <span className="text-sand-600"> — Paused for this session</span> : null}
               </p>
               <div>
                 <label className={labelCls} htmlFor="g-profile">Profile</label>
@@ -652,22 +680,29 @@ export default function GeneratorsPage() {
                   <div className="mt-3 grid gap-4">
                     <div><label className={labelCls} htmlFor="g-spoints">Talking points (one per line)</label><textarea id="g-spoints" className={inputCls} rows={3} value={sponsoredTalking} onChange={(e) => setSponsoredTalking(e.target.value)} placeholder={"One required point per line"} /></div>
                     <div><label className={labelCls} htmlFor="g-stags">Required tags (space or comma separated)</label><input id="g-stags" className={inputCls} value={sponsoredTags} onChange={(e) => setSponsoredTags(e.target.value)} placeholder="e.g. #adpartner #brandname" /></div>
-                    <div><label className={labelCls} htmlFor="g-sdisclosure">Disclosure text</label><input id="g-sdisclosure" className={inputCls} value={sponsoredDisclosure} onChange={(e) => setSponsoredDisclosure(e.target.value)} /></div>
+                    <div>
+                      <label className={labelCls} htmlFor="g-sdisclosure">Disclosure text — goes in every caption</label>
+                      <input id="g-sdisclosure" className={inputCls} value={sponsoredDisclosure} onChange={(e) => setSponsoredDisclosure(e.target.value)} placeholder="#ad" />
+                      {!sponsoredDisclosure.trim() ? (
+                        <p className="mt-1.5 text-[12px] font-medium text-obsidian">Sponsored mode is on but the disclosure is empty — generation will stop until you add one.</p>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
               </div>
             </div>
           )}
+          {formError ? <p role="alert" className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-3 py-2 text-[12px] font-medium text-obsidian">{formError}</p> : null}
           <div className="mt-5 flex flex-wrap items-center gap-4">
             <button onClick={() => void generate()} disabled={busy} className={primaryBtn}>
               {busy ? "Working…" : cloudOn ? "Generate with free AI" : modelReady ? "Generate with local model" : "Generate"}
             </button>
             <span className="text-[12px] text-sand-600">
               {cloudOn
-                ? "The free AI service writes this batch; another mode steps in automatically if it is unavailable."
+                ? "Written by the free AI."
                 : modelReady
-                  ? "The local model is on: it writes this batch, or the template engine steps in if it cannot run."
-                  : "Using the template engine. It is instant and works offline."}
+                  ? "Written by the on-device model."
+                  : "Written by templates — instant, works offline."}
             </span>
           </div>
         </section>
@@ -741,9 +776,11 @@ export default function GeneratorsPage() {
                 <article key={key} className="rounded-xl border border-sand-200 bg-white p-5">
                   <p className="text-[14px] font-medium text-ink whitespace-pre-line">{item.title}</p>
                   {item.detail ? <p className="mt-1 text-[13px] text-sand-700">{item.detail}</p> : null}
-                  {item.mechanism ? (
+                  {item.mechanism && i === 0 ? (
+                    // the mechanism explains the chosen hook STYLE — it is identical on every
+                    // card in the batch, so it is printed once, on the first card
                     <div className="mt-2">
-                      <p className="font-sora text-[12px] font-semibold text-sand-800">Why it works</p>
+                      <p className="font-sora text-[12px] font-semibold text-sand-800">Why this style works</p>
                       <p className="mt-1 text-[13px] text-sand-700">{item.mechanism}</p>
                     </div>
                   ) : null}
@@ -774,6 +811,7 @@ export default function GeneratorsPage() {
                             <label className={labelCls} htmlFor={`group-name-${i}`}>Save tags as group</label>
                             <input id={`group-name-${i}`} className={inputCls} value={groupNames[i] ?? ""} onChange={(e) => setGroupNames((prev) => ({ ...prev, [i]: e.target.value }))} placeholder="Group name" />
                             <button onClick={() => void saveTagsAsGroup(i)} disabled={!!groupSaved[i] || !(groupNames[i] ?? "").trim()} className={ghostBtn}>{groupSaved[i] ? "Saved" : "Save tags as group"}</button>
+                            {groupError[i] ? <span role="alert" className="text-[12px] font-medium text-obsidian">{groupError[i]}</span> : null}
                           </div>
                         </>
                       ) : null}
@@ -789,6 +827,7 @@ export default function GeneratorsPage() {
         <section className="mt-10">
           <h2 className="font-sora text-[15px] font-bold text-ink">Your library</h2>
           {migrationNote ? <p className="mt-1 text-[13px] text-sand-700">{migrationNote}</p> : null}
+          {libraryError ? <p role="alert" className="mt-1 text-[13px] font-medium text-obsidian">{libraryError}</p> : null}
           {libraryReady === null ? (
             <p className="mt-3 text-[13px] text-sand-600">Loading your library…</p>
           ) : libraryReady ? (

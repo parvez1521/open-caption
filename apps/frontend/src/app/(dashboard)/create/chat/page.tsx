@@ -238,7 +238,7 @@ export default function StudioChatPage() {
     }
   };
 
-  const saveItem = async (source: Source, item: GeneratedItem | ScriptDoc, kind: ContentKind) => {
+  const saveItem = async (source: Source, item: GeneratedItem | ScriptDoc, kind: ContentKind): Promise<boolean> => {
     const isScript = kind === "script";
     try {
       await createContentItem({
@@ -249,10 +249,17 @@ export default function StudioChatPage() {
           : ({ item } as Record<string, unknown>),
         source,
       });
+      return true;
     } catch {
       setError("That item could not be saved to your library. Try again.");
+      return false;
     }
   };
+
+  // The source note (what wrote this, and for cloud: that the topic text was sent to the
+  // provider) is shown once, under the first assistant answer — the badge on every later
+  // answer carries the same fact without repeating the paragraph down the thread.
+  const firstAssistantId = messages.find((m) => m.role === "assistant")?.id;
 
   if (!signedIn || libraryReady === null) {
     return (
@@ -431,7 +438,9 @@ export default function StudioChatPage() {
                           <div key={message.id} className="space-y-2">
                             <div className="flex flex-wrap items-center gap-3">
                               <SourceBadge source={source} />
-                              <p className="text-[12px] text-sand-600">{sourceNote(source)}</p>
+                              {message.id === firstAssistantId ? (
+                                <p className="text-[12px] text-sand-600">{sourceNote(source)}</p>
+                              ) : null}
                             </div>
                             {stored.note ? (
                               <p className="rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-3 py-2 text-[12px] text-obsidian">
@@ -440,7 +449,7 @@ export default function StudioChatPage() {
                             ) : null}
                             <ChatOutputView
                               payload={stored.payload}
-                              onSave={(item, kind) => void saveItem(source, item, kind)}
+                              onSave={(item, kind) => saveItem(source, item, kind)}
                             />
                           </div>
                         );

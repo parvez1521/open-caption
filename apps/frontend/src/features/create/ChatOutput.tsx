@@ -21,12 +21,14 @@ const cardCls = "rounded-xl border border-sand-200 bg-white p-5";
 
 interface ChatOutputViewProps {
   payload: ChatPayload;
-  onSave?: (item: GeneratedItem | ScriptDoc, kind: ContentKind) => void;
+  /** resolves true only when the item actually landed in the library */
+  onSave?: (item: GeneratedItem | ScriptDoc, kind: ContentKind) => Promise<boolean>;
 }
 
 export function ChatOutputView({ payload, onSave }: ChatOutputViewProps) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+  const [failedKeys, setFailedKeys] = useState<Set<string>>(new Set());
 
   const copy = async (key: string, text: string) => {
     try {
@@ -36,21 +38,35 @@ export function ChatOutputView({ payload, onSave }: ChatOutputViewProps) {
     } catch { /* clipboard unavailable: the text stays selectable on screen */ }
   };
 
-  const save = (key: string, item: GeneratedItem | ScriptDoc) => {
+  const save = async (key: string, item: GeneratedItem | ScriptDoc) => {
     if (!onSave) return;
-    onSave(item, CHAT_SAVE_KIND[payload.outputType]);
-    setSavedKeys((prev) => new Set(prev).add(key));
+    // "Saved" is only claimed after the save resolves — it used to be set unconditionally,
+    // so a failed save still showed "Saved" (the page's error banner was the only tell)
+    const ok = await onSave(item, CHAT_SAVE_KIND[payload.outputType]);
+    if (ok) {
+      setSavedKeys((prev) => new Set(prev).add(key));
+      setFailedKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    } else {
+      setFailedKeys((prev) => new Set(prev).add(key));
+    }
   };
 
   const actions = (key: string, copyText: string, item: GeneratedItem | ScriptDoc) => (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="mt-3 flex flex-wrap items-center gap-2">
       <button onClick={() => void copy(key, copyText)} className={ghostBtn}>
         {copiedKey === key ? "Copied" : "Copy"}
       </button>
       {onSave ? (
-        <button onClick={() => save(key, item)} disabled={savedKeys.has(key)} className={ghostBtn}>
+        <button onClick={() => void save(key, item)} disabled={savedKeys.has(key)} className={ghostBtn}>
           {savedKeys.has(key) ? "Saved" : "Save to library"}
         </button>
+      ) : null}
+      {failedKeys.has(key) && !savedKeys.has(key) ? (
+        <span role="alert" className="text-[12px] font-medium text-obsidian">Couldn&apos;t save — try again.</span>
       ) : null}
     </div>
   );
