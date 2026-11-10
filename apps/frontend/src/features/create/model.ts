@@ -1,8 +1,11 @@
 /**
- * Creator Studio generators: shared types, the local-model record and the honest source labelling.
+ * Creator Studio generators: shared types, the model records and the honest source labelling.
  *
- * Two generation sources exist and they are never blurred:
+ * Three generation sources exist and they are never blurred:
  *   - "template": the built-in pattern engine (templates.ts). Deterministic, works offline, NOT a model.
+ *   - "cloud":    a full-size model on a server (Groq free tier), reached via /api/v1/create/generate
+ *                 when the site has a provider key configured. The primary AI path — nothing runs on
+ *                 the visitor's device; their topic text IS sent to the provider (cloudAi.ts).
  *   - "model":    one small open-weight model that runs on the visitor's own device, opt-in only (localModel.ts).
  * Every batch of output carries its source, and `sourceBadge` is the single place that wording lives.
  */
@@ -11,7 +14,7 @@ export type GeneratorKind = "ideas" | "hooks" | "captions";
 export type Platform = "reels" | "shorts" | "youtube" | "tiktok";
 export type HookStyle = "curiosity" | "problem-solution" | "story" | "controversial" | "pattern-interrupt";
 export type CaptionTone = "friendly" | "professional" | "bold" | "funny" | "minimal";
-export type Source = "template" | "model";
+export type Source = "template" | "model" | "cloud";
 
 export const PLATFORMS: { id: Platform; label: string }[] = [
   { id: "reels", label: "Instagram Reels" },
@@ -65,12 +68,32 @@ export const LOCAL_MODEL = {
   maxNewTokens: 384,
 } as const;
 
+/**
+ * The site's free cloud AI. Provider choice verified 2026-11-10 against official pages (full
+ * comparison in the project research notes, free-ai-options.md): Groq's Free Plan is a standing tier
+ * whose production model openai/gpt-oss-120b is a 120B-class open-weight flagship — 30 requests/min,
+ * 1,000/day, 200,000 tokens/day at organisation level; no card; no training on inputs. The server
+ * record (endpoint, key handling, the GROQ_MODEL override) lives in lib/api/cloudAi.ts; this record
+ * names the DEFAULT model for labelling — if the default model ever changes, change both together.
+ */
+export const CLOUD_AI = {
+  provider: "Groq",
+  modelId: "openai/gpt-oss-120b",
+  modelName: "GPT-OSS 120B",
+} as const;
+
 /** The visible source badge for one batch of output. The template engine is never called AI, anywhere. */
 export const sourceBadge = (source: Source): string =>
-  source === "model" ? `Local model · ${LOCAL_MODEL.name} · runs on your device` : "Template engine";
+  source === "cloud"
+    ? `Free AI · ${CLOUD_AI.modelName} (${CLOUD_AI.provider})`
+    : source === "model"
+      ? `Local model · ${LOCAL_MODEL.name} · runs on your device`
+      : "Template engine";
 
 /** Plain-language explanation shown next to the badge. */
 export const sourceNote = (source: Source): string =>
-  source === "model"
-    ? "Written by the small model running in this browser tab. Nothing was sent to a server."
-    : "Built by the built-in pattern engine from your inputs. No model was used and nothing left this tab.";
+  source === "cloud"
+    ? `Written by ${CLOUD_AI.modelName}, a full-size model served by ${CLOUD_AI.provider} — nothing ran on your device. Your topic text was sent to ${CLOUD_AI.provider} to write this batch.`
+    : source === "model"
+      ? "Written by the small model running in this browser tab. Nothing was sent to a server."
+      : "Built by the built-in pattern engine from your inputs. No model was used and nothing left this tab.";

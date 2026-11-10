@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { generateContent, type ModelRunner } from "../service";
 import { buildPrompt, parseModelOutput } from "../prompts";
-import { LOCAL_MODEL, sourceBadge, sourceNote } from "../model";
+import { CLOUD_AI, LOCAL_MODEL, sourceBadge, sourceNote } from "../model";
 
 const ideas = { niche: "home workouts", platform: "reels" as const, audience: "busy parents", count: 4 };
 const hooks = { topic: "morning routines", style: "curiosity" as const, platform: "shorts" as const, count: 3 };
@@ -70,6 +70,68 @@ describe("generation service routing", () => {
   });
 });
 
+const goodHooks: ModelRunner = async () =>
+  "Stop scrolling for this one\nNobody films the first step\nYour mornings are lying to you";
+
+describe("cloud routing (the free AI path)", () => {
+  it("routes to the cloud when a cloud runner is supplied and the output parses", async () => {
+    const out = await generateContent("hooks", hooks, { runCloud: goodHooks, modelEnabled: false });
+    expect(out.source).toBe("cloud");
+    expect(out.fellBack).toBe(false);
+    expect(out.items).toHaveLength(3);
+    expect(out.items[0]!.title).toBe("Stop scrolling for this one");
+  });
+
+  it("prefers the cloud over the local model when both are available", async () => {
+    const runModel = vi.fn(goodHooks);
+    const out = await generateContent("hooks", hooks, { runCloud: goodHooks, modelEnabled: true, runModel });
+    expect(out.source).toBe("cloud");
+    expect(runModel).not.toHaveBeenCalled();
+  });
+
+  it("falls back to templates with a note when the cloud runner throws (rate limit, outage)", async () => {
+    const runCloud: ModelRunner = async () => { throw new Error("429 from provider"); };
+    const out = await generateContent("ideas", ideas, { runCloud, modelEnabled: false });
+    expect(out.source).toBe("template");
+    expect(out.fellBack).toBe(true);
+    expect(out.note).toContain("free AI service was not available");
+    expect(out.items).toHaveLength(4);
+  });
+
+  it("falls back to templates when the cloud returns unusable text", async () => {
+    const runCloud: ModelRunner = async () => "ok";
+    const out = await generateContent("hooks", hooks, { runCloud, modelEnabled: false });
+    expect(out.source).toBe("template");
+    expect(out.fellBack).toBe(true);
+    expect(out.items).toHaveLength(3);
+  });
+
+  it("steps down to the local model when the cloud fails and the local model works", async () => {
+    const runCloud: ModelRunner = async () => { throw new Error("upstream down"); };
+    const out = await generateContent("hooks", hooks, { runCloud, modelEnabled: true, runModel: goodHooks });
+    expect(out.source).toBe("model");
+    expect(out.fellBack).toBe(true);
+    expect(out.note).toContain("local model wrote it");
+  });
+
+  it("names both failures when cloud and local both fail", async () => {
+    const down: ModelRunner = async () => { throw new Error("nope"); };
+    const out = await generateContent("hooks", hooks, { runCloud: down, modelEnabled: true, runModel: down });
+    expect(out.source).toBe("template");
+    expect(out.fellBack).toBe(true);
+    expect(out.note).toContain("free AI service and the local model were both unavailable");
+  });
+
+  it("parses caption lines into text plus hashtags on the cloud path", async () => {
+    const runCloud: ModelRunner = async () =>
+      "Trail day done right :: #trailrunning #running\nSunrise miles club :: #trailrunning #sunrise\nMud is a feature :: #trailrunning #mudrun";
+    const out = await generateContent("captions", captions, { runCloud, modelEnabled: false });
+    expect(out.source).toBe("cloud");
+    expect(out.items).toHaveLength(3);
+    expect(out.items[0]!.hashtags).toContain("#trailrunning");
+  });
+});
+
 describe("prompts and parsing", () => {
   it("builds a bounded, format-exact prompt per kind", () => {
     const p = buildPrompt("ideas", ideas);
@@ -113,5 +175,14 @@ describe("honest labelling", () => {
     expect(LOCAL_MODEL.licence).toBe("Apache-2.0");
     expect(LOCAL_MODEL.approxDownloadLabel).toContain("210 MB");
     expect(LOCAL_MODEL.maxNewTokens).toBeLessThanOrEqual(512);
+  });
+
+  it("names the cloud source as free AI with model and provider, and says the text was sent", () => {
+    const badge = sourceBadge("cloud");
+    expect(badge).toBe(`Free AI · ${CLOUD_AI.modelName} (${CLOUD_AI.provider})`);
+    expect(badge).toContain("Free AI");
+    expect(CLOUD_AI.modelId).toBe("openai/gpt-oss-120b");
+    expect(sourceNote("cloud")).toContain("nothing ran on your device");
+    expect(sourceNote("cloud")).toContain("sent to Groq");
   });
 });

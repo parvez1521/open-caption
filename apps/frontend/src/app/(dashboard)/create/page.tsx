@@ -20,6 +20,7 @@ import {
   type Source,
 } from "@/features/create/model";
 import { generateContent, type GenerationOutcome } from "@/features/create/service";
+import { fetchCloudAiStatus, runCloudModel, type CloudAiStatus } from "@/features/create/cloudAi";
 import { addDraft, loadDrafts, removeDraft, type Draft } from "@/features/create/drafts";
 import {
   canRunLocalModel,
@@ -77,6 +78,7 @@ export default function GeneratorsPage() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [modelState, setModelState] = useState<ModelState>(() => getModelState());
   const [modelError, setModelError] = useState<string | null>(null);
+  const [cloud, setCloud] = useState<CloudAiStatus | null>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -85,7 +87,12 @@ export default function GeneratorsPage() {
     }
     setSignedIn(true);
     setDrafts(loadDrafts());
+    // Is the site's free AI switched on? One cached probe; null/unconfigured = the cloud path
+    // simply does not exist and the page behaves exactly as before.
+    void fetchCloudAiStatus().then(setCloud);
   }, [router]);
+
+  const cloudOn = !!cloud?.configured;
 
   useEffect(() => onModelState(setModelState), []);
 
@@ -110,6 +117,7 @@ export default function GeneratorsPage() {
             ? { topic, style: hookStyle, platform: hooksPlatform, count: hooksCount }
             : { topic: captionTopic, platform: captionPlatform, tone };
       const outcome: GenerationOutcome = await generateContent(tab, input, {
+        runCloud: cloudOn ? runCloudModel : undefined,
         modelEnabled: modelReady,
         runModel: runLocalModel,
       });
@@ -143,12 +151,33 @@ export default function GeneratorsPage() {
             Content <em className="italic text-sand-600">generators</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Ideas, opening hooks and caption suggestions, in two plainly labelled modes. The template engine builds
-            results from patterns and your inputs: it works offline, instantly, and it is not a model. If you switch
-            the optional local model on below, a small open-weight model runs on your own device instead. Every batch
-            shows which one wrote it.
+            Ideas, opening hooks and caption suggestions, in plainly labelled modes. The template engine builds
+            results from patterns and your inputs: it works offline, instantly, and it is not a model. When the free
+            AI is switched on for this site, a full-size model on a server writes instead — nothing runs on your
+            device. There is also an optional model below that runs on your own device. Every batch shows which one
+            wrote it.
           </p>
         </div>
+
+        {/* Free AI: shown only when this deployment has a provider key configured (status probed on load) */}
+        {cloudOn && cloud ? (
+          <section className="mt-8 rounded-xl border border-sand-200 bg-white p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-xl">
+                <h2 className="font-sora text-[15px] font-bold text-ink">Free AI</h2>
+                <p className="mt-1 text-[13px] text-sand-700">
+                  Switched on for this site. Batches are written by {cloud.modelName} ({cloud.provider}), a
+                  full-size model running on {cloud.provider}&rsquo;s servers — nothing is downloaded to or run on
+                  your device. Your topic text is sent to {cloud.provider} when you generate, and generations are
+                  rate-limited per account so the shared free service lasts. If it is ever unavailable, the template
+                  engine{modelReady ? " or the local model" : ""} steps in automatically — the badge on every batch
+                  always says which one wrote it.
+                </p>
+              </div>
+              <p className="font-sora text-[12px] font-semibold text-sand-800">On — it writes your batches</p>
+            </div>
+          </section>
+        ) : null}
 
         {/* Local model: off by default, explicit opt-in with name, licence and size shown first */}
         <section className="mt-8 rounded-xl border border-sand-200 bg-white p-6">
@@ -236,10 +265,14 @@ export default function GeneratorsPage() {
           )}
           <div className="mt-5 flex flex-wrap items-center gap-4">
             <button onClick={() => void generate()} disabled={busy} className={primaryBtn}>
-              {busy ? "Working…" : modelReady ? "Generate with local model" : "Generate"}
+              {busy ? "Working…" : cloudOn ? "Generate with free AI" : modelReady ? "Generate with local model" : "Generate"}
             </button>
             <span className="text-[12px] text-sand-600">
-              {modelReady ? "The local model is on: it writes this batch, or the template engine steps in if it cannot run." : "Using the template engine. It is instant and works offline."}
+              {cloudOn
+                ? "The free AI service writes this batch; another mode steps in automatically if it is unavailable."
+                : modelReady
+                  ? "The local model is on: it writes this batch, or the template engine steps in if it cannot run."
+                  : "Using the template engine. It is instant and works offline."}
             </span>
           </div>
         </section>
