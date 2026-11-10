@@ -212,20 +212,98 @@ export type TrackState = z.infer<typeof TrackStateSchema>;
 export const DEFAULT_TRACK_STATE: TrackState = { locked: false, visible: true, muted: false };
 
 /**
- * One contiguous piece of the single source video, in SOURCE-video milliseconds.
- * The stored segments, in array order, are an ordered partition of one contiguous
- * source span: segment i+1 starts (in source time) where segment i ends. Split
- * points create segments; Stage B has no jump-cut/removal representation, so a
- * discontinuity between consecutive segments is invalid data, not a feature.
+ * Per-segment visual transform (Stage C / Phase 4 Run 2): crop insets as fractions of the
+ * source frame removed from each edge, a rotation, mirror flips, a scale and a centre offset
+ * (fractions of the canvas). Every field defaults to the identity, so a segment that never
+ * touched a transform control stores exactly {@link IDENTITY_SEGMENT_TRANSFORM}.
+ */
+export const SegmentTransformSchema = z.object({
+  cropLeft: z.number().min(0).max(0.9).default(0),
+  cropTop: z.number().min(0).max(0.9).default(0),
+  cropRight: z.number().min(0).max(0.9).default(0),
+  cropBottom: z.number().min(0).max(0.9).default(0),
+  rotateDeg: z.number().min(-180).max(180).default(0),
+  flipH: z.boolean().default(false),
+  flipV: z.boolean().default(false),
+  scale: z.number().min(0.1).max(4).default(1),
+  offsetX: z.number().min(-1).max(1).default(0),
+  offsetY: z.number().min(-1).max(1).default(0),
+});
+export type SegmentTransform = z.infer<typeof SegmentTransformSchema>;
+export const IDENTITY_SEGMENT_TRANSFORM: SegmentTransform = {
+  cropLeft: 0,
+  cropTop: 0,
+  cropRight: 0,
+  cropBottom: 0,
+  rotateDeg: 0,
+  flipH: false,
+  flipV: false,
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+};
+
+/**
+ * A transition INTO a segment from its predecessor (Stage C / Phase 4 Run 2). At render the
+ * two clips overlap by `durationMs`, so a transition compresses the total composition
+ * duration (see {@link compositionDurationMs}). Only meaningful on segments at index ≥ 1.
+ */
+export const SegmentTransitionSchema = z.object({
+  type: z.enum(["fade", "wipe", "slide", "zoom", "blur"]),
+  durationMs: z.number().int().min(100).max(2000),
+});
+export type SegmentTransition = z.infer<typeof SegmentTransitionSchema>;
+
+/**
+ * One piece of video on the timeline, in SOURCE-video milliseconds. At Stage B the stored
+ * segments were a contiguous partition of one source span; Stage C (Gate G4) lifts that
+ * constraint — segments are now independent source ranges laid out on the TIMELINE in array
+ * order, so a source discontinuity between neighbours is a legal jump cut, not invalid data.
+ *
+ * Run-2 fields, ALL defaulted so pre-Run-2 stored data parses identically:
+ * - `playbackRate` — the source plays at this rate; the segment's TIMELINE duration is
+ *   `(sourceOutMs − sourceInMs) / playbackRate` (see {@link segmentTimelineDurationMs}).
+ * - `transform` — per-segment crop/rotate/flip/scale/offset; identity by default.
+ * - `transitionIn` — transition from the previous segment; null = a plain cut.
+ * - `assetId` — a device-local media-bin asset (a reversed-video conform or a freeze still)
+ *   that replaces the project's main source for this segment; null = the main source.
+ * - `still` — a freeze-frame still clip: sourceIn/Out are a PSEUDO-span whose length is the
+ *   on-screen duration (played at rate 1), not a range of moving source video.
  */
 export const VideoSegmentSchema = z
   .object({
     id: z.string().min(1),
     sourceInMs: z.number().min(0),
     sourceOutMs: z.number().min(0),
+    playbackRate: z.number().min(0.25).max(4).default(1),
+    transform: SegmentTransformSchema.default(IDENTITY_SEGMENT_TRANSFORM),
+    transitionIn: SegmentTransitionSchema.nullable().default(null),
+    assetId: z.string().nullable().default(null),
+    still: z.boolean().default(false),
   })
   .refine((s) => s.sourceOutMs > s.sourceInMs, { message: "sourceOutMs must be after sourceInMs", path: ["sourceOutMs"] });
 export type VideoSegment = z.infer<typeof VideoSegmentSchema>;
+
+/** The on-screen (timeline) duration of one segment: its source span played at its rate. */
+export function segmentTimelineDurationMs(seg: Pick<VideoSegment, "sourceInMs" | "sourceOutMs" | "playbackRate">): number {
+  return Math.round((seg.sourceOutMs - seg.sourceInMs) / seg.playbackRate);
+}
+
+/** Sum of the segments' timeline durations, before transitions compress the joins. */
+export function segmentsTimelineDurationMs(segs: readonly Pick<VideoSegment, "sourceInMs" | "sourceOutMs" | "playbackRate">[]): number {
+  return segs.reduce((sum, seg) => sum + segmentTimelineDurationMs(seg), 0);
+}
+
+/**
+ * The rendered duration of a segment list: the sum of timeline durations minus every
+ * transition on segments[1..] (each transition overlaps its two neighbours by its full
+ * duration). With fewer than 2 segments there are no joins, so nothing is subtracted.
+ */
+export function compositionDurationMs(segs: readonly (Pick<VideoSegment, "sourceInMs" | "sourceOutMs" | "playbackRate"> & { transitionIn?: SegmentTransition | null })[]): number {
+  if (segs.length < 2) return segmentsTimelineDurationMs(segs);
+  const overlap = segs.slice(1).reduce((sum, seg) => sum + (seg.transitionIn?.durationMs ?? 0), 0);
+  return Math.max(0, segmentsTimelineDurationMs(segs) - overlap);
+}
 
 /** A named point on the PROJECT (rendered) timeline. `atMs` is project time, not source time. */
 export const CompositionMarkerSchema = z.object({
@@ -290,6 +368,19 @@ export const EMPTY_COMPOSITION_SETTINGS: CompositionSettings = {
 };
 export const DEFAULT_COMPOSITION_SETTINGS: CompositionSettings = EMPTY_COMPOSITION_SETTINGS;
 
+/**
+ * Project canvas (Stage C / Phase 4 Run 2): the output aspect — "source" keeps the source
+ * video's own aspect, the others reframe onto that canvas — and what fills the frame area
+ * the (possibly reframed / transformed) video does not cover: "blur" (a blurred stretch of
+ * the video itself) or a CSS colour string.
+ */
+export const CanvasSettingsSchema = z.object({
+  aspect: z.enum(["source", "9:16", "16:9", "1:1", "4:5"]).default("source"),
+  background: z.string().min(1).default("blur"),
+});
+export type CanvasSettings = z.infer<typeof CanvasSettingsSchema>;
+export const DEFAULT_CANVAS_SETTINGS: CanvasSettings = { aspect: "source", background: "blur" };
+
 export const ProjectSettingsSchema = z.object({
   platform: PlatformSchema.default("custom"),
   maxWordsPerCard: z.number().int().min(1).max(12).default(DEFAULT_WORDS_PER_CARD),
@@ -315,6 +406,8 @@ export const ProjectSettingsSchema = z.object({
   exportSettings: ExportSettingsSchema.default({ resolution: "1080p", fps: 30 }),
   /** Clipper projects only: the source-video range this project is a clip of; null = whole video */
   clipRange: ClipRangeSchema.nullable().default(null),
+  /** output canvas: aspect reframe + background fill ("blur" or a CSS colour); defaults = source aspect, blur fill */
+  canvas: CanvasSettingsSchema.default({ aspect: "source", background: "blur" }),
   /** Stage-B composition slice (video segments + markers + track state); empty = pre-Stage-B shape */
   composition: CompositionSettingsSchema.default({
     version: 1,

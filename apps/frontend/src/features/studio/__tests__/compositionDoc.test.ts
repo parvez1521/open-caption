@@ -22,6 +22,20 @@ import {
  * and the partition guard must trip on hand-broken compositions.
  */
 
+/** The Run-2 editor-clip defaults every pre-Run-2 segment builds with. */
+const CLIP_DEFAULTS = {
+  playbackRate: 1,
+  transform: {
+    cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0,
+    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0,
+  },
+  transitionIn: null,
+  assetId: null,
+  still: false,
+} as const;
+/** The same defaults in stored-segment shape (for projected-settings expectations). */
+const SEG_DEFAULTS = CLIP_DEFAULTS;
+
 const word = (id: string, text: string, startMs: number, endMs: number): Word => ({ id, text, startMs, endMs });
 const page = (id: string, words: Word[]): Page => ({
   id,
@@ -104,7 +118,7 @@ describe("buildEditorComposition", () => {
   it("synthesises a single main-video clip from the view for a plain project", () => {
     const comp = plainComp();
     expect(comp.videoClips).toEqual([
-      { id: "main-video", kind: "video", startMs: 0, durationMs: 60_000, sourceInMs: 0, sourceOutMs: 60_000 },
+      { id: "main-video", kind: "video", startMs: 0, durationMs: 60_000, sourceInMs: 0, sourceOutMs: 60_000, ...CLIP_DEFAULTS },
     ]);
     expect(comp.durationMs).toBe(60_000);
     expect(comp.rangeStartMs).toBe(0);
@@ -117,7 +131,7 @@ describe("buildEditorComposition", () => {
   it("synthesises the clipper clip from clipRange + the view's effective duration", () => {
     const comp = clipperComp();
     expect(comp.videoClips).toEqual([
-      { id: "main-video", kind: "video", startMs: 0, durationMs: 33_000, sourceInMs: 32_000, sourceOutMs: 65_000 },
+      { id: "main-video", kind: "video", startMs: 0, durationMs: 33_000, sourceInMs: 32_000, sourceOutMs: 65_000, ...CLIP_DEFAULTS },
     ]);
     expect(comp.durationMs).toBe(33_000);
     expect(comp.rangeStartMs).toBe(32_000);
@@ -126,9 +140,9 @@ describe("buildEditorComposition", () => {
   it("builds the partition from stored segments, laying clips out from 0 in order", () => {
     const comp = segmentedComp();
     expect(comp.videoClips).toEqual([
-      { id: "seg-1", kind: "video", startMs: 0, durationMs: 15_000, sourceInMs: 10_000, sourceOutMs: 25_000 },
-      { id: "seg-2", kind: "video", startMs: 15_000, durationMs: 15_000, sourceInMs: 25_000, sourceOutMs: 40_000 },
-      { id: "seg-3", kind: "video", startMs: 30_000, durationMs: 15_000, sourceInMs: 40_000, sourceOutMs: 55_000 },
+      { id: "seg-1", kind: "video", startMs: 0, durationMs: 15_000, sourceInMs: 10_000, sourceOutMs: 25_000, ...CLIP_DEFAULTS },
+      { id: "seg-2", kind: "video", startMs: 15_000, durationMs: 15_000, sourceInMs: 25_000, sourceOutMs: 40_000, ...CLIP_DEFAULTS },
+      { id: "seg-3", kind: "video", startMs: 30_000, durationMs: 15_000, sourceInMs: 40_000, sourceOutMs: 55_000, ...CLIP_DEFAULTS },
     ]);
     expect(comp.durationMs).toBe(45_000);
     expect(comp.rangeStartMs).toBe(10_000);
@@ -215,7 +229,7 @@ describe("untouched shape", () => {
   it("a single trimmed clip with a marker DOES write its segment explicitly (slice is non-empty anyway)", () => {
     const comp: EditorComposition = { ...clipperComp(), markers: [{ id: "mk-1", atMs: 1000, label: "Note" }] };
     const projected = projectComposition(comp, clipperSettings);
-    expect(projected.composition.videoSegments).toEqual([{ id: "main-video", sourceInMs: 32_000, sourceOutMs: 65_000 }]);
+    expect(projected.composition.videoSegments).toEqual([{ id: "main-video", sourceInMs: 32_000, sourceOutMs: 65_000, ...SEG_DEFAULTS }]);
     expect(projected.composition.markers).toEqual([{ id: "mk-1", atMs: 1000, label: "Note" }]);
     expect(projected.clipRange).toEqual({ startMs: 32_000, endMs: 65_000 });
   });
@@ -291,17 +305,19 @@ describe("partition guard", () => {
     expect(() => projectComposition(broken, segmentedSettings)).toThrow(/gap or overlap/);
   });
 
-  it("projectComposition throws on a source discontinuity", () => {
+  it("a source discontinuity (jump cut) is LEGAL at Stage C: partition holds and it projects", () => {
     const comp = segmentedComp();
-    const broken: EditorComposition = {
+    const jumped: EditorComposition = {
       ...comp,
-      // shift clip 2's whole source window later: duration stays consistent, the source jump is the break
+      // shift clip 2's whole source window later: at Stage B this threw; now it is a jump cut
       videoClips: comp.videoClips.map((c, i) =>
         i === 1 ? { ...c, sourceInMs: c.sourceInMs + 5000, sourceOutMs: c.sourceOutMs + 5000 } : c,
       ),
     };
-    expect(isPartition(broken.videoClips)).toBe(false);
-    expect(() => projectComposition(broken, segmentedSettings)).toThrow(/source discontinuity/);
+    expect(isPartition(jumped.videoClips)).toBe(true);
+    expect(() => projectComposition(jumped, segmentedSettings)).not.toThrow();
+    expect(projectComposition(jumped, segmentedSettings).composition.videoSegments[1])
+      .toMatchObject({ id: "seg-2", sourceInMs: 30_000, sourceOutMs: 45_000 });
   });
 
   it("projectComposition throws when a clip's duration disagrees with its source span", () => {
@@ -311,5 +327,85 @@ describe("partition guard", () => {
       videoClips: comp.videoClips.map((c, i) => (i === 0 ? { ...c, durationMs: c.durationMs - 1000 } : c)),
     };
     expect(() => projectComposition(broken, segmentedSettings)).toThrow(/contiguous partition/);
+  });
+});
+
+describe("Run 2 model: rates, transitions, transforms, jump cuts", () => {
+  const run2Settings = ProjectSettingsSchema.parse({
+    overlays: [...overlayInput],
+    composition: {
+      version: 1,
+      videoSegments: [
+        { id: "seg-1", sourceInMs: 10_000, sourceOutMs: 30_000, playbackRate: 2 },
+        {
+          id: "seg-2", sourceInMs: 50_000, sourceOutMs: 60_000, playbackRate: 0.5,
+          transform: { cropLeft: 0.1, flipH: true, scale: 1.5 },
+          transitionIn: { type: "fade", durationMs: 1000 },
+        },
+        { id: "seg-3", sourceInMs: 5000, sourceOutMs: 9000, assetId: "rev-1", still: false },
+        { id: "seg-4", sourceInMs: 0, sourceOutMs: 3000, assetId: "still-1", still: true },
+      ],
+      markers: [{ id: "mk-1", atMs: 1000, label: "x" }],
+    },
+  });
+  const run2Comp = () =>
+    buildEditorComposition({ view: viewFor(run2Settings, 120_000, 45_000), settings: run2Settings, sourceDurationMs: 120_000 });
+
+  it("builds timeline durations from rates and overlaps the transition join", () => {
+    const comp = run2Comp();
+    // seg-1: 20000/2 = 10000 at 0; seg-2: 10000/0.5 = 20000, starts 10000 − 1000 (fade) = 9000;
+    // seg-3: 4000 at 29000; seg-4 (still): 3000 at 33000; total 36000
+    expect(comp.videoClips.map((c) => [c.id, c.startMs, c.durationMs])).toEqual([
+      ["seg-1", 0, 10_000],
+      ["seg-2", 9000, 20_000],
+      ["seg-3", 29_000, 4000],
+      ["seg-4", 33_000, 3000],
+    ]);
+    expect(comp.durationMs).toBe(36_000);
+    expect(isPartition(comp.videoClips)).toBe(true);
+    expect(comp.videoClips[1]).toMatchObject({
+      playbackRate: 0.5, transitionIn: { type: "fade", durationMs: 1000 },
+      transform: { cropLeft: 0.1, flipH: true, scale: 1.5, cropTop: 0 },
+    });
+    expect(comp.videoClips[2]).toMatchObject({ assetId: "rev-1", still: false });
+    expect(comp.videoClips[3]).toMatchObject({ assetId: "still-1", still: true });
+  });
+
+  it("jump-cut round trip (build → project → build) is exact, source gaps preserved", () => {
+    const first = run2Comp();
+    const projected = projectComposition(first, run2Settings);
+    expect(projected.composition).toEqual(run2Settings.composition);
+    const second = buildEditorComposition({
+      view: viewFor(projected, 120_000, 36_000),
+      settings: projected,
+      sourceDurationMs: 120_000,
+    });
+    expect(second.videoClips).toEqual(first.videoClips);
+    expect(second.durationMs).toBe(first.durationMs);
+  });
+
+  it("a single NON-plain clip (rate 2) writes its segment explicitly instead of the untouched shape", () => {
+    const settings = ProjectSettingsSchema.parse({
+      composition: { videoSegments: [{ id: "only", sourceInMs: 0, sourceOutMs: 20_000, playbackRate: 2 }] },
+    });
+    const comp = buildEditorComposition({
+      view: viewFor(settings, 60_000, 10_000), settings, sourceDurationMs: 60_000,
+    });
+    expect(comp.videoClips).toHaveLength(1);
+    expect(comp.durationMs).toBe(10_000);
+    const projected = projectComposition(comp, settings);
+    expect(projected.composition.videoSegments).toEqual([
+      { id: "only", sourceInMs: 0, sourceOutMs: 20_000, ...SEG_DEFAULTS, playbackRate: 2 },
+    ]);
+  });
+
+  it("projectComposition throws when durationMs disagrees with the rate-derived timeline duration", () => {
+    const comp = run2Comp();
+    const broken: EditorComposition = {
+      ...comp,
+      videoClips: comp.videoClips.map((c, i) => (i === 0 ? { ...c, durationMs: 9999 } : c)),
+    };
+    expect(isPartition(broken.videoClips)).toBe(false);
+    expect(() => projectComposition(broken, run2Settings)).toThrow(/timeline duration/);
   });
 });

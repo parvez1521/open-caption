@@ -14,13 +14,25 @@ import {
  * started switching behaviour before the owner's go-ahead.
  */
 
+/** Run-2 segment defaults (Phase 4 Run 2): the schema fills these on parse, so the fixture carries them explicitly. */
+const SEG_DEFAULTS = {
+  playbackRate: 1,
+  transform: {
+    cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0,
+    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0,
+  },
+  transitionIn: null,
+  assetId: null,
+  still: false,
+} as const;
+
 /** A rich, fully-populated slice: 3 contiguous segments, markers, non-default track states. */
 const rich: CompositionSettings = {
   version: 1,
   videoSegments: [
-    { id: "seg-1", sourceInMs: 0, sourceOutMs: 12_000 },
-    { id: "seg-2", sourceInMs: 12_000, sourceOutMs: 31_500 },
-    { id: "seg-3", sourceInMs: 31_500, sourceOutMs: 60_000 },
+    { id: "seg-1", sourceInMs: 0, sourceOutMs: 12_000, ...SEG_DEFAULTS },
+    { id: "seg-2", sourceInMs: 12_000, sourceOutMs: 31_500, ...SEG_DEFAULTS },
+    { id: "seg-3", sourceInMs: 31_500, sourceOutMs: 60_000, ...SEG_DEFAULTS },
   ],
   markers: [
     { id: "mk-1", atMs: 4_250, label: "Hook lands" },
