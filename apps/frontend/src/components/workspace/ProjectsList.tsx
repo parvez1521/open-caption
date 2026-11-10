@@ -143,6 +143,7 @@ export default function ProjectsList() {
           + New project
         </button>
       </div>
+      <p className="mt-3 text-[13px] text-sand-600">Signed-in projects are kept and never expire. Guest projects are removed after 30 days without edits.</p>
       {actionBusy ? <p role="status" className="mt-3 text-[13px] text-sand-700">{actionBusy}…</p> : null}
 
       <div className="pt-6">
