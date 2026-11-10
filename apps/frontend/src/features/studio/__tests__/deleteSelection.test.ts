@@ -56,6 +56,19 @@ describe("resolveDeleteAction", () => {
     expect(resolveDeleteAction({ ...base, selectedVideoClipId: "seg1", selectedId: "w9" })).toBeNull();
   });
 
+  it("deletes a selected audio clip ahead of a marker and a word (Run 3)", () => {
+    expect(resolveDeleteAction({ ...base, selectedAudioClipId: "ac1", selectedMarkerId: "m1", selectedId: "w9" }))
+      .toEqual({ kind: "audioClip", id: "ac1" });
+    expect(resolveDeleteAction({ ...base, selectedAudioClipId: "ac1" })).toEqual({ kind: "audioClip", id: "ac1" });
+  });
+
+  it("video segment still outranks an audio clip, and words/overlay outrank both", () => {
+    const extra = { selectedVideoClipId: "seg1", canRippleDeleteVideoSegment: true, selectedAudioClipId: "ac1", selectedMarkerId: "m1" };
+    expect(resolveDeleteAction({ ...base, ...extra })).toEqual({ kind: "videoSegment", id: "seg1" });
+    expect(resolveDeleteAction({ ...base, ...extra, selectedOverlayId: "ov1" })).toEqual({ kind: "overlay", id: "ov1" });
+    expect(resolveDeleteAction({ ...base, ...extra, selectedWordIds: ["w1"] })).toEqual({ kind: "words", ids: ["w1"] });
+  });
+
   it("deletes a selected marker ahead of the single selected word", () => {
     expect(resolveDeleteAction({ ...base, selectedMarkerId: "m1", selectedId: "w9" }))
       .toEqual({ kind: "marker", id: "m1" });

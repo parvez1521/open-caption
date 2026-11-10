@@ -62,9 +62,13 @@ interface Props {
   onExportSettings: (next: ExportSettings) => void;
   /** the project's canvas choice: when its aspect isn't "source", exports are authored at that aspect */
   canvas?: CanvasSettings | null;
+  /** Run 3 audio mix (present only when the mix is active): shown under the MP4 option, and
+   *  applied to the browser-rendered MP4 before it is saved. renderInput is already muted in
+   *  that case, so the muxed mix is the file's only sound. */
+  audioMix?: { note: string; apply: (videoBlob: Blob) => Promise<Blob> } | null;
 }
 
-export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings, canvas = null }) => {
+export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings, canvas = null, audioMix = null }) => {
   const qc = useQueryClient();
   const [busyKind, setBusyKind] = useState<ExportKind | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +90,8 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   // MP4 is made in this tab
   const [web, setWeb] = useState<{ ok: boolean; reason?: string } | null>(null);
   const [webProgress, setWebProgress] = useState<number | null>(null);
+  /** phase label for the progress card (rendering, then "Mixing sound…" while the audio mix is muxed in) */
+  const [phaseLabel, setPhaseLabel] = useState<string | null>(null);
   const [webDone, setWebDone] = useState<string | null>(null);
   const [made, setMade] = useState<{ blob: Blob; name: string } | null>(null);
   const [showReady, setShowReady] = useState(false);
@@ -132,7 +138,8 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     try {
       await flushSave();
       const started = clock();
-      const blob = await exportMp4InBrowser({
+      setPhaseLabel(null);
+      let blob = await exportMp4InBrowser({
         input: renderInput,
         width: outDims.width,
         height: outDims.height,
@@ -146,6 +153,18 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           setWebProgress(f);
         },
       });
+      if (audioMix) {
+        // the rendered MP4 is silent (muted render input), so a failed mix must NOT
+        // fall through to saving it: surface the failure and save nothing.
+        setPhaseLabel("Mixing sound…");
+        setWebProgress(1);
+        try {
+          blob = await audioMix.apply(blob);
+        } catch (mixErr) {
+          setError(`Sound mix failed: ${mixErr instanceof Error ? mixErr.message : "the mix could not be made on this device."}`);
+          return;
+        }
+      }
       const name = `${(title || "open-caption").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "open-caption"}.mp4`;
       saveBlob(blob, name);
       setWebDone(`${fmtBytes(blob.size)} · made in ${fmtTime(clock() - started)}`);
@@ -166,6 +185,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       clearInterval(guard);
       document.removeEventListener("visibilitychange", onVisible);
       setWebProgress(null);
+      setPhaseLabel(null);
       abort.current = null;
     }
     if (again) {
@@ -315,6 +335,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
                   {o.popular ? <span className="absolute -top-2.5 right-3 rounded-full bg-st-or px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Most popular</span> : null}
                   <div className={`text-sm ${o.popular ? "font-semibold" : "font-medium"} text-st-text`}>{busyKind === o.kind ? "Working…" : o.title}</div>
                   <div className="mt-0.5 text-xs text-st-muted">{unavailable ? mp4Block?.reason ?? web?.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari." : o.desc}</div>
+                  {o.kind === "mp4" && audioMix ? <div className="mt-0.5 text-xs text-st-muted">{audioMix.note}</div> : null}
                 </button>
               );
             })}
@@ -322,7 +343,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           {webProgress !== null ? (
             <div className="mt-3 rounded-xl border border-st-line bg-st-raised/60 p-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-st-text">Rendering your MP4 in this tab… {Math.round(webProgress * 100)}%</span>
+                <span className="font-medium text-st-text">{phaseLabel ?? `Rendering your MP4 in this tab… ${Math.round(webProgress * 100)}%`}</span>
                 <Button className="!px-2 !py-1 text-xs" onClick={() => abort.current?.abort()}>Cancel</Button>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-st-line">

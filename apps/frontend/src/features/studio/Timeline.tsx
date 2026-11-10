@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Eye, EyeOff, FoldHorizontal, Link2, Lock, LockOpen, Magnet, Maximize2, Plus, Scissors, SlidersHorizontal, Volume2, VolumeX, ZoomIn, ZoomOut } from "lucide-react";
-import type { CompositionTrackKind, Page, TrackState, Word } from "@capseasy/shared";
+import type { AudioClip, AudioTrack, CompositionTrackKind, Page, TrackState, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
 import { formatDelta, pxToMs, toggleIds } from "./dragSelect";
 import { overlayClipsOf, trackOf, type Composition, type OverlayClip } from "./composition";
@@ -71,6 +71,16 @@ interface Props {
   segmentAssetUrls?: Record<string, string>;
   /** assetId → media-bin name, so a segment playing a reversed conform can badge itself */
   segmentAssetNames?: Record<string, string>;
+  /** Run 3 audio-studio rows: one 36px row per audio track, below the display waveform row.
+   *  When omitted, the rows fall back to the editor composition's audio slice. */
+  audioTracks?: AudioTrack[];
+  audioClips?: AudioClip[];
+  selectedAudioClipId?: string | null;
+  onSelectAudioClip?: (id: string | null) => void;
+  /** commit an audio clip's move once, on pointer up (moveAudioClip in StudioPage) */
+  onMoveAudioClip?: (id: string, startMs: number) => void;
+  /** commit an audio clip edge trim once, on pointer up (trimAudioClip in StudioPage) */
+  onTrimAudioClip?: (id: string, edge: "start" | "end", targetMs: number) => void;
   /** split the caption card at the playhead (caption-engine splitCardAt via edit() in StudioPage) */
   onSplitAtPlayhead: () => void;
   onOpenSettings: () => void;
@@ -87,8 +97,11 @@ const LABEL_WIDE = 88;
 const LABEL_NARROW = 58;
 const MIN_MS = 40;
 /** fixed track heights: blocks keep editor proportions however tall the panel is (no stretched cards) */
-const ROW = { ruler: 24, captions: 44, video: 52, text: 36, audio: 44 };
-const ROWS = `${ROW.ruler}px ${ROW.captions}px ${ROW.video}px ${ROW.text}px ${ROW.audio}px`;
+const ROW = { ruler: 24, captions: 44, video: 52, text: 36, audio: 44, audioTrack: 36 };
+/** Base grid rows (ruler / captions / video / text / display-audio). Run 3: the Timeline
+ *  appends one ROW.audioTrack row per audio track — see the computed `rows` inside the
+ *  component, which is the single source both grids (labels + content) consume. */
+const BASE_ROWS = `${ROW.ruler}px ${ROW.captions}px ${ROW.video}px ${ROW.text}px ${ROW.audio}px`;
 /** video visible at the default zoom: enough room to read every word (phones ~2.5 s, desktop up to 8 s) */
 const defaultWindowMs = (px: number) => (px < 420 ? Math.max(2000, px * 9) : Math.min(8000, Math.max(3000, px * 15)));
 
@@ -98,7 +111,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -111,6 +124,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   const [oDrag, setODrag] = useState<{ id: string; x0: number; s0: number; e0: number; dxMs: number; kind: "move" | "start" | "end"; s: number; e: number } | null>(null);
   /** video-segment edge drag: preview the boundary position only; the trim commits on pointer up */
   const [vDrag, setVDrag] = useState<{ clipId: string; edge: "start" | "end"; x0: number; origMs: number; targetMs: number } | null>(null);
+  /** audio-clip drag: preview only (same pattern as oDrag); move shifts dxMs, start/end hold the preview window; one commit on pointer up */
+  const [aDrag, setADrag] = useState<{ id: string; x0: number; s0: number; e0: number; dxMs: number; kind: "move" | "start" | "end"; s: number; e: number } | null>(null);
   /** the ms position a drag is currently snapped to (draws the guide line), or null */
   const [snapGuide, setSnapGuide] = useState<number | null>(null);
   const guideRef = useRef<number | null>(null);
@@ -254,6 +269,15 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   const videoClips: EditorVideoClip[] = editorComp?.videoClips ?? [];
   const markers = editorComp?.markers ?? [];
 
+  // Run 3 audio rows: explicit props win; the editor composition is the fallback so
+  // existing mounts (which already pass editorComp) gain the rows for free.
+  const audioTracks: AudioTrack[] = audioTracksProp ?? editorComp?.audioTracks ?? [];
+  const audioClips: AudioClip[] = audioClipsProp ?? editorComp?.audioClips ?? [];
+  const audioTrackOfClip = (c: AudioClip) => audioTracks.find((t) => t.id === c.trackId);
+  /** computed grid rows: the 5 base rows + one 36px row per audio track */
+  const rowCount = 5 + audioTracks.length;
+  const rows = audioTracks.length ? `${BASE_ROWS} ${audioTracks.map(() => `${ROW.audioTrack}px`).join(" ")}` : BASE_ROWS;
+
   // video segment blocks as displayed: while an edge drag runs, only the dragged boundary
   // moves — the prospective partition is derived from the target exactly like the ops will
   // lay it out (head trim re-bases later clips, a roll keeps everything after the shared
@@ -374,7 +398,40 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
     setVDrag({ clipId, edge, x0: e.clientX, origMs, targetMs: origMs });
   };
 
+  const beginAudioDrag = (e: React.PointerEvent, c: AudioClip) => {
+    if (renaming) return;
+    if (audioTrackOfClip(c)?.locked) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    onSelectAudioClip?.(c.id);
+    const span = c.sourceOutMs - c.sourceInMs;
+    setADrag({ id: c.id, x0: e.clientX, s0: c.startMs, e0: c.startMs + span, dxMs: 0, kind: "move", s: c.startMs, e: c.startMs + span });
+  };
+  const beginAudioTrim = (e: React.PointerEvent, c: AudioClip, edge: "start" | "end") => {
+    if (renaming) return;
+    if (audioTrackOfClip(c)?.locked) return;
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    onSelectAudioClip?.(c.id);
+    const span = c.sourceOutMs - c.sourceInMs;
+    setADrag({ id: c.id, x0: e.clientX, s0: c.startMs, e0: c.startMs + span, dxMs: 0, kind: edge, s: c.startMs, e: c.startMs + span });
+  };
+
   const onMove = (e: React.PointerEvent) => {
+    if (aDrag) {
+      const len = aDrag.e0 - aDrag.s0;
+      if (aDrag.kind === "move") {
+        const start = Math.max(0, aDrag.s0 + pxToMs(e.clientX - aDrag.x0, pxPerMs));
+        setADrag({ ...aDrag, dxMs: Math.round(start - aDrag.s0), s: Math.round(start), e: Math.round(start + len) });
+      } else if (aDrag.kind === "start") {
+        const raw = aDrag.s0 + pxToMs(e.clientX - aDrag.x0, pxPerMs);
+        setADrag({ ...aDrag, s: Math.round(Math.max(0, Math.min(raw, aDrag.e0 - 100))) });
+      } else {
+        const raw = aDrag.e0 + pxToMs(e.clientX - aDrag.x0, pxPerMs);
+        setADrag({ ...aDrag, e: Math.round(Math.max(raw, aDrag.s0 + 100)) });
+      }
+      return;
+    }
     if (vDrag) {
       // video edge: preview the boundary only — snap to 0 / end / playhead / caption edges
       const raw = vDrag.origMs + pxToMs(e.clientX - vDrag.x0, pxPerMs);
@@ -432,6 +489,14 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
     setSnapGuide(guideRef.current);
   };
   const endDrag = () => {
+    if (aDrag) {
+      if (aDrag.kind === "start") { if (aDrag.s !== aDrag.s0) onTrimAudioClip?.(aDrag.id, "start", aDrag.s); }
+      else if (aDrag.kind === "end") { if (aDrag.e !== aDrag.e0) onTrimAudioClip?.(aDrag.id, "end", aDrag.e); }
+      else if (aDrag.dxMs !== 0) onMoveAudioClip?.(aDrag.id, aDrag.s0 + aDrag.dxMs);
+      setADrag(null);
+      setSnapGuide(null);
+      return;
+    }
     if (vDrag) {
       if (vDrag.targetMs !== vDrag.origMs) onTrimVideoEdge?.(vDrag.clipId, vDrag.edge, vDrag.targetMs);
       setVDrag(null);
@@ -487,7 +552,6 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   const sep = <span className="mx-1 h-5 w-px shrink-0 bg-st-line" aria-hidden />;
   const noSel = !selectedId;
   const trackRow = "relative h-full border-b border-st-line";
-  const rows = ROWS;
   const tileW = Math.max(24, (ROW.video - 8) * videoAspect);
   const tiles = frames.length ? Math.ceil(x(total) / tileW) : 0;
 
@@ -540,7 +604,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
 
       <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto" onPointerMove={onMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <div className="relative grid w-max" style={{ gridTemplateColumns: `${LABEL_W}px ${width}px`, gridTemplateRows: rows }}>
-          <div className="sticky left-0 z-20 row-span-5 grid whitespace-nowrap border-r border-st-line bg-st-panel text-[11px] text-st-muted" style={{ gridTemplateRows: rows }}>
+          <div className="sticky left-0 z-20 grid whitespace-nowrap border-r border-st-line bg-st-panel text-[11px] text-st-muted" style={{ gridTemplateRows: rows, gridRow: `1 / span ${rowCount}` }}>
             <div />
             <div className="flex items-center gap-1 border-b border-st-line px-2 font-semibold text-st-text">
               <span className="min-w-0 flex-1 truncate">𝐈 {narrow ? "Text" : "Captions"}</span>
@@ -559,6 +623,13 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
               {trackBtn(overlayAnyVisible ? "Hide overlay tracks" : "Show overlay tracks", overlayAnyVisible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onOverlayTrackPatch?.({ visible: !overlayAnyVisible }), !overlayAnyVisible)}
             </div>
             <div className="flex items-center gap-1.5 px-2 text-st-muted">♫ Audio</div>
+            {audioTracks.map((t) => (
+              <div key={t.id} className="flex items-center gap-1 border-b border-st-line px-2 text-st-muted">
+                <span className="min-w-0 flex-1 truncate" title={t.name}>{t.name}</span>
+                {t.locked ? <Lock className={ticon} aria-label="Locked" /> : null}
+                {t.muted ? <VolumeX className={ticon} aria-label="Muted" /> : null}
+              </div>
+            ))}
           </div>
 
           {/* ruler */}
@@ -750,6 +821,46 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
             <Waveform peaks={peaks} width={width} />
             {waveState !== "ready" ? <span className="absolute left-2 top-1 text-[10px] text-st-faint">{waveState === "loading" ? "Loading audio…" : waveState === "unavailable" ? "Waveform unavailable for this file" : ""}</span> : null}
           </div>
+
+          {/* Run 3: one row per audio track — placed clips as blocks (drag moves, the
+              first/last 6px trim, click selects; a locked track's blocks do not drag) */}
+          {audioTracks.map((track) => (
+            <div key={track.id} className={trackRow} {...scrub} onClick={() => onSelectAudioClip?.(null)}>
+              {audioClips.filter((c) => c.trackId === track.id).map((c) => {
+                const span = c.sourceOutMs - c.sourceInMs;
+                const dragging = aDrag?.id === c.id ? aDrag : null;
+                const liveS = dragging ? (dragging.kind === "move" ? c.startMs + dragging.dxMs : dragging.kind === "start" ? dragging.s : c.startMs) : c.startMs;
+                const liveE = dragging ? (dragging.kind === "move" ? c.startMs + dragging.dxMs + span : dragging.kind === "end" ? dragging.e : c.startMs + span) : c.startMs + span;
+                const wpx = Math.max(3, x(liveE) - x(liveS) - 1);
+                const selected = c.id === selectedAudioClipId;
+                const fadeInW = Math.min(x(c.fadeInMs), wpx / 2);
+                const fadeOutW = Math.min(x(c.fadeOutMs), wpx / 2);
+                return (
+                  <div
+                    key={c.id}
+                    role="button"
+                    aria-label={`Audio clip ${c.assetName || c.id}`}
+                    aria-pressed={selected}
+                    onPointerDown={(e) => beginAudioDrag(e, c)}
+                    onClick={(e) => { e.stopPropagation(); onSelectAudioClip?.(c.id); }}
+                    title={`${c.assetName}  ${fmtTime(liveS)} – ${fmtTime(liveE)} (drag to move)`}
+                    className={`absolute top-1 bottom-1 overflow-hidden rounded-md border px-1.5 text-[11px] leading-tight ${track.muted ? "opacity-40 " : ""}${selected ? "border-st-ink bg-st-em/50 text-[#FFFFEB] ring-2 ring-st-em" : "border-st-ink/15 bg-st-em/25 text-[#FFFFEB] hover:bg-st-em/40"} ${track.locked ? "cursor-default" : "cursor-grab touch-none"}`}
+                    style={{ left: x(liveS), width: wpx }}
+                  >
+                    {fadeInW > 0 ? <span aria-hidden className="pointer-events-none absolute left-0 top-0 h-full bg-black/30" style={{ width: fadeInW, clipPath: "polygon(0 0, 100% 0, 0 100%)" }} /> : null}
+                    {fadeOutW > 0 ? <span aria-hidden className="pointer-events-none absolute right-0 top-0 h-full bg-black/30" style={{ width: fadeOutW, clipPath: "polygon(100% 0, 100% 100%, 0 0)" }} /> : null}
+                    {wpx > 24 ? <span className="relative flex h-full items-center truncate font-medium">{c.assetName}</span> : null}
+                    {!track.locked && onTrimAudioClip && wpx > 10 ? (
+                      <>
+                        <span onPointerDown={(e) => beginAudioTrim(e, c, "start")} className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" aria-label={`Move start of ${c.assetName}`} />
+                        <span onPointerDown={(e) => beginAudioTrim(e, c, "end")} className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" aria-label={`Move end of ${c.assetName}`} />
+                      </>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
 
           <div ref={headRef} className="pointer-events-none absolute top-0 bottom-0 z-10 w-0.5 bg-st-ink will-change-transform" style={{ left: LABEL_W }}>
             <div className="absolute -left-[5px] -top-0.5 h-3 w-3 rounded-sm bg-st-ink" />

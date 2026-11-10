@@ -28,6 +28,7 @@ import { MediaPanel } from "./panels/MediaPanel";
 import { TextPanel } from "./panels/TextPanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
+import { AudioPanel } from "./panels/AudioPanel";
 import { ClipperPanel } from "./panels/ClipperPanel";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
@@ -61,6 +62,15 @@ import { splitWordIdAtPlayhead } from "./playheadSplit";
 import { resolveDeleteAction } from "./deleteSelection";
 import { useMediaAssets } from "./useMediaAssets";
 import { makeImageOverlay } from "./panels/overlayItems";
+import {
+  addAudioTrack, duplicateAudioClip, moveAudioClip, placeAudioClip, removeAudioClip, removeAudioTrack,
+  setAudioDucking, splitAudioClipAt, trimAudioClip, updateAudioClip, updateAudioClipProcessors,
+  updateAudioMaster, updateAudioTrack,
+} from "./audioOps";
+import { buildMixPlan, mixIsActive } from "./audio/mixPlan";
+import { renderMixedAudio } from "./audio/mixdown";
+import { muxMixedAudioIntoMp4 } from "./audio/exportMix";
+import { useAudioPreview } from "./useAudioPreview";
 import { useStudio, type SaveState } from "./useStudio";
 import { TutorialTour } from "./TutorialTour";
 import { shouldShowTutorial } from "./tutorial";
@@ -71,7 +81,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "clipper";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "clipper";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -85,6 +95,7 @@ const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?:
   { id: "text", label: "Text", icon: railIcon(<path d="M5 5h14M12 5v14" />) },
   { id: "elements", label: "Elements", icon: railIcon(<><circle cx="8" cy="8" r="3.5" /><rect x="13" y="13" width="8" height="8" rx="1" /><path d="M17.5 3.5l3 5h-6z" /></>) },
   { id: "adjust", label: "Adjust", icon: railIcon(<><path d="M4 8h9M19 8h1M4 16h3M13 16h7" /><circle cx="16" cy="8" r="2" /><circle cx="10" cy="16" r="2" /></>) },
+  { id: "audio", label: "Audio", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /></>) },
   { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
   { id: "clipper", label: "Clipper", icon: railIcon(<><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" /></>) },
 ];
@@ -156,28 +167,38 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [selVideoClipId, setSelVideoClipId] = useState<string | null>(null);
   const [selMarkerId, setSelMarkerId] = useState<string | null>(null);
+  const [selAudioClipId, setSelAudioClipId] = useState<string | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   // one selection kind at a time: picking a word / overlay / video segment / marker clears the
   // others, so Delete and the contextual timeline tools always act on what the user just picked
   const selectWord = (id: string | null) => {
     setSelectedId(id);
-    if (id) { setSelectedOverlayId(null); setSelVideoClipId(null); setSelMarkerId(null); }
+    if (id) { setSelectedOverlayId(null); setSelVideoClipId(null); setSelMarkerId(null); setSelAudioClipId(null); }
   };
   const selectOverlay = (id: string | null) => {
     setSelectedOverlayId(id);
-    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelVideoClipId(null); setSelMarkerId(null); }
+    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelVideoClipId(null); setSelMarkerId(null); setSelAudioClipId(null); }
   };
   const selectVideoClip = (id: string | null) => {
     setSelVideoClipId(id);
-    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelMarkerId(null); }
+    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelMarkerId(null); setSelAudioClipId(null); }
   };
   const selectMarker = (id: string | null) => {
     setSelMarkerId(id);
-    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelVideoClipId(null); }
+    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelVideoClipId(null); setSelAudioClipId(null); }
+  };
+  const selectAudioClip = (id: string | null) => {
+    setSelAudioClipId(id);
+    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelVideoClipId(null); setSelMarkerId(null); }
+  };
+  /** selecting an audio clip on the Timeline also opens its panel (both layouts) */
+  const selectAudioClipFromTimeline = (id: string | null) => {
+    selectAudioClip(id);
+    if (id) { setSection("audio"); setMobileTimeline(false); }
   };
   const handleWordSelectionChange = (ids: Set<string>) => {
     setSelectedWordIds(ids);
-    if (ids.size > 0) { setSelectedOverlayId(null); setSelVideoClipId(null); setSelMarkerId(null); }
+    if (ids.size > 0) { setSelectedOverlayId(null); setSelVideoClipId(null); setSelMarkerId(null); setSelAudioClipId(null); }
   };
   const [showTour, setShowTour] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -340,6 +361,26 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     s.editAll({ ...(nextDoc ? { doc: nextDoc } : {}), settings: projected });
   };
 
+  /* ---------- Run 3 audio wiring: every AudioPanel / Timeline audio callback is an
+   * audioOps call committed through commitComposition with no docEffect (one undo step) */
+  const commitAudio = (next: EditorComposition) => commitComposition(next);
+  const placeAudioClipFromPanel = (asset: { id: string; name: string; durationMs: number }) => {
+    if (!editorComp || !asset.durationMs || asset.durationMs <= 0) return;
+    let comp = editorComp;
+    const selectedClip = selAudioClipId ? comp.audioClips.find((c) => c.id === selAudioClipId) : undefined;
+    let track = selectedClip ? comp.audioTracks.find((t) => t.id === selectedClip.trackId) : undefined;
+    track = track ?? comp.audioTracks[0];
+    if (!track) {
+      comp = addAudioTrack(comp, "music", "Music");
+      track = comp.audioTracks[comp.audioTracks.length - 1]!;
+    }
+    const beforeIds = new Set(comp.audioClips.map((c) => c.id));
+    const next = placeAudioClip(comp, { assetId: asset.id, assetName: asset.name, trackId: track.id, startMs: getPlayerMs(), sourceInMs: 0, sourceOutMs: asset.durationMs });
+    commitAudio(next);
+    const placed = next.audioClips.find((c) => !beforeIds.has(c.id));
+    if (placed) selectAudioClip(placed.id);
+  };
+
   const videoLocked = editorComp?.trackState.video.locked ?? false;
   const overlayLockedForId = (id: string | null): boolean => {
     if (!editorComp || !id) return false;
@@ -409,6 +450,28 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     }
     return null;
   };
+
+  /** Blob resolver for the audio mix (preview hook + export mixdown): a media-bin asset's
+   *  bytes for an assetId, or the project's own video (device-local copy first, then its
+   *  URL — the loadSegmentSourceBlob order) for a null assetId (the video chain). */
+  const getAudioBlob = useCallback(async (assetId: string | null): Promise<Blob | null> => {
+    if (assetId) {
+      const rec = mediaBin.assets.find((a) => a.id === assetId);
+      return rec?.blob ?? null;
+    }
+    if (data?.video?.id) {
+      const local = await getLocalVideo(data.video.id);
+      if (local) return local;
+    }
+    if (video?.url) {
+      try {
+        const res = await fetch(video.url);
+        if (res.ok) return await res.blob();
+      } catch { /* fall through to null */ }
+    }
+    return null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaBin.assets, data?.video?.id, video?.url]);
 
   const reverseSelectedSegment = async () => {
     if (!editorComp || !selSegmentView || videoLocked) return;
@@ -545,6 +608,43 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   );
   // export reads frames: a video the decoder can't read uses the compatible copy instead
   const exportInput = useMemo(() => (input && compat.url ? { ...input, src: compat.url } : input), [input, compat.url]);
+
+  /* ---------- Run 3 audio preview + export mix ----------
+   * When the mix is active, the Player and the browser export render must NOT play the
+   * video's own sound (the Web Audio preview / the muxed mixdown provide it instead, and
+   * double sound is worse than none), so both receive a settings clone whose video track
+   * is muted. `exportInput` itself stays unmuted for every non-MP4 path. */
+  const mixActive = editorComp ? mixIsActive(editorComp) : false;
+  const mutedSettings = useMemo(
+    () => ({
+      ...settings,
+      composition: {
+        ...settings.composition,
+        tracks: { ...settings.composition.tracks, video: { ...settings.composition.tracks.video, muted: true } },
+      },
+    }),
+    [settings],
+  );
+  const playerInput = useMemo(
+    () => (mixActive && input ? { ...input, settings: mutedSettings } : input),
+    [mixActive, input, mutedSettings],
+  );
+  /** the ExportModal's render input: the compat-aware export input, muted when the mix is active */
+  const exportRenderInput = useMemo(
+    () => (mixActive && exportInput ? { ...exportInput, settings: mutedSettings } : exportInput),
+    [mixActive, exportInput, mutedSettings],
+  );
+  useAudioPreview({ active: mixActive, comp: editorComp, playing, timeMs, getPlayerMs, getBlob: getAudioBlob });
+  const audioMix = mixActive && editorComp
+    ? {
+        note: "Includes your sound mix (music, audio clips and processing), mixed on this device.",
+        apply: async (videoBlob: Blob): Promise<Blob> => {
+          const plan = buildMixPlan(editorComp, durationMs);
+          const pcm = await renderMixedAudio({ plan, getBlob: getAudioBlob });
+          return muxMixedAudioIntoMp4({ videoBlob, audio: pcm });
+        },
+      }
+    : null;
   const mp4Block = captionsOnly
     ? { reason: "This browser couldn't show this video's picture, so an MP4 can't be made here. Download the captions as an SRT file, or open this project in Chrome, Edge or Safari for the MP4." }
     : data?.video?.needsCompat && compat.state !== "ready"
@@ -563,6 +663,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       return next.size === prev.size ? prev : next;
     });
   }, [doc]);
+
+  // the audio clip selection must never point at a clip that no longer exists
+  useEffect(() => {
+    if (!selAudioClipId) return;
+    if (editorComp && !editorComp.audioClips.some((c) => c.id === selAudioClipId)) setSelAudioClipId(null);
+  }, [editorComp, selAudioClipId]);
 
   // split the caption card at the playhead: the word at/after the playhead starts a new card via the
   // caption-engine's splitCardAt, through edit() — one undo step, autosaves like every caption edit.
@@ -583,6 +689,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   deleteSelectionRef.current = () => {
     // a locked captions track protects its words only — overlays / segments / markers still delete
     const captionsLocked = editorComp?.trackState.captions.locked ?? false;
+    // a locked audio track protects its clip: the resolver never sees that selection
+    const selAudioClipForDelete = editorComp && selAudioClipId ? editorComp.audioClips.find((c) => c.id === selAudioClipId) : undefined;
+    const selAudioTrackLocked = selAudioClipForDelete
+      ? editorComp!.audioTracks.find((t) => t.id === selAudioClipForDelete.trackId)?.locked ?? false
+      : false;
     const action = resolveDeleteAction({
       blocked: live || showExport || showSignup || showShortcuts || Boolean(s.conflict),
       selectedWordIds: captionsLocked ? [] : selectedWordIds,
@@ -590,6 +701,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       selectedId: captionsLocked ? null : selectedId,
       selectedVideoClipId: selVideoClipId,
       canRippleDeleteVideoSegment: editorComp && selVideoClipId ? canRippleDeleteVideoSegment(editorComp, selVideoClipId) : false,
+      selectedAudioClipId: selAudioTrackLocked ? null : selAudioClipId,
       selectedMarkerId: selMarkerId,
     });
     if (!action) return false;
@@ -604,6 +716,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     } else if (action.kind === "videoSegment") {
       rippleVideoSegment(action.id);
       setSelVideoClipId(null);
+    } else if (action.kind === "audioClip") {
+      if (editorComp) commitComposition(removeAudioClip(editorComp, action.id));
+      setSelAudioClipId(null);
     } else if (action.kind === "marker") {
       if (editorComp) commitComposition(removeMarker(editorComp, action.id));
       setSelMarkerId(null);
@@ -747,7 +862,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const player = hasEditor && input && style ? (
     <StudioPlayer
       ref={playerRef}
-      input={input}
+      input={playerInput ?? input}
       width={canvasSize.width}
       height={canvasSize.height}
       fps={fps}
@@ -807,14 +922,31 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const placeImage = (asset: { id: string; name: string }) => placeImageAt(asset, getPlayerMs());
   // media-bin drop on the timeline: image -> overlay at the drop point; video -> take over as
   // the project source through the same device attach path as MediaPanel's "Use as source";
-  // audio -> ignored (no audio timeline track yet). No single-record getter exists in
-  // mediaStore, so the project's assets are listed and matched by id.
+  // audio -> placed at the drop point on the first audio track (a "Music" track is created
+  // when the project has none). No single-record getter exists in mediaStore, so the
+  // project's assets are listed and matched by id.
   const onDropAsset = (assetId: string, _kind: string, atMs: number) => {
     void (async () => {
       const record = (await listProjectAssets(projectId)).find((a) => a.id === assetId);
       if (!record) return;
       if (record.kind === "image") placeImageAt(record, atMs);
       else if (record.kind === "video") await device.attach(new File([record.blob], record.name, { type: record.mime }));
+      else if (record.kind === "audio") {
+        // an unprobed file (no duration) can't be placed honestly — MediaPanel probes
+        // audio at import, so durationMs should always exist here
+        if (!record.durationMs || record.durationMs <= 0 || !editorComp) return;
+        let comp = editorComp;
+        let track = comp.audioTracks[0];
+        if (!track) {
+          comp = addAudioTrack(comp, "music", "Music");
+          track = comp.audioTracks[comp.audioTracks.length - 1]!;
+        }
+        const beforeIds = new Set(comp.audioClips.map((c) => c.id));
+        const next = placeAudioClip(comp, { assetId: record.id, assetName: record.name, trackId: track.id, startMs: atMs, sourceInMs: 0, sourceOutMs: record.durationMs });
+        commitAudio(next);
+        const placed = next.audioClips.find((c) => !beforeIds.has(c.id));
+        if (placed) selectAudioClip(placed.id);
+      }
     })();
   };
   // panel registry: every rail section maps to its real panel here (same props/state as before the move)
@@ -827,6 +959,27 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       : t === "text" ? <TextPanel {...overlayPanelProps} />
       : t === "elements" ? <ElementsPanel {...overlayPanelProps} />
       : t === "adjust" ? <AdjustPanel settings={settings} patch={s.patchSettings} />
+      : t === "audio" ? (editorComp ? (
+        <AudioPanel
+          comp={editorComp}
+          assets={mediaBin.assets}
+          selectedClipId={selAudioClipId}
+          playheadMs={timeMs}
+          onSelectClip={selectAudioClip}
+          onAddTrack={(role) => commitAudio(addAudioTrack(editorComp, role))}
+          onUpdateTrack={(id, patch) => commitAudio(updateAudioTrack(editorComp, id, patch))}
+          onSetDucking={(id, patch) => commitAudio(setAudioDucking(editorComp, id, patch))}
+          onRemoveTrack={(id) => { commitAudio(removeAudioTrack(editorComp, id)); }}
+          onPlaceClip={placeAudioClipFromPanel}
+          onMoveClip={(id, patch) => commitAudio(moveAudioClip(editorComp, id, patch))}
+          onSplitClip={(id) => commitAudio(splitAudioClipAt(editorComp, id, getPlayerMs()))}
+          onDuplicateClip={(id) => commitAudio(duplicateAudioClip(editorComp, id))}
+          onRemoveClip={(id) => commitAudio(removeAudioClip(editorComp, id))}
+          onUpdateClip={(id, patch) => commitAudio(updateAudioClip(editorComp, id, patch))}
+          onUpdateProcessors={(id, patch) => commitAudio(updateAudioClipProcessors(editorComp, id, patch))}
+          onUpdateMaster={(patch) => commitAudio(updateAudioMaster(editorComp, patch))}
+        />
+      ) : null)
       : t === "clipper" ? (doc ? <ClipperPanel projectId={projectId} sourceTitle={data.project.title} sourceVideoId={data.video?.id ?? null} mediaDurationMs={settings.clipRange ? durationMs : (data.video?.durationMs ?? 0)} doc={doc} /> : null)
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
@@ -853,7 +1006,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <>
       {tool(selected?.emphasis === "hero" ? "Key word (click to unset)" : "Make key word", <Star className={ic} />, () => selected && s.edit((d) => setEmphasis(d, selected.id, selected.emphasis === "hero" ? "none" : "hero")), { disabled: none || !heroSupported, active: selected?.emphasis === "hero" })}
       {tool("Hide word", <EyeOff className={ic} />, () => { if (!selected) return; s.edit((d) => setHidden(d, selected.id, true)); setSelectedId(null); }, { disabled: none })}
-      {tool("Delete selected (Del)", <Trash2 className={ic} />, () => { deleteSelectionRef.current(); }, { disabled: selectedWordIds.size === 0 && !selected && !selectedOverlayId && !selMarkerId && !selVideoCanRipple })}
+      {tool("Delete selected (Del)", <Trash2 className={ic} />, () => { deleteSelectionRef.current(); }, { disabled: selectedWordIds.size === 0 && !selected && !selectedOverlayId && !selMarkerId && !selVideoCanRipple && !selAudioClipId })}
       {tool("Undo", <Undo2 className={ic} />, s.undo, { disabled: !s.canUndo })}
       {tool("Redo", <Redo2 className={ic} />, s.redo, { disabled: !s.canRedo })}
       {selOverlayClip && editorComp && !overlayLockedForId(selOverlayClip.id) ? (
@@ -932,6 +1085,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onTrimOverlayClip={(id, edge, targetMs) => {
         if (editorComp) commitComposition(trimOverlayClip(editorComp, id, edge, targetMs));
       }}
+      audioTracks={editorComp?.audioTracks}
+      audioClips={editorComp?.audioClips}
+      selectedAudioClipId={selAudioClipId}
+      onSelectAudioClip={selectAudioClipFromTimeline}
+      onMoveAudioClip={(id, startMs) => { if (editorComp) commitAudio(moveAudioClip(editorComp, id, { startMs })); }}
+      onTrimAudioClip={(id, edge, targetMs) => { if (editorComp) commitAudio(trimAudioClip(editorComp, id, edge, targetMs)); }}
       onTrackPatch={toggleTrack}
       onOverlayTrackPatch={overlayTrackPatch}
       onDropAsset={onDropAsset}
@@ -948,7 +1107,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <>
       {showTour ? <TutorialTour onClose={() => setShowTour(false)} /> : null}
       {showSignup ? <SignupGate notice={signupNotice} onClose={() => { setShowSignup(false); setSignupNotice(null); }} onDone={() => { setShowSignup(false); setShowExport(true); }} /> : null}
-      {showExport ? <ExportModal projectId={projectId} title={data.project.title} video={{ width, height, durationMs, fps }} renderInput={exportInput} mp4Block={mp4Block} saving={s.saveState === "saving" || s.saveState === "dirty"} flushSave={s.saveNow} exportSettings={settings.exportSettings} onExportSettings={(next) => s.patchSettings({ exportSettings: next })} canvas={canvasSettings} onClose={() => setShowExport(false)} /> : null}
+      {showExport ? <ExportModal projectId={projectId} title={data.project.title} video={{ width, height, durationMs, fps }} renderInput={exportRenderInput} mp4Block={mp4Block} saving={s.saveState === "saving" || s.saveState === "dirty"} flushSave={s.saveNow} exportSettings={settings.exportSettings} onExportSettings={(next) => s.patchSettings({ exportSettings: next })} canvas={canvasSettings} audioMix={audioMix} onClose={() => setShowExport(false)} /> : null}
       {showShortcuts ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowShortcuts(false)}>
           <div role="dialog" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()} className="st-rise w-full max-w-md rounded-2xl border border-st-line bg-st-panel p-6">
