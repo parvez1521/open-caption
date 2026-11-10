@@ -2,15 +2,34 @@ import { z } from "zod";
 import { CaptionStyleSchema, CompositionSettingsSchema, PlatformSchema, ProjectSettingsSchema } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
-import { PROJECT_COLUMNS, toApiProject } from "@/lib/api/projects";
+import {
+  PROJECT_COLUMNS,
+  PROJECT_COLUMNS_WITH_ORG,
+  PROJECT_ORG_PENDING_MESSAGE,
+  isMissingOrgColumnError,
+  normalizeProjectFolder,
+  normalizeProjectTags,
+  toApiProject,
+  withOrgDefaults,
+} from "@/lib/api/projects";
 import { getAdmin } from "@/lib/supabase/admin";
 
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
   const { id } = await params;
+  // A15: prefer the org columns; before APPLY-PROJECT-FOLDERS-TAGS.sql runs
+  // they don't exist — fall back to the base columns (folder/tags read as
+  // null/[] via withOrgDefaults) so the project still loads.
+  const orgAttempt = await user.db.from("projects").select(PROJECT_COLUMNS_WITH_ORG).eq("id", id).is("deleted_at", null).maybeSingle();
+  if (!orgAttempt.error && orgAttempt.data) {
+    return ok(toApiProject(withOrgDefaults(orgAttempt.data as { status?: string | null; folder?: unknown; tags?: unknown })));
+  }
+  if (orgAttempt.error && !isMissingOrgColumnError(orgAttempt.error)) {
+    throw new ApiFailure("INTERNAL", "Could not load the project", orgAttempt.error.message);
+  }
   const { data } = await user.db.from("projects").select(PROJECT_COLUMNS).eq("id", id).is("deleted_at", null).maybeSingle();
   if (!data) throw notFound("Project");
-  return ok(toApiProject(data));
+  return ok(toApiProject(withOrgDefaults(data as { status?: string | null; folder?: unknown; tags?: unknown })));
 });
 
 /** Allow-list: unknown keys are stripped, so owner_id/status/deleted_at can never be set by a client. */
@@ -27,25 +46,38 @@ const PatchBody = z
     settings_json: ProjectSettingsSchema.partial(),
     /** Stage C: the composition slice as a primary column value, validated/canonicalised by the same schema that defines the settings-embedded copy. */
     composition_json: CompositionSettingsSchema,
+    /** A15 organisation (migration 20261110060000): single folder label + tag list; canonicalised below before writing. */
+    folder: z.string().max(200).nullable(),
+    tags: z.array(z.string().max(120)).max(48),
   })
   .partial();
 
 export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
   const { id } = await params;
-  const patch = await parseBody(req, PatchBody);
-  if (Object.keys(patch).length === 0) throw new ApiFailure("VALIDATION", "No editable fields provided");
-  if (patch.style_json && JSON.stringify(patch.style_json).length > 64_000) throw new ApiFailure("LIMIT_EXCEEDED", "Style is too large");
+  const rawPatch = await parseBody(req, PatchBody);
+  if (Object.keys(rawPatch).length === 0) throw new ApiFailure("VALIDATION", "No editable fields provided");
+  if (rawPatch.style_json && JSON.stringify(rawPatch.style_json).length > 64_000) throw new ApiFailure("LIMIT_EXCEEDED", "Style is too large");
+  // Canonicalise the org fields server-side (trim / dedupe / caps live in
+  // lib/api/projects.ts so create + patch agree).
+  const touchesOrg = rawPatch.folder !== undefined || rawPatch.tags !== undefined;
+  const patch: Record<string, unknown> = { ...rawPatch };
+  if (rawPatch.folder !== undefined) patch.folder = normalizeProjectFolder(rawPatch.folder);
+  if (rawPatch.tags !== undefined) patch.tags = normalizeProjectTags(rawPatch.tags);
   const { data, error } = await user.db
     .from("projects")
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq("id", id)
     .is("deleted_at", null)
-    .select(PROJECT_COLUMNS)
+    .select(touchesOrg ? PROJECT_COLUMNS_WITH_ORG : PROJECT_COLUMNS)
     .maybeSingle();
-  if (error) throw new ApiFailure("INTERNAL", "Could not save", error.message);
+  if (error) {
+    // Folder/tag write before the APPLY file ran: plain pending message.
+    if (touchesOrg && isMissingOrgColumnError(error)) throw new ApiFailure("INTERNAL", PROJECT_ORG_PENDING_MESSAGE);
+    throw new ApiFailure("INTERNAL", "Could not save", error.message);
+  }
   if (!data) throw notFound("Project");
-  return ok(toApiProject(data));
+  return ok(toApiProject(withOrgDefaults(data as { status?: string | null; folder?: unknown; tags?: unknown })));
 });
 
 /**

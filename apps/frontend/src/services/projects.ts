@@ -20,6 +20,8 @@ interface BackendProject {
   updated_at: string;
   deleted_at: string | null;
   archived_at: string | null;
+  folder?: string | null;
+  tags?: string[] | null;
 }
 
 function toProject(p: BackendProject): Project {
@@ -35,6 +37,8 @@ function toProject(p: BackendProject): Project {
     updated_at: p.updated_at,
     deleted_at: p.deleted_at ?? undefined,
     archived_at: p.archived_at ?? undefined,
+    folder: p.folder ?? null,
+    tags: p.tags ?? [],
   };
 }
 
@@ -43,6 +47,8 @@ export interface ProjectPage {
   total: number;
   limit: number;
   offset: number;
+  /** A15: false until the folders/tags database update is applied — the list still works, org features are pending. */
+  orgReady: boolean;
 }
 
 export const projectsService = {
@@ -51,11 +57,16 @@ export const projectsService = {
     limit?: number;
     offset?: number;
     includeArchived?: boolean;
+    /** A15 server-side organisation filters (folder label, "__unfiled__", and/or one tag). */
+    folder?: string;
+    tag?: string;
   }): Promise<ProjectPage> {
     const params = new URLSearchParams();
     params.set("limit", String(opts?.limit ?? 20));
     params.set("offset", String(opts?.offset ?? 0));
     if (opts?.includeArchived) params.set("include_archived", "true");
+    if (opts?.folder) params.set("folder", opts.folder);
+    if (opts?.tag) params.set("tag", opts.tag);
 
     const { data, meta } = await apiClient.getWithMeta<BackendProject[]>(
       `/projects?${params.toString()}`
@@ -65,6 +76,7 @@ export const projectsService = {
       total: (meta.total as number) ?? data.length,
       limit: (meta.limit as number) ?? opts?.limit ?? 20,
       offset: (meta.offset as number) ?? opts?.offset ?? 0,
+      orgReady: meta.org_ready !== false,
     };
   },
 
@@ -112,6 +124,29 @@ export const projectsService = {
 
   async duplicateProject(id: string): Promise<Project> {
     const project = await apiClient.post<BackendProject>(`/projects/${id}/duplicate`);
+    return toProject(project);
+  },
+
+  /** Per-project settings page: one PATCH carrying any subset of the allow-listed detail fields. */
+  async updateProjectDetails(
+    id: string,
+    patch: {
+      title?: string;
+      description?: string | null;
+      language?: string | null;
+      aspect_ratio?: "9:16" | "16:9" | "1:1" | "4:5" | null;
+      platform?: string | null;
+      folder?: string | null;
+      tags?: string[];
+    },
+  ): Promise<Project> {
+    const project = await apiClient.patch<BackendProject>(`/projects/${id}`, { json: patch });
+    return toProject(project);
+  },
+
+  /** A15: set a project's folder label (null clears it) and/or its full tag list, via the project PATCH allow-list. */
+  async updateProjectOrg(id: string, org: { folder?: string | null; tags?: string[] }): Promise<Project> {
+    const project = await apiClient.patch<BackendProject>(`/projects/${id}`, { json: org });
     return toProject(project);
   },
 

@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { PROJECT_COLUMNS, toApiProject } from "../projects";
+import {
+  PROJECT_COLUMNS,
+  PROJECT_COLUMNS_WITH_ORG,
+  isMissingOrgColumnError,
+  normalizeProjectFolder,
+  normalizeProjectTags,
+  toApiProject,
+  withOrgDefaults,
+} from "../projects";
 
 /**
  * Stage-C activation plumbing (stageC.ts checklist step 3): the project
@@ -35,5 +43,53 @@ describe("PROJECT_COLUMNS / toApiProject — composition_json (Stage C step 3)",
   it("toApiProject keeps a null composition_json null (unpromoted project)", () => {
     const out = toApiProject({ id: "p1", status: "ready", composition_json: null });
     expect(out.composition_json).toBeNull();
+  });
+});
+
+/**
+ * A15 folders + tags (slice 8.3): the base column list must NOT name the org
+ * columns (every other consumer keeps working before the APPLY file runs),
+ * the org variant adds exactly folder + tags, missing-column detection
+ * matches the PostgREST shapes, and canonicalisation is shared by create
+ * and patch.
+ */
+describe("A15 project organisation helpers", () => {
+  it("PROJECT_COLUMNS does not select folder/tags; the WITH_ORG variant adds exactly them", () => {
+    const base = PROJECT_COLUMNS.split(",").map((c) => c.trim());
+    expect(base).not.toContain("folder");
+    expect(base).not.toContain("tags");
+    const org = PROJECT_COLUMNS_WITH_ORG.split(",").map((c) => c.trim());
+    expect(org).toEqual([...base, "folder", "tags"]);
+  });
+
+  it.each([
+    [{ code: "42703", message: "column projects.folder does not exist" }, true],
+    [{ code: "PGRST204", message: "Could not find the 'tags' column of 'projects' in the schema cache" }, true],
+    [{ code: "42703", message: "column projects.composition_json does not exist" }, false],
+    [{ code: "23505", message: "duplicate key value violates unique constraint" }, false],
+    [{ code: "PGRST205", message: "Could not find the table 'public.projects' in the schema cache" }, false],
+    [null, false],
+    [undefined, false],
+  ])("isMissingOrgColumnError(%j) === %s", (error, expected) => {
+    expect(isMissingOrgColumnError(error)).toBe(expected);
+  });
+
+  it("normalizeProjectTags trims, dedupes case-insensitively, drops empties and non-strings, caps at 12", () => {
+    expect(normalizeProjectTags([" Hook ", "hook", "", "client", 42, null])).toEqual(["Hook", "client"]);
+    expect(normalizeProjectTags(Array.from({ length: 20 }, (_, i) => `t${i}`))).toHaveLength(12);
+    expect(normalizeProjectTags("nope")).toEqual([]);
+    expect(normalizeProjectTags(undefined)).toEqual([]);
+  });
+
+  it("normalizeProjectFolder trims and maps empty/non-string to null", () => {
+    expect(normalizeProjectFolder("  Podcast ")).toBe("Podcast");
+    expect(normalizeProjectFolder("   ")).toBeNull();
+    expect(normalizeProjectFolder(null)).toBeNull();
+    expect(normalizeProjectFolder(7)).toBeNull();
+  });
+
+  it("withOrgDefaults fills folder/tags when the columns were not selected, canonicalises when they were", () => {
+    expect(withOrgDefaults({ id: "p1" })).toMatchObject({ folder: null, tags: [] });
+    expect(withOrgDefaults({ id: "p1", folder: " Pod ", tags: [" A ", "a"] })).toMatchObject({ folder: "Pod", tags: ["A"] });
   });
 });
