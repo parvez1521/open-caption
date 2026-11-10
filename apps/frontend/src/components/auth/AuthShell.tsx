@@ -147,6 +147,10 @@ export function friendlyAuthError(raw: string): string {
     return "Too many attempts in a row. Give it a minute, then try again.";
   if (m.includes("network") || m.includes("fetch"))
     return "Couldn't reach the sign-in service. Check your connection and try again.";
+  // Google sign-in is not enabled on this project (Supabase: "Unsupported provider: provider is not
+  // enabled"). Never show that raw string: point people at the paths that do work.
+  if (m.includes("unsupported provider") || m.includes("provider is not enabled"))
+    return "Google sign-in isn't available right now. Sign in with your email below, or continue as a guest from the start page.";
   return raw;
 }
 

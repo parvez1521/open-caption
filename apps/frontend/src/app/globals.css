@@ -309,3 +309,12 @@ html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused 
   .ce-wave > span { animation: none; transform: scaleY(0.7); }
   .skel, .ce-veil, .ce-veil-card { animation: none; }
 }
+
+/* ── keyboard focus visibility (Persona QA, 2026-11-10) ─────────────
+ * Most app buttons/links carried no focus style at all, so keyboard users tabbed blind.
+ * Inputs/selects keep their own focus rings (they set outline-none + ring utilities);
+ * this covers the button/link/tabindex surface everywhere else. */
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible, [role="tab"]:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--color-emerald-accent);
+  outline-offset: 2px;
+}

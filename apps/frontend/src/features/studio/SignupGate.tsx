@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { rememberGuestForClaim, signInWithGoogleKeepingWork } from "@/services/auth/guest";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
+import { friendlyAuthError } from "@/components/auth/AuthShell";
 import { Button } from "./controls";
 
 /**
@@ -31,7 +32,7 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
       await signInWithGoogleKeepingWork(back.pathname + back.search);
     } catch (e) {
       setBusy(false);
-      setError(e instanceof Error ? e.message : "Google sign-up didn't start. Check your connection and try again.");
+      setError(e instanceof Error ? friendlyAuthError(e.message) : "Google sign-up didn't start. Check your connection and try again.");
     }
   };
 
