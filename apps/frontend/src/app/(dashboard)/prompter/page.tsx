@@ -358,11 +358,14 @@ export default function PrompterPage() {
             Read a script at your pace: bring one in from Script Studio or paste your own text,
             then set the scroll speed, size and position and press play.
           </p>
-          <p className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            The Teleprompter itself only displays your text and scrolls it. If you want to film
-            yourself reading, the optional record mode below uses your camera entirely on this
-            device — nothing is uploaded.
-          </p>
+          <details className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
+            <summary className="cursor-pointer font-semibold">About the optional record mode</summary>
+            <p className="mt-1.5">
+              The Teleprompter itself only displays your text and scrolls it. If you want to film
+              yourself reading, the optional record mode uses your camera entirely on this
+              device — nothing is uploaded.
+            </p>
+          </details>
         </div>
 
         {/* -------------------------------------------------- Source */}

@@ -4,10 +4,25 @@ import React from "react";
 
 /** Small light-theme form primitives shared by the studio panels. */
 
-export const Section: React.FC<{ title: string; children: React.ReactNode; hint?: string }> = ({ title, children, hint }) => (
+/**
+ * A panel section. `hint` is the ONE line that stays on the surface; anything longer
+ * goes in `more`, behind a Details disclosure — the explanation stays one tap away
+ * instead of stacking above the section's controls (owner declutter order, 2026-11-11).
+ */
+export const Section: React.FC<{ title: string; children: React.ReactNode; hint?: string; more?: string }> = ({ title, children, hint, more }) => (
   <section className="border-b border-st-line px-4 py-4">
     <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-st-muted">{title}</h3>
-    {hint ? <p className="mb-3 text-xs text-st-faint">{hint}</p> : null}
+    {hint || more ? (
+      <div className="mb-3">
+        {hint ? <p className="text-xs text-st-faint">{hint}</p> : null}
+        {more ? (
+          <details className="mt-1.5">
+            <summary className="cursor-pointer text-xs font-medium text-st-muted">Details</summary>
+            <p className="mt-1 text-xs leading-relaxed text-st-faint">{more}</p>
+          </details>
+        ) : null}
+      </div>
+    ) : null}
     <div className="space-y-3">{children}</div>
   </section>
 );

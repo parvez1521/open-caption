@@ -202,7 +202,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
       ) : null}
 
       {!segment.still ? (
-        <Section title="Reverse & freeze" hint="Freeze and reverse clips are stored on this device, like your other media. Browser exports include them when you export on this device; a render on another device can't see them.">
+        <Section title="Reverse & freeze" hint="Freeze and reverse clips are stored on this device, like your other media." more="Browser exports include them when you export on this device; a render on another device can't see them.">
           <div className="flex flex-wrap gap-1.5">
             <Button onClick={onReverse} disabled={busy}>{production.kind === "working" && production.action === "reverse" ? "Reversing…" : "Reverse"}</Button>
             <Button onClick={onFreeze} disabled={busy || !playheadInside}>Freeze frame</Button>
@@ -220,7 +220,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
       ) : null}
 
       {!segment.still ? (
-        <Section title="Keyframes" hint="A keyframe sets a value at a moment inside this segment; the picture eases between keyframes and holds the nearest value outside them.">
+        <Section title="Keyframes" hint="A keyframe sets a value at a moment inside this segment." more="The picture eases between keyframes and holds the nearest value outside them.">
           <Select label="Property" value={kfProperty} options={KEYFRAME_PROPERTY_OPTIONS} onChange={(v) => setKfProperty(v as SegmentKeyframeProperty)} />
           <Button
             onClick={() => onAddKeyframe(kfProperty, playheadMs - segment.startMs, baseKeyframeValue(kfProperty))}
@@ -271,7 +271,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
       ) : null}
 
       {!segment.still && onAutoZooms ? (
-        <Section title="Auto zooms" hint={`Not AI: punch-in zooms are added where your captions mark key words, after a pause of ${AUTO_ZOOM_PAUSE_MS} ms or more, and at loud peaks. They are ordinary scale keyframes — edit or delete them in Keyframes above; deleting them all restores the untouched picture.`}>
+        <Section title="Auto zooms" hint="Not AI: punch-in zooms at key words, long pauses and loud peaks." more={`Zooms are added where your captions mark key words, after a pause of ${AUTO_ZOOM_PAUSE_MS} ms or more, and at loud peaks. They are ordinary scale keyframes — edit or delete them in Keyframes above; deleting them all restores the untouched picture.`}>
           <Select
             label="Intensity"
             value={zoomIntensity}

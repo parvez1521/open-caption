@@ -113,18 +113,15 @@ export const PolishPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
     <div className="h-full overflow-y-auto">
       <Section
         title="One-click Polish"
-        hint="An automated edit pass over this project, built from the editor's own tools: filler and long-pause cuts, punch-in zooms, a caption look, a title card and music ducking. The plan is shown before anything is applied, every step can be unchecked, applying is one undo step, and each applied step can be reverted on its own. Steps marked AI-suggested had a choice made by the badged source; everything else is a deterministic automatic step."
+        hint="An automated edit pass over this project — the plan is shown before anything is applied."
+        more="The pass is built from the editor's own tools: filler and long-pause cuts, punch-in zooms, a caption look, a title card and music ducking. Every step can be unchecked, applying is one undo step, and each applied step can be reverted on its own. Steps marked AI-suggested had a choice made by the badged source; everything else is a deterministic automatic step. Where a choice exists — the caption look, the zoom intensity, the title — the free AI or on-device model may suggest it when available; otherwise the plan uses its stated defaults and labels those steps automatic."
       >
         {!plan && !record ? (
           <div className="space-y-2">
             <Button tone="primary" disabled={busy} onClick={() => void buildPlan()} className="w-full">
               {busy ? "Building plan…" : "Build my polish plan"}
             </Button>
-            <p className="text-xs text-st-faint">
-              Building a plan changes nothing. Where a choice exists — the caption look, the zoom intensity, the
-              title — the free AI or on-device model may suggest it when available; otherwise the plan uses its
-              stated defaults and labels those steps automatic.
-            </p>
+            <p className="text-xs text-st-faint">Building a plan changes nothing.</p>
             {error ? <p role="alert" className="text-xs text-st-text">{error}</p> : null}
           </div>
         ) : null}
@@ -201,10 +198,13 @@ export const PolishPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
             >
               Revert all steps
             </Button>
-            <p className="text-xs text-st-faint">
-              Each revert is its own undo step and restores exactly what that step changed. Reverting newest first
-              is exact; the two cut steps share their scope, so reverting either restores both cuts.
-            </p>
+            <details>
+              <summary className="cursor-pointer text-xs font-medium text-st-muted">How reverting works</summary>
+              <p className="mt-1 text-xs leading-relaxed text-st-faint">
+                Each revert is its own undo step and restores exactly what that step changed. Reverting newest first
+                is exact; the two cut steps share their scope, so reverting either restores both cuts.
+              </p>
+            </details>
             <Button disabled={busy} onClick={() => void buildPlan()} className="w-full">
               Build a new plan
             </Button>

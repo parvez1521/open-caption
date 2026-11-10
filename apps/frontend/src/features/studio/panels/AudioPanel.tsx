@@ -116,7 +116,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
         ) : null}
       </Section>
 
-      <Section title="Bleep profanity" hint="Words from the built-in list that appear in your transcript. A word is only silenced — with a tone over it — after you approve it here; the original audio is never edited, and removing a bleep restores it.">
+      <Section title="Bleep profanity" hint="Words from the built-in list that appear in your transcript." more="A word is only silenced — with a tone over it — after you approve it here; the original audio is never edited, and removing a bleep restores it.">
         <p className="text-xs text-st-faint">This matches listed words in the transcript; it can miss slang or mis-transcribed words.</p>
         {matches.length === 0 ? (
           <p className="text-xs text-st-faint">No listed words found in the transcript.</p>

@@ -80,7 +80,11 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
           ))}
         </dl>
       </Section>
-      <Section title="Media bin" hint="This project's files, kept in this browser only — not uploaded. Another browser shows an empty bin. Audio can be dragged onto the timeline or placed from the Audio panel.">
+      <Section
+        title="Media bin"
+        hint="This project's files, kept in this browser only — not uploaded."
+        more="Another browser shows an empty bin. Audio can be dragged onto the timeline or placed from the Audio panel."
+      >
         <Button disabled={importing} onClick={() => binRef.current?.click()} className="w-full">{importing ? "Importing…" : "Import media"}</Button>
         <input
           ref={binRef}
@@ -120,12 +124,20 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
           <p className="text-xs text-st-faint">Nothing imported yet. Add B-roll, music or a logo image and it stays here for this project.</p>
         )}
       </Section>
-      <Section title="Stock audio" hint="A bundled CC0 pack of sound effects, plus Pixabay music and sounds imported with your own free Pixabay key. Imports land in the media bin with their licence record attached.">
+      <Section
+        title="Stock audio"
+        hint="A bundled CC0 pack of sound effects, plus Pixabay music and sounds with your own free Pixabay key."
+        more="Imports land in the media bin with their licence record attached."
+      >
         <StockAudioSection projectId={stockProjectId ?? null} onAdded={onStockAdded} tone="studio" />
       </Section>
-      <Section title="Where the video lives" hint="Your video stays on this device. Only the captions and settings are saved to your account, so opening this project on another device asks you to pick the video file again.">
+      <Section
+        title="Where the video lives"
+        hint="Your video stays on this device."
+        more="Only the captions and settings are saved to your account, so opening this project on another device asks you to pick the video file again. Re-linking replaces the copy stored here; your captions and timing do not change."
+      >
         <Button disabled={busy} onClick={() => inputRef.current?.click()}>{busy ? "Linking…" : "Re-link video file"}</Button>
-        <p className="text-xs text-st-faint">Pick the same video file on this device. The copy stored here is replaced; your captions and timing do not change.</p>
+        <p className="text-xs text-st-faint">Pick the same video file on this device.</p>
         {note ? <p role="status" className="text-xs text-st-muted">{note}</p> : null}
         <input
           ref={inputRef}
@@ -175,7 +187,7 @@ const AssetRow: React.FC<{
         <span className="font-semibold uppercase tracking-wide">{asset.kind}</span> · {describeAssetMeta(asset)}
       </p>
       {asset.licence ? (
-        <p className="text-xs text-st-faint">
+        <p className="truncate text-xs text-st-faint" title={`${describeAssetLicence(asset.licence)} — full record stays with this copy in your bin`}>
           {describeAssetLicence(asset.licence)} ·{" "}
           <a href={asset.licence.sourceUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">source</a>
         </p>

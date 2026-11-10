@@ -1378,7 +1378,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   );
   // the active section's panel, full height; Captions keeps its title row, the rest carry their own
   const panelColumn = (
-    <aside aria-label="Tool panel" className="flex min-h-0 w-[min(400px,34vw)] min-w-[300px] shrink-0 flex-col border-r border-st-line bg-st-panel">
+    <aside aria-label="Tool panel" className="flex min-h-0 w-[min(340px,30vw)] min-w-[264px] shrink-0 flex-col border-r border-st-line bg-st-panel 2xl:w-[400px]">
       {section === "captions" ? <PanelTitle title="Captions" hint={`${pages.length} cards`} /> : null}
       <div key={section} className="st-rise min-h-0 flex-1">{renderPanel(section)}</div>
     </aside>
@@ -1398,7 +1398,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             <section aria-label="Timeline section" className="h-[min(300px,34%)] min-h-[215px] shrink-0 border-t border-st-line">{timeline}</section>
           </div>
           {segmentInspector ? (
-            <aside aria-label="Segment inspector" className="flex min-h-0 w-[300px] shrink-0 flex-col border-l border-st-line bg-st-panel">
+            <aside aria-label="Segment inspector" className="flex min-h-0 w-[264px] shrink-0 flex-col border-l border-st-line bg-st-panel 2xl:w-[300px]">
               {segmentInspector}
             </aside>
           ) : null}

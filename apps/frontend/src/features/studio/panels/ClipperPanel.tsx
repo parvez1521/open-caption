@@ -108,7 +108,8 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
     <div className="h-full overflow-y-auto">
       <Section
         title="Clipper"
-        hint="Clips suggested from your transcript, silences and scene changes — measured on your device, ordered by the signals on each clip. No score is assigned. Adjust the edges, then create a clip: it becomes its own caption project, and your source video is not cut."
+        hint="Clips suggested from your transcript, silences and scene changes — measured on your device."
+        more="Clips are ordered by the signals on each clip; no score is assigned. Adjust the edges, then create a clip: it becomes its own caption project, and your source video is not cut."
       >
         <p className="mb-3 text-xs text-st-faint">
           Analysis on this video: {peaks ? `${silences.length} silence span${silences.length === 1 ? "" : "s"} measured from the audio` : "audio silence not measured yet (waveform still loading)"}

@@ -235,11 +235,14 @@ export default function LibraryPage() {
           <p className="mt-2 text-[14px] text-sand-800">
             Every video, audio and image file imported into your projects&apos; media bins, in one place.
           </p>
-          <p className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            These files live in this browser on this device only — nothing here is uploaded.
-            This library is empty on other devices, and clearing this browser&apos;s site data
-            removes the files.
-          </p>
+          <details className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
+            <summary className="cursor-pointer font-semibold">Where these files live</summary>
+            <p className="mt-1.5">
+              These files live in this browser on this device only — nothing here is uploaded.
+              This library is empty on other devices, and clearing this browser&apos;s site data
+              removes the files.
+            </p>
+          </details>
           {deleteBlocked ? (
             <p role="alert" className="mt-4 rounded-lg border border-orange-accent/50 bg-orange-accent/10 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
               {deleteBlocked}
@@ -254,9 +257,7 @@ export default function LibraryPage() {
               <p className="text-[12px] text-sand-600">Bundled CC0 sound effects + browse-and-import from Pixabay</p>
             </div>
             <p className="mt-1.5 max-w-[72ch] text-[12px] leading-relaxed text-sand-700">
-              Stock audio is added to a project&apos;s media bin on this device, as a normal asset with
-              its licence record attached — from there it is placed from the project&apos;s Audio panel
-              like any imported file.
+              Added to the chosen project&apos;s media bin on this device, with its licence record attached.
             </p>
             <label className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-sand-800">
               <span className="font-semibold">Add to project:</span>

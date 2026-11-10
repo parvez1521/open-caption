@@ -93,15 +93,35 @@ type Mode = "word" | "line";
 interface Block { key: string; firstId: string; lastId: string; wordIds: string[]; text: string; s: number; e: number; selected: boolean; inSelection: boolean; live: boolean }
 type Drag = { key: string; firstId: string; lastId: string; kind: "move" | "start" | "end"; x0: number; s0: number; e0: number; min: number; max: number; s: number; e: number; group: string[] | null; dxMs: number; px: number; py: number };
 
-const LABEL_WIDE = 88;
-const LABEL_NARROW = 58;
+/**
+ * Track-label column tiers, by TIMELINE CONTAINER width (B-31 fix, 2026-11-11). The old
+ * two-width scheme (88px, or 58px under 520px) broke in the 900–1280px window range the
+ * owner actually uses: the panel column + inspector leave the centre ~400–650px, where an
+ * 88px label column with full names ("Text / Elements") plus 24px lock/eye/mute buttons
+ * cannot fit — names clipped under the buttons and the column ate the timeline. Three
+ * tiers now: wide keeps name + buttons on one line; mid stacks the SHORT name above a
+ * compact button row; narrow shows the glyph alone above the button row. No tier clips
+ * a label and no control is dropped at any width.
+ */
+export type LabelTier = "wide" | "mid" | "narrow";
+export const labelTierForWidth = (w: number): LabelTier => (w >= 880 ? "wide" : w >= 540 ? "mid" : "narrow");
+export const LABEL_WIDTHS: Record<LabelTier, number> = { wide: 148, mid: 92, narrow: 60 };
+/** track names per tier — mid shortens, narrow keeps only the glyph (aria-labels carry the full name) */
+export const TRACK_NAMES: Record<LabelTier, { captions: string; video: string; text: string; audio: string }> = {
+  wide: { captions: "𝐈 Captions", video: "▶ Video", text: "T Text / Elements", audio: "♫ Audio" },
+  mid: { captions: "Captions", video: "Video", text: "Text", audio: "Audio" },
+  narrow: { captions: "𝐈", video: "▶", text: "T", audio: "♫" },
+};
 const MIN_MS = 40;
-/** fixed track heights: blocks keep editor proportions however tall the panel is (no stretched cards) */
+/** fixed track heights per tier: blocks keep editor proportions however tall the panel is
+ *  (no stretched cards); mid/narrow rows grow just enough to hold the stacked label cell */
 const ROW = { ruler: 24, captions: 44, video: 52, text: 36, audio: 44, audioTrack: 36 };
-/** Base grid rows (ruler / captions / video / text / display-audio). Run 3: the Timeline
- *  appends one ROW.audioTrack row per audio track — see the computed `rows` inside the
- *  component, which is the single source both grids (labels + content) consume. */
-const BASE_ROWS = `${ROW.ruler}px ${ROW.captions}px ${ROW.video}px ${ROW.text}px ${ROW.audio}px`;
+const ROW_HEIGHTS: Record<LabelTier, typeof ROW> = {
+  wide: ROW,
+  mid: { ruler: 24, captions: 50, video: 58, text: 44, audio: 48, audioTrack: 42 },
+  narrow: { ruler: 24, captions: 50, video: 64, text: 50, audio: 48, audioTrack: 46 },
+};
+const baseRowsFor = (r: typeof ROW) => `${r.ruler}px ${r.captions}px ${r.video}px ${r.text}px ${r.audio}px`;
 /** video visible at the default zoom: enough room to read every word (phones ~2.5 s, desktop up to 8 s) */
 const defaultWindowMs = (px: number) => (px < 420 ? Math.max(2000, px * 9) : Math.min(8000, Math.max(3000, px * 15)));
 
@@ -116,8 +136,10 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [viewW, setViewW] = useState(0);
-  const [narrow, setNarrow] = useState(false);
-  const LABEL_W = narrow ? LABEL_NARROW : LABEL_WIDE;
+  const [tier, setTier] = useState<LabelTier>("wide");
+  const LABEL_W = LABEL_WIDTHS[tier];
+  const R = ROW_HEIGHTS[tier];
+  const NAMES = TRACK_NAMES[tier];
   const [drag, setDrag] = useState<Drag | null>(null);
   /** overlay-block drag: preview only; one commit lands on pointer up. kind "move" shifts the
    *  whole block (dxMs); "start"/"end" retime one edge (s/e hold the preview window). */
@@ -147,9 +169,9 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
     const el = scrollRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      const n = el.clientWidth < 520;
-      setNarrow(n);
-      setViewW(el.clientWidth - (n ? LABEL_NARROW : LABEL_WIDE));
+      const t = labelTierForWidth(el.clientWidth);
+      setTier(t);
+      setViewW(el.clientWidth - LABEL_WIDTHS[t]);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -274,9 +296,10 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   const audioTracks: AudioTrack[] = audioTracksProp ?? editorComp?.audioTracks ?? [];
   const audioClips: AudioClip[] = audioClipsProp ?? editorComp?.audioClips ?? [];
   const audioTrackOfClip = (c: AudioClip) => audioTracks.find((t) => t.id === c.trackId);
-  /** computed grid rows: the 5 base rows + one 36px row per audio track */
+  /** computed grid rows: the 5 base rows (at this tier's heights) + one row per audio track */
   const rowCount = 5 + audioTracks.length;
-  const rows = audioTracks.length ? `${BASE_ROWS} ${audioTracks.map(() => `${ROW.audioTrack}px`).join(" ")}` : BASE_ROWS;
+  const BASE_ROWS = baseRowsFor(R);
+  const rows = audioTracks.length ? `${BASE_ROWS} ${audioTracks.map(() => `${R.audioTrack}px`).join(" ")}` : BASE_ROWS;
 
   // video segment blocks as displayed: while an edge drag runs, only the dragged boundary
   // moves — the prospective partition is derived from the target exactly like the ops will
@@ -543,16 +566,21 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={`grid h-6 w-6 shrink-0 place-items-center rounded-md transition ${active ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+      className={`grid ${tier === "wide" ? "h-6 w-6" : "h-5 w-5"} shrink-0 place-items-center rounded-md transition ${active ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
     >
       {children}
     </button>
   );
-  const ticon = "h-3.5 w-3.5";
+  const ticon = tier === "wide" ? "h-3.5 w-3.5" : "h-3 w-3";
+  /** label-cell layout per tier: wide = name + buttons on one line; mid/narrow = name line
+   *  above a compact button row (the buttons stay — no control is dropped at any width) */
+  const labelCell = tier === "wide" ? "flex items-center gap-1 border-b border-st-line px-2" : "flex flex-col justify-center gap-1 border-b border-st-line px-2 py-1";
+  const labelName = tier === "wide" ? "min-w-0 flex-1 truncate" : "w-full truncate leading-tight";
+  const labelBtns = tier === "wide" ? "contents" : "flex flex-wrap gap-0.5";
   const sep = <span className="mx-1 h-5 w-px shrink-0 bg-st-line" aria-hidden />;
   const noSel = !selectedId;
   const trackRow = "relative h-full border-b border-st-line";
-  const tileW = Math.max(24, (ROW.video - 8) * videoAspect);
+  const tileW = Math.max(24, (R.video - 8) * videoAspect);
   const tiles = frames.length ? Math.ceil(x(total) / tileW) : 0;
 
   const ASSET_MIME = "application/x-opencaption-asset";
@@ -606,23 +634,29 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
         <div className="relative grid w-max" style={{ gridTemplateColumns: `${LABEL_W}px ${width}px`, gridTemplateRows: rows }}>
           <div className="sticky left-0 z-20 grid whitespace-nowrap border-r border-st-line bg-st-panel text-[11px] text-st-muted" style={{ gridTemplateRows: rows, gridRow: `1 / span ${rowCount}` }}>
             <div />
-            <div className="flex items-center gap-1 border-b border-st-line px-2 font-semibold text-st-text">
-              <span className="min-w-0 flex-1 truncate">𝐈 {narrow ? "Text" : "Captions"}</span>
-              {trackBtn(tracks.captions.locked ? "Unlock captions track" : "Lock captions track", tracks.captions.locked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onTrackPatch?.("captions", { locked: !tracks.captions.locked }), tracks.captions.locked)}
-              {trackBtn(tracks.captions.visible ? "Hide captions track" : "Show captions track", tracks.captions.visible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onTrackPatch?.("captions", { visible: !tracks.captions.visible }), !tracks.captions.visible)}
+            <div className={`${labelCell} font-semibold text-st-text`} aria-label={tier === "narrow" ? "Captions track" : undefined}>
+              <span className={labelName}>{NAMES.captions}</span>
+              <span className={labelBtns}>
+                {trackBtn(tracks.captions.locked ? "Unlock captions track" : "Lock captions track", tracks.captions.locked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onTrackPatch?.("captions", { locked: !tracks.captions.locked }), tracks.captions.locked)}
+                {trackBtn(tracks.captions.visible ? "Hide captions track" : "Show captions track", tracks.captions.visible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onTrackPatch?.("captions", { visible: !tracks.captions.visible }), !tracks.captions.visible)}
+              </span>
             </div>
-            <div className="flex items-center gap-1 border-b border-st-line px-2 text-st-muted">
-              <span className="min-w-0 flex-1 truncate">▶ Video</span>
-              {trackBtn(tracks.video.locked ? "Unlock video track" : "Lock video track", tracks.video.locked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onTrackPatch?.("video", { locked: !tracks.video.locked }), tracks.video.locked)}
-              {trackBtn(tracks.video.visible ? "Hide video track" : "Show video track", tracks.video.visible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onTrackPatch?.("video", { visible: !tracks.video.visible }), !tracks.video.visible)}
-              {trackBtn(tracks.video.muted ? "Unmute video" : "Mute video", tracks.video.muted ? <VolumeX className={ticon} /> : <Volume2 className={ticon} />, () => onTrackPatch?.("video", { muted: !tracks.video.muted }), tracks.video.muted)}
+            <div className={`${labelCell} text-st-muted`} aria-label={tier === "narrow" ? "Video track" : undefined}>
+              <span className={labelName}>{NAMES.video}</span>
+              <span className={labelBtns}>
+                {trackBtn(tracks.video.locked ? "Unlock video track" : "Lock video track", tracks.video.locked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onTrackPatch?.("video", { locked: !tracks.video.locked }), tracks.video.locked)}
+                {trackBtn(tracks.video.visible ? "Hide video track" : "Show video track", tracks.video.visible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onTrackPatch?.("video", { visible: !tracks.video.visible }), !tracks.video.visible)}
+                {trackBtn(tracks.video.muted ? "Unmute video" : "Mute video", tracks.video.muted ? <VolumeX className={ticon} /> : <Volume2 className={ticon} />, () => onTrackPatch?.("video", { muted: !tracks.video.muted }), tracks.video.muted)}
+              </span>
             </div>
-            <div className="flex items-center gap-1 border-b border-st-line px-2 text-st-muted">
-              <span className="min-w-0 flex-1 truncate">T {narrow ? "Text" : "Text / Elements"}</span>
-              {trackBtn(overlayBothLocked ? "Unlock overlay tracks" : "Lock overlay tracks", overlayBothLocked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onOverlayTrackPatch?.({ locked: !overlayBothLocked }), overlayBothLocked)}
-              {trackBtn(overlayAnyVisible ? "Hide overlay tracks" : "Show overlay tracks", overlayAnyVisible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onOverlayTrackPatch?.({ visible: !overlayAnyVisible }), !overlayAnyVisible)}
+            <div className={`${labelCell} text-st-muted`} aria-label={tier === "narrow" ? "Text and elements tracks" : undefined}>
+              <span className={labelName}>{NAMES.text}</span>
+              <span className={labelBtns}>
+                {trackBtn(overlayBothLocked ? "Unlock overlay tracks" : "Lock overlay tracks", overlayBothLocked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onOverlayTrackPatch?.({ locked: !overlayBothLocked }), overlayBothLocked)}
+                {trackBtn(overlayAnyVisible ? "Hide overlay tracks" : "Show overlay tracks", overlayAnyVisible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onOverlayTrackPatch?.({ visible: !overlayAnyVisible }), !overlayAnyVisible)}
+              </span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 text-st-muted">♫ Audio</div>
+            <div className="flex items-center gap-1.5 px-2 text-st-muted" aria-label={tier === "narrow" ? "Audio (the video's own sound)" : undefined}>{NAMES.audio}</div>
             {audioTracks.map((t) => (
               <div key={t.id} className="flex items-center gap-1 border-b border-st-line px-2 text-st-muted">
                 <span className="min-w-0 flex-1 truncate" title={t.name}>{t.name}</span>

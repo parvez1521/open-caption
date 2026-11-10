@@ -118,12 +118,17 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
       {/* ------------------------------------------------ bundled pack */}
       <div>
         <p className={`text-sm font-medium ${txt}`}>Starter sound effects pack</p>
-        <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
-          Bundled with Open Caption — every sound is CC0 (public domain), so it can be used in any
-          project, commercial or not, with no attribution required. These are Kenney&apos;s sounds,
-          not ours; each one&apos;s source and licence are listed with it, on the Credits page, and in
-          the licence record the copy in your bin carries.
-        </p>
+        <p className={`mt-1 text-xs ${faint}`}>CC0 — free for any use, no credit needed.</p>
+        <details className="mt-1.5">
+          <summary className="cursor-pointer text-xs font-medium text-st-muted">About this pack &amp; its licences</summary>
+          <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
+            Bundled with Open Caption — every sound is CC0 (public domain), so it can be used in any
+            project, commercial or not, with no attribution required. These are Kenney&apos;s sounds,
+            not ours; each one&apos;s source and licence are listed with it, on the{" "}
+            <a href="/credits" className="underline underline-offset-2">Credits page</a>, and in
+            the licence record the copy in your bin carries.
+          </p>
+        </details>
         {!projectId ? (
           <p className={`mt-2 text-xs ${mut}`}>Pick a project above first — added sounds land in that project&apos;s media bin on this device.</p>
         ) : null}
@@ -138,10 +143,10 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
                 </button>
               </div>
               <p className={`mt-0.5 text-xs leading-relaxed ${faint}`}>{item.use}</p>
-              <p className={`mt-0.5 text-xs ${faint}`}>
+              <p className={`mt-0.5 truncate text-xs ${faint}`} title={`${describeAssetLicence(licenceRecordForStockItem(item))} · ${item.format} — full record travels with the copy in your bin`}>
                 {describeAssetLicence(licenceRecordForStockItem(item))} ·{" "}
                 <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">source</a>
-                {" · "}{item.format}
+                {" · "}{item.format.replace(/\s*\([^)]*\)\s*$/, "")}
               </p>
               <audio controls preload="none" src={stockItemUrl(item)} className="mt-1.5 h-8 w-full" aria-label={`Preview ${item.displayName}`} />
             </div>
@@ -188,10 +193,14 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
           </>
         ) : (
           <>
-            <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
-              Searching Pixabay with your own key, from this browser. Tracks are under the {PIXABAY_LICENCE_NAME}:
-              free to use inside your projects, no attribution required. {PIXABAY_USE_NOTE}
-            </p>
+            <p className={`mt-1 text-xs ${faint}`}>Searching Pixabay with your own key, from this browser.</p>
+            <details className="mt-1.5">
+              <summary className="cursor-pointer text-xs font-medium text-st-muted">Licence details</summary>
+              <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
+                Tracks are under the {PIXABAY_LICENCE_NAME}: free to use inside your projects, no
+                attribution required. {PIXABAY_USE_NOTE}
+              </p>
+            </details>
             <div className="mt-2 flex gap-1.5">
               <input
                 value={query}
