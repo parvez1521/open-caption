@@ -124,7 +124,7 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
       </Section>
 
       {show("heroScale") ? (
-        <Section title="Key word" hint="The most important word on each card. Click a word in Captions and choose Make hero.">
+        <Section title="Key word" hint="The most important word on each card. Click a word in Captions and choose ☆ Make key word.">
           <Slider label="Key word size" value={style.hero.scale} min={1} max={3} step={0.05} unit="×" onChange={(v) => patch((s) => ({ ...s, hero: { ...s.hero, scale: v } }))} />
           {show("heroFont") ? <FontPicker label="Key word font" value={style.hero.fontId ?? style.fontId} onChange={(v) => patch((s) => ({ ...s, hero: { ...s.hero, fontId: v } }))} /> : null}
         </Section>

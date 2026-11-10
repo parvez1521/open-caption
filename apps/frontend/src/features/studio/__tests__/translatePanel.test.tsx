@@ -37,7 +37,9 @@ describe("TranslatePanel", () => {
         onTranslated={vi.fn()}
       />,
     );
-    expect(html).toContain("Xenova/opus-mt-en-de");
+    // the panel shows the plain model name + licence; the raw model id lives on /credits
+    expect(html).toContain("OPUS-MT");
+    expect(html).not.toContain("Xenova/");
     expect(html).toContain("CC-BY-4.0");
     expect(html).toContain("Bilingual captions");
   });

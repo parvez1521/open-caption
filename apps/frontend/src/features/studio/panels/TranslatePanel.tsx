@@ -57,7 +57,7 @@ export const TranslatePanel: React.FC<{
   const progressLabel = !progress
     ? null
     : progress.stage === "download"
-      ? `Downloading the ${model?.targetLabel ?? ""} model — about ${model?.approxDownloadMb ?? "?"} MB, first time only… ${Math.round(progress.progress * 100)}%`
+      ? `Downloading the ${model?.targetLabel ?? ""} model — first time only… ${Math.round(progress.progress * 100)}%`
       : progress.stage === "load"
         ? "Loading the model…"
         : `Translating captions… ${Math.round(progress.progress * 100)}%`;
@@ -66,7 +66,7 @@ export const TranslatePanel: React.FC<{
     <div className="h-full overflow-y-auto">
       <Section
         title="Translate"
-        hint="On-device machine translation (OPUS-MT) — it runs entirely in your browser and nothing is uploaded. Quality is machine translation, not human translation. In the translated track, word timings are spread across each caption card; they are not measured from speech."
+        hint="On-device machine translation (OPUS-MT) — it runs entirely in your browser and nothing is uploaded."
       >
         <label className="block text-sm text-st-text/90">
           <span className="mb-1.5 block text-xs font-medium text-st-muted">Translate captions from English into</span>
@@ -87,15 +87,19 @@ export const TranslatePanel: React.FC<{
 
         {model ? (
           <p className="text-xs text-st-faint">
-            Model: {model.modelId} (OPUS-MT, {model.license}).{" "}
+            OPUS-MT {model.targetLabel} model · {model.license}.{" "}
             <a href="/credits" target="_blank" rel="noreferrer" className="underline underline-offset-2">Licence + credits</a>
           </p>
         ) : null}
+        <details className="text-xs text-st-faint">
+          <summary className="cursor-pointer font-medium text-st-muted">How the translated timings work</summary>
+          <p className="mt-1">In the translated track, word timings are spread across each caption card; they are not measured from speech.</p>
+        </details>
 
         <Button tone="primary" onClick={run} disabled={!target || busy || !supported || cardCount === 0} className="w-full">
           {busy ? "Translating…" : existing ? `Translate again into ${model?.targetLabel ?? ""}` : `Translate into ${model?.targetLabel ?? "…"}`}
         </Button>
-        {!supported ? <p className="text-xs text-st-faint">This browser cannot run the on-device translation model (it needs Web Workers and WebAssembly).</p> : null}
+        {!supported ? <p className="text-xs text-st-faint">This browser can&apos;t run the on-device translation model. A current version of Chrome, Edge or Firefox should work.</p> : null}
         {progressLabel ? <p className="text-xs text-st-muted" role="status">{progressLabel}</p> : null}
         {error ? <p className="text-xs text-red-300" role="alert">{error}</p> : null}
         {doneNote ? <p className="text-xs text-st-muted" role="status">{doneNote}</p> : null}
@@ -109,7 +113,6 @@ export const TranslatePanel: React.FC<{
             type="checkbox"
             checked={settings.bilingual}
             onChange={(e) => patch({ bilingual: e.target.checked })}
-            disabled={!existing}
             className="h-4 w-4 shrink-0 accent-[#34D399]"
             aria-label="Bilingual captions"
           />

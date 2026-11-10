@@ -43,7 +43,7 @@ describe("EmphasisSuggestions — availability honesty", () => {
     const btn = screen.getByRole("button", { name: "Suggest emphasis" }) as HTMLButtonElement;
     expect(btn.disabled).toBe(true);
     expect(screen.getByText(/no template or heuristic fallback/)).toBeTruthy();
-    expect(screen.getByText(/no template fallback/)).toBeTruthy();
+    expect(screen.getByText(/Nothing changes until you accept/)).toBeTruthy();
   });
 
   it("a failing route reports unavailable after the attempt — no suggestions, no edit", async () => {

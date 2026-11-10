@@ -123,8 +123,8 @@ export const EmphasisSuggestions: React.FC<{
         {review ? <SourceBadge source={review.source} /> : null}
       </div>
       <p className="text-xs text-st-faint">
-        Suggested by the free AI or the on-device model — which words to emphasise, supersize, or pair with an
-        emoji. Nothing changes until you accept, and this feature has no template fallback.
+        The free AI (or the on-device model) picks words to emphasise or pair with an emoji.
+        Nothing changes until you accept.
       </p>
 
       {!review ? (

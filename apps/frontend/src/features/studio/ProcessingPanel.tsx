@@ -167,7 +167,7 @@ function friendlyError(job: StudioJob): string {
 
 const STAGE_TEXT: Record<BrowserStatus["stage"], string> = {
   audio: "Listening to your video…",
-  download: "Building your experience for the first time…",
+  download: "Downloading the speech model (about 90 MB, first time only)…",
   load: "Getting everything ready…",
   transcribe: "Writing your captions…",
   save: "Putting the finishing touches…",
@@ -178,9 +178,9 @@ export const overall = (s: BrowserStatus | null, view?: Pick<SessionView, "progr
   !s ? 2 : s.stage === "audio" ? 3 + s.progress * 7 : s.stage === "download" ? 10 + s.progress * 20 : s.stage === "load" ? 30 : s.stage === "transcribe" ? 32 + (view?.progress ?? s.progress) * 66 : 99;
 
 const VERBS = [
-  "Synthesizing", "Listening closely", "Tuning in", "Catching every word", "Untangling syllables", "Decoding vibes",
+  "Synthesizing", "Listening closely", "Tuning in", "Catching every word", "Untangling syllables",
   "Polishing punchlines", "Lining up words", "Finding the beat", "Counting syllables", "Sharpening timing",
-  "Warming up the mic", "Reading lips (kind of)", "Sprinkling style", "Herding words", "Flibbertigibbeting",
+  "Warming up the mic", "Sprinkling style", "Herding words",
   "Pondering", "Choreographing", "Brewing", "Calibrating", "Kerning", "Riffing", "Composing", "Harmonizing",
   "Stitching sentences", "Spotting the hook", "Marinating", "Percolating", "Crafting", "Orchestrating",
   "Noodling", "Clarifying", "Smoothing edges", "Measuring pauses", "Finessing", "Wrangling commas",
@@ -233,7 +233,7 @@ const WritingCaptions: React.FC<{ view: SessionView; isPhone: boolean; onStop: (
   const elapsed = (now - view.startedAt) / 1000;
   const shown = Math.max(2, Math.round(display));
   const eta = view.etaSec ?? (shown > 12 && elapsed > 6 ? (elapsed * (100 - shown)) / shown : null);
-  const title = !status ? (firstTime ? "Building your experience for the first time…" : "Warming up…") : status.stage === "load" && firstTime ? "Building your experience for the first time…" : STAGE_TEXT[status.stage];
+  const title = !status ? (firstTime ? "Downloading the speech model (about 90 MB, first time only)…" : "Warming up…") : status.stage === "load" && firstTime ? "Loading the speech model…" : STAGE_TEXT[status.stage];
   return (
     <Center>
       <Bars />
@@ -247,7 +247,7 @@ const WritingCaptions: React.FC<{ view: SessionView; isPhone: boolean; onStop: (
       </p>
       {view.resumed ? <p className="mt-2 text-xs text-st-muted">Continuing from where it stopped.</p> : null}
       {firstTime ? (
-        <p className="mt-3 text-sm text-st-muted">Go grab a coffee ☕ We&apos;ll be done when you&apos;re back. Just don&apos;t close this tab{isPhone ? " or lock your screen" : ""}. Next time it&apos;s instant.</p>
+        <p className="mt-3 text-sm text-st-muted">This first run downloads the speech model, so it takes a little longer. Don&apos;t close this tab{isPhone ? " or lock your screen" : ""}. Next time it&apos;s instant.</p>
       ) : (
         <p className="mt-3 text-xs text-st-faint">{isPhone ? "Keep this tab open and your screen on." : "Keep this tab open."}</p>
       )}

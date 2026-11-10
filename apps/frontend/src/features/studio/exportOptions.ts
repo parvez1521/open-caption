@@ -91,12 +91,12 @@ const META: Record<CreatableExportKind, Omit<ExportOption, "kind">> = {
   },
   mov_alpha: {
     title: "Caption overlay — ProRes (.mov)",
-    desc: "Captions only on a transparent background, with no video picture, to lay over your footage in Premiere, Final Cut or DaVinci Resolve. It renders in the paired desktop app, not in this browser: if no computer is paired and online, it stays queued until one is.",
+    desc: "Captions only on a transparent background, to lay over your footage in Premiere, Final Cut or DaVinci Resolve. The paired desktop app renders it — if no computer is paired and online, it stays queued.",
     usesRange: true,
   },
   webm_alpha: {
     title: "Caption overlay — WebM (.webm)",
-    desc: "Captions only on a transparent background, with no video picture, to lay over your footage in editors and tools that take WebM. It renders in the paired desktop app, not in this browser: if no computer is paired and online, it stays queued until one is.",
+    desc: "Captions only on a transparent background, to lay over your footage in editors that take WebM. The paired desktop app renders it — if no computer is paired and online, it stays queued.",
     usesRange: true,
   },
 };

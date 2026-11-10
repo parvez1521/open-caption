@@ -172,7 +172,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         </div>
         <div className="flex gap-2">
           <label className="ml-auto inline-flex cursor-pointer items-center rounded-lg border border-st-line bg-st-panel px-3 py-1 text-xs font-medium text-st-text hover:bg-st-hover" title="Replace the captions with an .srt or .vtt file (you can undo)">
-            Import SRT
+            Import SRT / VTT
             <input
               type="file"
               accept=".srt,.vtt,text/vtt,application/x-subrip"
@@ -198,12 +198,12 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           </div>
         ) : null}
         {doc.words.length > 0 ? (
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-st-text">
+          <details className="space-y-1.5">
+            <summary className="cursor-pointer text-xs font-semibold text-st-text">
               Shift all captions{" "}
-              <span className="font-normal text-st-faint">— if every caption sits a little early or late, move them all together</span>
-            </p>
-            <div className="flex flex-wrap gap-1.5">
+              <span className="font-normal text-st-faint">— if every caption sits a little early or late</span>
+            </summary>
+            <div className="flex flex-wrap gap-1.5 pt-1">
               {[-1000, -500, -100, 100, 500, 1000].map((ms) => (
                 <Button key={ms} disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => shiftAllWords(d, ms))}>
                   {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
@@ -224,7 +224,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
               />
               <Button disabled={locked} className="!py-1 text-xs" onClick={applyShiftInput}>Apply shift</Button>
             </div>
-          </div>
+          </details>
         ) : null}
       </div>
 
@@ -245,7 +245,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
       >
         {pages.length === 0 ? <div className="p-6 text-center text-sm text-st-muted">
             <p className="font-semibold text-st-text">No spoken words found</p>
-            <p className="mt-1">This video has no speech we could hear. Add captions with <b>Import SRT</b> above, or double-click the captions track in the timeline to type a word at the playhead.</p>
+            <p className="mt-1">This video has no speech we could hear. Add captions with <b>Import SRT / VTT</b> above, or double-click the captions track in the timeline to type a word at the playhead.</p>
           </div> : null}
         {pages.map((page) => (
           <div key={page.id} data-page={page.id} className={`border-b border-l-4 border-b-st-line/60 px-3 py-2.5 ${page.id === currentPageId ? "border-l-st-or bg-st-lav/35" : "border-l-transparent"}`}>

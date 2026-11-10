@@ -98,6 +98,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
   const compOn = master.compressor.enabled;
   const audioAssets = assets.filter((a) => a.kind === "audio");
   const selectedClip = selectedClipId ? comp.audioClips.find((c) => c.id === selectedClipId) ?? null : null;
+  const selectedTrackLocked = selectedClip ? comp.audioTracks.find((t) => t.id === selectedClip.trackId)?.locked ?? false : false;
   const spanMs = selectedClip ? selectedClip.sourceOutMs - selectedClip.sourceInMs : 0;
   void playheadMs; // split-at-playhead is resolved by StudioPage's onSplitClip handler
 
@@ -220,7 +221,10 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
                 <p className="text-xs text-st-faint">Music gets quieter while the voice is speaking.</p>
               </>
             ) : null}
-            <Button tone="danger" disabled={track.locked} onClick={() => onRemoveTrack(track.id)}>Remove track</Button>
+            <div>
+              <Button tone="danger" disabled={track.locked} onClick={() => onRemoveTrack(track.id)}>Remove track</Button>
+              {track.locked ? <p className="mt-1 text-[11px] text-st-faint">Unlock the track to remove it.</p> : null}
+            </div>
           </div>
         ))}
         <div className="flex flex-wrap gap-1.5">
@@ -237,8 +241,11 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
           <div className="space-y-1.5">
             {audioAssets.map((a) => (
               <div key={a.id} className="flex items-center gap-2 rounded-lg bg-st-raised/60 px-2.5 py-2">
-                <p className="min-w-0 flex-1 truncate text-sm font-medium text-st-text" title={a.name}>{a.name}</p>
-                <Button className="!px-2 !py-1 text-xs" onClick={() => onPlaceClip({ id: a.id, name: a.name, durationMs: a.durationMs ?? 0 })}>Place</Button>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-st-text" title={a.name}>{a.name}</p>
+                  {!a.durationMs ? <p className="text-[11px] text-st-faint">This file&apos;s length couldn&apos;t be read, so it can&apos;t be placed.</p> : null}
+                </div>
+                <Button className="!px-2 !py-1 text-xs" disabled={!a.durationMs} onClick={() => onPlaceClip({ id: a.id, name: a.name, durationMs: a.durationMs ?? 0 })}>Place</Button>
               </div>
             ))}
           </div>
@@ -247,6 +254,10 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
 
       {selectedClip ? (
         <Section title="Selected clip" hint={selectedClip.assetName || "Audio clip"}>
+          {selectedTrackLocked ? (
+            <p className="text-xs font-medium text-st-text">This clip&apos;s track is locked — its clips can&apos;t be edited. Unlock the track under Tracks to change it.</p>
+          ) : null}
+          <fieldset disabled={selectedTrackLocked} className="space-y-3">
           <Select
             label="Track"
             value={selectedClip.trackId}
@@ -273,6 +284,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
             <Button onClick={() => onDuplicateClip(selectedClip.id)}>Duplicate</Button>
             <Button tone="danger" onClick={() => { onRemoveClip(selectedClip.id); onSelectClip(null); }}>Delete</Button>
           </div>
+          </fieldset>
         </Section>
       ) : null}
 

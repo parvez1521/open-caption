@@ -328,6 +328,10 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             ) : null}
           </div>
 
+          <p className="mb-3 text-xs leading-relaxed text-st-faint">
+            Quality, resolution, frame rate and trim apply to the video formats (MP4 and the two
+            overlays). The text files below always contain all your captions, in full.
+          </p>
           <div className="grid gap-2">
             {allOptions.map((o) => {
               const unavailable = o.kind === "mp4" && (!!mp4Block || (web !== null && !webReady));

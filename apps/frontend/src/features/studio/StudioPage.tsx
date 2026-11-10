@@ -407,13 +407,28 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   /* ---------- Run 3 audio wiring: every AudioPanel / Timeline audio callback is an
    * audioOps call committed through commitComposition with no docEffect (one undo step) */
   const commitAudio = (next: EditorComposition) => commitComposition(next);
+  // A locked audio track protects its clips everywhere — the Timeline drag already checks,
+  // and the AudioPanel now disables its controls; this guard is the chokepoint that makes
+  // the promise true for every caller (audit B-13).
+  const audioClipLocked = (clipId: string): boolean => {
+    if (!editorComp) return false;
+    const clip = editorComp.audioClips.find((c) => c.id === clipId);
+    return clip ? editorComp.audioTracks.find((t) => t.id === clip.trackId)?.locked ?? false : false;
+  };
+  const guardAudioClip =
+    <A extends unknown[]>(fn: (id: string, ...rest: A) => void) =>
+    (id: string, ...rest: A) => {
+      if (!audioClipLocked(id)) fn(id, ...rest);
+    };
   const placeAudioClipFromPanel = (asset: { id: string; name: string; durationMs: number }) => {
     if (!editorComp || !asset.durationMs || asset.durationMs <= 0) return;
     let comp = editorComp;
     const selectedClip = selAudioClipId ? comp.audioClips.find((c) => c.id === selAudioClipId) : undefined;
     let track = selectedClip ? comp.audioTracks.find((t) => t.id === selectedClip.trackId) : undefined;
-    track = track ?? comp.audioTracks[0];
-    if (!track) {
+    // never place into a locked track: fall back to the first unlocked one, else a new track
+    if (track?.locked) track = undefined;
+    track = track ?? comp.audioTracks.find((t) => !t.locked) ?? comp.audioTracks[0];
+    if (!track || track.locked) {
       comp = addAudioTrack(comp, "music", "Music");
       track = comp.audioTracks[comp.audioTracks.length - 1]!;
     }
@@ -855,17 +870,24 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     return true;
   };
 
+  // While any dialog is open (export, sign-up nudge, shortcuts help, a save conflict), the
+  // editor's keys must not act on the project behind it. A ref, because the key handler's
+  // closure does not re-bind on those state changes.
+  const dialogOpenRef = useRef(false);
+  dialogOpenRef.current = showExport || showSignup || showShortcuts || Boolean(s.conflict);
+
   // keyboard: space = play/pause, ctrl/cmd+z / shift+z = undo/redo, ctrl/cmd+s = save,
   // Delete/Backspace = delete the current selection (words, timeline block, overlay),
   // S = split the caption card at the playhead, ←/→ = nudge the drag-selected words by 100 ms
   // (Shift+←/→ = 10 ms fine adjust). While typing in a field, Delete/Backspace stay native.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (dialogOpenRef.current) return;
       const t = e.target as HTMLElement;
       const typing = t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "z") { if (typing && t.tagName !== "BODY") return; e.preventDefault(); e.shiftKey ? s.redo() : s.undo(); }
-      else if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); s.redo(); }
+      else if (mod && e.key.toLowerCase() === "y") { if (typing && t.tagName !== "BODY") return; e.preventDefault(); s.redo(); }
       else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); void s.saveNow().catch(() => undefined); }
       else if ((e.key === "Delete" || e.key === "Backspace") && !typing && !mod && !e.altKey) { if (deleteSelectionRef.current()) e.preventDefault(); }
       else if (e.key.toLowerCase() === "s" && !typing && !mod && !e.altKey) { e.preventDefault(); splitAtPlayheadRef.current(); }
@@ -1107,12 +1129,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           onSetDucking={(id, patch) => commitAudio(setAudioDucking(editorComp, id, patch))}
           onRemoveTrack={(id) => { commitAudio(removeAudioTrack(editorComp, id)); }}
           onPlaceClip={placeAudioClipFromPanel}
-          onMoveClip={(id, patch) => commitAudio(moveAudioClip(editorComp, id, patch))}
-          onSplitClip={(id) => commitAudio(splitAudioClipAt(editorComp, id, getPlayerMs()))}
-          onDuplicateClip={(id) => commitAudio(duplicateAudioClip(editorComp, id))}
-          onRemoveClip={(id) => commitAudio(removeAudioClip(editorComp, id))}
-          onUpdateClip={(id, patch) => commitAudio(updateAudioClip(editorComp, id, patch))}
-          onUpdateProcessors={(id, patch) => commitAudio(updateAudioClipProcessors(editorComp, id, patch))}
+          onMoveClip={guardAudioClip((id, patch) => commitAudio(moveAudioClip(editorComp, id, patch)))}
+          onSplitClip={guardAudioClip((id) => commitAudio(splitAudioClipAt(editorComp, id, getPlayerMs())))}
+          onDuplicateClip={guardAudioClip((id) => commitAudio(duplicateAudioClip(editorComp, id)))}
+          onRemoveClip={guardAudioClip((id) => commitAudio(removeAudioClip(editorComp, id)))}
+          onUpdateClip={guardAudioClip((id, patch) => commitAudio(updateAudioClip(editorComp, id, patch)))}
+          onUpdateProcessors={guardAudioClip((id, patch) => commitAudio(updateAudioClipProcessors(editorComp, id, patch)))}
           onUpdateMaster={(patch) => commitAudio(updateAudioMaster(editorComp, patch))}
           words={doc?.words ?? []}
           onApplyBleeps={(ranges) => commitAudio(addAudioBleeps(editorComp, ranges))}
