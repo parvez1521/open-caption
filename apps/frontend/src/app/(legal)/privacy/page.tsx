@@ -42,7 +42,7 @@ export default function PrivacyPage() {
       </Sec>
 
       <Sec id="local" title="3. On-device processing">
-        <p>The CaptionsEasy Companion downloads your video from our storage to your computer, transcribes it with a speech model that runs locally, renders exports locally, and uploads the results back to your account. The speech model and rendering never send your audio anywhere else. The Companion keeps a local cache of videos it has processed, which you can clear by deleting its cache folder.</p>
+        <p>The Open Caption Companion downloads your video from our storage to your computer, transcribes it with a speech model that runs locally, renders exports locally, and uploads the results back to your account. The speech model and rendering never send your audio anywhere else. The Companion keeps a local cache of videos it has processed, which you can clear by deleting its cache folder.</p>
       </Sec>
 
       <Sec id="cloud" title="4. Transcription">

@@ -39,7 +39,7 @@ function Fail($Msg) {
 }
 
 Write-Host ""
-Write-Host "  CapsEasy Companion" -ForegroundColor Green
+Write-Host "  Open Caption Companion" -ForegroundColor Green
 Write-Host "  Makes captions privately on this computer." -ForegroundColor DarkGray
 Write-Host ""
 
@@ -98,7 +98,7 @@ if ($OneClick) {
   # one-click setup file: the website already approved this code for the signed-in account, no browser step
   Write-Host "> Connecting this computer to your account..."
   & $Cap login --api $App --pair-code $env:CAPSEASY_PAIR
-  if ($LASTEXITCODE -ne 0) { Fail "This setup file has expired or was already used. Download a fresh one from the CaptionsEasy website." }
+  if ($LASTEXITCODE -ne 0) { Fail "This setup file has expired or was already used. Download a fresh one from the Open Caption website." }
 } else {
   try { $Name = ((& $Cap check-pairing --api $App 2>$null) | Out-String).Trim() } catch {}
 }
@@ -124,7 +124,7 @@ if ($OneClick) {
   Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -match "capseasy" -and $_.CommandLine -match " start" } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force } catch {} }
   $Vbs = Join-Path $env:APPDATA "Microsoft/Windows/Start Menu/Programs/Startup/CapsEasy Companion.vbs"  # same path the Companion writes
   if (Test-Path $Vbs) { Start-Process wscript.exe -ArgumentList "\`"$Vbs\`"" } else { Start-Process -WindowStyle Hidden -FilePath $Cap -ArgumentList "start" }
-  Write-Host "  You can close this window and go back to CaptionsEasy." -ForegroundColor Green
+  Write-Host "  You can close this window and go back to Open Caption." -ForegroundColor Green
   Start-Sleep -Seconds 4
 } else {
   & $Cap start

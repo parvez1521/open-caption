@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/brand";
 
 /* ── brand intro ─────────────────────────────────────────────────
  * Pure CSS keyframes, shipped in the server HTML; they start once the
@@ -127,13 +128,13 @@ export function Loader({ onDone }: { onDone: () => void }) {
                   ))}
                 </div>
                 <div className="overflow-hidden pb-1 text-[44px] font-extrabold leading-none tracking-[-0.04em] text-[#FFFFEB] sm:text-[64px]">
-                  {"Captions".split("").map((ch, i) => (
+                  {BRAND_WORDMARK_LEAD.split("").map((ch, i) => (
                     <span key={`m${i}`} data-char style={{ animationDelay: `${100 + i * 24}ms` }}>
                       {ch}
                     </span>
                   ))}
-                  {"Easy".split("").map((ch, i) => (
-                    <span key={`a${i}`} data-char className="font-accent text-[1.08em] font-normal tracking-[-0.01em]" style={{ animationDelay: `${100 + (8 + i) * 24}ms` }}>
+                  {BRAND_WORDMARK_ACCENT.split("").map((ch, i) => (
+                    <span key={`a${i}`} data-char className="font-accent text-[1.08em] font-normal tracking-[-0.01em]" style={{ animationDelay: `${100 + (BRAND_WORDMARK_LEAD.length + i) * 24}ms` }}>
                       {ch}
                     </span>
                   ))}

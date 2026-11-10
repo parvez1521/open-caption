@@ -6,7 +6,7 @@ import { FEEDBACK_MAILTO, LEGAL } from "@/lib/legal";
 import { Button } from "./controls";
 
 const SITE = CANONICAL_APP.replace(/^https?:\/\//, "");
-export const SHARE_TEXT = `I made this video using CaptionsEasy ✨ Add animated captions to your videos for free: ${CANONICAL_APP}`;
+export const SHARE_TEXT = `I made this video using Open Caption ✨ Add animated captions to your videos for free: ${CANONICAL_APP}`;
 
 type ShareNavigator = Navigator & { canShare?: (d: ShareData) => boolean };
 
@@ -23,7 +23,7 @@ function canShareFile(file: File) {
 /** Text-only share links, for browsers that can't pass the file on (they attach the downloaded video themselves). */
 const LINKS = [
   { name: "WhatsApp", href: (t: string) => `https://wa.me/?text=${encodeURIComponent(t)}`, cls: "bg-st-em text-[#141412]" },
-  { name: "Telegram", href: () => `https://t.me/share/url?url=${encodeURIComponent(CANONICAL_APP)}&text=${encodeURIComponent("I made this video using CaptionsEasy ✨")}`, cls: "bg-st-lav text-obsidian" },
+  { name: "Telegram", href: () => `https://t.me/share/url?url=${encodeURIComponent(CANONICAL_APP)}&text=${encodeURIComponent("I made this video using Open Caption ✨")}`, cls: "bg-st-lav text-obsidian" },
   { name: "X", href: (t: string) => `https://x.com/intent/post?text=${encodeURIComponent(t)}`, cls: "bg-obsidian text-major" },
   { name: "Facebook", href: () => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(CANONICAL_APP)}`, cls: "bg-st-or text-[#141412]" },
 ];
@@ -48,7 +48,7 @@ export const VideoReady: React.FC<Props> = ({ blob, filename, detail, onDownload
   const share = async () => {
     setNote(null);
     try {
-      await navigator.share({ files: [file], text: SHARE_TEXT, title: "Made with CaptionsEasy" });
+      await navigator.share({ files: [file], text: SHARE_TEXT, title: "Made with Open Caption" });
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") return; // they closed the share sheet
       // some apps refuse files from the web: fall back to the link-only share
@@ -95,7 +95,7 @@ export const VideoReady: React.FC<Props> = ({ blob, filename, detail, onDownload
             </div>
             <button onClick={() => void copy()} className="mt-2 w-full rounded-xl border border-st-line bg-st-raised/60 px-3 py-2.5 text-left text-xs text-st-text/80 hover:bg-st-lav/30">
               <span className="block font-medium text-st-text">Copy message</span>
-              <span className="mt-0.5 block text-st-muted">&ldquo;I made this video using CaptionsEasy ✨ … {SITE}&rdquo;</span>
+              <span className="mt-0.5 block text-st-muted">&ldquo;I made this video using Open Caption ✨ … {SITE}&rdquo;</span>
             </button>
           </div>
           {note ? <p role="status" className="mt-3 rounded-lg bg-st-raised px-3 py-2 text-xs text-st-text">{note}</p> : null}

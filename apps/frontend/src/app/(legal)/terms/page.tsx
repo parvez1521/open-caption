@@ -13,7 +13,7 @@ export default function TermsPage() {
     <LegalDoc
       title="Terms of"
       accent="Service"
-      intro={<>These terms are the agreement between you and {LEGAL.operator} (&ldquo;we&rdquo;, &ldquo;us&rdquo;) for using {LEGAL.product}: the website, the web studio, the CaptionsEasy Companion app and everything they produce. By creating an account or using the service you accept them. If you use {LEGAL.product} for an organisation, you accept them on its behalf.</>}
+      intro={<>These terms are the agreement between you and {LEGAL.operator} (&ldquo;we&rdquo;, &ldquo;us&rdquo;) for using {LEGAL.product}: the website, the web studio, the Open Caption Companion app and everything they produce. By creating an account or using the service you accept them. If you use {LEGAL.product} for an organisation, you accept them on its behalf.</>}
     >
       <Sec id="service" title="1. The service">
         <p>{LEGAL.product} turns your videos into captioned videos and subtitle files. You upload a video, captions are transcribed, you style and edit them in the studio, and you export the result.</p>

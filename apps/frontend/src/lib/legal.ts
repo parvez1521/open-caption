@@ -3,8 +3,10 @@
  * pages); they are rendered verbatim on /terms, /privacy, /cookies, /acceptable-use, /copyright,
  * /subprocessors.
  */
+import { BRAND_NAME } from "./brand";
+
 export const LEGAL = {
-  product: "CaptionsEasy",
+  product: BRAND_NAME,
   /** Run by one person (no company yet): "<Full legal name>, an individual trading as CaptionsEasy". Swap for the
    *  company name if one is registered later. */
   operator: "Ishaan Gupta, an individual trading as CaptionsEasy",
@@ -23,7 +25,7 @@ export const LEGAL = {
 } as const;
 
 /** Opens the visitor's mail app with a feedback email to the public inbox. */
-export const FEEDBACK_MAILTO = `mailto:${LEGAL.email}?subject=${encodeURIComponent("CaptionsEasy feedback")}`;
+export const FEEDBACK_MAILTO = `mailto:${LEGAL.email}?subject=${encodeURIComponent("Open Caption feedback")}`;
 
 export const LEGAL_PAGES = [
   { href: "/terms", title: "Terms of Service" },

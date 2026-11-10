@@ -8,7 +8,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-major text-obsidian">
       <header className="sticky top-0 z-30 border-b border-obsidian/10 bg-major/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <Link href="/" aria-label="CaptionsEasy home"><Logo height={26} /></Link>
+          <Link href="/" aria-label="Open Caption home"><Logo height={26} /></Link>
           <Link href="/start" className="rounded-full bg-obsidian px-4 py-2 text-sm font-semibold text-major transition hover:bg-obsidian/85">Start free</Link>
         </div>
       </header>

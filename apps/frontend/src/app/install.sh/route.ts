@@ -9,7 +9,7 @@ set -euo pipefail
 APP="${app}"
 
 echo ""
-echo "  CapsEasy Companion: makes captions privately on this computer."
+echo "  Open Caption Companion: makes captions privately on this computer."
 echo ""
 
 node_major() { node --version 2>/dev/null | sed -E 's/^v([0-9]+).*/\\1/' || echo 0; }

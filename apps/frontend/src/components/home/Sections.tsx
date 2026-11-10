@@ -75,7 +75,7 @@ export function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="CaptionsEasy on GitHub (open source)" title="Open source on GitHub" className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#FFFFEB]/15 px-2.5 text-sm font-semibold text-[#FFFFEB]/80 transition hover:border-[#FFFFEB]/40 hover:text-[#FFFFEB]">
+          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="Open Caption on GitHub (open source)" title="Open source on GitHub" className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#FFFFEB]/15 px-2.5 text-sm font-semibold text-[#FFFFEB]/80 transition hover:border-[#FFFFEB]/40 hover:text-[#FFFFEB]">
             <GitHubMark /><span className="hidden xl:inline">Star</span>
           </a>
           <Link href={signedIn ? "/dashboard" : "/login"} className="hidden whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-[#FFFFEB]/80 transition hover:text-[#FFFFEB] sm:block">{signedIn ? "Dashboard" : "Sign in"}</Link>
@@ -123,7 +123,7 @@ export function Hero() {
           {PH_POST_ID ? (
             <a href={`https://www.producthunt.com/posts/${PH_SLUG}?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-${PH_SLUG}`} target="_blank" rel="noopener noreferrer" className="inline-flex transition hover:scale-[1.02]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=${PH_POST_ID}&theme=light`} alt="CaptionsEasy on Product Hunt" width={194} height={42} className="h-[42px] w-auto" />
+              <img src={`https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=${PH_POST_ID}&theme=light`} alt="Open Caption on Product Hunt" width={194} height={42} className="h-[42px] w-auto" />
             </a>
           ) : null}
         </div>
@@ -864,7 +864,7 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Giant CaptionsEasy Bottom Logo matching Image 1 */}
+        {/* Giant Open Caption Bottom Logo matching Image 1 */}
         <div className="pt-10 sm:pt-14 border-t border-[#FFFFEB]/10 flex items-center justify-between overflow-hidden select-none">
           <Link href="/" className="group flex items-center gap-3 sm:gap-5 w-full">
             {/* Audio Wave Icon Bars with subtle rhythmic bounce */}
@@ -874,7 +874,7 @@ export function Footer() {
               <span className="w-1.5 sm:w-3 lg:w-4 bg-[#34D399] h-4/5 rounded-full animate-wave-bar-3 transition-transform group-hover:scale-y-110" />
             </div>
 
-            {/* Giant CaptionsEasy Typography */}
+            {/* Giant Open Caption Typography */}
             <span className="font-styled font-black text-4xl sm:text-7xl md:text-8xl lg:text-[130px] leading-none tracking-tighter text-[#FFFFEB] transition-transform duration-300 group-hover:translate-x-1">
               {BRAND_WORDMARK_LEAD}<span className="font-serif font-normal italic text-[#FFFFEB]">{BRAND_WORDMARK_ACCENT}</span>
             </span>

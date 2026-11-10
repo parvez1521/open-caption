@@ -34,9 +34,9 @@ function detectOS(): OS {
 function setupCmd(app: string, code: string) {
   return [
     "@echo off",
-    "title CaptionsEasy setup",
+    "title Open Caption setup",
     "echo.",
-    "echo   Setting up CaptionsEasy on this computer. This takes a minute or two...",
+    "echo   Setting up Open Caption on this computer. This takes a minute or two...",
     "echo.",
     `set "CAPSEASY_PAIR=${code}"`,
     `powershell -NoProfile -ExecutionPolicy Bypass -Command "irm '${app}/install.ps1' | iex"`,
@@ -105,7 +105,7 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
       known.current = new Set((await workersService.getMyWorkers().catch(() => [])).map((w) => w.id));
       const { pairCode, appUrl } = await apiClient.post<{ pairCode: string; appUrl: string; expiresInSeconds: number }>("/device/setup");
       if (os === "windows") {
-        download(setupCmd(appUrl, pairCode), "CaptionsEasy-Setup.cmd");
+        download(setupCmd(appUrl, pairCode), "OpenCaption-Setup.cmd");
       } else {
         setCommand(`curl -fsSL ${appUrl}/install.sh | CAPSEASY_PAIR=${pairCode} bash`);
       }
@@ -127,7 +127,7 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
   };
 
   if (os === "mobile") {
-    return <p className="text-sm text-st-muted">Open CaptionsEasy on your laptop or desktop to connect it. Phones can still export MP4 and subtitles right here.</p>;
+    return <p className="text-sm text-st-muted">Use Open Caption on your laptop or desktop to connect it. Phones can still export MP4 and subtitles right here.</p>;
   }
 
   if (phase === "connected" && connected) {
@@ -164,7 +164,7 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
       {phase === "waiting" && os === "windows" ? (
         <div className="rounded-xl border border-st-line bg-st-panel/80 p-3">
           <ol className="space-y-2 text-sm text-st-text">
-            <li className="flex gap-2.5"><Step n={1} /> <span>Open <b>CaptionsEasy-Setup.cmd</b> from your downloads (bottom or top-right of your browser).</span></li>
+            <li className="flex gap-2.5"><Step n={1} /> <span>Open <b>OpenCaption-Setup.cmd</b> from your downloads (bottom or top-right of your browser).</span></li>
             <li className="flex gap-2.5"><Step n={2} /> <span>If Windows asks, click <b>Run</b> (or <i>More info → Run anyway</i>).</span></li>
             <li className="flex gap-2.5"><Step n={3} /> <span>That&apos;s it. This page turns green by itself when your computer is connected.</span></li>
           </ol>
