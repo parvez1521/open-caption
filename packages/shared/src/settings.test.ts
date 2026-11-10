@@ -14,26 +14,31 @@ const SEG_DEFAULTS = {
   transitionIn: null,
   assetId: null,
   still: false,
+  keyframes: [],
+  effects: [],
 } as const;
 
 describe("ProjectSettings editor elements (Slice 1d)", () => {
   it("defaults videoAdjust to neutral and overlays to empty on an empty object", () => {
     const s = ProjectSettingsSchema.parse({});
-    expect(s.videoAdjust).toEqual({ brightness: 1, contrast: 1, saturation: 1 });
+    expect(s.videoAdjust).toEqual({
+      brightness: 1, contrast: 1, saturation: 1,
+      exposure: 1, highlights: 0, shadows: 0, temperature: 0, tint: 0,
+    });
     expect(s.overlays).toEqual([]);
   });
 
   it("loads an old project (no editor-element fields) unchanged in spirit", () => {
     const s = ProjectSettingsSchema.parse({ maxWordsPerCard: 5, language: "en" });
     expect(s.maxWordsPerCard).toBe(5);
-    expect(s.videoAdjust).toEqual({ brightness: 1, contrast: 1, saturation: 1 });
+    expect(s.videoAdjust).toEqual({ brightness: 1, contrast: 1, saturation: 1, exposure: 1, highlights: 0, shadows: 0, temperature: 0, tint: 0 });
     expect(s.overlays).toEqual([]);
     expect(defaultSettings().overlays).toEqual([]);
   });
 
   it("fills a partial videoAdjust with neutral defaults", () => {
     const s = ProjectSettingsSchema.parse({ videoAdjust: { brightness: 1.2 } });
-    expect(s.videoAdjust).toEqual({ brightness: 1.2, contrast: 1, saturation: 1 });
+    expect(s.videoAdjust).toEqual({ brightness: 1.2, contrast: 1, saturation: 1, exposure: 1, highlights: 0, shadows: 0, temperature: 0, tint: 0 });
   });
 
   it("rejects out-of-range videoAdjust values", () => {
@@ -44,7 +49,7 @@ describe("ProjectSettings editor elements (Slice 1d)", () => {
 
   it("accepts the range edges", () => {
     const s = ProjectSettingsSchema.parse({ videoAdjust: { brightness: 0.5, contrast: 1.5, saturation: 0.5 } });
-    expect(s.videoAdjust).toEqual({ brightness: 0.5, contrast: 1.5, saturation: 0.5 });
+    expect(s.videoAdjust).toEqual({ brightness: 0.5, contrast: 1.5, saturation: 0.5, exposure: 1, highlights: 0, shadows: 0, temperature: 0, tint: 0 });
   });
 });
 
@@ -227,7 +232,10 @@ describe("composition (Stage-B composition slice in settings)", () => {
 
   it("parse({}) yields the empty composition: no segments, no markers, all tracks neutral", () => {
     const s = ProjectSettingsSchema.parse({});
-    expect(s.composition).toEqual({ version: 1, videoSegments: [], markers: [], tracks: allDefaultTracks });
+    expect(s.composition).toEqual({
+      version: 1, videoSegments: [], markers: [], tracks: allDefaultTracks,
+      audio: { tracks: [], clips: [], master: { volume: 1, videoVolume: 1, compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 } } },
+    });
     expect(s.composition).toEqual(EMPTY_COMPOSITION_SETTINGS);
     expect(defaultSettings().composition).toEqual(EMPTY_COMPOSITION_SETTINGS);
     expect(CompositionSettingsSchema.parse({})).toEqual(EMPTY_COMPOSITION_SETTINGS);
@@ -270,11 +278,13 @@ describe("composition (Stage-B composition slice in settings)", () => {
         graphics: { locked: false, visible: false, muted: false },
       },
     };
-    // pre-Run-2 segment literals parse with every Run-2 field defaulted (identically, in spirit)
+    // pre-Run-2 segment literals parse with every Run-2 field defaulted (identically, in spirit);
+    // the Run-3 audio slice likewise defaults to empty
     const parsed = ProjectSettingsSchema.parse({ composition }).composition;
     expect(parsed).toEqual({
       ...composition,
       videoSegments: composition.videoSegments.map((s) => ({ ...s, ...SEG_DEFAULTS })),
+      audio: EMPTY_COMPOSITION_SETTINGS.audio,
     });
     expect(parsed.markers).toEqual(composition.markers);
     expect(parsed.tracks).toEqual(composition.tracks);
@@ -290,6 +300,77 @@ describe("composition (Stage-B composition slice in settings)", () => {
     expect(() => ProjectSettingsSchema.parse({ composition: { markers: [{ id: "m1", atMs: -1 }] } })).toThrow();
     expect(() => ProjectSettingsSchema.parse({ composition: { markers: [{ id: "m1", atMs: 0, label: "x".repeat(81) }] } })).toThrow();
     expect(() => ProjectSettingsSchema.parse({ composition: { version: 2 } })).toThrow();
+  });
+});
+
+describe("Run 3: keyframes, effects, audio slice, extended adjust (Phase 4 Run 3)", () => {
+  it("extended videoAdjust parses legacy 3-field objects with the new fields neutral", () => {
+    const s = ProjectSettingsSchema.parse({ videoAdjust: { brightness: 1.2 } });
+    expect(s.videoAdjust).toEqual({
+      brightness: 1.2, contrast: 1, saturation: 1,
+      exposure: 1, highlights: 0, shadows: 0, temperature: 0, tint: 0,
+    });
+    expect(() => ProjectSettingsSchema.parse({ videoAdjust: { highlights: 2 } })).toThrow();
+    expect(() => ProjectSettingsSchema.parse({ videoAdjust: { exposure: 8 } })).toThrow();
+  });
+
+  it("segment keyframes + effects round-trip; transform gains opacity (default 1)", () => {
+    const s = ProjectSettingsSchema.parse({
+      composition: {
+        videoSegments: [{
+          id: "s1", sourceInMs: 0, sourceOutMs: 5000,
+          keyframes: [
+            { id: "k1", atMs: 0, property: "scale", value: 1 },
+            { id: "k2", atMs: 2000, property: "scale", value: 1.5, easing: "ease-out" },
+            { id: "k3", atMs: 2000, property: "opacity", value: 0.4, easing: "hold" },
+          ],
+          effects: [
+            { id: "e1", type: "blur", amount: 0.4 },
+            { id: "e2", type: "vignette", enabled: false },
+          ],
+        }],
+      },
+    });
+    const seg = s.composition.videoSegments[0]!;
+    expect(seg.transform.opacity).toBe(1);
+    expect(seg.keyframes).toHaveLength(3);
+    expect(seg.keyframes[0]).toEqual({ id: "k1", atMs: 0, property: "scale", value: 1, easing: "linear" });
+    expect(seg.effects[0]).toEqual({ id: "e1", type: "blur", enabled: true, amount: 0.4, color: "#FFA946" });
+    expect(seg.effects[1]!.enabled).toBe(false);
+  });
+
+  it("rejects out-of-range keyframe values per property and unknown effect types", () => {
+    const seg = (keyframes: unknown) => ({ composition: { videoSegments: [{ id: "s1", sourceInMs: 0, sourceOutMs: 5000, keyframes }] } });
+    expect(() => ProjectSettingsSchema.parse(seg([{ id: "k", atMs: 0, property: "opacity", value: 1.5 }]))).toThrow();
+    expect(() => ProjectSettingsSchema.parse(seg([{ id: "k", atMs: 0, property: "scale", value: 9 }]))).toThrow();
+    expect(() => ProjectSettingsSchema.parse(seg([{ id: "k", atMs: -5, property: "scale", value: 1 }]))).toThrow();
+    expect(() => ProjectSettingsSchema.parse({ composition: { videoSegments: [{ id: "s1", sourceInMs: 0, sourceOutMs: 5000, effects: [{ id: "e", type: "sharpen" }] }] } })).toThrow();
+  });
+
+  it("audio slice defaults to empty and round-trips tracks/clips/master", () => {
+    expect(ProjectSettingsSchema.parse({}).composition.audio).toEqual(EMPTY_COMPOSITION_SETTINGS.audio);
+    const s = ProjectSettingsSchema.parse({
+      composition: {
+        audio: {
+          tracks: [{ id: "t1", name: "Music", role: "music", ducking: { enabled: true } }],
+          clips: [{ id: "c1", assetId: "a1", trackId: "t1", startMs: 1000, sourceInMs: 0, sourceOutMs: 9000, fadeInMs: 500 }],
+          master: { videoVolume: 0.8 },
+        },
+      },
+    });
+    const audio = s.composition.audio;
+    expect(audio.tracks[0]).toEqual({
+      id: "t1", name: "Music", role: "music", volume: 1, muted: false, locked: false,
+      ducking: { enabled: true, amountDb: 12, thresholdDb: -42 },
+    });
+    expect(audio.clips[0]).toEqual({
+      id: "c1", assetId: "a1", assetName: "", trackId: "t1", startMs: 1000, sourceInMs: 0, sourceOutMs: 9000,
+      volume: 1, fadeInMs: 500, fadeOutMs: 0,
+      processors: { eq: { lowDb: 0, midDb: 0, highDb: 0 }, cleanup: { enabled: false, highPassHz: 80, gateDb: -50 }, reverb: 0 },
+    });
+    expect(audio.master.videoVolume).toBe(0.8);
+    expect(audio.master.compressor.enabled).toBe(false);
+    expect(() => ProjectSettingsSchema.parse({ composition: { audio: { clips: [{ id: "c", assetId: "a", trackId: "t", startMs: 0, sourceInMs: 5000, sourceOutMs: 5000 }] } } })).toThrow();
   });
 });
 
@@ -338,7 +419,7 @@ describe("VideoSegment Run-2 fields (Stage C model evolution)", () => {
     expect(SegmentTransformSchema.parse({})).toEqual(IDENTITY_SEGMENT_TRANSFORM);
     expect(IDENTITY_SEGMENT_TRANSFORM).toEqual({
       cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0,
-      flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0,
+      flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0, opacity: 1,
     });
   });
 

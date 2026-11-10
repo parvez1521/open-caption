@@ -31,6 +31,9 @@ const editorComp: EditorComposition = {
   overlayClips: [],
   markers: [],
   trackState: structuredClone(DEFAULT_COMPOSITION_TRACKS),
+  audioTracks: [],
+  audioClips: [],
+  audioMaster: { volume: 1, videoVolume: 1, compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 } },
 };
 
 describe("Timeline segment badges", () => {

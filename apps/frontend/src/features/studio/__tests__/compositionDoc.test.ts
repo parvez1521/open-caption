@@ -22,17 +22,19 @@ import {
  * and the partition guard must trip on hand-broken compositions.
  */
 
-/** The Run-2 editor-clip defaults every pre-Run-2 segment builds with. */
+/** The Run-2/3 editor-clip defaults every pre-Run-3 segment builds with. */
 const CLIP_DEFAULTS = {
   playbackRate: 1,
   transform: {
     cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0,
-    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0,
+    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0, opacity: 1,
   },
   transitionIn: null,
   assetId: null,
   still: false,
-} as const;
+  keyframes: [],
+  effects: [],
+};
 /** The same defaults in stored-segment shape (for projected-settings expectations). */
 const SEG_DEFAULTS = CLIP_DEFAULTS;
 
@@ -407,5 +409,87 @@ describe("Run 2 model: rates, transitions, transforms, jump cuts", () => {
     };
     expect(isPartition(broken.videoClips)).toBe(false);
     expect(() => projectComposition(broken, run2Settings)).toThrow(/timeline duration/);
+  });
+});
+
+describe("Run 3 carry-through: keyframes, effects, audio (Phase 4 Run 3 keystone)", () => {
+  const run3Settings = ProjectSettingsSchema.parse({
+    composition: {
+      videoSegments: [
+        {
+          id: "seg-1", sourceInMs: 0, sourceOutMs: 20_000,
+          keyframes: [
+            { id: "k1", atMs: 0, property: "scale", value: 1 },
+            { id: "k2", atMs: 5000, property: "scale", value: 1.4, easing: "ease-out" },
+          ],
+          effects: [{ id: "e1", type: "grain", amount: 0.3 }],
+        },
+        { id: "seg-2", sourceInMs: 20_000, sourceOutMs: 45_000 },
+      ],
+      audio: {
+        tracks: [{ id: "t1", name: "Music", role: "music", ducking: { enabled: true, amountDb: 10 } }],
+        clips: [{ id: "c1", assetId: "a1", assetName: "song.mp3", trackId: "t1", startMs: 2000, sourceInMs: 0, sourceOutMs: 30_000, volume: 0.7 }],
+        master: { videoVolume: 0.9 },
+      },
+    },
+  });
+
+  it("build carries keyframes/effects/audio verbatim (own copies)", () => {
+    const comp = buildEditorComposition({ view: viewFor(run3Settings, 120_000, 45_000), settings: run3Settings, sourceDurationMs: 120_000 });
+    expect(comp.videoClips[0]!.keyframes).toEqual(run3Settings.composition.videoSegments[0]!.keyframes);
+    expect(comp.videoClips[0]!.effects).toEqual(run3Settings.composition.videoSegments[0]!.effects);
+    expect(comp.videoClips[1]!.keyframes).toEqual([]);
+    expect(comp.audioTracks).toHaveLength(1);
+    expect(comp.audioTracks[0]!.ducking).toEqual({ enabled: true, amountDb: 10, thresholdDb: -42 });
+    expect(comp.audioClips[0]!.volume).toBe(0.7);
+    expect(comp.audioMaster.videoVolume).toBe(0.9);
+    expect(comp.audioMaster.compressor.enabled).toBe(false);
+  });
+
+  it("round trip B (build → project → build) is exact for keyframes/effects/audio", () => {
+    const comp = buildEditorComposition({ view: viewFor(run3Settings, 120_000, 45_000), settings: run3Settings, sourceDurationMs: 120_000 });
+    const projected = projectComposition(comp, run3Settings);
+    expect(projected.composition.videoSegments[0]!.keyframes).toEqual(run3Settings.composition.videoSegments[0]!.keyframes);
+    expect(projected.composition.videoSegments[0]!.effects).toEqual(run3Settings.composition.videoSegments[0]!.effects);
+    expect(projected.composition.audio).toEqual(run3Settings.composition.audio);
+    const rebuilt = buildEditorComposition({ view: viewFor(projected, 120_000, 45_000), settings: projected, sourceDurationMs: 120_000 });
+    expect(rebuilt.videoClips).toEqual(comp.videoClips);
+    expect(rebuilt.audioTracks).toEqual(comp.audioTracks);
+    expect(rebuilt.audioClips).toEqual(comp.audioClips);
+    expect(rebuilt.audioMaster).toEqual(comp.audioMaster);
+  });
+
+  it("a single clip with ONLY keyframes (otherwise plain) writes its segment explicitly", () => {
+    const settings = ProjectSettingsSchema.parse({
+      composition: {
+        videoSegments: [{ id: "only", sourceInMs: 0, sourceOutMs: 20_000, keyframes: [{ id: "k1", atMs: 1000, property: "opacity", value: 0.5 }] }],
+      },
+    });
+    const comp = buildEditorComposition({ view: viewFor(settings, 60_000, 20_000), settings, sourceDurationMs: 60_000 });
+    const projected = projectComposition(comp, settings);
+    expect(projected.composition.videoSegments).toHaveLength(1);
+    expect(projected.composition.videoSegments[0]!.keyframes).toHaveLength(1);
+  });
+
+  it("audio alone does not disturb the untouched video shape (segments stay [])", () => {
+    const settings = ProjectSettingsSchema.parse({
+      composition: { audio: { tracks: [{ id: "t1", name: "Music", role: "music" }] } },
+    });
+    const comp = buildEditorComposition({ view: viewFor(settings, 60_000, 60_000), settings, sourceDurationMs: 60_000 });
+    const projected = projectComposition(comp, settings);
+    expect(projected.composition.videoSegments).toEqual([]);
+    expect(projected.composition.audio.tracks).toHaveLength(1);
+  });
+
+  it("pre-Run-3 projects build with empty keyframes/effects/audio", () => {
+    const comp = buildEditorComposition({ view: viewFor(plainSettings, plainSourceMs, plainSourceMs), settings: plainSettings, sourceDurationMs: plainSourceMs });
+    expect(comp.videoClips[0]!.keyframes).toEqual([]);
+    expect(comp.videoClips[0]!.effects).toEqual([]);
+    expect(comp.audioTracks).toEqual([]);
+    expect(comp.audioClips).toEqual([]);
+    expect(comp.audioMaster).toEqual({
+      volume: 1, videoVolume: 1,
+      compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
+    });
   });
 });

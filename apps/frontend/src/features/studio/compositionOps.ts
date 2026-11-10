@@ -529,6 +529,8 @@ export function insertStillSegmentAt(
     transitionIn: null,
     assetId,
     still: true,
+    keyframes: [],
+    effects: [],
   };
   const clips =
     insertIdx < 0

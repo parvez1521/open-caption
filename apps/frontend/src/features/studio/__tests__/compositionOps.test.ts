@@ -39,12 +39,14 @@ const CLIP_DEFAULTS = {
   playbackRate: 1,
   transform: {
     cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0,
-    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0,
+    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0, opacity: 1,
   },
   transitionIn: null,
   assetId: null,
   still: false,
-} as const;
+  keyframes: [],
+  effects: [],
+};
 
 /**
  * Stage-B clip-op tests (Phase 4, Worker C): every video op's result is run
@@ -327,6 +329,9 @@ describe("trimVideoClipEdge — tail trim / extend", () => {
       overlayClips: [],
       markers: [],
       trackState: plainComp().trackState,
+      audioTracks: [],
+      audioClips: [],
+      audioMaster: plainComp().audioMaster,
     };
     const before = snapshot(comp);
     const { comp: out } = trimVideoClipEdge(comp, "only", "end", 25_000);

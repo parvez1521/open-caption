@@ -6,14 +6,30 @@ export type Platform = z.infer<typeof PlatformSchema>;
 /** Words per caption card for every new project and every look (one-word looks use 1). */
 export const DEFAULT_WORDS_PER_CARD = 3;
 
-/** CSS-filter style adjustments applied to the video layer (1 = unchanged). */
+/** CSS-filter style adjustments applied to the video layer (1 / 0 = unchanged).
+ *  Phase 4 Run 3 (slice 4.9) extends the original brightness/contrast/saturation with
+ *  exposure (a second brightness multiplier), highlights/shadows (signed −1..1,
+ *  mapped onto brightness/contrast cross-terms) and temperature/tint (signed −1..1,
+ *  mapped onto a sepia term + colour-wash overlays) — ALL of it through the ONE
+ *  shared mapping in packages/compositions (buildVideoFilter / buildAdjustOverlays),
+ *  so preview ≡ browser export ≡ server render by construction. The photographic
+ *  names are honest approximations of what CSS filters can express; the mapping is
+ *  documented where it lives. */
 export const VideoAdjustSchema = z.object({
   brightness: z.number().min(0.5).max(1.5).default(1),
   contrast: z.number().min(0.5).max(1.5).default(1),
   saturation: z.number().min(0.5).max(1.5).default(1),
+  exposure: z.number().min(0.25).max(4).default(1),
+  highlights: z.number().min(-1).max(1).default(0),
+  shadows: z.number().min(-1).max(1).default(0),
+  temperature: z.number().min(-1).max(1).default(0),
+  tint: z.number().min(-1).max(1).default(0),
 });
 export type VideoAdjust = z.infer<typeof VideoAdjustSchema>;
-export const NEUTRAL_VIDEO_ADJUST: VideoAdjust = { brightness: 1, contrast: 1, saturation: 1 };
+export const NEUTRAL_VIDEO_ADJUST: VideoAdjust = {
+  brightness: 1, contrast: 1, saturation: 1,
+  exposure: 1, highlights: 0, shadows: 0, temperature: 0, tint: 0,
+};
 
 /** The app's own overlay shape set (inline SVG, drawn in packages/compositions). */
 export const OVERLAY_SHAPES = ["ring", "circle", "arrow", "check", "star", "heart", "rectangle", "scribble-underline", "triangle"] as const;
@@ -228,6 +244,9 @@ export const SegmentTransformSchema = z.object({
   scale: z.number().min(0.1).max(4).default(1),
   offsetX: z.number().min(-1).max(1).default(0),
   offsetY: z.number().min(-1).max(1).default(0),
+  /** Run 3 (slice 4.7): the segment's base opacity, 0..1 — also the value the
+   *  "opacity" keyframe channel interpolates around. 1 = fully opaque. */
+  opacity: z.number().min(0).max(1).default(1),
 });
 export type SegmentTransform = z.infer<typeof SegmentTransformSchema>;
 export const IDENTITY_SEGMENT_TRANSFORM: SegmentTransform = {
@@ -241,6 +260,7 @@ export const IDENTITY_SEGMENT_TRANSFORM: SegmentTransform = {
   scale: 1,
   offsetX: 0,
   offsetY: 0,
+  opacity: 1,
 };
 
 /**
@@ -253,6 +273,215 @@ export const SegmentTransitionSchema = z.object({
   durationMs: z.number().int().min(100).max(2000),
 });
 export type SegmentTransition = z.infer<typeof SegmentTransitionSchema>;
+
+/* ---------------- Phase 4 Run 3: keyframes + effects stack (slice 4.7) ---------------- */
+
+/** The transform/opacity channels a segment keyframe can animate. The base value of each
+ *  channel is the segment's stored transform field of the same name (opacity lives on the
+ *  transform too); keyframes interpolate BETWEEN keyframe values and hold the base value
+ *  outside the keyframed range only where no keyframe covers it — see the sampler in
+ *  packages/compositions (sampleSegmentKeyframes), the ONE evaluator preview and every
+ *  export share. */
+export const SEGMENT_KEYFRAME_PROPERTIES = ["offsetX", "offsetY", "scale", "rotateDeg", "opacity"] as const;
+export const SegmentKeyframePropertySchema = z.enum(SEGMENT_KEYFRAME_PROPERTIES);
+export type SegmentKeyframeProperty = z.infer<typeof SegmentKeyframePropertySchema>;
+
+/** Easing of the span FROM the keyframe carrying it TO the next keyframe on the same
+ *  channel. "hold" keeps this keyframe's value until the next one (a step). The curves
+ *  are plain cubic maths in the compositions sampler — no Remotion spring, so a value
+ *  depends only on (keyframes, time), never on render history. */
+export const KEYFRAME_EASINGS = ["linear", "ease-in", "ease-out", "ease-in-out", "hold"] as const;
+export const KeyframeEasingSchema = z.enum(KEYFRAME_EASINGS);
+export type KeyframeEasing = z.infer<typeof KeyframeEasingSchema>;
+
+/** Per-property legal value ranges, enforced by the refine below and by the op layer. */
+export const KEYFRAME_VALUE_RANGES: Record<SegmentKeyframeProperty, { min: number; max: number }> = {
+  offsetX: { min: -1, max: 1 },
+  offsetY: { min: -1, max: 1 },
+  scale: { min: 0.1, max: 4 },
+  rotateDeg: { min: -180, max: 180 },
+  opacity: { min: 0, max: 1 },
+};
+
+export const SegmentKeyframeSchema = z
+  .object({
+    id: z.string().min(1),
+    /** segment-LOCAL timeline ms (0 = the segment's first frame) — keyframes move with
+     *  their segment through splits/trims/rate changes via the op layer's remapping. */
+    atMs: z.number().min(0),
+    property: SegmentKeyframePropertySchema,
+    value: z.number(),
+    easing: KeyframeEasingSchema.default("linear"),
+  })
+  .refine(
+    (k) => k.value >= KEYFRAME_VALUE_RANGES[k.property].min && k.value <= KEYFRAME_VALUE_RANGES[k.property].max,
+    { message: "keyframe value out of range for its property", path: ["value"] },
+  );
+export type SegmentKeyframe = z.infer<typeof SegmentKeyframeSchema>;
+
+/**
+ * One entry of a segment's ORDERED effects stack. The stack is applied in stored order
+ * through the shared CSS-filter mapping in packages/compositions (buildSegmentEffects):
+ * each type maps its normalised `amount` (0..1) onto a concrete CSS filter function or
+ * a composition layer (vignette/grain are layers, not filters). Only the CSS-expressible
+ * set ships — sharpen is deliberately absent (no CSS/SVG form passes the preview ≡
+ * export parity bar in all three renderers; recorded in the roadmap as a non-goal for
+ * this programme). Blend modes stay EXCLUDED (declared parity gap, STUDIO-ARCHITECTURE).
+ */
+export const SEGMENT_EFFECT_TYPES = ["blur", "glow", "vignette", "grain"] as const;
+export const SegmentEffectTypeSchema = z.enum(SEGMENT_EFFECT_TYPES);
+export type SegmentEffectType = z.infer<typeof SegmentEffectTypeSchema>;
+
+export const SegmentEffectSchema = z.object({
+  id: z.string().min(1),
+  type: SegmentEffectTypeSchema,
+  enabled: z.boolean().default(true),
+  /** normalised strength 0..1; the renderer maps it per type (see buildSegmentEffects) */
+  amount: z.number().min(0).max(1).default(0.5),
+  /** glow only: the glow colour; ignored by the other types */
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "colour must be a #rrggbb hex value")
+    .default("#FFA946"),
+});
+export type SegmentEffect = z.infer<typeof SegmentEffectSchema>;
+
+/* ---------------- Phase 4 Run 3: audio studio model (slice 4.8) ---------------- */
+
+/** 3-band EQ as stored params: shelf/peak gains in dB at the mix engine's fixed
+ *  frequencies (low shelf 200 Hz, mid peak 1 kHz, high shelf 4 kHz — constants of the
+ *  mix implementation, shared by the preview graph and the export mixdown). */
+export const AudioEqSchema = z.object({
+  lowDb: z.number().min(-15).max(15).default(0),
+  midDb: z.number().min(-15).max(15).default(0),
+  highDb: z.number().min(-15).max(15).default(0),
+});
+export type AudioEq = z.infer<typeof AudioEqSchema>;
+export const NEUTRAL_AUDIO_EQ: AudioEq = { lowDb: 0, midDb: 0, highDb: 0 };
+
+/**
+ * "Basic cleanup" — honestly named: a high-pass filter (removes rumble) plus a noise
+ * gate (silences the track between phrases). It is NOT noise removal and is never
+ * labelled as such in the UI. Both halves are plain DSP, implemented identically by
+ * the preview graph and the export mixdown from these params.
+ */
+export const AudioCleanupSchema = z.object({
+  enabled: z.boolean().default(false),
+  highPassHz: z.number().min(20).max(400).default(80),
+  gateDb: z.number().min(-80).max(-20).default(-50),
+});
+export type AudioCleanup = z.infer<typeof AudioCleanupSchema>;
+export const DEFAULT_AUDIO_CLEANUP: AudioCleanup = { enabled: false, highPassHz: 80, gateDb: -50 };
+
+export const AudioClipProcessorsSchema = z.object({
+  eq: AudioEqSchema.default({ lowDb: 0, midDb: 0, highDb: 0 }),
+  cleanup: AudioCleanupSchema.default({ enabled: false, highPassHz: 80, gateDb: -50 }),
+  /** wet mix 0..1 of the generated-impulse convolver reverb (the impulse is a seeded
+   *  exponential-decay noise burst generated by the mix engine — never a recorded room) */
+  reverb: z.number().min(0).max(1).default(0),
+});
+export type AudioClipProcessors = z.infer<typeof AudioClipProcessorsSchema>;
+export const DEFAULT_AUDIO_CLIP_PROCESSORS: AudioClipProcessors = {
+  eq: { lowDb: 0, midDb: 0, highDb: 0 },
+  cleanup: { enabled: false, highPassHz: 80, gateDb: -50 },
+  reverb: 0,
+};
+
+/**
+ * One placed piece of audio on the timeline. The bytes live in the media bin on this
+ * device (assetId); only the placement + mix params are stored here. Times: `startMs`
+ * is the PROJECT timeline position; sourceInMs/sourceOutMs are the used range of the
+ * asset (assets play at rate 1 — speed is a video-segment feature). Fades are linear
+ * gain ramps of the stored lengths. Everything is a stored mix param: the preview
+ * Web Audio graph and the export Mediabunny mixdown are two consumers of this data.
+ */
+export const AudioClipSchema = z
+  .object({
+    id: z.string().min(1),
+    assetId: z.string().min(1),
+    assetName: z.string().max(300).default(""),
+    trackId: z.string().min(1),
+    startMs: z.number().min(0),
+    sourceInMs: z.number().min(0),
+    sourceOutMs: z.number().min(1),
+    volume: z.number().min(0).max(2).default(1),
+    fadeInMs: z.number().min(0).default(0),
+    fadeOutMs: z.number().min(0).default(0),
+    processors: AudioClipProcessorsSchema.default({
+      eq: { lowDb: 0, midDb: 0, highDb: 0 },
+      cleanup: { enabled: false, highPassHz: 80, gateDb: -50 },
+      reverb: 0,
+    }),
+  })
+  .refine((c) => c.sourceOutMs > c.sourceInMs, { message: "sourceOutMs must be after sourceInMs", path: ["sourceOutMs"] });
+export type AudioClip = z.infer<typeof AudioClipSchema>;
+
+/** Ducking: this track's gain is pulled down by `amountDb` while the voice (the video's
+ *  own sound + clips on voice-role tracks) is active above `thresholdDb`. The envelope
+ *  is ONE pure function of the voice peaks + these params, shared by both consumers. */
+export const AudioDuckingSchema = z.object({
+  enabled: z.boolean().default(false),
+  amountDb: z.number().min(0).max(24).default(12),
+  thresholdDb: z.number().min(-60).max(-20).default(-42),
+});
+export type AudioDucking = z.infer<typeof AudioDuckingSchema>;
+export const DEFAULT_AUDIO_DUCKING: AudioDucking = { enabled: false, amountDb: 12, thresholdDb: -42 };
+
+export const AudioTrackSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().max(80).default("Audio"),
+  role: z.enum(["voice", "music", "other"]).default("other"),
+  volume: z.number().min(0).max(2).default(1),
+  muted: z.boolean().default(false),
+  locked: z.boolean().default(false),
+  ducking: AudioDuckingSchema.default({ enabled: false, amountDb: 12, thresholdDb: -42 }),
+});
+export type AudioTrack = z.infer<typeof AudioTrackSchema>;
+
+/** The master end of the mix: overall level, the VIDEO chain's own sound level inside
+ *  the mix (its mute still comes from the video track state), and one compressor. */
+export const AudioMasterSchema = z.object({
+  volume: z.number().min(0).max(2).default(1),
+  videoVolume: z.number().min(0).max(2).default(1),
+  compressor: z
+    .object({
+      enabled: z.boolean().default(false),
+      thresholdDb: z.number().min(-60).max(0).default(-18),
+      ratio: z.number().min(1).max(20).default(3),
+      kneeDb: z.number().min(0).max(40).default(12),
+      attackMs: z.number().min(0).max(100).default(10),
+      releaseMs: z.number().min(10).max(1000).default(200),
+    })
+    .default({ enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 }),
+});
+export type AudioMaster = z.infer<typeof AudioMasterSchema>;
+export const DEFAULT_AUDIO_MASTER: AudioMaster = {
+  volume: 1,
+  videoVolume: 1,
+  compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
+};
+
+/** The composition's whole audio slice: tracks + placed clips + master. Empty = the
+ *  project has no audio-studio content and every audio behaviour is exactly Run 2's. */
+export const CompositionAudioSchema = z.object({
+  tracks: z.array(AudioTrackSchema).default([]),
+  clips: z.array(AudioClipSchema).default([]),
+  master: AudioMasterSchema.default({
+    volume: 1,
+    videoVolume: 1,
+    compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
+  }),
+});
+export type CompositionAudio = z.infer<typeof CompositionAudioSchema>;
+export const EMPTY_COMPOSITION_AUDIO: CompositionAudio = {
+  tracks: [],
+  clips: [],
+  master: {
+    volume: 1,
+    videoVolume: 1,
+    compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
+  },
+};
 
 /**
  * One piece of video on the timeline, in SOURCE-video milliseconds. At Stage B the stored
@@ -280,6 +509,10 @@ export const VideoSegmentSchema = z
     transitionIn: SegmentTransitionSchema.nullable().default(null),
     assetId: z.string().nullable().default(null),
     still: z.boolean().default(false),
+    /** Run 3 (4.7): keyframes over the transform/opacity channels, segment-local times */
+    keyframes: z.array(SegmentKeyframeSchema).default([]),
+    /** Run 3 (4.7): the ordered effects stack, applied in array order */
+    effects: z.array(SegmentEffectSchema).default([]),
   })
   .refine((s) => s.sourceOutMs > s.sourceInMs, { message: "sourceOutMs must be after sourceInMs", path: ["sourceOutMs"] });
 export type VideoSegment = z.infer<typeof VideoSegmentSchema>;
@@ -353,6 +586,16 @@ export const CompositionSettingsSchema = z.object({
     text: { locked: false, visible: true, muted: false },
     graphics: { locked: false, visible: true, muted: false },
   }),
+  /** Run 3 (4.8): audio tracks + placed clips + master — see CompositionAudioSchema */
+  audio: CompositionAudioSchema.default({
+    tracks: [],
+    clips: [],
+    master: {
+      volume: 1,
+      videoVolume: 1,
+      compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
+    },
+  }),
 });
 export type CompositionSettings = z.infer<typeof CompositionSettingsSchema>;
 export const EMPTY_COMPOSITION_SETTINGS: CompositionSettings = {
@@ -364,6 +607,15 @@ export const EMPTY_COMPOSITION_SETTINGS: CompositionSettings = {
     captions: { locked: false, visible: true, muted: false },
     text: { locked: false, visible: true, muted: false },
     graphics: { locked: false, visible: true, muted: false },
+  },
+  audio: {
+    tracks: [],
+    clips: [],
+    master: {
+      volume: 1,
+      videoVolume: 1,
+      compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
+    },
   },
 };
 export const DEFAULT_COMPOSITION_SETTINGS: CompositionSettings = EMPTY_COMPOSITION_SETTINGS;
@@ -400,7 +652,10 @@ export const ProjectSettingsSchema = z.object({
   translateTo: z.string().nullable().default(null),
   bilingual: z.boolean().default(false),
   /** editor elements (Slice 1d): video filter adjustments + timed text/shape overlays */
-  videoAdjust: VideoAdjustSchema.default({ brightness: 1, contrast: 1, saturation: 1 }),
+  videoAdjust: VideoAdjustSchema.default({
+    brightness: 1, contrast: 1, saturation: 1,
+    exposure: 1, highlights: 0, shadows: 0, temperature: 0, tint: 0,
+  }),
   overlays: z.array(OverlayItemSchema).default([]),
   /** last export choice, per project (owner 2026-11-10): drives BOTH render paths; old projects get 1080p/30 */
   exportSettings: ExportSettingsSchema.default({ resolution: "1080p", fps: 30 }),
@@ -418,6 +673,15 @@ export const ProjectSettingsSchema = z.object({
       captions: { locked: false, visible: true, muted: false },
       text: { locked: false, visible: true, muted: false },
       graphics: { locked: false, visible: true, muted: false },
+    },
+    audio: {
+      tracks: [],
+      clips: [],
+      master: {
+        volume: 1,
+        videoVolume: 1,
+        compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 },
+      },
     },
   }),
 });

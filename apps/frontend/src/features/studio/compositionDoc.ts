@@ -1,11 +1,18 @@
 import {
+  DEFAULT_AUDIO_DUCKING,
+  DEFAULT_AUDIO_MASTER,
   DEFAULT_TRACK_STATE,
   IDENTITY_SEGMENT_TRANSFORM,
   segmentTimelineDurationMs,
+  type AudioClip,
+  type AudioMaster,
+  type AudioTrack,
   type CompositionMarker,
   type CompositionTrackKind,
   type OverlayItem,
   type ProjectSettings,
+  type SegmentEffect,
+  type SegmentKeyframe,
   type SegmentTransform,
   type SegmentTransition,
   type TrackState,
@@ -83,15 +90,21 @@ export interface EditorVideoClip {
   assetId: string | null;
   /** freeze-frame still clip: sourceIn/Out are a pseudo-span whose length is the on-screen duration */
   still: boolean;
+  /** Run 3 (4.7): keyframes over the transform/opacity channels, segment-local times */
+  keyframes: SegmentKeyframe[];
+  /** Run 3 (4.7): the ordered effects stack, applied in array order */
+  effects: SegmentEffect[];
 }
 
-/** The Run-2 defaults a clip built from pre-Run-2 data (or the synthesised main clip) carries. */
-export const editorClipDefaults = (): Pick<EditorVideoClip, "playbackRate" | "transform" | "transitionIn" | "assetId" | "still"> => ({
+/** The Run-2/3 defaults a clip built from pre-Run-2 data (or the synthesised main clip) carries. */
+export const editorClipDefaults = (): Pick<EditorVideoClip, "playbackRate" | "transform" | "transitionIn" | "assetId" | "still" | "keyframes" | "effects"> => ({
   playbackRate: 1,
   transform: { ...IDENTITY_SEGMENT_TRANSFORM },
   transitionIn: null,
   assetId: null,
   still: false,
+  keyframes: [],
+  effects: [],
 });
 
 export interface EditorComposition {
@@ -110,6 +123,12 @@ export interface EditorComposition {
   overlayClips: OverlayClip[];
   markers: CompositionMarker[];
   trackState: Record<CompositionTrackKind, TrackState>;
+  /** Run 3 (4.8): audio-studio content — tracks, placed clips, master. Carried verbatim
+   *  to/from `settings.composition.audio`; the mix consumers (preview graph, export
+   *  mixdown) read these, the composition renderer never does. */
+  audioTracks: AudioTrack[];
+  audioClips: AudioClip[];
+  audioMaster: AudioMaster;
 }
 
 const TRACK_KINDS: CompositionTrackKind[] = ["video", "captions", "text", "graphics"];
@@ -121,7 +140,7 @@ function isIdentityTransform(t: SegmentTransform | undefined): boolean {
   return (
     t.cropLeft === id.cropLeft && t.cropTop === id.cropTop && t.cropRight === id.cropRight && t.cropBottom === id.cropBottom &&
     t.rotateDeg === id.rotateDeg && t.flipH === id.flipH && t.flipV === id.flipV && t.scale === id.scale &&
-    t.offsetX === id.offsetX && t.offsetY === id.offsetY
+    t.offsetX === id.offsetX && t.offsetY === id.offsetY && (t.opacity ?? id.opacity) === id.opacity
   );
 }
 
@@ -241,6 +260,8 @@ export function buildEditorComposition(input: {
         transitionIn: seg.transitionIn ? { ...seg.transitionIn } : null,
         assetId: seg.assetId ?? null,
         still: seg.still ?? false,
+        keyframes: (seg.keyframes ?? []).map((k) => ({ ...k })),
+        effects: (seg.effects ?? []).map((e) => ({ ...e })),
       };
       endMs = startMs + durationMs;
       return clip;
@@ -270,6 +291,31 @@ export function buildEditorComposition(input: {
     }
   }
 
+  // Run 3 (4.8): the audio slice rides along verbatim (own copies, defaults filled) —
+  // pre-Run-3 settings have no `audio` key at all and resolve to the empty slice.
+  const storedAudio = stored?.audio;
+  const audioTracks: AudioTrack[] = (storedAudio?.tracks ?? []).map((t) => ({
+    ...t,
+    ducking: { ...DEFAULT_AUDIO_DUCKING, ...(t.ducking ?? {}) },
+  }));
+  const audioClips: AudioClip[] = (storedAudio?.clips ?? []).map((c) => {
+    const eq = c.processors?.eq;
+    const cleanup = c.processors?.cleanup;
+    return {
+      ...c,
+      processors: {
+        eq: { lowDb: eq?.lowDb ?? 0, midDb: eq?.midDb ?? 0, highDb: eq?.highDb ?? 0 },
+        cleanup: { enabled: cleanup?.enabled ?? false, highPassHz: cleanup?.highPassHz ?? 80, gateDb: cleanup?.gateDb ?? -50 },
+        reverb: c.processors?.reverb ?? 0,
+      },
+    };
+  });
+  const audioMaster: AudioMaster = {
+    volume: storedAudio?.master?.volume ?? DEFAULT_AUDIO_MASTER.volume,
+    videoVolume: storedAudio?.master?.videoVolume ?? DEFAULT_AUDIO_MASTER.videoVolume,
+    compressor: { ...DEFAULT_AUDIO_MASTER.compressor, ...(storedAudio?.master?.compressor ?? {}) },
+  };
+
   return {
     version: 1,
     durationMs,
@@ -280,6 +326,9 @@ export function buildEditorComposition(input: {
     overlayClips,
     markers,
     trackState,
+    audioTracks,
+    audioClips,
+    audioMaster,
   };
 }
 
@@ -338,6 +387,8 @@ export function projectComposition(comp: EditorComposition, base: ProjectSetting
       !only.transitionIn &&
       (only.assetId ?? null) === null &&
       !(only.still ?? false) &&
+      (only.keyframes ?? []).length === 0 &&
+      (only.effects ?? []).length === 0 &&
       isIdentityTransform(only.transform));
   const untouched = comp.videoClips.length <= 1 && markers.length === 0 && allTracksDefault && onlyPlain;
 
@@ -352,6 +403,8 @@ export function projectComposition(comp: EditorComposition, base: ProjectSetting
         transitionIn: clip.transitionIn ? { ...clip.transitionIn } : null,
         assetId: clip.assetId ?? null,
         still: clip.still ?? false,
+        keyframes: (clip.keyframes ?? []).map((k) => ({ ...k })),
+        effects: (clip.effects ?? []).map((e) => ({ ...e })),
       }));
 
   let clipRange = base.clipRange;
@@ -374,6 +427,16 @@ export function projectComposition(comp: EditorComposition, base: ProjectSetting
       videoSegments,
       markers,
       tracks: trackState,
+      audio: {
+        tracks: (comp.audioTracks ?? []).map((t) => ({ ...t, ducking: { ...t.ducking } })),
+        clips: (comp.audioClips ?? []).map((c) => ({
+          ...c,
+          processors: { eq: { ...c.processors.eq }, cleanup: { ...c.processors.cleanup }, reverb: c.processors.reverb },
+        })),
+        master: comp.audioMaster
+          ? { ...comp.audioMaster, compressor: { ...comp.audioMaster.compressor } }
+          : { ...DEFAULT_AUDIO_MASTER, compressor: { ...DEFAULT_AUDIO_MASTER.compressor } },
+      },
     },
     overlays,
     clipRange,

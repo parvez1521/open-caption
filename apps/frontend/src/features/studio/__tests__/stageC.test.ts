@@ -19,11 +19,13 @@ const SEG_DEFAULTS = {
   playbackRate: 1,
   transform: {
     cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0,
-    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0,
+    flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0, opacity: 1,
   },
   transitionIn: null,
   assetId: null,
   still: false,
+  keyframes: [] as { id: string; atMs: number; property: "offsetX" | "offsetY" | "scale" | "rotateDeg" | "opacity"; value: number; easing: "linear" | "ease-in" | "ease-out" | "ease-in-out" | "hold" }[],
+  effects: [] as { id: string; type: "blur" | "glow" | "vignette" | "grain"; enabled: boolean; amount: number; color: string }[],
 } as const;
 
 /** A rich, fully-populated slice: 3 contiguous segments, markers, non-default track states. */
@@ -43,6 +45,11 @@ const rich: CompositionSettings = {
     captions: { locked: false, visible: false, muted: false },
     text: { locked: false, visible: true, muted: true },
     graphics: { locked: true, visible: false, muted: false },
+  },
+  audio: {
+    tracks: [],
+    clips: [],
+    master: { volume: 1, videoVolume: 1, compressor: { enabled: false, thresholdDb: -18, ratio: 3, kneeDb: 12, attackMs: 10, releaseMs: 200 } },
   },
 };
 
