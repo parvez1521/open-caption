@@ -57,10 +57,38 @@ export function useStudio(projectId: string) {
   const inflightRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryRef = useRef(0);
-  const past = useRef<CaptionDoc[]>([]);
-  const future = useRef<CaptionDoc[]>([]);
+  /**
+   * ONE undo history for the whole editor (owner bug 2026-11-10: "undo/redo kaam nahi kar raha").
+   * A snapshot captures the caption doc AND the style/settings/look, so Ctrl+Z and the toolbar
+   * buttons cover template picks, style tweaks, overlay add/move/delete and adjust sliders —
+   * not just word edits. Snapshots hold references only; every store in this hook is updated
+   * immutably, so a stored reference can never be mutated behind history's back.
+   */
+  interface Snapshot {
+    doc: CaptionDoc | null;
+    style: CaptionStyleV2 | null;
+    settings: ProjectSettings;
+    lookId: string | null;
+  }
+  const past = useRef<Snapshot[]>([]);
+  const future = useRef<Snapshot[]>([]);
   const lastKey = useRef<{ key: string; at: number } | null>(null);
   const [, bump] = useState(0);
+  // style/settings refs are declared in their section below; history helpers read them at call
+  // time (same call-time-binding pattern flush() already uses for conflictRef).
+  const snapNow = (): Snapshot => ({ doc: docRef.current, style: styleRef.current, settings: settingsRef.current, lookId: lookRef.current });
+  /** Record the current state as one undo step. Actions sharing a coalesceKey within 600 ms
+   *  collapse into a single step (typing, slider drags). Any real action clears the redo stack. */
+  const recordHistory = (coalesceKey?: string) => {
+    const now = Date.now();
+    const coalesce = coalesceKey && lastKey.current?.key === coalesceKey && now - lastKey.current.at < 600;
+    if (!coalesce) {
+      past.current.push(snapNow());
+      if (past.current.length > HISTORY_LIMIT) past.current.shift();
+    }
+    lastKey.current = coalesceKey ? { key: coalesceKey, at: now } : null;
+    future.current = [];
+  };
 
   // adopt the server document when we have none yet, or when a newer one arrives and nothing has been edited here
   // (opening from a prefetched copy must never leave the editor on an older revision); never overwrite local edits
@@ -131,21 +159,14 @@ export function useStudio(projectId: string) {
     }, SAVE_DEBOUNCE_MS);
   }, [flush]);
 
-  /** Apply an edit. Edits sharing a `coalesceKey` within 600 ms collapse into one undo step (typing). */
+  /** Apply a caption-doc edit as one undo step (see recordHistory for coalescing). */
   const edit = useCallback(
     (fn: (d: CaptionDoc) => CaptionDoc, opts: { coalesceKey?: string } = {}) => {
       const cur = docRef.current;
       if (!cur) return;
       const next = fn(cur);
       if (next === cur) return;
-      const now = Date.now();
-      const coalesce = opts.coalesceKey && lastKey.current?.key === opts.coalesceKey && now - lastKey.current.at < 600;
-      if (!coalesce) {
-        past.current.push(cur);
-        if (past.current.length > HISTORY_LIMIT) past.current.shift();
-      }
-      lastKey.current = opts.coalesceKey ? { key: opts.coalesceKey, at: now } : null;
-      future.current = [];
+      recordHistory(opts.coalesceKey);
       docRef.current = next;
       setDocState(next);
       schedule();
@@ -153,26 +174,42 @@ export function useStudio(projectId: string) {
     [schedule],
   );
 
+  /** Restore one snapshot across all four stores; saves whichever side actually changed. */
+  const restoreSnapshot = (snap: Snapshot) => {
+    if (snap.doc && snap.doc !== docRef.current) {
+      docRef.current = snap.doc;
+      setDocState(snap.doc);
+      schedule();
+    }
+    if (snap.style !== styleRef.current || snap.settings !== settingsRef.current || snap.lookId !== lookRef.current) {
+      styleRef.current = snap.style;
+      settingsRef.current = snap.settings;
+      lookRef.current = snap.lookId;
+      setStyleState(snap.style);
+      setSettingsState(snap.settings);
+      setLookId(snap.lookId);
+      persist();
+    }
+  };
+
   const undo = useCallback(() => {
     const prev = past.current.pop();
-    if (!prev || !docRef.current) return;
-    future.current.push(docRef.current);
-    docRef.current = prev;
-    setDocState(prev);
+    if (!prev) return;
+    future.current.push(snapNow());
+    restoreSnapshot(prev);
     lastKey.current = null;
-    schedule();
     bump((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schedule]);
 
   const redo = useCallback(() => {
     const next = future.current.pop();
-    if (!next || !docRef.current) return;
-    past.current.push(docRef.current);
-    docRef.current = next;
-    setDocState(next);
+    if (!next) return;
+    past.current.push(snapNow());
+    restoreSnapshot(next);
     lastKey.current = null;
-    schedule();
     bump((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schedule]);
 
   const resolveConflict = useCallback(
@@ -263,6 +300,9 @@ export function useStudio(projectId: string) {
     (look: LookDefinition) => {
       const applied = applyLook(look, settingsRef.current?.maxWordsPerCard);
       const sett = ProjectSettingsSchema.parse({ ...settingsRef.current, ...applied.settings });
+      // re-picking the look already in effect (with no tweaks since) is not an undoable action
+      if (look.id === lookRef.current && JSON.stringify(applied.style) === JSON.stringify(styleRef.current) && JSON.stringify(sett) === JSON.stringify(settingsRef.current)) return;
+      recordHistory();
       styleRef.current = applied.style;
       settingsRef.current = sett;
       lookRef.current = look.id;
@@ -271,6 +311,7 @@ export function useStudio(projectId: string) {
       setLookId(look.id);
       persist();
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [persist],
   );
 
@@ -278,20 +319,32 @@ export function useStudio(projectId: string) {
     (fn: (s: CaptionStyleV2) => CaptionStyleV2) => {
       if (!styleRef.current) return;
       const next = resolveStyle(fn(styleRef.current));
+      if (JSON.stringify(next) === JSON.stringify(styleRef.current)) return;
+      // slider drags and colour wells fire continuously: one undo step per burst, not per tick
+      recordHistory("style");
       styleRef.current = next;
       setStyleState(next);
       persist();
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [persist],
   );
 
   const patchSettings = useCallback(
     (patch: Partial<ProjectSettings>) => {
+      // a patch that changes nothing (e.g. an overlay drag clamped to zero) earns no undo step
+      const cur = settingsRef.current;
+      const changed = Object.entries(patch).some(([k, v]) => JSON.stringify(cur[k as keyof ProjectSettings]) !== JSON.stringify(v));
+      if (!changed) return;
       const next = ProjectSettingsSchema.parse({ ...settingsRef.current, ...patch });
+      // coalesce per patched key set: an adjust-slider drag (same keys, many ticks) is one step,
+      // while a different control touched right after stays its own step
+      recordHistory(`settings:${Object.keys(patch).sort().join(",")}`);
       settingsRef.current = next;
       setSettingsState(next);
       persist();
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [persist],
   );
 

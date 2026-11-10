@@ -8,8 +8,8 @@ import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
 import { CaptionDocSchema, effectiveDurationMs } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
-import { insertWordAfter, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
-import { EyeOff, Redo2, Star, Undo2 } from "lucide-react";
+import { deleteWordsByIds, insertWordAfter, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
+import { EyeOff, Redo2, Star, Trash2, Undo2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { StudioSkeleton } from "@/components/brand/Skeletons";
 import { useBrandNav } from "@/components/brand/BrandNav";
@@ -43,6 +43,7 @@ import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError }
 import { useWaveform } from "./useWaveform";
 import { toComposition } from "./composition";
 import { splitWordIdAtPlayhead } from "./playheadSplit";
+import { resolveDeleteAction } from "./deleteSelection";
 import { useMediaAssets } from "./useMediaAssets";
 import { makeImageOverlay } from "./panels/overlayItems";
 import { useStudio, type SaveState } from "./useStudio";
@@ -319,9 +320,37 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     setSelectedId(wordId);
   };
 
+  // Delete / Backspace target (owner bug 2026-11-10: the key had no handler at all). One code
+  // path for the keyboard handler and the timeline toolbar button; the pure priority decision
+  // lives in deleteSelection.ts. Every branch goes through edit()/patchSettings(), so a delete
+  // is one undo step like every other edit. Inert while a dialog is open or captions are live.
+  const deleteSelectionRef = useRef<() => boolean>(() => false);
+  deleteSelectionRef.current = () => {
+    const action = resolveDeleteAction({
+      blocked: live || showExport || showSignup || Boolean(s.conflict),
+      selectedWordIds,
+      selectedOverlayId,
+      selectedId,
+    });
+    if (!action) return false;
+    if (action.kind === "words") {
+      s.edit((d) => deleteWordsByIds(d, action.ids));
+      setSelectedWordIds(new Set());
+      setSelectedId(null);
+    } else if (action.kind === "overlay") {
+      s.patchSettings({ overlays: settings.overlays.filter((o) => o.id !== action.id) });
+      setSelectedOverlayId(null);
+    } else {
+      s.edit((d) => deleteWordsByIds(d, [action.id]));
+      setSelectedId(null);
+    }
+    return true;
+  };
+
   // keyboard: space = play/pause, ctrl/cmd+z / shift+z = undo/redo, ctrl/cmd+s = save,
+  // Delete/Backspace = delete the current selection (words, timeline block, overlay),
   // S = split the caption card at the playhead, ←/→ = nudge the drag-selected words by 100 ms
-  // (Shift+←/→ = 10 ms fine adjust)
+  // (Shift+←/→ = 10 ms fine adjust). While typing in a field, Delete/Backspace stay native.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -330,6 +359,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       if (mod && e.key.toLowerCase() === "z") { if (typing && t.tagName !== "BODY") return; e.preventDefault(); e.shiftKey ? s.redo() : s.undo(); }
       else if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); s.redo(); }
       else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); void s.saveNow().catch(() => undefined); }
+      else if ((e.key === "Delete" || e.key === "Backspace") && !typing && !mod && !e.altKey) { if (deleteSelectionRef.current()) e.preventDefault(); }
       else if (e.key.toLowerCase() === "s" && !typing && !mod && !e.altKey) { e.preventDefault(); splitAtPlayheadRef.current(); }
       else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !typing && !mod && selectedWordIds.size > 0) {
         e.preventDefault();
@@ -380,7 +410,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-st-line bg-st-panel px-3 sm:px-4">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Link href="/dashboard" onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); nav.go("/dashboard", "Back to your projects"); }} aria-label="Back to projects" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-st-muted transition hover:bg-st-raised hover:text-st-text">←</Link>
-        <Link href="/dashboard" aria-label="CaptionsEasy projects" className="hidden sm:block"><Logo height={22} /></Link>
+        <Link href="/dashboard" aria-label="Open Caption projects" className="hidden sm:block"><Logo height={22} /></Link>
         <span className="hidden h-5 w-px bg-st-line sm:block" />
         {editingTitle ? (
           <input
@@ -531,6 +561,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <>
       {tool(selected?.emphasis === "hero" ? "Key word (click to unset)" : "Make key word", <Star className={ic} />, () => selected && s.edit((d) => setEmphasis(d, selected.id, selected.emphasis === "hero" ? "none" : "hero")), { disabled: none || !heroSupported, active: selected?.emphasis === "hero" })}
       {tool("Hide word", <EyeOff className={ic} />, () => { if (!selected) return; s.edit((d) => setHidden(d, selected.id, true)); setSelectedId(null); }, { disabled: none })}
+      {tool("Delete selected (Del)", <Trash2 className={ic} />, () => { deleteSelectionRef.current(); }, { disabled: selectedWordIds.size === 0 && !selected && !selectedOverlayId })}
       {tool("Undo", <Undo2 className={ic} />, s.undo, { disabled: !s.canUndo })}
       {tool("Redo", <Redo2 className={ic} />, s.redo, { disabled: !s.canRedo })}
     </>
