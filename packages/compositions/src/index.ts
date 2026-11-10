@@ -8,4 +8,4 @@ export { KEYFRAME_EASING_FNS, sampleChannel, sampleSegmentAnimation } from "./ke
 export type { SampledSegmentAnimation } from "./keyframes";
 export { BlurPresentation, blurPresentation, ZoomPresentation, zoomPresentation } from "./transitions";
 export { OVERLAY_SHAPE_META, OverlayShapeSvg, OverlayView, SHAPE_BASE_PX, TEXT_DEFAULT_FONT_PX } from "./overlays";
-export { SOCIAL_META, SocialOverlayView, overlayPhase, bellRingDeg, counterAt, chatStackAt, orbitAngle, searchBarAt, socialSeededUnit, shade } from "./social";
+export { SOCIAL_META, SocialOverlayView, overlayPhase, bellRingDeg, counterAt, chatStackAt, orbitAngle, searchBarAt, socialSeededUnit, shade, typingAt, kineticTitleAt, glitchAt, neonFlickerAt, particleBurstAt, liveViewersAt, upvoteAt, formCardAt, audioBarsAt } from "./social";

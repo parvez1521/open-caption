@@ -21,6 +21,23 @@ export const SOCIAL_META: { id: OverlaySocialVariant; label: string; hint: strin
   { id: "chat-stack", label: "Chat Stack", hint: "Bubbles stack in one by one (one per line, max 4), with typing dots before the last.", defaultText: "Hey, how are you?\nGreat — just posted a new video!\nWatching it now", defaultColor: "#34D399" },
   { id: "orbit-badge", label: "Orbit Badge", hint: "Spinning circular text badge. Keep the line short — text longer than the circle truncates.", defaultText: "NEW EPISODE • PART 2 • ", defaultColor: "#FFA946" },
   { id: "search-bar", label: "Search Bar", hint: "A search field that types its query, then a result row drops in. Lines: query / result line (optional).", defaultText: "how to edit videos\nHow to Edit Videos — full guide", defaultColor: "#FFA946" },
+  { id: "profile-card", label: "Profile Card", hint: "Avatar with animated ring, name, handle and follower row; Follow flips on the beat. Lines: name / handle / follower line / Follow label / Following label. Avatar uses the item image asset when set.", defaultText: "Creator Name\n@handle\n12.4K followers\nFollow\nFollowing", defaultColor: "#34D399" },
+  { id: "notification-pop", label: "Notification Pop", hint: "Bell card that pops in. Lines: title line / name line.", defaultText: "New follower\nAlex just followed you", defaultColor: "#FFA946" },
+  { id: "dm-popup", label: "DM Request", hint: "Message-request card with Accept / Decline pills; Accept lights up on the beat. Lines: name / message line. Avatar uses the item image asset when set.", defaultText: "Alex\nHey! Love your latest video — collab?", defaultColor: "#38BDF8" },
+  { id: "story-ring", label: "Story Ring", hint: "Large avatar with a rotating dashed ring and name under it. Line: name. Avatar uses the item image asset when set.", defaultText: "Creator Name", defaultColor: "#FF4D6D" },
+  { id: "lower-third", label: "Lower Third", hint: "Left bar plus name and role lines, slides in. Lines: name / role line.", defaultText: "Creator Name\nVideo Editor", defaultColor: "#FF4D2E" },
+  { id: "logo-reveal", label: "Logo Reveal", hint: "Centred circle sweep revealing a short brand text (text only, no image). Line: brand text.", defaultText: "YOUR BRAND", defaultColor: "#FFA946" },
+  { id: "qr-frame", label: "QR Frame", hint: "Animated corner brackets around your QR image (set the item image asset) plus a label line. Without an asset a neutral grid placeholder shows — it is not a scannable code. Line: label.", defaultText: "Scan to follow", defaultColor: "#34D399" },
+  { id: "kinetic-title", label: "Kinetic Title", hint: "Big words appear word by word with a pop. One word per line (max 4).", defaultText: "MAKE\nSOMETHING\nGREAT", defaultColor: "#FFFFEB" },
+  { id: "glitch-title", label: "Glitch Title", hint: "Title with colour-split glitch slices on a beat. Line: title text.", defaultText: "LEVEL UP", defaultColor: "#FFFFEB" },
+  { id: "neon-sign", label: "Neon Sign", hint: "Glowing letters with a seeded flicker. Line: sign text.", defaultText: "OPEN", defaultColor: "#38BDF8" },
+  { id: "particle-burst", label: "Particle Burst", hint: "Seeded dots burst from the centre behind a short text line. Line: text.", defaultText: "NEW!", defaultColor: "#FFA946" },
+  { id: "typing-post", label: "Typing Post", hint: "Post card whose body types in. Lines: name / handle / body text. Avatar uses the item image asset when set.", defaultText: "Creator Name\n@handle\nJust shipped a new tutorial — link in bio!", defaultColor: "#38BDF8" },
+  { id: "upvote-card", label: "Upvote Card", hint: "Post card; the upvote arrow fills and the count ticks up on the beat. Lines: title line / starting count.", defaultText: "This workflow saved me hours\n248", defaultColor: "#FF4D2E" },
+  { id: "live-badge", label: "Live Badge", hint: "Pulsing LIVE pill with a viewer count that climbs. Lines: label / starting viewers.", defaultText: "LIVE\n128", defaultColor: "#FF3355" },
+  { id: "product-tag", label: "Product Tag", hint: "Price-tag card swinging in on a string pivot. Lines: product line / price line.", defaultText: "Creator Preset Pack\n$29", defaultColor: "#34D399" },
+  { id: "form-card", label: "Poll / Form Card", hint: "Question plus option rows whose bars fill to seeded percentages. Lines: question / option 1 / option 2 / option 3 (optional).", defaultText: "What should I post next?\nTutorial\nBehind the scenes\nLive Q&A", defaultColor: "#38BDF8" },
+  { id: "audio-bars", label: "Audio Bars", hint: "Seeded equalizer bars dancing to the beat. Optional line: a label under the bars.", defaultText: "", defaultColor: "#34D399" },
 ];
 
 export interface OverlayPhases {
@@ -128,6 +145,87 @@ export function searchBarAt(localMs: number, durationMs: number, queryLength: nu
   };
 }
 
+/** Generic stepped typing (typing-post body): same timing shape as searchBarAt. */
+export function typingAt(localMs: number, durationMs: number, textLength: number) {
+  const dur = Math.max(1, durationMs);
+  const len = Math.max(0, Math.floor(textLength));
+  const p = clamp01((localMs - dur * 0.12) / (dur * 0.55));
+  return { chars: Math.min(len, Math.floor(p * len)), typed: p >= 1, caretOn: localMs % 1060 < 620, p };
+}
+
+/** Kinetic title: per-word entrance progress, staggered over the first ~65%. */
+export function kineticTitleAt(localMs: number, durationMs: number, wordCount: number) {
+  const n = Math.max(0, Math.min(4, Math.floor(wordCount)));
+  const words = Array.from({ length: n }, (_, i) => {
+    const start = (i * durationMs * 0.65) / Math.max(1, n);
+    const p = easeOutCubic(clamp01((localMs - start) / 300));
+    return { index: i, p, scale: 0.6 + 0.4 * p + (p > 0 && p < 1 ? Math.sin(p * Math.PI) * 0.12 : 0), opacity: p };
+  });
+  return { words };
+}
+
+/** Glitch: stepped offsets changing every 120 ms, seeded by step (deterministic). */
+export function glitchAt(localMs: number) {
+  const step = Math.floor(Math.max(0, localMs) / 120);
+  const active = socialSeededUnit(step * 7 + 3) > 0.45;
+  const x = active ? (socialSeededUnit(step * 13 + 1) - 0.5) * 18 : 0;
+  const y = active ? (socialSeededUnit(step * 17 + 5) - 0.5) * 8 : 0;
+  const slice = active ? socialSeededUnit(step * 19 + 9) : 0;
+  return { step, active, x, y, slice };
+}
+
+/** Neon flicker: mostly on, with seeded short dropouts. */
+export function neonFlickerAt(localMs: number) {
+  const step = Math.floor(Math.max(0, localMs) / 90);
+  const u = socialSeededUnit(step * 11 + 2);
+  const opacity = u < 0.08 ? 0.35 : u < 0.14 ? 0.65 : 1;
+  return { opacity, glow: opacity };
+}
+
+/** Particle burst: seeded dots radiating out, progress = t over the window. */
+export function particleBurstAt(localMs: number, durationMs: number, seed: number, count = 14) {
+  const t = clamp01(localMs / Math.max(1, durationMs));
+  const dots = Array.from({ length: count }, (_, i) => {
+    const a = socialSeededUnit(seed + i * 31) * Math.PI * 2;
+    const dist = (30 + socialSeededUnit(seed + i * 47) * 150) * easeOutCubic(clamp01(t * 1.4));
+    return { i, x: Math.cos(a) * dist, y: Math.sin(a) * dist, r: 4 + socialSeededUnit(seed + i * 53) * 7, opacity: Math.max(0, 1 - t * 1.1) };
+  });
+  return { t, dots };
+}
+
+/** Live viewers: base + a climb that accelerates after the act beat, seeded steps. */
+export function liveViewersAt(localMs: number, durationMs: number, base: number) {
+  const t = clamp01(localMs / Math.max(1, durationMs));
+  const added = Math.floor(Math.pow(t, 1.4) * 90 + (t > 0.5 ? Math.floor((t - 0.5) * 20) : 0));
+  const pulse = 1 + 0.08 * Math.sin(localMs / 220);
+  return { viewers: Math.max(0, Math.floor(base)) + added, pulse };
+}
+
+/** Upvote count: +1 at the act flip, then a seeded tick-up to +24 by the end. */
+export function upvoteAt(localMs: number, durationMs: number, base: number) {
+  const ph = overlayPhase(localMs, durationMs);
+  const extra = ph.acted ? 1 + Math.floor(ph.t * 23) : 0;
+  return { count: Math.max(0, Math.floor(base)) + extra, acted: ph.acted };
+}
+
+/** Form card: seeded percentages (sum-normalised) + fill progress after enter. */
+export function formCardAt(localMs: number, durationMs: number, seed: number, optionCount: number) {
+  const n = Math.max(0, Math.min(3, Math.floor(optionCount)));
+  const raw = Array.from({ length: n }, (_, i) => 0.25 + socialSeededUnit(seed + i * 37));
+  const sum = raw.reduce((a, b) => a + b, 0) || 1;
+  const fill = easeOutCubic(clamp01((localMs - durationMs * 0.25) / (durationMs * 0.5)));
+  return { options: raw.map((r, i) => ({ index: i, pct: Math.round((r / sum) * 100), fill })), fill };
+}
+
+/** Audio bars: 16 seeded bars, height 0..1 as a pure function of localMs. */
+export function audioBarsAt(localMs: number, seed: number, count = 16) {
+  return Array.from({ length: count }, (_, i) => {
+    const phase = socialSeededUnit(seed + i * 41) * Math.PI * 2;
+    const speed = 0.006 + socialSeededUnit(seed + i * 59) * 0.006;
+    return { index: i, h: 0.18 + 0.82 * Math.abs(Math.sin(localMs * speed + phase)) };
+  });
+}
+
 /* ---------------------------------- drawing ---------------------------------- */
 
 const FONT = "'Plus Jakarta Sans', 'Segoe UI', sans-serif";
@@ -186,7 +284,7 @@ const linesOf = (item: OverlayItem): string[] => (item.text ?? "").split("\n").m
 const line = (ls: string[], i: number, dflt: string) => (ls[i] && ls[i].length ? ls[i]! : dflt);
 
 /** One animated social overlay's inner graphic (positioning/scale come from OverlayView's wrapper). */
-export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localMs: number }> = ({ item, sc, localMs }) => {
+export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localMs: number; assetSrc?: string }> = ({ item, sc, localMs, assetSrc }) => {
   const dur = Math.max(1, item.endMs - item.startMs);
   const ph = overlayPhase(localMs, dur);
   const accent = item.color;
@@ -197,7 +295,13 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
     transform: `translateY(${enterY.toFixed(1)}px)`, pointerEvents: "none",
   };
   const card: React.CSSProperties = { backgroundColor: CARD_BG, borderRadius: 26 * sc, boxShadow: "0 10px 34px rgba(0,0,0,0.42)", padding: `${18 * sc}px ${22 * sc}px` };
-  const avatar = (size: number) => <span style={{ display: "block", width: size * sc, height: size * sc, borderRadius: "50%", backgroundColor: shade(accent, 0.85), flexShrink: 0 }} />;
+  const initialOf = (ls[0] && ls[0].trim() ? ls[0].trim().replace(/^@/, "").charAt(0).toUpperCase() : "C");
+  const avatar = (size: number) => assetSrc ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={assetSrc} alt="" style={{ display: "block", width: size * sc, height: size * sc, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+  ) : (
+    <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size * sc, height: size * sc, borderRadius: "50%", backgroundColor: shade(accent, 0.85), color: CARD_FG, fontWeight: 800, fontSize: size * 0.42 * sc, flexShrink: 0 }}>{initialOf}</span>
+  );
   // pointer press pulse around the act beat
   const press = Math.sin(Math.min(1, Math.max(0, ph.act)) * Math.PI);
   const pill = (flipped: boolean, labelNow: string, w?: number) => (
@@ -402,6 +506,234 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
               <span style={{ fontSize: 27 * sc, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{ls[1]}</span>
             </div>
           ) : null}
+        </div>
+      );
+    }
+    case "profile-card": {
+      const labelNow = ph.acted ? line(ls, 4, "Following") : line(ls, 3, "Follow");
+      const ringRot = orbitAngle(localMs) * 2;
+      return (
+        <div style={{ ...root, ...card, position: "relative", display: "flex", alignItems: "center", gap: 18 * sc, width: 620 * sc }}>
+          <span style={{ position: "relative", width: 96 * sc, height: 96 * sc, flexShrink: 0 }}>
+            <svg width={96 * sc} height={96 * sc} viewBox="0 0 100 100" style={{ position: "absolute", inset: 0, transform: `rotate(${ringRot.toFixed(1)}deg)` }} aria-hidden><circle cx={50} cy={50} r={46} fill="none" stroke={accent} strokeWidth={5} strokeDasharray="70 220" strokeLinecap="round" /></svg>
+            <span style={{ position: "absolute", left: 6 * sc, top: 6 * sc }}>{avatar(84)}</span>
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontWeight: 800, fontSize: 32 * sc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 0, "Creator Name")}</span>
+            <span style={{ display: "block", fontSize: 25 * sc, opacity: 0.75 }}>{line(ls, 1, "@handle")}</span>
+            <span style={{ display: "block", fontSize: 24 * sc, opacity: 0.9, color: accent }}>{line(ls, 2, "12.4K followers")}</span>
+          </span>
+          {pill(ph.acted, labelNow)}
+          <Pointer x={420} y={64} press={press} sc={sc} />
+        </div>
+      );
+    }
+    case "notification-pop": {
+      const actStart = dur * 0.3 + Math.max(120, dur * 0.24);
+      const ringMs = localMs - actStart;
+      const deg = ringMs > 0 ? bellRingDeg(ringMs) : 0;
+      const slideX = (1 - ph.enter) * -60 * sc;
+      return (
+        <div style={{ ...root, ...card, display: "flex", alignItems: "center", gap: 16 * sc, width: 560 * sc, transform: `translateX(${slideX.toFixed(1)}px) translateY(${enterY.toFixed(1)}px)` }}>
+          <Bell color={accent} size={56 * sc} deg={deg} arcs={ringMs > 0 ? Math.max(0, Math.exp(-ringMs / 320)) : 0} />
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontWeight: 800, fontSize: 29 * sc }}>{line(ls, 0, "New follower")}</span>
+            <span style={{ display: "block", fontSize: 26 * sc, opacity: 0.8 }}>{line(ls, 1, "Alex just followed you")}</span>
+          </span>
+          <span style={{ width: 14 * sc, height: 14 * sc, borderRadius: "50%", backgroundColor: accent, opacity: ph.acted ? 1 : 0.3 }} />
+        </div>
+      );
+    }
+    case "dm-popup": {
+      return (
+        <div style={{ ...root, ...card, width: 560 * sc }}>
+          <span style={{ display: "block", fontSize: 22 * sc, fontWeight: 700, opacity: 0.7, marginBottom: 10 * sc }}>Message request</span>
+          <span style={{ display: "flex", gap: 14 * sc, alignItems: "flex-start" }}>
+            {avatar(64)}
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 800, fontSize: 29 * sc }}>{line(ls, 0, "Alex")}</span>
+              <span style={{ display: "block", fontSize: 26 * sc, lineHeight: 1.3 }}>{line(ls, 1, "Hey! Love your latest video")}</span>
+            </span>
+          </span>
+          <span style={{ display: "flex", gap: 12 * sc, marginTop: 16 * sc }}>
+            <span style={{ flex: 1, textAlign: "center", padding: `${10 * sc}px`, borderRadius: 999, backgroundColor: ph.acted ? accent : shade(accent, 0.5), color: ph.acted ? "#141412" : CARD_FG, fontWeight: 800, fontSize: 26 * sc, transform: `scale(${(ph.acted ? 1.04 : 1).toFixed(3)})` }}>Accept</span>
+            <span style={{ flex: 1, textAlign: "center", padding: `${10 * sc}px`, borderRadius: 999, border: `2px solid ${CARD_FG}55`, fontWeight: 700, fontSize: 26 * sc, opacity: ph.acted ? 0.45 : 1 }}>Decline</span>
+          </span>
+        </div>
+      );
+    }
+    case "story-ring": {
+      const rot = orbitAngle(localMs) * 3;
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 * sc, width: 300 * sc }}>
+          <span style={{ position: "relative", width: 200 * sc, height: 200 * sc }}>
+            <svg width={200 * sc} height={200 * sc} viewBox="0 0 100 100" style={{ position: "absolute", inset: 0, transform: `rotate(${rot.toFixed(1)}deg)` }} aria-hidden><circle cx={50} cy={50} r={47} fill="none" stroke={accent} strokeWidth={4} strokeDasharray="18 10" strokeLinecap="round" /></svg>
+            <span style={{ position: "absolute", left: 14 * sc, top: 14 * sc }}>{avatar(172)}</span>
+          </span>
+          <span style={{ fontWeight: 800, fontSize: 30 * sc }}>{line(ls, 0, "Creator Name")}</span>
+        </div>
+      );
+    }
+    case "lower-third": {
+      const slideX = (1 - ph.enter) * -80 * sc;
+      return (
+        <div style={{ ...root, display: "flex", gap: 16 * sc, alignItems: "stretch", width: 600 * sc, transform: `translateX(${slideX.toFixed(1)}px)`, opacity: ph.enter * (1 - ph.exit) }}>
+          <span style={{ width: 10 * sc, backgroundColor: accent, borderRadius: 4, transform: `scaleY(${ph.enter.toFixed(3)})` }} />
+          <span style={{ backgroundColor: CARD_BG, borderRadius: 14 * sc, padding: `${14 * sc}px ${20 * sc}px`, flex: 1, boxShadow: "0 8px 28px rgba(0,0,0,0.4)" }}>
+            <span style={{ display: "block", fontWeight: 900, fontSize: 38 * sc }}>{line(ls, 0, "Creator Name")}</span>
+            <span style={{ display: "block", fontSize: 27 * sc, opacity: 0.8, color: accent }}>{line(ls, 1, "Video Editor")}</span>
+          </span>
+        </div>
+      );
+    }
+    case "logo-reveal": {
+      const sweep = clamp01(ph.t * 1.6);
+      const C = 2 * Math.PI * 88;
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 * sc, width: 420 * sc }}>
+          <svg width={200 * sc} height={200 * sc} viewBox="0 0 200 200" aria-hidden>
+            <circle cx={100} cy={100} r={88} fill="none" stroke={`${accent}44`} strokeWidth={8} />
+            <circle cx={100} cy={100} r={88} fill="none" stroke={accent} strokeWidth={8} strokeLinecap="round" strokeDasharray={`${(C * sweep).toFixed(1)} ${C.toFixed(1)}`} transform="rotate(-90 100 100)" />
+            <circle cx={100} cy={100} r={62} fill={CARD_BG} opacity={sweep} />
+          </svg>
+          <span style={{ fontWeight: 900, fontSize: 44 * sc, letterSpacing: 3, opacity: sweep, transform: `scale(${(0.8 + 0.2 * sweep).toFixed(3)})`, color: accent }}>{line(ls, 0, "YOUR BRAND")}</span>
+        </div>
+      );
+    }
+    case "qr-frame": {
+      const pulse = 1 + 0.03 * Math.sin(localMs / 240);
+      const bracket = (pos: React.CSSProperties) => <span style={{ position: "absolute", width: 52 * sc, height: 52 * sc, borderColor: accent, borderStyle: "solid", borderWidth: 0, ...pos }} />;
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * sc }}>
+          <span style={{ position: "relative", display: "block", width: 280 * sc, height: 280 * sc, transform: `scale(${pulse.toFixed(3)})`, backgroundColor: CARD_BG, borderRadius: 18 * sc }}>
+            {bracket({ left: 0, top: 0, borderTopWidth: 7 * sc, borderLeftWidth: 7 * sc, borderTopLeftRadius: 14 * sc })}
+            {bracket({ right: 0, top: 0, borderTopWidth: 7 * sc, borderRightWidth: 7 * sc, borderTopRightRadius: 14 * sc })}
+            {bracket({ left: 0, bottom: 0, borderBottomWidth: 7 * sc, borderLeftWidth: 7 * sc, borderBottomLeftRadius: 14 * sc })}
+            {bracket({ right: 0, bottom: 0, borderBottomWidth: 7 * sc, borderRightWidth: 7 * sc, borderBottomRightRadius: 14 * sc })}
+            {assetSrc ? <img src={assetSrc} alt="" style={{ position: "absolute", left: 28 * sc, top: 28 * sc, width: 224 * sc, height: 224 * sc, objectFit: "contain" }} /> : (
+              <span style={{ position: "absolute", left: 34 * sc, top: 34 * sc, width: 212 * sc, height: 212 * sc, display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 * sc, padding: 6 * sc }}>
+                {Array.from({ length: 49 }, (_, i) => <span key={i} style={{ backgroundColor: socialSeededUnit(i * 17 + 5) > 0.5 ? CARD_FG : "transparent", borderRadius: 2, opacity: 0.85 }} />)}
+                <span style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", backgroundColor: CARD_BG, padding: `${4 * sc}px ${8 * sc}px`, fontSize: 18 * sc, fontWeight: 700 }}>your QR image</span>
+              </span>
+            )}
+          </span>
+          <span style={{ fontWeight: 800, fontSize: 30 * sc }}>{line(ls, 0, "Scan to follow")}</span>
+        </div>
+      );
+    }
+    case "kinetic-title": {
+      const words = ls.filter(Boolean).slice(0, 4);
+      const kt = kineticTitleAt(localMs, dur, words.length || 1);
+      const list = words.length ? words : ["TITLE"];
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 * sc, width: 640 * sc }}>
+          {list.map((w, i) => { const s = kt.words[i] ?? { p: 1, scale: 1, opacity: 1 }; return <span key={i} style={{ fontWeight: 900, fontSize: 84 * sc, lineHeight: 1.05, color: i === list.length - 1 ? accent : CARD_FG, opacity: s.opacity, transform: `scale(${s.scale.toFixed(3)})` }}>{w}</span>; })}
+        </div>
+      );
+    }
+    case "glitch-title": {
+      const g = glitchAt(localMs);
+      const txt = line(ls, 0, "LEVEL UP");
+      const base: React.CSSProperties = { fontWeight: 900, fontSize: 84 * sc, lineHeight: 1, whiteSpace: "nowrap" };
+      return (
+        <div style={{ ...root, position: "relative", width: 640 * sc, height: 120 * sc, display: "flex", justifyContent: "center" }}>
+          <span style={{ ...base, position: "absolute", color: "#FF3355", transform: `translate(${(g.x - 4).toFixed(1)}px, ${g.y.toFixed(1)}px)`, opacity: g.active ? 0.85 : 0.35 }}>{txt}</span>
+          <span style={{ ...base, position: "absolute", color: "#33CCFF", transform: `translate(${(-g.x + 4).toFixed(1)}px, ${(-g.y).toFixed(1)}px)`, opacity: g.active ? 0.85 : 0.35 }}>{txt}</span>
+          <span style={{ ...base, position: "relative", color: CARD_FG, transform: `translate(${g.active ? (g.x * 0.3).toFixed(1) : 0}px, 0px)` }}>{txt}</span>
+        </div>
+      );
+    }
+    case "neon-sign": {
+      const f = neonFlickerAt(localMs);
+      return (
+        <div style={{ ...root, width: 560 * sc, textAlign: "center" }}>
+          <span style={{ fontWeight: 900, fontSize: 88 * sc, letterSpacing: 6, color: accent, opacity: f.opacity, textShadow: `0 0 ${18 * sc}px ${accent}, 0 0 ${42 * sc}px ${accent}` }}>{line(ls, 0, "OPEN")}</span>
+        </div>
+      );
+    }
+    case "particle-burst": {
+      const pb = particleBurstAt(localMs, dur, seedOf(item.id));
+      return (
+        <div style={{ ...root, position: "relative", width: 420 * sc, height: 260 * sc, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {pb.dots.map((d) => <span key={d.i} style={{ position: "absolute", left: 210 * sc + d.x * sc, top: 130 * sc + d.y * sc, width: d.r * sc, height: d.r * sc, borderRadius: "50%", backgroundColor: accent, opacity: d.opacity.toFixed(2) }} />)}
+          <span style={{ fontWeight: 900, fontSize: 64 * sc, color: CARD_FG, transform: `scale(${(0.7 + 0.3 * ph.enter).toFixed(3)})` }}>{line(ls, 0, "NEW!")}</span>
+        </div>
+      );
+    }
+    case "typing-post": {
+      const body = line(ls, 2, "Just shipped a new tutorial!");
+      const tp = typingAt(localMs, dur, body.length);
+      return (
+        <div style={{ ...root, ...card, width: 580 * sc }}>
+          <span style={{ display: "flex", gap: 14 * sc, alignItems: "center", marginBottom: 12 * sc }}>
+            {avatar(60)}
+            <span>
+              <span style={{ display: "block", fontWeight: 800, fontSize: 29 * sc }}>{line(ls, 0, "Creator Name")}</span>
+              <span style={{ display: "block", fontSize: 24 * sc, opacity: 0.7 }}>{line(ls, 1, "@handle")}</span>
+            </span>
+          </span>
+          <span style={{ display: "block", fontSize: 28 * sc, lineHeight: 1.35, minHeight: 76 * sc }}>{body.slice(0, tp.chars)}<span style={{ display: "inline-block", width: 3 * sc, height: "1em", backgroundColor: accent, opacity: tp.caretOn ? 1 : 0, verticalAlign: "-0.12em" }} /></span>
+        </div>
+      );
+    }
+    case "upvote-card": {
+      const baseCount = parseInt((ls[1] ?? "248").replace(/[^0-9]/g, ""), 10) || 0;
+      const up = upvoteAt(localMs, dur, baseCount);
+      return (
+        <div style={{ ...root, ...card, display: "flex", gap: 16 * sc, width: 580 * sc, alignItems: "flex-start" }}>
+          <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 * sc }}>
+            <svg width={44 * sc} height={44 * sc} viewBox="0 0 100 100" aria-hidden><path d="M50 12 L88 62 L64 62 L64 88 L36 88 L36 62 L12 62 Z" fill={up.acted ? accent : "none"} stroke={accent} strokeWidth={6} strokeLinejoin="round" /></svg>
+            <span style={{ fontWeight: 800, fontSize: 27 * sc }}>{up.count.toLocaleString("en-US")}</span>
+          </span>
+          <span style={{ flex: 1, fontSize: 29 * sc, fontWeight: 700, lineHeight: 1.3 }}>{line(ls, 0, "This workflow saved me hours")}</span>
+        </div>
+      );
+    }
+    case "live-badge": {
+      const baseV = parseInt((ls[1] ?? "128").replace(/[^0-9]/g, ""), 10) || 0;
+      const lv = liveViewersAt(localMs, dur, baseV);
+      return (
+        <div style={{ ...root, display: "flex", alignItems: "center", gap: 14 * sc }}>
+          <span style={{ backgroundColor: accent, color: "#fff", fontWeight: 900, fontSize: 30 * sc, padding: `${10 * sc}px ${20 * sc}px`, borderRadius: 10 * sc, transform: `scale(${lv.pulse.toFixed(3)})`, letterSpacing: 2 }}>{line(ls, 0, "LIVE")}</span>
+          <span style={{ ...card, padding: `${10 * sc}px ${18 * sc}px`, borderRadius: 999, fontSize: 27 * sc, fontWeight: 700 }}>{lv.viewers.toLocaleString("en-US")} watching</span>
+        </div>
+      );
+    }
+    case "product-tag": {
+      const swing = Math.sin(ph.t * Math.PI * 3) * 10 * (1 - ph.t) + (1 - ph.enter) * -18;
+      return (
+        <div style={{ ...root, width: 420 * sc, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <span style={{ width: 2 * sc, height: 44 * sc, backgroundColor: CARD_FG, opacity: 0.7 }} />
+          <div style={{ backgroundColor: accent, color: "#141412", borderRadius: 18 * sc, padding: `${18 * sc}px ${24 * sc}px`, width: 380 * sc, textAlign: "center", transform: `rotate(${swing.toFixed(2)}deg)`, transformOrigin: "50% -44px", boxShadow: "0 10px 30px rgba(0,0,0,0.4)" }}>
+            <span style={{ display: "block", width: 16 * sc, height: 16 * sc, borderRadius: "50%", backgroundColor: CARD_BG, margin: "0 auto 8px" }} />
+            <span style={{ display: "block", fontWeight: 800, fontSize: 30 * sc }}>{line(ls, 0, "Creator Preset Pack")}</span>
+            <span style={{ display: "block", fontWeight: 900, fontSize: 42 * sc }}>{line(ls, 1, "$29")}</span>
+          </div>
+        </div>
+      );
+    }
+    case "form-card": {
+      const opts = ls.slice(1).filter(Boolean).slice(0, 3);
+      const fc = formCardAt(localMs, dur, seedOf(item.id), opts.length);
+      return (
+        <div style={{ ...root, ...card, width: 580 * sc }}>
+          <span style={{ display: "block", fontWeight: 800, fontSize: 30 * sc, marginBottom: 14 * sc }}>{line(ls, 0, "What should I post next?")}</span>
+          {opts.map((o, i) => { const f = fc.options[i] ?? { pct: 0, fill: 0 }; return (
+            <span key={i} style={{ display: "block", position: "relative", borderRadius: 12 * sc, overflow: "hidden", backgroundColor: "#2A2A27", marginBottom: 10 * sc, padding: `${11 * sc}px ${16 * sc}px` }}>
+              <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${(f.pct * f.fill).toFixed(1)}%`, backgroundColor: shade(accent, 0.55) }} />
+              <span style={{ position: "relative", display: "flex", justifyContent: "space-between", fontSize: 26 * sc, fontWeight: 700 }}><span>{o}</span><span>{f.fill > 0.05 ? `${f.pct}%` : ""}</span></span>
+            </span>); })}
+        </div>
+      );
+    }
+    case "audio-bars": {
+      const bars = audioBarsAt(localMs, seedOf(item.id));
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 * sc }}>
+          <span style={{ display: "flex", alignItems: "flex-end", gap: 8 * sc, height: 140 * sc }}>
+            {bars.map((b) => <span key={b.index} style={{ width: 18 * sc, height: b.h * 140 * sc, backgroundColor: accent, borderRadius: 6 * sc }} />)}
+          </span>
+          {ls[0] ? <span style={{ fontSize: 27 * sc, fontWeight: 700 }}>{ls[0]}</span> : null}
         </div>
       );
     }

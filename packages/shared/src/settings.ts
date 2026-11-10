@@ -46,6 +46,10 @@ export type OverlayShape = z.infer<typeof OverlayShapeSchema>;
 export const OVERLAY_SOCIAL_VARIANTS = [
   "subscribe-pill", "subscribe-banner", "follow-banner", "comment-popup",
   "like-pop", "heart-pop", "counter", "chat-stack", "orbit-badge", "search-bar",
+  "profile-card", "notification-pop", "dm-popup", "story-ring", "lower-third",
+  "logo-reveal", "qr-frame", "kinetic-title", "glitch-title", "neon-sign",
+  "particle-burst", "typing-post", "upvote-card", "live-badge", "product-tag",
+  "form-card", "audio-bars",
 ] as const;
 export const OverlaySocialVariantSchema = z.enum(OVERLAY_SOCIAL_VARIANTS);
 export type OverlaySocialVariant = z.infer<typeof OverlaySocialVariantSchema>;

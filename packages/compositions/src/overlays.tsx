@@ -81,7 +81,7 @@ export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: s
     if (!item.variant) return null;
     return (
       <div style={wrap}>
-        <SocialOverlayView item={item} sc={sc} localMs={localMs} />
+        <SocialOverlayView item={item} sc={sc} localMs={localMs} assetSrc={assetSrc} />
       </div>
     );
   }

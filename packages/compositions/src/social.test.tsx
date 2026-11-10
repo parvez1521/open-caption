@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { OverlayView } from "./overlays";
-import { SOCIAL_META, SocialOverlayView, bellRingDeg, chatStackAt, counterAt, orbitAngle, overlayPhase, searchBarAt, socialSeededUnit } from "./social";
+import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, chatStackAt, counterAt, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, searchBarAt, socialSeededUnit, typingAt, upvoteAt } from "./social";
 
 /**
  * Animated Social Media overlays: phases are pure functions of the item's own window, so the same
@@ -209,6 +209,50 @@ describe("SocialOverlayView (static markup — the same tree every render path d
       const late = renderAt(2650);
       expect(late, `${meta.id} does not animate between 350ms and 2650ms`).not.toBe(early);
     }
+  });
+  it("SOCIAL_META covers 27 variants with unique ids", () => {
+    expect(SOCIAL_META).toHaveLength(27);
+    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(27);
+    for (const m of SOCIAL_META) { expect(m.label.length).toBeGreaterThan(0); expect(m.hint.length).toBeGreaterThan(0); expect(m.defaultColor).toMatch(/^#[0-9A-Fa-f]{6}$/); }
+  });
+  it("new helpers are pure, seeded and deterministic", () => {
+    expect(typingAt(2000, 4000, 10)).toEqual(typingAt(2000, 4000, 10));
+    expect(typingAt(0, 4000, 10).chars).toBe(0);
+    expect(typingAt(3900, 4000, 10).chars).toBe(10);
+    expect(kineticTitleAt(3900, 4000, 3).words.every((w) => w.p === 1)).toBe(true);
+    expect(kineticTitleAt(100, 4000, 3).words[2]!.p).toBe(0);
+    expect(glitchAt(500)).toEqual(glitchAt(500));
+    expect(neonFlickerAt(500)).toEqual(neonFlickerAt(500));
+    expect(particleBurstAt(2000, 4000, 7)).toEqual(particleBurstAt(2000, 4000, 7));
+    expect(particleBurstAt(2000, 4000, 7).dots).toHaveLength(14);
+    expect(liveViewersAt(3900, 4000, 128).viewers).toBeGreaterThan(liveViewersAt(300, 4000, 128).viewers);
+    expect(upvoteAt(2600, 4000, 248).count).toBeGreaterThan(248);
+    expect(upvoteAt(300, 4000, 248).count).toBe(248);
+    const fc = formCardAt(3900, 4000, 42, 3);
+    expect(fc.options).toHaveLength(3);
+    expect(fc.options.reduce((a, o) => a + o.pct, 0)).toBeGreaterThanOrEqual(99);
+    expect(audioBarsAt(1000, 5)).toHaveLength(16);
+    expect(audioBarsAt(1000, 5)).toEqual(audioBarsAt(1000, 5));
+    expect(audioBarsAt(1000, 5)).not.toEqual(audioBarsAt(1600, 5));
+  });
+  it("profile-card flips Follow, typing-post types, qr-frame placeholder is not a code, live/upvote/form/audio render", () => {
+    expect(render(item("profile-card", "Ada\n@ada\n9K followers\nFollow\nFollowing"), 300)).toContain("Follow");
+    expect(render(item("profile-card", "Ada\n@ada\n9K followers\nFollow\nFollowing"), 2600)).toContain("Following");
+    const tp = item("typing-post", "Ada\n@ada\nHello world post");
+    expect(render(tp, 300)).not.toContain("Hello world");
+    expect(render(tp, 3900)).toContain("Hello world post");
+    const qr = render(item("qr-frame", "Scan me"), 2000);
+    expect(qr).toContain("your QR image");
+    expect(qr).toContain("Scan me");
+    expect(render(item("live-badge", "LIVE\n100"), 3900)).toContain("watching");
+    expect(render(item("upvote-card", "Great tip\n10"), 3900)).not.toContain(">10<");
+    expect(render(item("form-card", "Pick one?\nA\nB"), 3900)).toContain("%");
+    expect(render(item("audio-bars", ""), 1000).length).toBeGreaterThan(200);
+    // avatar asset wiring: assetSrc renders an img, without it the initial letter shows
+    const withAsset = renderToStaticMarkup(<SocialOverlayView item={item("profile-card", "Ada\n@ada\n9K\nFollow\nFollowing")} sc={1} localMs={1000} assetSrc="blob:avatar" />);
+    expect(withAsset).toContain("blob:avatar");
+    const noAsset = render(item("profile-card", "Ada\n@ada\n9K\nFollow\nFollowing"), 1000);
+    expect(noAsset).toContain(">A<");
   });
   it("renders through OverlayView (the composition entry) with the item's position/scale", () => {
     const it2 = item("subscribe-pill", "Subscribe\nSubscribed");
