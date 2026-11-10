@@ -43,6 +43,23 @@ describe("motion registry integrity", () => {
       expect(getMotionTemplate(id)!.fields.some((f) => f.kind === "image"), id).toBe(true);
     }
   });
+  it("Wave 1.5 fills the facebook / x / discord parity categories with one entry each", () => {
+    expect(MOTION_TEMPLATES).toHaveLength(30);
+    const cats = listMotionCategories();
+    expect(cats.find((c) => c.category === "facebook")).toEqual({ category: "facebook", count: 1 });
+    expect(cats.find((c) => c.category === "x")).toEqual({ category: "x", count: 1 });
+    expect(cats.find((c) => c.category === "discord")).toEqual({ category: "discord", count: 1 });
+    expect(getMotionTemplate("post-card")).toMatchObject({ category: "facebook", featured: false });
+    expect(getMotionTemplate("repost-card")).toMatchObject({ category: "x", featured: false });
+    expect(getMotionTemplate("voice-card")).toMatchObject({ category: "discord", featured: false });
+    expect(filterMotionTemplates({ category: "facebook" }).map((t) => t.id)).toEqual(["post-card"]);
+    expect(filterMotionTemplates({ category: "x" }).map((t) => t.id)).toEqual(["repost-card"]);
+    expect(filterMotionTemplates({ category: "discord" }).map((t) => t.id)).toEqual(["voice-card"]);
+    // the two post cards wire an avatar image slot; the voice card's member dots are drawn, no slot
+    expect(getMotionTemplate("post-card")!.fields.some((f) => f.kind === "image")).toBe(true);
+    expect(getMotionTemplate("repost-card")!.fields.some((f) => f.kind === "image")).toBe(true);
+    expect(getMotionTemplate("voice-card")!.fields.some((f) => f.kind === "image")).toBe(false);
+  });
   it("category counts are derived and sum to the registry size", () => {
     const cats = listMotionCategories();
     expect(cats.reduce((a, c) => a + c.count, 0)).toBe(MOTION_TEMPLATES.length);

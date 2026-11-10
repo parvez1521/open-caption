@@ -89,6 +89,9 @@ export const MOTION_TEMPLATES: MotionTemplate[] = [
   entry({ variant: "product-tag", title: "Product Tag", category: "product", description: "Price-tag card swinging in on a string pivot.", defaultText: "Creator Preset Pack\n$29", defaultColor: "#34D399", maxLines: 2, tags: ["product", "price", "tag"] }),
   entry({ variant: "form-card", title: "Poll / Form Card", category: "forms", description: "Question with option bars filling to seeded percentages.", defaultText: "What should I post next?\nTutorial\nBehind the scenes\nLive Q&A", defaultColor: "#38BDF8", maxLines: 4, tags: ["poll", "form", "question"] }),
   entry({ variant: "audio-bars", title: "Audio Bars", category: "audio", description: "Seeded equalizer bars dancing as a pure function of time.", defaultText: "", defaultColor: "#34D399", maxLines: 1, tags: ["audio", "equalizer", "music"], duration: 5000 }),
+  entry({ variant: "post-card", title: "Post Card", category: "facebook", description: "Post card with avatar and body text whose Like fills on the beat.", defaultText: "Creator Name\n2 hrs ago\nJust shared a new tutorial — hope it helps!", defaultColor: "#5B8DEF", maxLines: 3, image: true, tags: ["post", "like", "share"] }),
+  entry({ variant: "repost-card", title: "Repost Card", category: "x", description: "Compact post card whose repost count ticks up by one with a colour flip.", defaultText: "Creator Name\n@handle\nJust shipped a new tutorial — link in bio!\n248", defaultColor: "#34D399", maxLines: 4, image: true, tags: ["post", "repost", "count"] }),
+  entry({ variant: "voice-card", title: "Voice Card", category: "discord", description: "Voice-channel card whose members' speaking rings pulse in a seeded rotation.", defaultText: "voice-lounge\nAlex\nPriya\nSam", defaultColor: "#6C7CFF", maxLines: 4, tags: ["voice", "channel", "speaking"] }),
 ];
 
 export const MOTION_TEMPLATE_IDS: OverlaySocialVariant[] = MOTION_TEMPLATES.map((t) => t.id);
