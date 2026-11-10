@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { OverlayView } from "./overlays";
-import { SocialOverlayView, bellRingDeg, chatStackAt, counterAt, orbitAngle, overlayPhase, searchBarAt, socialSeededUnit } from "./social";
+import { SOCIAL_META, SocialOverlayView, bellRingDeg, chatStackAt, counterAt, orbitAngle, overlayPhase, searchBarAt, socialSeededUnit } from "./social";
 
 /**
  * Animated Social Media overlays: phases are pure functions of the item's own window, so the same
@@ -179,6 +179,36 @@ describe("SocialOverlayView (static markup — the same tree every render path d
     const late = render(it2, 3900);
     expect(late).toContain("how to edit");
     expect(late).toContain("Full Guide");
+  });
+  /**
+   * Picker-preview guard (Phase 4 Run 2): the Elements panel's Social Media cards play each
+   * graphic through OverlayView, so EVERY variant in SOCIAL_META must (a) draw non-blank markup
+   * at several instants inside its window and (b) actually ANIMATE — two renders at different
+   * localMs must differ. A variant that silently renders blank or static would ship a dead
+   * preview card again. Items carry each variant's own picker defaults (SOCIAL_META text/colour,
+   * the same defaults makeSocialOverlay assigns), and the sampled pairs sit on either side of
+   * the variant's act beat / key motion (tap flip ~1.7 s, typing window, odometer roll, orbit
+   * rotation), so a difference is guaranteed by the drawing's own phases — not by opacity noise:
+   * at 350 ms every variant is pre-act; at 2650 ms every variant is post-act / fully typed /
+   * rolled / rotated (orbit: 10.5° vs 79.5°).
+   */
+  it("every SOCIAL_META variant renders non-blank AND animating markup through OverlayView", () => {
+    expect(SOCIAL_META.length).toBeGreaterThan(0);
+    for (const meta of SOCIAL_META) {
+      const it2: OverlayItem = {
+        id: `preview-guard-${meta.id}`, kind: "social", variant: meta.id, text: meta.defaultText,
+        startMs: 0, endMs: 4000, x: 0.5, y: 0.5, scale: 1, rotation: 0, color: meta.defaultColor,
+      };
+      const renderAt = (localMs: number) => renderToStaticMarkup(<OverlayView item={it2} sc={1} localMs={localMs} />);
+      for (const t of [150, 1200, 2650, 3900]) {
+        const html = renderAt(t);
+        expect(html.length, `${meta.id} blank at ${t}ms`).toBeGreaterThan(50);
+        expect(html, `${meta.id} blend mode at ${t}ms`).not.toContain("mix-blend-mode");
+      }
+      const early = renderAt(350);
+      const late = renderAt(2650);
+      expect(late, `${meta.id} does not animate between 350ms and 2650ms`).not.toBe(early);
+    }
   });
   it("renders through OverlayView (the composition entry) with the item's position/scale", () => {
     const it2 = item("subscribe-pill", "Subscribe\nSubscribed");

@@ -5,6 +5,7 @@ import type { ProjectSettings } from "@capseasy/shared";
 import { OVERLAY_SHAPE_META, OverlayShapeSvg, SOCIAL_META } from "@capseasy/compositions";
 import { Section } from "../controls";
 import { overlayItemsOf } from "../composition";
+import { AnimatedSocialPreview } from "./AnimatedSocialPreview";
 import { OverlayEditor, OverlayRow } from "./OverlayEditor";
 import { makeShapeOverlay, makeSocialOverlay } from "./overlayItems";
 import type { OverlayPanelProps } from "./TextPanel";
@@ -34,11 +35,16 @@ export const ElementsPanel: React.FC<OverlayPanelProps> = ({ settings, patch, se
                 patch({ overlays: [...settings.overlays, item] });
                 onSelect(item.id);
               }}
-              className="flex flex-col items-start gap-1 rounded-xl border border-st-line bg-st-panel px-3 py-2.5 text-left transition hover:bg-st-hover"
+              className="flex flex-col items-stretch overflow-hidden rounded-xl border border-st-line bg-st-panel text-left transition hover:bg-st-hover"
               aria-label={`Add ${m.label}`}
             >
-              <span className="text-[12px] font-semibold leading-tight text-st-text">{m.label}</span>
-              <span className="text-[11px] leading-snug text-st-faint">{m.hint.split(".")[0]}.</span>
+              {/* the graphic's REAL animation, live in the card (AnimatedSocialPreview renders the
+                  same OverlayView the preview + export use) — a name alone never showed what it does */}
+              <AnimatedSocialPreview variant={m.id} />
+              <span className="flex flex-col items-start gap-1 px-3 py-2.5">
+                <span className="text-[12px] font-semibold leading-tight text-st-text">{m.label}</span>
+                <span className="text-[11px] leading-snug text-st-faint">{m.hint.split(".")[0]}.</span>
+              </span>
             </button>
           ))}
         </div>

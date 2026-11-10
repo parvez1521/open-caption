@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Page, Word } from "@capseasy/shared";
 import { PageView, loadFontFamily, measure, type LookDefinition } from "@capseasy/templates";
+import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot } from "./livePreviewBudget";
 
 /**
  * Live animated template preview for the picker: instead of a pre-rendered clip (which only 39 templates
@@ -13,13 +14,12 @@ import { PageView, loadFontFamily, measure, type LookDefinition } from "@capseas
  * Performance guardrails (a picker must never jank or crash a phone tab):
  *  - the poster (still / swatch) shows first; the live layer only mounts when the card is in or near
  *    the viewport (IntersectionObserver, 240px margin),
- *  - at most MAX_LIVE previews animate at once across the whole panel (FIFO slot queue),
+ *  - at most MAX_LIVE_PREVIEWS previews animate at once across the whole studio (the shared
+ *    FIFO slot budget in livePreviewBudget.ts, also used by the Social Media previews),
  *  - leaving the viewport releases the slot (so below-fold cards are not starved by the first cards
  *    that ever approached) and stops the clock; unmounting does the same,
  *  - prefers-reduced-motion keeps the poster, always.
  */
-
-const MAX_LIVE = 6;
 
 /** Our own sample line, timed like speech: five words over ~2.3 s, then the loop restarts. */
 const SAMPLE_WORDS: Word[] = ["Make", "every", "single", "word", "count"].map((text, i) => ({
@@ -43,30 +43,6 @@ const PREVIEW_PAGE: Page = {
   position: null,
   styleOverride: null,
 };
-
-/* ---------- shared live-slot budget (FIFO) ---------- */
-let liveCount = 0;
-const waiters: Array<() => void> = [];
-function acquireSlot(grant: () => void): boolean {
-  if (liveCount < MAX_LIVE) {
-    liveCount += 1;
-    return true;
-  }
-  waiters.push(grant);
-  return false;
-}
-function releaseSlot() {
-  liveCount = Math.max(0, liveCount - 1);
-  while (liveCount < MAX_LIVE && waiters.length > 0) {
-    const next = waiters.shift()!;
-    liveCount += 1;
-    next();
-  }
-}
-function cancelWait(grant: () => void) {
-  const i = waiters.indexOf(grant);
-  if (i >= 0) waiters.splice(i, 1);
-}
 
 const reducedMotion = () =>
   typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -129,13 +105,13 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
       granted = true;
       setLive(true);
     };
-    if (acquireSlot(grant)) grant();
+    if (acquireLivePreviewSlot(grant)) grant();
     return () => {
       if (granted) {
         setLive(false);
-        releaseSlot();
+        releaseLivePreviewSlot();
       } else {
-        cancelWait(grant);
+        cancelLivePreviewWait(grant);
       }
     };
   }, [near]);
