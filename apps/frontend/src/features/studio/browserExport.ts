@@ -5,8 +5,13 @@ import { CaptionedVideo, type CaptionedVideoInput } from "@capseasy/compositions
 import { framesForDurationMs } from "@capseasy/shared";
 
 /**
- * MP4 export without the Companion: the SAME composition the preview shows, rendered frame by frame in this tab
+ * Video export without the Companion: the SAME composition the preview shows, rendered frame by frame in this tab
  * (@remotion/web-renderer: WebCodecs + Mediabunny), then downloaded. Nothing is uploaded.
+ *
+ * Two containers are offered, both OPAQUE (the renderer is always called without `transparent`):
+ * MP4/H.264 (the original path) and WebM/VP9 (added for Motion Studio standalone exports).
+ * Transparent WebM would need the renderer's alpha path, which this app does not use — see
+ * features/motion/alphaCapability.ts for the capability probe and why it stays off.
  */
 
 export interface BrowserExportJob {
@@ -23,22 +28,40 @@ export interface BrowserExportJob {
   onProgress?: (fraction: number) => void;
 }
 
+export type BrowserExportContainer = "mp4" | "webm";
+export type BrowserExportVideoCodec = "h264" | "vp9";
+
+export interface BrowserVideoExportJob extends BrowserExportJob {
+  container: BrowserExportContainer;
+  videoCodec: BrowserExportVideoCodec;
+}
+
 const LICENSE = process.env.NEXT_PUBLIC_REMOTION_LICENSE_KEY || "free-license";
 const QUALITY = { high: "very-high", balanced: "high", small: "medium" } as const;
 
-/** Can this browser encode H.264 MP4 at this size? (Chrome, Edge, Safari 17+, recent Firefox.) */
-export async function canExportInBrowser(width: number, height: number): Promise<{ ok: boolean; reason?: string }> {
+/** Can this browser encode video at this size in this container/codec? (Chrome, Edge, Safari 17+, recent Firefox.) */
+export async function canExportVideoInBrowser(opts: {
+  container: BrowserExportContainer;
+  videoCodec: BrowserExportVideoCodec;
+  width: number;
+  height: number;
+}): Promise<{ ok: boolean; reason?: string }> {
   if (typeof window === "undefined" || typeof VideoEncoder === "undefined") return { ok: false, reason: "This browser can't encode video. Use Chrome, Edge or Safari." };
   try {
     const { canRenderMediaOnWeb } = await import("@remotion/web-renderer");
-    const r = await canRenderMediaOnWeb({ container: "mp4", videoCodec: "h264", width, height });
+    const r = await canRenderMediaOnWeb({ container: opts.container, videoCodec: opts.videoCodec, width: opts.width, height: opts.height });
     return r.canRender ? { ok: true } : { ok: false, reason: r.issues.map((i) => i.message).join(" ") || "Not supported in this browser." };
   } catch {
     return { ok: true }; // the render itself reports real problems
   }
 }
 
-export async function exportMp4InBrowser(job: BrowserExportJob): Promise<Blob> {
+/** Can this browser encode H.264 MP4 at this size? (Chrome, Edge, Safari 17+, recent Firefox.) */
+export async function canExportInBrowser(width: number, height: number): Promise<{ ok: boolean; reason?: string }> {
+  return canExportVideoInBrowser({ container: "mp4", videoCodec: "h264", width, height });
+}
+
+export async function exportVideoInBrowser(job: BrowserVideoExportJob): Promise<Blob> {
   const { renderMediaOnWeb } = await import("@remotion/web-renderer");
   // the composition is authored AT the output size/rate: captions are drawn natively for the chosen
   // resolution, and because all timing is ms-based, durationInFrames = ms x fps keeps every caption
@@ -56,8 +79,8 @@ export async function exportMp4InBrowser(job: BrowserExportJob): Promise<Blob> {
       durationInFrames,
     },
     inputProps: { ...job.input, videoEngine: "media" } as Record<string, unknown>,
-    container: "mp4",
-    videoCodec: "h264",
+    container: job.container,
+    videoCodec: job.videoCodec,
     videoBitrate: QUALITY[job.quality],
     frameRange: job.range ? [frame(job.range.startMs), frame(job.range.endMs)] : null,
     signal: job.signal ?? null,
@@ -67,6 +90,10 @@ export async function exportMp4InBrowser(job: BrowserExportJob): Promise<Blob> {
     delayRenderTimeoutInMilliseconds: 60_000,
   });
   return result.getBlob();
+}
+
+export async function exportMp4InBrowser(job: BrowserExportJob): Promise<Blob> {
+  return exportVideoInBrowser({ ...job, container: "mp4", videoCodec: "h264" });
 }
 
 export function saveBlob(blob: Blob, filename: string) {
