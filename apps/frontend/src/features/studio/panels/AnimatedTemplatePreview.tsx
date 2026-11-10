@@ -140,12 +140,21 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
     };
   }, [near]);
 
+  // The clock steps in authored frames (CANVAS.fps = 30), exactly like the Player and the export
+  // advance the composition: stepping on every display refresh (60Hz+) would double the React
+  // renders of every live preview while producing frames the composition never actually shows.
   useEffect(() => {
     if (!live) return;
     let raf = 0;
+    const frameMs = 1000 / CANVAS.fps;
     const t0 = performance.now();
+    let lastStep = -1;
     const tick = (now: number) => {
-      setTimeMs((now - t0) % LOOP_MS);
+      const step = Math.floor((now - t0) / frameMs);
+      if (step !== lastStep) {
+        lastStep = step;
+        setTimeMs((step * frameMs) % LOOP_MS);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);

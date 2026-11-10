@@ -65,10 +65,29 @@ export function HeroCylinder() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  // preview each trending template in its real font, like the picker does
+  // preview each trending template in its real font, like the picker does — but at idle: every
+  // card's preview lazy-loads its own fonts anyway, so this bulk pass (a dozen-plus families)
+  // must not compete with the intro and the first paint for bandwidth and main thread.
   useEffect(() => {
     const families = [...new Set(looks.flatMap((l) => [l.style.fontId, l.style.hero.fontId ?? ""]).filter(Boolean))];
-    void Promise.all(families.map(loadFontFamily)).then(() => setFontsTick((n) => n + 1));
+    let cancelled = false;
+    const start = () => {
+      if (cancelled) return;
+      void Promise.all(families.map(loadFontFamily)).then(() => !cancelled && setFontsTick((n) => n + 1));
+    };
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+    if (ric) {
+      const id = ric(start, { timeout: 2500 });
+      return () => {
+        cancelled = true;
+        (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(id);
+      };
+    }
+    const t = setTimeout(start, 1200);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [looks]);
 
   // rotation loop: direct DOM writes only

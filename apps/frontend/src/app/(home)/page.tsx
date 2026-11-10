@@ -16,6 +16,31 @@ export default function LandingPage() {
   const root = useRef<HTMLElement>(null);
   const [ready, setReady] = useState(false);
   const onLoaderDone = useCallback(() => setReady(true), []);
+  const looksRef = useRef<HTMLDivElement>(null);
+  const [showcaseNear, setShowcaseNear] = useState(false);
+
+  // The showcase is the heaviest thing on the page (four sections, their transcripts, fonts and
+  // players). Mounting it the moment the intro ends — even for visitors who never scroll — made
+  // the first seconds jank. Mount it when the visitor gets within ~a screen of it instead; the
+  // #looks anchor keeps its position, so nav/footer jumps land in the same place.
+  useEffect(() => {
+    const el = looksRef.current;
+    if (!el || showcaseNear) return;
+    const io = new IntersectionObserver(
+      ([e]) => e?.isIntersecting && setShowcaseNear(true),
+      { rootMargin: "1000px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [showcaseNear]);
+
+  // the showcase changes the page height when it lands; re-measure scroll triggers against the
+  // real layout so the reveals below it keep their positions
+  useEffect(() => {
+    if (!showcaseNear) return;
+    const t = setTimeout(() => ensureGsap().ScrollTrigger.refresh(), 350);
+    return () => clearTimeout(t);
+  }, [showcaseNear]);
 
   // smooth scroll, driven by GSAP's ticker so ScrollTrigger and Lenis agree on every frame
   useEffect(() => {
@@ -87,8 +112,8 @@ export default function LandingPage() {
       {/* <Features /> */}
       {/* the heavy showcase (live players) mounts after the intro, so the intro and hero entrance get the main thread */}
       {/* the #looks anchor lives outside the late-mounting showcase, so nav and footer links always land */}
-      <div id="looks" className="scroll-mt-20">
-        {ready ? <SpatialScroll /> : <div className="h-screen w-full bg-[#141412]" />}
+      <div id="looks" ref={looksRef} className="scroll-mt-20">
+        {ready && showcaseNear ? <SpatialScroll /> : <div className="h-screen w-full bg-[#141412]" />}
       </div>
       <Privacy />
       {/* <Pricing /> */}
