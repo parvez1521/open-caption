@@ -45,11 +45,14 @@ import { useWaveform } from "./useWaveform";
 import { toComposition } from "./composition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
-  addMarker, applyContentEffect, applyDocEffect, canRippleDeleteVideoSegment, deleteOverlayClip,
-  duplicateOverlayClip, duplicateVideoSegment, insertStillSegmentAt, moveOverlayClip, overlayTrackOf,
-  removeMarker, rippleDeleteOverlayClip, rippleDeleteVideoSegment, setSegmentPlaybackRate,
+  addMarker, addSegmentEffect, addSegmentKeyframe, applyContentEffect, applyDocEffect,
+  canRippleDeleteVideoSegment, deleteOverlayClip,
+  duplicateOverlayClip, duplicateVideoSegment, insertStillSegmentAt, moveOverlayClip, moveSegmentEffect,
+  overlayTrackOf,
+  removeMarker, removeSegmentEffect, removeSegmentKeyframe, rippleDeleteOverlayClip,
+  rippleDeleteVideoSegment, setSegmentPlaybackRate,
   setSegmentTransition, setSegmentTransform, setTrackState, splitOverlayClipAt, splitVideoClipAt,
-  trimOverlayClip, trimVideoClipEdge, type DocEffect,
+  trimOverlayClip, trimVideoClipEdge, updateSegmentEffect, updateSegmentKeyframe, type DocEffect,
 } from "./compositionOps";
 import { canvasDims, canvasOf } from "./canvas";
 import {
@@ -541,6 +544,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onRippleDelete={() => { rippleVideoSegment(selSegmentView.id); setSelVideoClipId(null); }}
       onReverse={() => void reverseSelectedSegment()}
       onFreeze={() => void freezeSelectedSegment()}
+      keyframes={selSegmentView.keyframes}
+      effects={selSegmentView.effects}
+      onAddKeyframe={(property, atMs, value) => { const r = addSegmentKeyframe(editorComp, selSegmentView.id, property, atMs, value); commitComposition(r.comp, r.docEffect); }}
+      onUpdateKeyframe={(id, patch) => { const r = updateSegmentKeyframe(editorComp, selSegmentView.id, id, patch); commitComposition(r.comp, r.docEffect); }}
+      onRemoveKeyframe={(id) => { const r = removeSegmentKeyframe(editorComp, selSegmentView.id, id); commitComposition(r.comp, r.docEffect); }}
+      onAddEffect={(type) => { const r = addSegmentEffect(editorComp, selSegmentView.id, type); commitComposition(r.comp, r.docEffect); }}
+      onUpdateEffect={(id, patch) => { const r = updateSegmentEffect(editorComp, selSegmentView.id, id, patch); commitComposition(r.comp, r.docEffect); }}
+      onRemoveEffect={(id) => { const r = removeSegmentEffect(editorComp, selSegmentView.id, id); commitComposition(r.comp, r.docEffect); }}
+      onMoveEffect={(id, dir) => { const r = moveSegmentEffect(editorComp, selSegmentView.id, id, dir); commitComposition(r.comp, r.docEffect); }}
     />
   ) : null;
   const splitVideoRef = useRef<() => void>(() => undefined);

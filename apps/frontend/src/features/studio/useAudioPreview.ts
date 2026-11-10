@@ -170,7 +170,7 @@ export function useAudioPreview(opts: UseAudioPreviewOpts): void {
 
       // combined voice peaks over the whole plan (timeline hops), for ducking
       const totalHops = Math.max(1, Math.ceil(plan.durationMs / MIX_HOP_MS));
-      const voiceArrays: Float32Array[] = [];
+      const voiceArrays: { peaks: Float32Array; startHop: number }[] = [];
       for (const it of items) {
         if (!isVoiceItem(it)) continue;
         const pcm = baked.get(it);
@@ -184,7 +184,9 @@ export function useAudioPreview(opts: UseAudioPreviewOpts): void {
             const h = startHop + Math.floor(i / rate);
             if (h >= 0 && h < totalHops) aligned[h] = Math.max(aligned[h]!, peaks[i]!);
           }
-          voiceArrays.push(aligned);
+          // already aligned onto the plan's hop grid above (rate-scaled), so it
+          // enters combineVoicePeaks at startHop 0 — the max-combine is unchanged
+          voiceArrays.push({ peaks: aligned, startHop: 0 });
         } catch { /* ducking degrades to no ducking */ }
       }
       const voicePeaks = voiceArrays.length ? combineVoicePeaks(voiceArrays, totalHops) : new Float32Array(totalHops);
