@@ -3,14 +3,26 @@
  * the video arrives. Shared by the worker (loads the model) and the main thread (prefetches the bytes), so the two
  * can never disagree about which files are needed.
  *
- * Two models, picked by what the creator says is spoken (asked on the upload screen):
+ * Models, picked by what the creator says is spoken (asked on the upload screen):
  *   en        stock Whisper base (multilingual), forced to English
  *   hinglish  Oriserve Whisper-Hindi2Hinglish-Swift: Whisper base fine-tuned on Indian Hindi speech, writes Hindi and
  *             Hinglish in Roman script. Same size and architecture as base, so the same speed.
- * Only the chosen model is downloaded.
+ *   hindi     the SAME stock multilingual Whisper base as `en`, forced to Hindi ("hi"): captions come out in
+ *             Devanagari script. Same repo, revision and files as `en`, so a browser that already downloaded the
+ *             English model downloads nothing extra — only the language token changes.
+ * Only the chosen model is downloaded. A language ships only when it is wired end to end (this map, the worker's
+ * language token, and the caption engine's alignment gate — Devanagari fixtures live in the caption-engine suite);
+ * no other language is listed anywhere in the UI.
+ *
+ * Model choice for `hindi` (evaluated for Phase 5 Slice 5.2): the multilingual Whisper family offers tiny (39M)
+ * and base (74M) as the small end. Tiny was rejected: its Hindi accuracy is the weakest in the family and it would
+ * be a second, separate download. Base is the smallest model that (a) ships in the `_timestamped` export this
+ * pipeline needs for word-level timestamps, (b) is already the proven English download in this codebase, and
+ * (c) covers Hindi with the language token alone. Licence: MIT (OpenAI Whisper; the onnx-community export keeps
+ * the upstream licence) — Whisper/Transformers.js were audited SAFE (Apache-2.0/MIT family) in the Phase 1 audit.
  */
 
-export type SpeechLanguage = "en" | "hinglish";
+export type SpeechLanguage = "en" | "hinglish" | "hindi";
 
 export interface SpeechModel {
   key: SpeechLanguage;
@@ -27,6 +39,18 @@ export interface SpeechModel {
    * Roman letters needs ~2 tokens a word (English ~1.1), so its budget is higher.
    */
   tokensPerSecond: number;
+  /** Upstream licence of the model weights (recorded per the Phase 1 licence audit). */
+  licence: string;
+  /**
+   * Approximate one-time download in MB for this device class's runtime files (the exact bytes differ slightly
+   * between the WebGPU and WASM file sets). Shown in the UI next to the language choice — never rounded up into
+   * a bigger claim, and for `hindi` it is the very same download as `en` (identical files).
+   */
+  approxDownloadMb: number;
+  /** Label for the upload-screen language choice. */
+  choiceLabel: string;
+  /** One-line hint under the upload-screen language choice. */
+  choiceHint: string;
 }
 
 const HF = "https://huggingface.co/";
@@ -47,6 +71,10 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     language: "en",
     label: "whisper-base (browser)",
     tokensPerSecond: 7,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "English",
+    choiceHint: "Only English is spoken",
   },
   hinglish: {
     key: "hinglish",
@@ -56,15 +84,53 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     language: "en",
     label: "hinglish-swift (browser)",
     tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Hindi / Hinglish",
+    choiceHint: "Hindi, or Hindi mixed with English — captions in English letters",
+  },
+  hindi: {
+    key: "hindi",
+    // Multilingual Whisper base, the exact repo + revision the English choice already downloads: the files are
+    // identical, so this language costs no extra download on a browser that has captioned English before.
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "hi",
+    label: "whisper-base · Hindi (browser)",
+    // Devanagari costs Whisper more tokens per word than English (multi-byte script, ~2-3 tokens a word): same
+    // budget as the Roman-Hinglish model so real speech is never cut while loops still stop.
+    tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Hindi (देवनागरी)",
+    choiceHint: "Hindi — captions in Devanagari script",
   },
 };
 
-/** Project language ("en", "hi", "hi-Latn", "auto" …) -> which model writes its captions. */
-export const speechLanguageOf = (projectLanguage: string | null | undefined): SpeechLanguage =>
-  HINGLISH_AVAILABLE && /^(hi|hinglish)(-|$)/i.test(projectLanguage ?? "") ? "hinglish" : "en";
+/**
+ * The languages the upload screen may offer, in display order: exactly the entries of this map that are shipped
+ * and available. A language that is not wired end to end must not appear here — and if it is not in MODELS, it
+ * cannot appear at all.
+ */
+export const SHIPPED_LANGUAGES: SpeechModel[] = [MODELS.en, ...(HINGLISH_AVAILABLE ? [MODELS.hinglish] : []), MODELS.hindi];
+
+/**
+ * Project language ("en", "hi", "hi-Latn", "auto" …) -> which model writes its captions.
+ * "hi-Latn" / "hinglish" is the Roman-script choice and keeps mapping to the Hinglish fine-tune, exactly as
+ * before. Bare "hi" (and "hi-Deva" / "hi-IN") is Hindi in its standard script — Devanagari — and maps to the
+ * multilingual model with the "hi" token. (Before Slice 5.2 bare "hi" also fell through to the Roman model,
+ * because that was the only Hindi path; "hi-Latn" is unchanged, so every project that meant Roman still gets it.)
+ */
+export const speechLanguageOf = (projectLanguage: string | null | undefined): SpeechLanguage => {
+  const l = (projectLanguage ?? "").trim().toLowerCase();
+  if (l === "hi-latn" || l.startsWith("hinglish")) return HINGLISH_AVAILABLE ? "hinglish" : "en";
+  if (l === "hi" || l.startsWith("hi-deva") || l.startsWith("hi-in")) return "hindi";
+  return "en";
+};
 
 /** What we store as the project's language for each choice. */
-export const PROJECT_LANGUAGE: Record<SpeechLanguage, string> = { en: "en", hinglish: "hi-Latn" };
+export const PROJECT_LANGUAGE: Record<SpeechLanguage, string> = { en: "en", hinglish: "hi-Latn", hindi: "hi" };
 
 export const modelKeyOf = (m: SpeechModel) => `${m.id}@${m.revision}`;
 
@@ -74,12 +140,16 @@ export function savedSpeechLanguage(): SpeechLanguage | null {
   if (!HINGLISH_AVAILABLE) return "en";
   try {
     const v = localStorage.getItem(PREF_KEY);
-    return v === "en" || v === "hinglish" ? v : null;
+    return v === "en" || v === "hinglish" || v === "hindi" ? v : null;
   } catch {
     return null;
   }
 }
-/** Best guess before they've answered, for warming the model in the background: Hindi in the browser languages -> Hinglish. */
+/**
+ * Best guess before they've answered, for warming the model in the background: Hindi in the browser languages ->
+ * Hinglish. Unchanged by the Devanagari path: Roman-Hinglish stays the default guess, and Hindi (Devanagari) is
+ * always an explicit pick on the upload screen, never a guess.
+ */
 export function likelySpeechLanguage(): SpeechLanguage {
   if (!HINGLISH_AVAILABLE) return "en";
   const saved = savedSpeechLanguage();

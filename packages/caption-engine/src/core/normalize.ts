@@ -27,7 +27,7 @@ export function mergeSubwordTokens(tokens: RawToken[]): RawToken[] {
     const text = t.text.trim();
     if (!text) continue;
     const last = out[out.length - 1];
-    if (!startsWord && last && !/[.!?]$/.test(last.text)) {
+    if (!startsWord && last && !/[.!?।]$/.test(last.text)) {
       last.text += text;
       last.endMs = Math.max(last.endMs, t.endMs);
       if (t.confidence != null) last.confidence = Math.min(last.confidence ?? 1, t.confidence);
@@ -54,8 +54,10 @@ export function normalizeTokens(input: RawToken[], opts: NormalizeOptions = {}):
   for (const t of cleaned) {
     let text = t.text.trim();
     if (opts.romanize && !isAscii(text)) text = opts.romanize(text);
-    const canon = vocab.get(text.replace(/[^\p{L}\p{N}'-]/gu, "").toLowerCase());
-    if (canon) text = text.replace(/[\p{L}\p{N}'-]+/u, canon);
+    // \p{M} (combining marks) are part of the word in scripts like Devanagari — the vowel signs in "नमस्ते" are
+    // marks, not letters; stripping them would mangle the word and its vocabulary key.
+    const canon = vocab.get(text.replace(/[^\p{L}\p{M}\p{N}'-]/gu, "").toLowerCase());
+    if (canon) text = text.replace(/[\p{L}\p{M}\p{N}'-]+/u, canon);
 
     const start = Math.max(Math.round(t.startMs), prevStart);
     let end = Math.max(Math.round(t.endMs), start + minMs);
@@ -86,7 +88,9 @@ export function normalizeTokens(input: RawToken[], opts: NormalizeOptions = {}):
 
 /** Whisper loops on silence ("Thank you. Thank you. Thank you."). Drop n-gram runs repeated 4+ times. */
 export function dropRepeatedHallucinations(words: Word[], minRepeats = 4): Word[] {
-  const norm = (w: Word) => w.text.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  // keep \p{M}: in Devanagari the vowel signs are marks — without them "काल" and "कल" would compare equal and a
+  // real phrase could be misread as a hallucination loop.
+  const norm = (w: Word) => w.text.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]/gu, "");
   for (const n of [1, 2, 3, 4]) {
     for (let i = 0; i + n * minRepeats <= words.length; i++) {
       let reps = 1;

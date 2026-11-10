@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { preloadSpeechModel } from "@/features/transcribe/browserWhisper";
 import { getSession, startSession } from "@/features/transcribe/session";
-import { HINGLISH_AVAILABLE, PROJECT_LANGUAGE, isConstrainedDevice, likelySpeechLanguage, saveSpeechLanguage, savedSpeechLanguage, speechLanguageOf, type SpeechLanguage } from "@/features/transcribe/runtime";
+import { MODELS, PROJECT_LANGUAGE, SHIPPED_LANGUAGES, isConstrainedDevice, likelySpeechLanguage, saveSpeechLanguage, savedSpeechLanguage, speechLanguageOf, type SpeechLanguage } from "@/features/transcribe/runtime";
 import { studioService } from "@/services/studio";
 import { track } from "@/lib/track";
 import { ApiError } from "@/services/api-client";
@@ -28,7 +28,10 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   // Desktop loads it into memory; phones only download the files (their memory is for the video).
   // Which model writes the captions depends on what's spoken: asked here, remembered for next time.
   const [constrained] = useState(() => isConstrainedDevice());
-  const [lang, setLang] = useState<SpeechLanguage | null>(() => (speechLanguageOf(language) === "hinglish" ? "hinglish" : savedSpeechLanguage()));
+  const [lang, setLang] = useState<SpeechLanguage | null>(() => {
+    const fromProject = speechLanguageOf(language);
+    return fromProject === "hinglish" || fromProject === "hindi" ? fromProject : savedSpeechLanguage();
+  });
   const [pending, setPending] = useState<File | null>(null);
   useEffect(() => {
     preloadSpeechModel(!window.matchMedia("(max-width: 767px), (pointer: coarse) and (hover: none)").matches, lang ?? likelySpeechLanguage());
@@ -141,7 +144,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
           </div>
         ) : (
           <>
-            {HINGLISH_AVAILABLE ? <LanguageChoice value={lang} onChange={choose} asking={!!pending} /> : null}
+            <LanguageChoice value={lang} onChange={choose} asking={!!pending} />
             {pending ? (
               <p className="mt-3 text-xs text-st-muted">Pick the language and <span className="font-medium text-st-text">{pending.name}</span> starts right away.</p>
             ) : (
@@ -163,34 +166,35 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   );
 };
 
-const LANGS: { id: SpeechLanguage; label: string; hint: string }[] = [
-  { id: "en", label: "English", hint: "Only English is spoken" },
-  { id: "hinglish", label: "Hindi / Hinglish", hint: "Hindi, or Hindi mixed with English" },
-];
-
-/** "What's spoken in the video?" Picks the speech model; captions are always written in English letters. */
+/**
+ * "What's spoken in the video?" The choices come straight from the transcription model map (SHIPPED_LANGUAGES in
+ * features/transcribe/runtime): a language is offered only when it is wired end to end, and each choice shows that
+ * model's honest one-time download size from the same map.
+ */
 const LanguageChoice: React.FC<{ value: SpeechLanguage | null; onChange: (l: SpeechLanguage) => void; asking: boolean }> = ({ value, onChange, asking }) => (
   <div className={`mx-auto mt-6 max-w-md rounded-xl p-2 text-left ${asking ? "bg-st-lav/50 ring-2 ring-st-ink" : ""}`} role="radiogroup" aria-label="Language spoken in the video">
     <p className="mb-2 px-1 text-sm font-medium text-st-text">Language spoken in the video</p>
     <div className="grid grid-cols-2 gap-2">
-      {LANGS.map((l) => (
+      {SHIPPED_LANGUAGES.map((m) => (
         <button
-          key={l.id}
+          key={m.key}
           role="radio"
-          aria-checked={value === l.id}
-          onClick={() => onChange(l.id)}
-          className={`flex min-h-14 items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${value === l.id ? "border-st-ink bg-st-lav text-obsidian" : "border-st-line bg-st-panel hover:bg-st-lav/30"}`}
+          aria-checked={value === m.key}
+          onClick={() => onChange(m.key)}
+          className={`flex min-h-14 items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${value === m.key ? "border-st-ink bg-st-lav text-obsidian" : "border-st-line bg-st-panel hover:bg-st-lav/30"}`}
         >
-          <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border ${value === l.id ? "border-st-ink bg-st-ink text-st-panel" : "border-st-hover"}`} aria-hidden>
-            {value === l.id ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+          <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border ${value === m.key ? "border-st-ink bg-st-ink text-st-panel" : "border-st-hover"}`} aria-hidden>
+            {value === m.key ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
           </span>
           <span className="min-w-0">
-            <span className="block text-sm font-semibold">{l.label}</span>
-            <span className="block text-[11px] leading-tight text-st-muted">{l.hint}</span>
+            <span className="block text-sm font-semibold">{m.choiceLabel}</span>
+            <span className="block text-[11px] leading-tight text-st-muted">{m.choiceHint}</span>
+            <span className="block text-[11px] leading-tight text-st-muted">Model download ~{m.approxDownloadMb} MB, once</span>
           </span>
         </button>
       ))}
     </div>
     {value === "hinglish" ? <p className="mt-2 px-1 text-[11px] text-st-muted">Captions are written in English letters, like &ldquo;yeh trick kamaal hai&rdquo;.</p> : null}
+    {value === "hindi" ? <p className="mt-2 px-1 text-[11px] text-st-muted">Captions are written in Devanagari script, like &ldquo;यह ट्रिक कमाल है&rdquo;. Uses the same model download as English{MODELS.hindi.id === MODELS.en.id ? " — if English captions were used before, there is nothing new to download" : ""}.</p> : null}
   </div>
 );

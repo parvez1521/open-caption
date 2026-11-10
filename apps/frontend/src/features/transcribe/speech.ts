@@ -189,7 +189,9 @@ const MAX_LOOP_WORDS = 16;
  * that repeats back to back 3+ times is a loop for certain: one copy is kept, and so is nothing of a cut-off last copy.
  */
 export function dropRepeatedRuns<T extends { text: string }>(words: T[]): T[] {
-  const norm = words.map((w) => w.text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ""));
+  // keep \p{M} (combining marks): Devanagari vowel signs are marks, and stripping them would make distinct Hindi
+  // words ("काल" vs "कल") compare equal, so real repetition could be misread as a Whisper loop.
+  const norm = words.map((w) => w.text.toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, ""));
   const drop = new Set<number>();
   // long phrases first, so a loop is judged as a whole and not as repeats of a piece of it
   const sizes = [...Array.from({ length: MAX_LOOP_WORDS - 4 }, (_, k) => MAX_LOOP_WORDS - k), 1, 2, 3, 4];

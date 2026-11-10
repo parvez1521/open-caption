@@ -26,7 +26,7 @@ export const FAQS = [
   },
   {
     q: "Does it support Hindi and Hinglish?",
-    a: "Yes. Pick Hindi / Hinglish when you add your video and the captions come out in Roman script, the way most creators type. It uses a Whisper speech model fine-tuned for Hindi-English speech. English is the other language today; more are on the way.",
+    a: "Yes, in both scripts. Pick Hindi / Hinglish when you add your video and the captions come out in Roman script, the way most creators type — it uses a Whisper speech model fine-tuned for Hindi-English speech. Or pick Hindi (देवनागरी) and the captions come out in Devanagari script, using the multilingual Whisper model. English is the third language; those three are the languages supported today.",
   },
   {
     q: "What export formats are supported?",
