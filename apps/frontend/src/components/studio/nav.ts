@@ -7,8 +7,8 @@
  * when their first real slice ships — no placeholder entries, no dead links.
  * The pinning test in __tests__/nav.test.ts asserts both halves of that rule.
  * (Growth Studio + Reel Analyzer entered with Phase 6, Content Planner + Teleprompter
- * with Phase 7, Creator Analytics with Phase 8 — the nav is now complete against the
- * transformation roadmap; no section remains honestly absent.)
+ * with Phase 7, Creator Analytics with Phase 8, Motion Studio with the Motion Studio
+ * surfaces slice — every entry is backed by a real page.)
  */
 
 export type NavGroupId = "primary" | "supporting";
@@ -34,6 +34,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "captions", label: "Caption Studio", href: "/captions", group: "primary", activeMatch: ["/captions"] },
   // The editor itself is per-project at /projects/[id], so the editor entry stays active there too.
   { id: "editor", label: "Video Editor", href: "/editor", group: "primary", activeMatch: ["/editor", "/projects"] },
+  { id: "motion", label: "Motion Studio", href: "/motion", group: "primary", activeMatch: ["/motion"] },
   { id: "growth", label: "Growth Studio", href: "/growth", group: "primary", activeMatch: ["/growth"] },
   { id: "planner", label: "Content Planner", href: "/planner", group: "primary", activeMatch: ["/planner"] },
   { id: "analytics", label: "Creator Analytics", href: "/analytics", group: "primary", activeMatch: ["/analytics"] },

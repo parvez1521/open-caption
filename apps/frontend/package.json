@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@capseasy/compositions": "workspace:*",
+    "@capseasy/motion": "workspace:*",
     "@capseasy/shared": "workspace:*",
     "@capseasy/templates": "workspace:*",
     "@gsap/react": "^2.1.2",

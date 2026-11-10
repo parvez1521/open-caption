@@ -20,6 +20,7 @@ describe("shell nav config", () => {
       ["primary", "Creator Studio", "/create"],
       ["primary", "Caption Studio", "/captions"],
       ["primary", "Video Editor", "/editor"],
+      ["primary", "Motion Studio", "/motion"],
       ["primary", "Growth Studio", "/growth"],
       ["primary", "Content Planner", "/planner"],
       ["primary", "Creator Analytics", "/analytics"],

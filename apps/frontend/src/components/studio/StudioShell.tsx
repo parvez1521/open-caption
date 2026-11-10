@@ -29,6 +29,7 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   create: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>),
   captions: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 12h4M7 15.5h7M14 12h3" strokeLinecap="round" /></svg>),
   editor: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M8 5v5" strokeLinecap="round" /></svg>),
+  motion: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" strokeLinejoin="round" d="M10 9.2l5 2.8-5 2.8z" /><path strokeLinecap="round" d="M6.5 2.8v2.2M12 2.8v2.2M17.5 2.8v2.2" /></svg>),
   growth: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M4 17l5-6 4 3 7-8" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 6h5v5" /></svg>),
   planner: (<svg {...iconProps}><rect x="3" y="5" width="18" height="16" rx="2" /><path strokeLinecap="round" d="M3 10h18M8 3v4M16 3v4M7.5 14.5h3M13.5 14.5h3" /></svg>),
   analytics: (<svg {...iconProps}><path strokeLinecap="round" d="M4 20h16" /><path strokeLinecap="round" d="M7 20v-5M12 20V8M17 20v-8" /></svg>),
