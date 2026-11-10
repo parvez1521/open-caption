@@ -86,9 +86,12 @@ export const ColorField: React.FC<{ label: string; value: string; onChange: (v: 
           value={value}
           onChange={(e) => onChange(e.target.value)}
           spellCheck={false}
+          aria-label={`${label} (hex value)`}
           className="w-24 rounded-md border border-st-line bg-st-panel px-2 py-1 font-mono text-xs text-st-text outline-none focus:border-st-lav"
         />
-        <input type="color" value={hex} onChange={(e) => onChange(e.target.value.toUpperCase())} className="h-7 w-7 cursor-pointer rounded border border-st-line bg-transparent p-0" />
+        {/* the wrapping <label> only names its first control (the hex input above),
+            so the swatch needs its own accessible name (Wave-4 a11y fix) */}
+        <input type="color" value={hex} onChange={(e) => onChange(e.target.value.toUpperCase())} aria-label={`${label} (colour picker)`} className="h-7 w-7 cursor-pointer rounded border border-st-line bg-transparent p-0" />
       </span>
     </label>
   );

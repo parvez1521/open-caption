@@ -7,9 +7,10 @@ import type { MediaAssetKind } from "./mediaAssets";
  * Metadata probing for media-bin imports, using the same stack the upload flow probes with:
  * Mediabunny (`Input` over a BlobSource, as in features/upload/prepareVideo.ts) for duration and
  * dimensions of video/audio, the platform image decoder for stills, a <video> frame capture for
- * thumbnails, and WebAudio decode for audio peaks. Every probe is best-effort per file: a file that
- * can't be probed still imports with whatever metadata could be read (duration/dimensions null),
- * and a hard read failure surfaces as that file's own error — never the whole batch's.
+ * thumbnails, and WebAudio decode for audio peaks. Probing is best-effort per file for METADATA:
+ * a video/audio file that yields no duration still imports with nulls. One exception (Wave-4):
+ * an image that no decoder can read at all is refused outright (see probeImage), and any hard
+ * read failure surfaces as that file's own error — never the whole batch's.
  */
 
 export interface ProbedMedia {
@@ -118,11 +119,16 @@ async function probeImage(file: File): Promise<ProbedMedia> {
         img.onerror = () => resolve(null);
         img.src = url;
       });
-      return dims ? { ...empty, width: dims.w, height: dims.h } : { ...empty };
+      if (dims) return { ...empty, width: dims.w, height: dims.h };
     } finally {
       URL.revokeObjectURL(url);
     }
   }
+  // Wave-4 security fix: an "image" that NEITHER decoder can read (e.g. an HTML
+  // or text file renamed to .png with a spoofed image MIME type) must not be
+  // stored as an image asset — previously it imported with empty metadata and
+  // sat in the bin under an image mime, only ever failing later at render time.
+  throw new Error("That file couldn't be read as an image — it may be damaged, or not really an image file.");
 }
 
 export async function probeMediaFile(file: File, kind: MediaAssetKind): Promise<ProbedMedia> {

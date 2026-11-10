@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MEDIA_SIZE_CAPS, describeAssetMeta, formatBytes, mediaKindFor, validateMediaFile } from "../mediaAssets";
+import { MEDIA_SIZE_CAPS, describeAssetMeta, formatBytes, mediaKindFor, validateImageFile, validateMediaFile } from "../mediaAssets";
 
 describe("mediaKindFor", () => {
   it("classifies by MIME type first", () => {
@@ -39,6 +39,29 @@ describe("validateMediaFile", () => {
     expect(validateMediaFile({ name: "a.png", size: MEDIA_SIZE_CAPS.image, type: "image/png" }).ok).toBe(true);
     expect(validateMediaFile({ name: "a.mp4", size: MEDIA_SIZE_CAPS.video + 1, type: "video/mp4" }).ok).toBe(false);
     expect(validateMediaFile({ name: "a.mp3", size: MEDIA_SIZE_CAPS.audio + 1, type: "audio/mpeg" }).ok).toBe(false);
+  });
+});
+
+describe("validateImageFile (Wave-4: image fields refuse video/audio, not just the accept attr)", () => {
+  it("accepts real image kinds, including SVG", () => {
+    expect(validateImageFile({ name: "a.png", size: 100, type: "image/png" })).toEqual({ ok: true, kind: "image" });
+    expect(validateImageFile({ name: "qr.svg", size: 100, type: "image/svg+xml" }).ok).toBe(true);
+    expect(validateImageFile({ name: "photo.webp", size: 100, type: "" }).ok).toBe(true);
+  });
+
+  it("rejects video and audio files with a kind-naming message", () => {
+    const v = validateImageFile({ name: "clip.mp4", size: 100, type: "video/mp4" });
+    expect(v.ok).toBe(false);
+    if (!v.ok) expect(v.error).toContain("video");
+    const a = validateImageFile({ name: "song.mp3", size: 100, type: "audio/mpeg" });
+    expect(a.ok).toBe(false);
+    if (!a.ok) expect(a.error).toContain("audio");
+  });
+
+  it("still rejects non-media, empty and oversized images via the base rules", () => {
+    expect(validateImageFile({ name: "x.html", size: 100, type: "text/html" }).ok).toBe(false);
+    expect(validateImageFile({ name: "a.png", size: 0, type: "image/png" }).ok).toBe(false);
+    expect(validateImageFile({ name: "a.png", size: MEDIA_SIZE_CAPS.image + 1, type: "image/png" }).ok).toBe(false);
   });
 });
 

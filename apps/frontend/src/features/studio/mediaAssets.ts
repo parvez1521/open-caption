@@ -74,6 +74,23 @@ export function validateMediaFile(file: { name: string; size: number; type: stri
   return { ok: true, kind };
 }
 
+/**
+ * Image-field rule (avatar / QR uploads in Motion Studio + the Studio overlay
+ * editor): the generic bin validator accepts video and audio too, but an image
+ * field must refuse them BEFORE the file is probed/stored — the picker's
+ * `accept="image/*"` is only a hint and can be bypassed in the file dialog.
+ * Kind comes from validateMediaFile (MIME first, extension fallback, size cap);
+ * the probe (mediaProbe) then has to actually decode the image before it is stored.
+ */
+export function validateImageFile(file: { name: string; size: number; type: string }): MediaValidation {
+  const v = validateMediaFile(file);
+  if (!v.ok) return v;
+  if (v.kind !== "image") {
+    return { ok: false, error: `That file is a ${v.kind} file — this field needs an image (PNG, JPG, WebP, GIF or SVG).` };
+  }
+  return v;
+}
+
 export function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "—";
   if (bytes < 1024) return `${bytes} B`;

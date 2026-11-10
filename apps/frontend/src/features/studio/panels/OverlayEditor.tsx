@@ -5,6 +5,7 @@ import type { OverlayItem } from "@capseasy/shared";
 import { SOCIAL_META } from "@capseasy/compositions";
 import { getMotionTemplate } from "@capseasy/motion";
 import type { MediaAssetRecord } from "../mediaStore";
+import { validateImageFile } from "../mediaAssets";
 import type { ImportError } from "../useMediaAssets";
 import { Button, ColorField, Section, Slider, fmtTime } from "../controls";
 
@@ -107,6 +108,13 @@ export const OverlayEditor: React.FC<{
                     e.target.value = "";
                     if (!f) return;
                     setImportNote(null);
+                    // image field: refuse non-images before the generic bin importer
+                    // (which also accepts video/audio) can store them under this picker
+                    const v = validateImageFile(f);
+                    if (!v.ok) {
+                      setImportNote(v.error);
+                      return;
+                    }
                     void onImportMedia([f]).then((errs) => {
                       if (errs.length) setImportNote(errs.map((x) => x.error).join(" "));
                       else setImportNote(`Added ${f.name} to the media bin — pick it above to use it here.`);
