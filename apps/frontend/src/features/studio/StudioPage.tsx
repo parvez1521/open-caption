@@ -992,7 +992,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           onUpdateMaster={(patch) => commitAudio(updateAudioMaster(editorComp, patch))}
         />
       ) : null)
-      : t === "clipper" ? (doc ? <ClipperPanel projectId={projectId} sourceTitle={data.project.title} sourceVideoId={data.video?.id ?? null} mediaDurationMs={settings.clipRange ? durationMs : (data.video?.durationMs ?? 0)} doc={doc} /> : null)
+      : t === "clipper" ? (doc ? <ClipperPanel projectId={projectId} sourceTitle={data.project.title} sourceVideoId={data.video?.id ?? null} mediaDurationMs={settings.clipRange ? durationMs : (data.video?.durationMs ?? 0)} doc={doc} sourceWidth={data.video?.width ?? null} sourceHeight={data.video?.height ?? null} sourceUrl={video?.url ?? null} /> : null)
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
 
