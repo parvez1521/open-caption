@@ -47,8 +47,8 @@ const rich: CompositionSettings = {
 };
 
 describe("Stage C gate", () => {
-  it("STAGE_C_ENABLED is false — the G4 gate stays shut until activation", () => {
-    expect(STAGE_C_ENABLED).toBe(false);
+  it("STAGE_C_ENABLED is true — Stage C was ACTIVATED under Gate G4 (2026-11-10)", () => {
+    expect(STAGE_C_ENABLED).toBe(true);
   });
 });
 
@@ -60,7 +60,7 @@ describe("compositionColumnForm — the projection is a bijection over JSON", ()
     expect(columnForm).toEqual(rich);
   });
 
-  it("settings form → column form → read (flag off) returns the settings form deep-equal", () => {
+  it("settings form → column form → read (no column value) returns the settings form deep-equal", () => {
     const columnForm = compositionColumnForm(rich);
     const read = readCompositionSettings({ settingsComposition: columnForm });
     expect(read.source).toBe("settings");
@@ -86,7 +86,7 @@ describe("readCompositionSettings — old-project compatibility", () => {
   });
 
   it.each([["nope"], [42], [{ version: 99 }]])(
-    "garbage compositionJson (%j) with the flag off → settings source, no throw",
+    "garbage compositionJson (%j) → settings fallback, no throw",
     (garbage) => {
       const read = readCompositionSettings({ settingsComposition: rich, compositionJson: garbage });
       expect(read.source).toBe("settings");
@@ -101,20 +101,30 @@ describe("readCompositionSettings — old-project compatibility", () => {
   });
 });
 
-describe("readCompositionSettings — today's behaviour pin", () => {
-  it("NEVER returns source 'column' while the flag is off, even with a perfectly valid compositionJson", () => {
+describe("readCompositionSettings — ACTIVE configuration pins (post-G4 activation)", () => {
+  it("a valid column value WINS over a different settings slice", () => {
     const read = readCompositionSettings({
       settingsComposition: EMPTY_COMPOSITION_SETTINGS,
       compositionJson: compositionColumnForm(rich),
     });
-    expect(read.source).toBe("settings");
-    expect(read.settings).toEqual(EMPTY_COMPOSITION_SETTINGS);
+    expect(read.source).toBe("column");
+    expect(read.settings).toEqual(rich);
   });
 
-  it("a valid column value is ignored entirely while the flag is off", () => {
+  it("a valid column value alone is adopted", () => {
     const read = readCompositionSettings({ compositionJson: rich });
-    expect(read.source).toBe("settings");
-    expect(read.settings).toEqual(EMPTY_COMPOSITION_SETTINGS);
+    expect(read.source).toBe("column");
+    expect(read.settings).toEqual(rich);
+  });
+
+  it("a project saved post-activation reopens identically (column round trip)", () => {
+    const written = buildStageCWritePatch(rich);
+    const read = readCompositionSettings({
+      settingsComposition: rich,
+      compositionJson: JSON.parse(JSON.stringify(written.composition_json)) as unknown,
+    });
+    expect(read.source).toBe("column");
+    expect(read.settings).toEqual(rich);
   });
 });
 

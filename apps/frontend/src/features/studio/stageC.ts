@@ -8,16 +8,17 @@
  * `projects.composition_json`, so the timeline can outgrow the settings
  * shape (multiple clips, multiple tracks, transforms, keyframes…).
  *
- * STATUS (Phase 4 Run 2): activation steps 3–4 below are now IMPLEMENTED —
- * this module IS imported by useStudio, the PATCH route accepts
- * `composition_json`, PROJECT_COLUMNS/toApiProject carry it, the studio
- * route selects it, and useStudio resolves loads through
- * `readCompositionSettings` and dual-writes through
- * `buildStageCWritePatch` (gated on the flag). The flag below stays OFF —
- * so nothing in here can change today's live behaviour.
- * `readCompositionSettings` is written so that, with the flag off, it is a
- * pure pass-through of the settings slice, and the dual-write is omitted
- * entirely: the switch is provably inert until activation.
+ * STATUS (Phase 4 Run 2): ACTIVATED 2026-11-10 under Gate G4. Steps 1–5
+ * below are all done: the owner approved G4, APPLY-COMPOSITION-PRIMARY.sql
+ * was applied to the live database and verified (column exists as jsonb;
+ * the one project carrying a settings composition slice was backfilled;
+ * settings_json untouched), the plumbing (step 3) and the useStudio wiring
+ * (step 4) shipped, and the coordinator's PostgREST probe confirmed the
+ * column is selectable before this flip. With the flag ON, loads prefer a
+ * valid `composition_json` value and fall back to the settings slice when
+ * the column is null/invalid (every pre-Stage-C project), and every save
+ * DUAL-WRITES both copies for the transition cycle (step 6 — dropping the
+ * settings copy — is a later, separately-approved migration).
  *
  * ACTIVATION CHECKLIST (Gate G4 — all steps, in this order):
  *   1. Owner go-ahead (Gate G4). Nothing below happens before it.
@@ -41,7 +42,9 @@
  *      [DONE — Phase 4 Run 2; the dual-write is gated on STAGE_C_ENABLED,
  *      so it only starts once step 5 flips the flag.]
  *   5. Flip STAGE_C_ENABLED to true (separate commit, after 1–4 are live).
- *      [REMAINS — the only step left.]
+ *      [DONE — Phase 4 Run 2 activation commit, 2026-11-10; the live
+ *      PostgREST probe returned HTTP 200 for a composition_json select
+ *      immediately before the flip was pushed.]
  *   6. After one full release cycle of dual-writing, a follow-up migration
  *      may drop the settings-embedded copy (settings_json -> 'composition')
  *      and the settings slice leaves ProjectSettingsSchema.
@@ -60,7 +63,7 @@ import {
  * The Stage-C gate. MUST stay false until activation steps 1–4 of the
  * checklist above are done. Pinned by stageC.test.ts.
  */
-export const STAGE_C_ENABLED = false;
+export const STAGE_C_ENABLED = true;
 
 /**
  * The normalised standalone form of a composition slice — exactly what the

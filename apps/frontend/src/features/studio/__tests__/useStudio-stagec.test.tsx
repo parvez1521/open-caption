@@ -1,14 +1,15 @@
 /**
- * Stage-C wiring in useStudio (stageC.ts checklist step 4), tested with the
- * flag OFF — the state this branch ships in. The pins here are the inertness
- * guarantees the coordinator relies on before the separate flag-flip commit:
- *  - LOAD: a project row carrying a perfectly valid `composition_json`
- *    column value still adopts the SETTINGS composition slice
- *    (readCompositionSettings never returns source "column" while the flag
- *    is off), so the wiring changes nothing about what the editor shows.
- *  - PERSIST: the savePatch body contains no `composition_json` key at all
- *    while the flag is off — byte-identical to the pre-Stage-C body.
- * When the flag flips, these two tests are the ones that must be updated.
+ * Stage-C wiring in useStudio (stageC.ts checklist step 4), tested in the
+ * ACTIVE configuration — Stage C was activated under Gate G4 on 2026-11-10
+ * (these are the two pins the flag-flip commit updated, as the pre-flip
+ * version of this header announced):
+ *  - LOAD: a project row carrying a valid `composition_json` column value
+ *    adopts the COLUMN composition (readCompositionSettings prefers the
+ *    column when it parses), not the settings slice.
+ *  - PERSIST: every savePatch body DUAL-WRITES — it carries the
+ *    `composition_json` key (the canonicalised form of the loaded
+ *    composition) alongside `settings_json`, for the whole transition
+ *    cycle, so the two stores can never diverge.
  */
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -99,20 +100,23 @@ async function renderStudio() {
   return hook;
 }
 
-describe("useStudio Stage-C wiring (flag off)", () => {
-  it("LOAD: adopts the settings composition, NOT the column value, while STAGE_C_ENABLED is false", async () => {
+describe("useStudio Stage-C wiring (ACTIVE — post-G4)", () => {
+  it("LOAD: adopts the column composition, NOT the settings slice, now STAGE_C_ENABLED is true", async () => {
     const { result } = await renderStudio();
-    expect(result.current.settings.composition).toEqual(CompositionSettingsSchema.parse(SETTINGS_COMPOSITION));
-    expect(result.current.settings.composition).not.toEqual(CompositionSettingsSchema.parse(COLUMN_COMPOSITION));
+    expect(result.current.settings.composition).toEqual(CompositionSettingsSchema.parse(COLUMN_COMPOSITION));
+    expect(result.current.settings.composition).not.toEqual(CompositionSettingsSchema.parse(SETTINGS_COMPOSITION));
   });
 
-  it("PERSIST: the savePatch body has no composition_json key while the flag is off", async () => {
+  it("PERSIST: every savePatch body dual-writes composition_json alongside settings_json", async () => {
     await renderStudio();
     // style_json is null in the fixture, so the first-open path persists once (debounced)
     await waitFor(() => expect(state.savePatch).toHaveBeenCalled(), { timeout: 3000 });
     for (const call of state.savePatch.mock.calls) {
       const body = call[1] as Record<string, unknown>;
-      expect(body).not.toHaveProperty("composition_json");
+      expect(body).toHaveProperty("composition_json");
+      // the column copy is the canonicalised form of the composition the load
+      // adopted — here, the fixture's column value
+      expect(body.composition_json).toEqual(CompositionSettingsSchema.parse(COLUMN_COMPOSITION));
       expect(body).toHaveProperty("settings_json");
       expect(body).toHaveProperty("style_json");
     }
