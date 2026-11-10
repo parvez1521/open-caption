@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_TRACK_STATE, ProjectSettingsSchema, type OverlayItem, type VideoSegment } from "@capseasy/shared";
 import { CaptionedVideoProps } from "./props";
-import { buildVideoFilter, overlayFrames, overlayTrackKind, overlayVisibleAt, resolveOverlays, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, videoSegmentFrames } from "./overlayMath";
+import { framesForDurationMs } from "@capseasy/shared";
+import { buildVideoFilter, compositionDurationMs, overlayFrames, overlayTrackKind, overlayVisibleAt, resolveCanvasSettings, resolveOverlays, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, segmentTimelineDurationMs, segmentTransformStyle, videoSegmentFrames, videoTransitionLayout, withRawSegmentExtensions } from "./overlayMath";
 
 describe("buildVideoFilter", () => {
   it("is undefined when all three adjustments are neutral (filter omitted entirely)", () => {
@@ -129,17 +130,17 @@ describe("videoSegmentFrames (segment chain tiling)", () => {
 
   it("computes exact windows and per-segment source trims at 30fps", () => {
     expect(videoSegmentFrames(segments, 30)).toEqual([
-      { from: 0, durationInFrames: 31, trimBefore: 60, trimAfter: 91 },
-      { from: 31, durationInFrames: 31, trimBefore: 91, trimAfter: 122 },
-      { from: 62, durationInFrames: 32, trimBefore: 122, trimAfter: 154 },
+      { from: 0, durationInFrames: 31, trimBefore: 60, trimAfter: 91, playbackRate: 1 },
+      { from: 31, durationInFrames: 31, trimBefore: 91, trimAfter: 122, playbackRate: 1 },
+      { from: 62, durationInFrames: 32, trimBefore: 122, trimAfter: 154, playbackRate: 1 },
     ]);
   });
 
   it("computes exact windows and per-segment source trims at 60fps", () => {
     expect(videoSegmentFrames(segments, 60)).toEqual([
-      { from: 0, durationInFrames: 62, trimBefore: 120, trimAfter: 182 },
-      { from: 62, durationInFrames: 63, trimBefore: 182, trimAfter: 245 },
-      { from: 125, durationInFrames: 62, trimBefore: 245, trimAfter: 307 },
+      { from: 0, durationInFrames: 62, trimBefore: 120, trimAfter: 182, playbackRate: 1 },
+      { from: 62, durationInFrames: 63, trimBefore: 182, trimAfter: 245, playbackRate: 1 },
+      { from: 125, durationInFrames: 62, trimBefore: 245, trimAfter: 307, playbackRate: 1 },
     ]);
   });
 
@@ -160,7 +161,7 @@ describe("videoSegmentFrames (segment chain tiling)", () => {
   });
 
   it("a single segment starts at frame 0 with its own source trim", () => {
-    expect(videoSegmentFrames([segments[0]], 30)).toEqual([{ from: 0, durationInFrames: 31, trimBefore: 60, trimAfter: 91 }]);
+    expect(videoSegmentFrames([segments[0]], 30)).toEqual([{ from: 0, durationInFrames: 31, trimBefore: 60, trimAfter: 91, playbackRate: 1 }]);
   });
 });
 
@@ -260,5 +261,161 @@ describe("clip range trim (Clipper projects)", () => {
     const { resolveClipRange } = await import("./overlayMath");
     const settings = ProjectSettingsSchema.parse({ clipRange: { startMs: 1000, endMs: 9000 } });
     expect(resolveClipRange({ settings })).toEqual({ startMs: 1000, endMs: 9000 });
+  });
+});
+
+describe("segmentTimelineDurationMs / compositionDurationMs (pinned shared formulas)", () => {
+  const seg = (id: string, a: number, b: number, extra: Record<string, unknown> = {}) => ({ id, sourceInMs: a, sourceOutMs: b, ...extra }) as never;
+
+  it("divides the source span by the playback rate, rounded", () => {
+    expect(segmentTimelineDurationMs(seg("a", 0, 2000, { playbackRate: 2 }))).toBe(1000);
+    expect(segmentTimelineDurationMs(seg("a", 0, 2000, { playbackRate: 0.5 }))).toBe(4000);
+    expect(segmentTimelineDurationMs(seg("a", 1000, 2001, { playbackRate: 2 }))).toBe(501); // round(1001/2)
+    expect(segmentTimelineDurationMs(seg("a", 0, 2000))).toBe(2000); // default rate 1
+    expect(segmentTimelineDurationMs(seg("a", 0, 2000, { playbackRate: 0 }))).toBe(2000); // invalid rate -> 1
+  });
+
+  it("composition duration sums timeline durations and subtracts boundary transitions only", () => {
+    const segs = [
+      seg("a", 0, 2000, { transitionIn: { type: "fade", durationMs: 900 } }), // on seg 0: ignored
+      seg("b", 2000, 4000, { playbackRate: 2, transitionIn: { type: "fade", durationMs: 300 } }),
+      seg("c", 4000, 5000, { transitionIn: { type: "wipe", durationMs: 200 } }),
+    ];
+    // timeline: 2000 + 1000 + 1000 = 4000; transitions: 300 + 200 = 500
+    expect(compositionDurationMs(segs)).toBe(3500);
+    expect(compositionDurationMs([])).toBe(0);
+  });
+});
+
+describe("videoSegmentFrames with playback rates (rate-aware tiling)", () => {
+  const seg = (id: string, a: number, b: number, playbackRate?: number) =>
+    ({ id, sourceInMs: a, sourceOutMs: b, ...(playbackRate ? { playbackRate } : {}) }) as never;
+
+  it("rate 2 halves the window, rate 0.5 doubles it, and windows still tile exactly", () => {
+    const windows = videoSegmentFrames([seg("a", 0, 2080, 2), seg("b", 2080, 4160, 0.5)], 30);
+    // timeline durations: 1040ms and 4160ms -> boundaries 0 / 1040 / 5200ms
+    expect(windows).toEqual([
+      { from: 0, durationInFrames: 31, trimBefore: 0, trimAfter: 62, playbackRate: 2 },
+      { from: 31, durationInFrames: 125, trimBefore: 62, trimAfter: 125, playbackRate: 0.5 },
+    ]);
+    expect(windows[1].from).toBe(windows[0].from + windows[0].durationInFrames);
+    expect(windows.reduce((s, w) => s + w.durationInFrames, 0)).toBe(Math.round((5200 / 1000) * 30));
+  });
+
+  it("mixed rates tile exactly at 60fps too (cumulative boundaries, not per-segment rounding)", () => {
+    const windows = videoSegmentFrames([seg("a", 0, 1000, 3), seg("b", 1000, 2000), seg("c", 2000, 3000, 0.75)], 60);
+    for (let i = 1; i < windows.length; i++) expect(windows[i].from).toBe(windows[i - 1].from + windows[i - 1].durationInFrames);
+    const totalMs = Math.round(1000 / 3) + 1000 + Math.round(1000 / 0.75);
+    expect(windows.reduce((s, w) => s + w.durationInFrames, 0)).toBe(Math.round((totalMs / 1000) * 60));
+  });
+
+  it("trimBefore/trimAfter stay SOURCE-frame trims regardless of rate", () => {
+    const [w] = videoSegmentFrames([seg("a", 2000, 4080, 2)], 30);
+    expect(w.trimBefore).toBe(60);
+    expect(w.trimAfter).toBe(122);
+  });
+});
+
+describe("videoTransitionLayout (TransitionSeries parity identity)", () => {
+  const seg = (id: string, a: number, b: number, extra: Record<string, unknown> = {}) => ({ id, sourceInMs: a, sourceOutMs: b, ...extra }) as never;
+  const identity = (segs: never[], fps: number) => {
+    const layout = videoTransitionLayout(segs, fps);
+    const seqSum = layout.sequences.reduce((s, x) => s + x.durationInFrames, 0);
+    const transSum = layout.transitions.reduce((s, x) => s + x.durationInFrames, 0);
+    expect(seqSum - transSum).toBe(framesForDurationMs(compositionDurationMs(segs), fps));
+    return layout;
+  };
+
+  it("no transitions: sequences alone equal the composition frames (ceil boundaries)", () => {
+    const layout = identity([seg("a", 0, 1040), seg("b", 1040, 2080)], 30);
+    expect(layout.sequences.map((s) => s.durationInFrames)).toEqual([32, 31]); // ceil boundaries: 0, 32, 63
+    expect(layout.transitions).toEqual([{ durationInFrames: 0 }]);
+  });
+
+  it("a single fade boundary: identity holds and the transition gets its frames", () => {
+    const layout = identity(
+      [seg("a", 0, 2000), seg("b", 2000, 4000, { transitionIn: { type: "fade", durationMs: 300 } })],
+      30,
+    );
+    expect(layout.sequences.map((s) => s.durationInFrames)).toEqual([60, 60]);
+    expect(layout.transitions).toEqual([{ durationInFrames: 9 }]); // 300ms at 30fps
+  });
+
+  it("multiple boundaries with mixed rates: identity holds at 30 and 60fps", () => {
+    const segs = [
+      seg("a", 0, 2080, { playbackRate: 2 }),
+      seg("b", 2080, 4160, { transitionIn: { type: "slide", durationMs: 250 } }),
+      seg("c", 4160, 6240, { playbackRate: 0.5, transitionIn: { type: "zoom", durationMs: 500 } }),
+    ];
+    for (const fps of [30, 60]) {
+      const layout = identity(segs, fps);
+      for (const t of layout.transitions) expect(t.durationInFrames).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("clamps a transition to min(adjacent sequences) - 1 and STILL holds the identity", () => {
+    // seg b is only 400ms (12 frames) but asks for a 1000ms transition
+    const segs = [seg("a", 0, 3000), seg("b", 3000, 3400, { transitionIn: { type: "wipe", durationMs: 1000 } }), seg("c", 3400, 6400)];
+    const layout = identity(segs as never[], 30);
+    expect(layout.transitions[0].durationInFrames).toBeLessThanOrEqual(Math.min(layout.sequences[0].durationInFrames, layout.sequences[1].durationInFrames) - 1);
+  });
+
+  it("a sub-frame transition allocates 0 frames (renders as a cut) without breaking the identity", () => {
+    const layout = identity([seg("a", 0, 2000), seg("b", 2000, 4000, { transitionIn: { type: "fade", durationMs: 10 } })], 30);
+    expect(layout.transitions[0].durationInFrames).toBe(0);
+  });
+});
+
+describe("segmentTransformStyle", () => {
+  const seg = (transform?: Record<string, unknown>) => ({ transform }) as never;
+
+  it("is null for a missing or identity transform (no wrapper rendered)", () => {
+    expect(segmentTransformStyle(seg())).toBeNull();
+    expect(segmentTransformStyle(seg({}))).toBeNull();
+    expect(segmentTransformStyle(seg({ scale: 1, rotateDeg: 0, cropLeft: 0 }))).toBeNull();
+  });
+
+  it("crop enlarges and shifts the inner box so the surviving region fills the stage", () => {
+    const style = segmentTransformStyle(seg({ cropLeft: 0.25, cropRight: 0.25, cropTop: 0.5 }));
+    expect(style?.wrapper).toEqual({ position: "absolute", inset: 0, overflow: "hidden" });
+    expect(style?.inner.width).toBe("200%"); // 100 / (1 - .25 - .25)
+    expect(style?.inner.left).toBe("-50%"); // -.25 / .5 * 100
+    expect(style?.inner.height).toBe("200%"); // 100 / (1 - .5)
+    expect(style?.inner.top).toBe("-100%");
+    expect(style?.inner.transform).toBeUndefined();
+  });
+
+  it("rotate / flip / scale / offset compose into one transform string", () => {
+    const style = segmentTransformStyle(seg({ rotateDeg: 15, flipH: true, scale: 2, offsetX: 0.1, offsetY: -0.05 }));
+    expect(style?.inner.transform).toBe("translate(10%, -5%) rotate(15deg) scale(-2, 2)");
+  });
+
+  it("flipV alone flips the Y scale sign", () => {
+    expect(segmentTransformStyle(seg({ flipV: true }))?.inner.transform).toBe("scale(1, -1)");
+  });
+});
+
+describe("withRawSegmentExtensions / resolveCanvasSettings (raw settings win)", () => {
+  it("merges extension fields from raw settings by position; parsed values survive elsewhere", () => {
+    const parsed = [
+      { id: "a", sourceInMs: 0, sourceOutMs: 1000 },
+      { id: "b", sourceInMs: 1000, sourceOutMs: 2000 },
+    ] as never[];
+    const raw = { composition: { videoSegments: [{ playbackRate: 2 }, { assetId: "asset-9", still: true }] } };
+    const merged = withRawSegmentExtensions(parsed, raw);
+    expect(merged[0]).toMatchObject({ id: "a", playbackRate: 2 });
+    expect(merged[1]).toMatchObject({ id: "b", assetId: "asset-9", still: true });
+  });
+
+  it("returns the parsed segments untouched when raw is absent or length-mismatched", () => {
+    const parsed = [{ id: "a", sourceInMs: 0, sourceOutMs: 1000 }] as never[];
+    expect(withRawSegmentExtensions(parsed, undefined)).toBe(parsed);
+    expect(withRawSegmentExtensions(parsed, { composition: { videoSegments: [] } })).toBe(parsed);
+  });
+
+  it("canvas defaults to source/blur; raw canvas wins over parsed", () => {
+    expect(resolveCanvasSettings({})).toEqual({ aspect: "source", background: "blur" });
+    expect(resolveCanvasSettings({ rawSettings: { canvas: { aspect: "9:16", background: "#101418" } } })).toEqual({ aspect: "9:16", background: "#101418" });
+    expect(resolveCanvasSettings({ rawSettings: { canvas: { aspect: "bogus" } } }).aspect).toBe("source");
   });
 });

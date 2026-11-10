@@ -25,6 +25,9 @@ vi.mock("remotion", async (orig) => {
         ...(props.trimBefore !== undefined ? { "data-trim-before": props.trimBefore } : {}),
         ...(props.trimAfter !== undefined ? { "data-trim-after": props.trimAfter } : {}),
         ...(props.muted ? { "data-muted": "true" } : {}),
+        ...(props.playbackRate !== undefined ? { "data-playback-rate": props.playbackRate } : {}),
+        ...((props.style as { filter?: string } | undefined)?.filter ? { "data-style-filter": (props.style as { filter?: string }).filter } : {}),
+        ...((props.style as { transform?: string } | undefined)?.transform ? { "data-style-transform": (props.style as { transform?: string }).transform } : {}),
       }),
   };
 });
@@ -37,8 +40,37 @@ vi.mock("@remotion/media", () => ({
       ...(props.trimBefore !== undefined ? { "data-trim-before": props.trimBefore } : {}),
       ...(props.trimAfter !== undefined ? { "data-trim-after": props.trimAfter } : {}),
       ...(props.muted ? { "data-muted": "true" } : {}),
+      ...(props.playbackRate !== undefined ? { "data-playback-rate": props.playbackRate } : {}),
+      ...(props.objectFit ? { "data-object-fit": props.objectFit } : {}),
+      ...((props.style as { filter?: string } | undefined)?.filter ? { "data-style-filter": (props.style as { filter?: string }).filter } : {}),
+      ...((props.style as { transform?: string } | undefined)?.transform ? { "data-style-transform": (props.style as { transform?: string }).transform } : {}),
     }),
 }));
+// TransitionSeries stand-ins: Sequences expose their duration/offset, Transitions expose the
+// timing's frame count (via the mocked linearTiming) and the presentation kind, so the chain
+// STRUCTURE is assertable without a composition context.
+vi.mock("@remotion/transitions", () => {
+  const Series = (props: { children?: React.ReactNode }) => React.createElement("div", { "data-transition-series": "true" }, props.children);
+  const SequenceMock = (props: { durationInFrames?: number; offset?: number; children?: React.ReactNode }) =>
+    React.createElement("div", { "data-ts-duration": props.durationInFrames, "data-ts-offset": props.offset ?? 0 }, props.children);
+  const TransitionMock = (props: { timing: { getDurationInFrames: (o: { fps: number }) => number }; presentation?: { props?: Record<string, unknown> } }) =>
+    React.createElement("div", {
+      "data-ts-transition-duration": props.timing.getDurationInFrames({ fps: 30 }),
+      "data-ts-presentation": (props.presentation?.props?.kind as string) ?? "custom",
+    });
+  return {
+    TransitionSeries: Object.assign(Series, { Sequence: SequenceMock, Transition: TransitionMock, Overlay: () => null }),
+    linearTiming: ({ durationInFrames }: { durationInFrames: number }) => ({
+      getDurationInFrames: () => durationInFrames,
+      getProgress: () => 0,
+    }),
+  };
+});
+vi.mock("@remotion/transitions/fade", () => ({ fade: () => ({ component: () => null, props: { kind: "fade" } }) }));
+vi.mock("@remotion/transitions/slide", () => ({
+  slide: (props: Record<string, unknown> = {}) => ({ component: () => null, props: { kind: "slide", ...props } }),
+}));
+vi.mock("@remotion/transitions/wipe", () => ({ wipe: () => ({ component: () => null, props: { kind: "wipe" } }) }));
 vi.mock("@capseasy/templates", async (orig) => {
   const actual = (await orig()) as Record<string, unknown>;
   return {
@@ -165,5 +197,125 @@ describe("CaptionedVideo segment chain (render level, static markup)", () => {
     expect(hidden).not.toContain("data-caption-page");
     // the video chain itself is unaffected by the captions track
     expect(videoTags(hidden)).toHaveLength(2);
+  });
+});
+
+describe("CaptionedVideo Run-2 segment features (render level, static markup)", () => {
+  // Settings with Run-2 extension fields. NOTE (local shim): the current shared zod schema does
+  // not know these fields yet and strips them when the settings object is built — so the fields
+  // are assigned onto the parsed object afterwards; CaptionedVideo merges them back from the
+  // raw prop at render time (withRawSegmentExtensions). On merged main the schema keeps them
+  // and this helper is equivalent to plain data.
+  const extSettings = (segments: Record<string, unknown>[], extra: Record<string, unknown> = {}) => {
+    const settings = ProjectSettingsSchema.parse({
+      clipRange: { startMs: 2000, endMs: 4080 },
+      composition: { videoSegments: segments.map(({ id, sourceInMs, sourceOutMs }) => ({ id, sourceInMs, sourceOutMs })) },
+      ...extra,
+    });
+    settings.composition.videoSegments.forEach((s, i) => Object.assign(s, segments[i]));
+    if (extra.canvas) Object.assign(settings as Record<string, unknown>, { canvas: extra.canvas });
+    return settings;
+  };
+  const TWO = [
+    { id: "seg-1", sourceInMs: 2000, sourceOutMs: 3040 },
+    { id: "seg-2", sourceInMs: 3040, sourceOutMs: 4080 },
+  ];
+
+  it("playbackRate reaches BOTH engines' elements, per segment, and only when !== 1", () => {
+    const settings = extSettings([TWO[0], { ...TWO[1], playbackRate: 2 }]);
+    for (const videoEngine of ["offthread", "media"] as const) {
+      const videos = videoTags(renderToStaticMarkup(<CaptionedVideo src="video.mp4" videoEngine={videoEngine} settings={settings} />));
+      expect(videos).toHaveLength(2);
+      expect(videos[0]).not.toContain("data-playback-rate");
+      expect(videos[1]).toContain('data-playback-rate="2"');
+    }
+  });
+
+  it("per-segment assetId resolves through segmentAssets, falling back to the main src", () => {
+    const settings = extSettings([{ ...TWO[0], assetId: "asset-b" }, TWO[1]]);
+    const html = renderToStaticMarkup(<CaptionedVideo src="main.mp4" settings={settings} segmentAssets={{ "asset-b": "b-roll.mp4" }} />);
+    const videos = videoTags(html);
+    expect(videos[0]).toContain('src="b-roll.mp4"');
+    expect(videos[1]).toContain('src="main.mp4"');
+    // no segmentAssets at all -> the asset segment also falls back to the main src
+    const fallback = videoTags(renderToStaticMarkup(<CaptionedVideo src="main.mp4" settings={settings} />));
+    expect(fallback[0]).toContain('src="main.mp4"');
+  });
+
+  it("a still segment renders an Img (with its segmentAssets src), not a video element", () => {
+    const settings = extSettings([{ ...TWO[0], still: true, assetId: "still-1" }, TWO[1]]);
+    const html = renderToStaticMarkup(<CaptionedVideo src="main.mp4" settings={settings} segmentAssets={{ "still-1": "photo.jpg" }} />);
+    expect(videoTags(html)).toHaveLength(1);
+    expect(html).toContain('<img src="photo.jpg"');
+  });
+
+  it("a transformed segment renders wrapper/inner styles; identity segments render none", () => {
+    const settings = extSettings([{ ...TWO[0], transform: { rotateDeg: 15, scale: 2 } }, TWO[1]]);
+    const html = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={settings} />);
+    expect(html).toContain("overflow:hidden");
+    expect(html).toContain("rotate(15deg) scale(2, 2)");
+    const plain = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={segmentedSettings()} />);
+    expect(plain).not.toContain("overflow:hidden");
+    expect(plain).not.toContain("rotate(");
+  });
+
+  it("a single stored segment now applies its rate + transform on the single-layer path (clipRange trims kept)", () => {
+    const settings = extSettings([{ ...TWO[0], playbackRate: 0.5, transform: { flipH: true } }]);
+    const html = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={settings} />);
+    const videos = videoTags(html);
+    expect(videos).toHaveLength(1);
+    expect(videos[0]).toContain('data-playback-rate="0.5"');
+    expect(videos[0]).toContain('data-trim-before="60"');
+    expect(videos[0]).toContain('data-trim-after="122"'); // clipRange end, NOT the segment's own end (91)
+    expect(html).toContain("scale(-1, 1)");
+    expect(sequenceWindows(html)).toEqual([]);
+  });
+
+  it("transition chain: TransitionSeries sequences + a Transition with the layout's frames and presentation", () => {
+    const settings = extSettings([TWO[0], { ...TWO[1], transitionIn: { type: "fade", durationMs: 300 } }]);
+    const html = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={settings} />);
+    expect(html).toContain('data-transition-series="true"');
+    // layout at 30fps: timeline 1040+1040ms -> ceil sequences 32+31... duration sum check via attrs
+    const tsDurations = [...html.matchAll(/data-ts-duration="(\d+)"/g)].map((m) => Number(m[1]));
+    const transDurations = [...html.matchAll(/data-ts-transition-duration="(\d+)"/g)].map((m) => Number(m[1]));
+    expect(tsDurations).toHaveLength(2);
+    expect(transDurations).toEqual([9]); // 300ms at 30fps
+    expect(html).toContain('data-ts-presentation="fade"');
+    // parity: sequences - transitions == composition frames (1780ms -> ceil 54)
+    expect(tsDurations.reduce((a, b) => a + b, 0) - transDurations.reduce((a, b) => a + b, 0)).toBe(54);
+    // and the plain Sequence chain is gone in this mode
+    expect(html).not.toContain("data-sequence-from");
+  });
+
+  it("zoom and blur transitions use the CUSTOM presentations (mock falls back to 'custom')", () => {
+    for (const type of ["zoom", "blur"] as const) {
+      const settings = extSettings([TWO[0], { ...TWO[1], transitionIn: { type, durationMs: 300 } }]);
+      const html = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={settings} />);
+      expect(html).toContain('data-ts-presentation="custom"');
+    }
+  });
+
+  it("canvas colour background paints the root instead of black when aspect is not source", () => {
+    const settings = extSettings(TWO, { canvas: { aspect: "9:16", background: "#101418" } });
+    const html = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={settings} />);
+    expect(html).toContain("background-color:#101418");
+    expect(html).not.toContain("background-color:black");
+  });
+
+  it("canvas blur background renders a second, blurred cover chain behind the main chain", () => {
+    const settings = extSettings(TWO, { canvas: { aspect: "1:1", background: "blur" } });
+    const html = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={settings} />);
+    expect(videoTags(html)).toHaveLength(4); // 2 background + 2 main
+    expect(html).toContain('data-style-filter="blur(48px) saturate(1.2)"');
+    expect(html).toContain('data-style-transform="scale(1.15)"');
+    // background elements are muted even though the main chain is not
+    expect(videoTags(html).filter((v) => v.includes('data-muted="true"'))).toHaveLength(2);
+  });
+
+  it("aspect source keeps exactly the old black layer and no background chain", () => {
+    const html = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={segmentedSettings()} />);
+    expect(videoTags(html)).toHaveLength(2);
+    expect(html).toContain("background-color:black");
+    expect(html).not.toContain("blur(48px)");
   });
 });

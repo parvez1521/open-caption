@@ -71,3 +71,77 @@ describe("calculateMetadata: clip range (Clipper projects)", () => {
     expect(m.durationInFrames).toBe(3600);
   });
 });
+
+describe("calculateMetadata: segment chain duration (Phase 4 Run 2)", () => {
+  // RAW props (not pre-parsed): calculateMetadata parses internally, and the segment
+  // extension fields must be read from the raw props (see Root.tsx) — pre-parsing through
+  // the current shared schema would strip rate/transition fields before the call.
+  const rawMeta = async (input: Record<string, unknown>) =>
+    calculateMetadata({
+      props: input,
+      defaultProps: CaptionedVideoProps.parse({}),
+      compositionId: "CaptionedVideo",
+      abortSignal: new AbortController().signal,
+      isRendering: false,
+    } as unknown as Parameters<typeof calculateMetadata>[0]);
+
+  it("duration comes from the segments, not the source media (jump-cut chain)", async () => {
+    const m = await rawMeta({
+      media: { ...MEDIA, durationMs: 120_000 },
+      settings: {
+        composition: {
+          videoSegments: [
+            { id: "a", sourceInMs: 0, sourceOutMs: 2000 },
+            { id: "b", sourceInMs: 5000, sourceOutMs: 7000 },
+          ],
+        },
+      },
+    });
+    expect(m.durationInFrames).toBe(120); // 4000ms of chain at 30fps, NOT the 120s source
+  });
+
+  it("playbackRate shortens the authored duration", async () => {
+    const m = await rawMeta({
+      media: MEDIA,
+      settings: {
+        composition: {
+          videoSegments: [
+            { id: "a", sourceInMs: 0, sourceOutMs: 4000, playbackRate: 2 },
+            { id: "b", sourceInMs: 4000, sourceOutMs: 6000 },
+          ],
+        },
+      },
+    });
+    expect(m.durationInFrames).toBe(120); // 2000 (rate 2) + 2000 = 4000ms
+  });
+
+  it("boundary transitions subtract from the authored duration", async () => {
+    const m = await rawMeta({
+      media: MEDIA,
+      settings: {
+        composition: {
+          videoSegments: [
+            { id: "a", sourceInMs: 0, sourceOutMs: 2000 },
+            { id: "b", sourceInMs: 2000, sourceOutMs: 4000, transitionIn: { type: "fade", durationMs: 500 } },
+          ],
+        },
+      },
+    });
+    expect(m.durationInFrames).toBe(105); // (4000 - 500)ms at 30fps
+  });
+
+  it("a single stored segment also authors the duration (rate applied)", async () => {
+    const m = await rawMeta({
+      media: { ...MEDIA, durationMs: 120_000 },
+      settings: { composition: { videoSegments: [{ id: "a", sourceInMs: 0, sourceOutMs: 6000, playbackRate: 2 }] } },
+    });
+    expect(m.durationInFrames).toBe(90); // 3000ms
+  });
+
+  it("no segments keeps the legacy media/clipRange duration path unchanged", async () => {
+    const m = await rawMeta({ media: { ...MEDIA, durationMs: 120_000 }, settings: { clipRange: { startMs: 32_000, endMs: 65_000 } } });
+    expect(m.durationInFrames).toBe(990);
+    const plain = await rawMeta({ media: MEDIA });
+    expect(plain.durationInFrames).toBe(300);
+  });
+});

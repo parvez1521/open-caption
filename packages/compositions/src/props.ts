@@ -50,6 +50,14 @@ export const CaptionedVideoProps = z.object({
    * the same device-local constraint the main video already has for server renders.
    */
   overlayAssets: z.record(z.string()).optional(),
+  /**
+   * Resolved URLs for per-segment media, keyed by media-asset id (a segment's `assetId`).
+   * Segment media bytes are device-local (IndexedDB), so only the browser paths (Player
+   * preview + in-browser export) can resolve them — the studio passes object URLs here; a
+   * renderer without a URL for a segment's asset falls back to the composition's main `src`,
+   * the same device-local constraint the main video already has for server renders.
+   */
+  segmentAssets: z.record(z.string()).optional(),
 });
 export type CaptionedVideoProps = z.infer<typeof CaptionedVideoProps>;
 export type CaptionedVideoInput = z.input<typeof CaptionedVideoProps>;

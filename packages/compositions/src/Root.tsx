@@ -2,6 +2,7 @@ import React from "react";
 import { Composition, type CalculateMetadataFunction } from "remotion";
 import { effectiveDurationMs, framesForDurationMs } from "@capseasy/shared";
 import { CaptionedVideo } from "./CaptionedVideo";
+import { compositionDurationMs, type RenderVideoSegment } from "./overlayMath";
 import { CaptionedVideoProps } from "./props";
 
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
@@ -16,9 +17,22 @@ export const calculateMetadata: CalculateMetadataFunction<CaptionedVideoProps> =
   const props = CaptionedVideoProps.parse(raw);
   const fps = Math.max(1, Math.round(props.outputFps || props.media.fps || 30));
   const lastWordEnd = props.doc.words.reduce((m, w) => Math.max(m, w.endMs), 0);
+  // Segmented projects (Phase 4): with >= 1 stored segment the composition duration IS the
+  // segment chain's duration — timeline durations (rate-aware) minus boundary transitions —
+  // via compositionDurationMs (the pinned shared formula, mirrored in overlayMath). Segments
+  // are read from the RAW props first so rate/transition fields survive a parse through an
+  // older schema; the parsed settings are the fallback.
+  const rawSegments = (raw as { settings?: { composition?: { videoSegments?: RenderVideoSegment[] } } } | null | undefined)?.settings?.composition
+    ?.videoSegments;
+  const segments = rawSegments && rawSegments.length >= 1 ? rawSegments : props.settings.composition.videoSegments;
   // clip projects author only their segment: media.durationMs is the SOURCE length, so the range
   // clamps it (when the media has no duration, the shifted doc's own last word already bounds it)
-  const durationMs = props.media.durationMs > 0 ? effectiveDurationMs(props.media.durationMs, props.settings.clipRange) : lastWordEnd + 500;
+  const durationMs =
+    segments.length >= 1
+      ? compositionDurationMs(segments)
+      : props.media.durationMs > 0
+        ? effectiveDurationMs(props.media.durationMs, props.settings.clipRange)
+        : lastWordEnd + 500;
   const base = {
     durationInFrames: framesForDurationMs(durationMs, fps),
     fps,
