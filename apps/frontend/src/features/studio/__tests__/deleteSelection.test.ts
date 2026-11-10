@@ -36,4 +36,29 @@ describe("resolveDeleteAction", () => {
     expect(resolveDeleteAction({ ...base, selectedWordIds: new Set(["a", "b"]) }))
       .toEqual({ kind: "words", ids: ["a", "b"] });
   });
+
+  it("prefers words and overlay over a video segment and a marker", () => {
+    const extra = { selectedVideoClipId: "seg1", canRippleDeleteVideoSegment: true, selectedMarkerId: "m1" };
+    expect(resolveDeleteAction({ ...base, ...extra, selectedWordIds: ["w1"], selectedOverlayId: "ov1", selectedId: "w9" }))
+      .toEqual({ kind: "words", ids: ["w1"] });
+    expect(resolveDeleteAction({ ...base, ...extra, selectedOverlayId: "ov1", selectedId: "w9" }))
+      .toEqual({ kind: "overlay", id: "ov1" });
+  });
+
+  it("ripple-deletes a selected video segment when it can ripple, ahead of marker and word", () => {
+    expect(resolveDeleteAction({ ...base, selectedVideoClipId: "seg1", canRippleDeleteVideoSegment: true, selectedMarkerId: "m1", selectedId: "w9" }))
+      .toEqual({ kind: "videoSegment", id: "seg1" });
+  });
+
+  it("does nothing for a selected video segment that cannot ripple (middle / only segment)", () => {
+    expect(resolveDeleteAction({ ...base, selectedVideoClipId: "seg1", canRippleDeleteVideoSegment: false, selectedMarkerId: "m1", selectedId: "w9" }))
+      .toBeNull();
+    expect(resolveDeleteAction({ ...base, selectedVideoClipId: "seg1", selectedId: "w9" })).toBeNull();
+  });
+
+  it("deletes a selected marker ahead of the single selected word", () => {
+    expect(resolveDeleteAction({ ...base, selectedMarkerId: "m1", selectedId: "w9" }))
+      .toEqual({ kind: "marker", id: "m1" });
+    expect(resolveDeleteAction({ ...base, selectedMarkerId: "m1" })).toEqual({ kind: "marker", id: "m1" });
+  });
 });

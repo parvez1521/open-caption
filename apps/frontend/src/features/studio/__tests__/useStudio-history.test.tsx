@@ -133,6 +133,35 @@ describe("useStudio unified history", () => {
     expect(result.current.lookId).toBe("soft_glow");
   });
 
+  it("editAll applies doc + settings as ONE undo step (Phase 4 atomic commit)", async () => {
+    const { result } = await renderStudio();
+    const brightness = result.current.settings.videoAdjust.brightness;
+    const nextSettings = { ...result.current.settings, videoAdjust: { ...result.current.settings.videoAdjust, brightness: 1.45 } };
+    act(() => {
+      result.current.editAll({
+        doc: setWordText(result.current.doc!, "w1", "atomic"),
+        settings: nextSettings,
+      });
+    });
+    expect(result.current.doc!.words[0]!.text).toBe("atomic");
+    expect(result.current.settings.videoAdjust.brightness).toBe(1.45);
+    expect(result.current.canUndo).toBe(true);
+    act(() => { result.current.undo(); });
+    expect(result.current.doc!.words[0]!.text).toBe("hello");
+    expect(result.current.settings.videoAdjust.brightness).toBe(brightness);
+    expect(result.current.canUndo).toBe(false);
+    act(() => { result.current.redo(); });
+    expect(result.current.doc!.words[0]!.text).toBe("atomic");
+    expect(result.current.settings.videoAdjust.brightness).toBe(1.45);
+  });
+
+  it("editAll with absent or identical values records no undo step", async () => {
+    const { result } = await renderStudio();
+    act(() => { result.current.editAll({}); });
+    act(() => { result.current.editAll({ doc: result.current.doc!, settings: result.current.settings }); });
+    expect(result.current.canUndo).toBe(false);
+  });
+
   it("mixed doc + settings actions unwind in reverse order", async () => {
     const { result } = await renderStudio();
     const brightness = result.current.settings.videoAdjust.brightness;

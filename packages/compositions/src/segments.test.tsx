@@ -133,6 +133,29 @@ describe("CaptionedVideo segment chain (render level, static markup)", () => {
     expect(videoTags(html)[0]).toContain('data-muted="true"');
   });
 
+  it("renders NO video layer at all when the video track is hidden (single-layer and segment chain), captions unaffected", () => {
+    const hiddenSingle = renderToStaticMarkup(
+      <CaptionedVideo src="video.mp4" doc={DOC} settings={ProjectSettingsSchema.parse({ composition: { tracks: { video: { visible: false } } } })} />,
+    );
+    expect(videoTags(hiddenSingle)).toHaveLength(0);
+    expect(hiddenSingle).toContain("data-caption-page");
+
+    const hiddenChain = renderToStaticMarkup(
+      <CaptionedVideo src="video.mp4" doc={DOC} settings={segmentedSettings({ tracks: { video: { visible: false } } })} />,
+    );
+    expect(videoTags(hiddenChain)).toHaveLength(0);
+    // the only Sequence left is the caption page's — both segment windows are gone
+    expect(sequenceWindows(hiddenChain)).toHaveLength(1);
+    expect(hiddenChain).toContain("data-caption-page");
+  });
+
+  it("video visible by default: the single-layer and chain renders are unchanged", () => {
+    const single = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={ProjectSettingsSchema.parse({})} />);
+    expect(videoTags(single)).toHaveLength(1);
+    const chain = renderToStaticMarkup(<CaptionedVideo src="video.mp4" settings={segmentedSettings()} />);
+    expect(videoTags(chain)).toHaveLength(2);
+  });
+
   it("renders caption pages when the captions track is visible, and none when it is hidden", () => {
     const visible = renderToStaticMarkup(<CaptionedVideo src="video.mp4" doc={DOC} settings={segmentedSettings()} />);
     expect(visible).toContain("data-caption-page");

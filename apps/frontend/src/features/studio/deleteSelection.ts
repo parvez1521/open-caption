@@ -5,7 +5,11 @@
  *
  *   1. the multi-word drag selection (caption list + timeline share it),
  *   2. the selected overlay (timeline block / Elements selection),
- *   3. the single selected word.
+ *   3. the selected video segment — ONLY when it can ripple-delete (an end segment of a
+ *      multi-segment partition; a middle or only segment has no Stage-B delete, so the key
+ *      stays inert rather than falling through to a selection the user isn't looking at),
+ *   4. the selected marker,
+ *   5. the single selected word.
  *
  * `blocked` covers the states where the key must stay inert: a modal or conflict dialog is open,
  * or a transcription session is live and the captions are locked.
@@ -13,6 +17,8 @@
 export type DeleteAction =
   | { kind: "words"; ids: string[] }
   | { kind: "overlay"; id: string }
+  | { kind: "videoSegment"; id: string }
+  | { kind: "marker"; id: string }
   | { kind: "word"; id: string };
 
 export function resolveDeleteAction(input: {
@@ -20,11 +26,18 @@ export function resolveDeleteAction(input: {
   selectedWordIds: Iterable<string>;
   selectedOverlayId: string | null;
   selectedId: string | null;
+  selectedVideoClipId?: string | null;
+  canRippleDeleteVideoSegment?: boolean;
+  selectedMarkerId?: string | null;
 }): DeleteAction | null {
   if (input.blocked) return null;
   const ids = [...input.selectedWordIds];
   if (ids.length > 0) return { kind: "words", ids };
   if (input.selectedOverlayId) return { kind: "overlay", id: input.selectedOverlayId };
+  if (input.selectedVideoClipId) {
+    return input.canRippleDeleteVideoSegment ? { kind: "videoSegment", id: input.selectedVideoClipId } : null;
+  }
+  if (input.selectedMarkerId) return { kind: "marker", id: input.selectedMarkerId };
   if (input.selectedId) return { kind: "word", id: input.selectedId };
   return null;
 }
