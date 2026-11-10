@@ -36,6 +36,16 @@ const sectionTitleCls = "font-sora text-[13px] font-bold uppercase tracking-wide
 const cardCls = "rounded-xl border border-sand-200 bg-white p-5";
 const footnoteCls = "mt-3 border-t border-sand-200 pt-3 text-[12px] leading-relaxed text-sand-600";
 
+/** A section's basis, one tap away (same pattern as Growth Studio's BasisLine). */
+function BasisNote({ text }: { text: string }) {
+  return (
+    <details className="mt-3 border-t border-sand-200 pt-3">
+      <summary className="cursor-pointer text-[12px] font-semibold text-sand-600">How this is worked out</summary>
+      <p className="mt-1 text-[12px] leading-relaxed text-sand-600">{text}</p>
+    </details>
+  );
+}
+
 const METRIC_LABELS: Record<MetricKey, string> = {
   views: "Views",
   reach: "Reach",
@@ -109,14 +119,13 @@ export default function AnalyticsPage() {
             Creator <em className="italic text-sand-600">Analytics</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Totals, engagement and trends across everything you have posted — worked out from
-            your Growth Studio numbers only, with the coverage of every figure stated next to it.
+            Totals, engagement and trends across everything you have posted. Growth Studio is
+            the weekly read and the plan; this page is the all-time view over the same posts.
           </p>
           <p className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            These are figures you entered or imported — not pulled from your accounts. No
-            platform is connected and nothing here is platform-verified, scraped or estimated.
-            A metric you did not enter stays missing: it is never counted as zero, and every
-            total below says how many posts it actually covers.
+            Figures you entered or imported — nothing is pulled from your accounts. A figure you
+            didn&apos;t enter stays missing: never counted as zero, and every total says how many
+            posts it covers.
           </p>
         </div>
 
@@ -140,9 +149,19 @@ export default function AnalyticsPage() {
             </p>
             <p className="mx-auto mt-2 max-w-lg text-center text-[14px] text-sand-800">
               Analytics starts from the posts in your Growth Studio store. Add posts by hand
-              there, or import a spreadsheet as a CSV with these columns:
+              there, or import a spreadsheet as a CSV.
             </p>
-            <ul className="mx-auto mt-5 flex max-w-lg flex-wrap justify-center gap-2" aria-label="Expected CSV columns">
+            <div className="mt-6 text-center">
+              <Link href="/growth" className={`${primaryBtn} inline-block`}>
+                Open Growth Studio to add or import posts
+              </Link>
+            </div>
+            <p className="mx-auto mt-6 max-w-lg text-center text-[13px] leading-relaxed text-sand-700">
+              Only <span className="font-mono">platform</span> and <span className="font-mono">posted_at</span> are
+              required. Leave a metric blank when you did not record it — blank is stored as
+              &ldquo;not entered&rdquo;, never as zero. The full column list:
+            </p>
+            <ul className="mx-auto mt-3 flex max-w-lg flex-wrap justify-center gap-2" aria-label="Expected CSV columns">
               {ANALYTICS_CSV_COLUMNS.map((col) => (
                 <li
                   key={col}
@@ -152,29 +171,20 @@ export default function AnalyticsPage() {
                 </li>
               ))}
             </ul>
-            <p className="mx-auto mt-5 max-w-lg text-center text-[13px] leading-relaxed text-sand-700">
-              Only <span className="font-mono">platform</span> and <span className="font-mono">posted_at</span> are
-              required. Leave a metric blank when you did not record it — blank is stored as
-              &ldquo;not entered&rdquo;, never as zero, and totals here will say how many posts
-              each figure covers. Growth Studio has the downloadable template and the importer.
-            </p>
-            <div className="mt-6 text-center">
-              <Link href="/growth" className={`${primaryBtn} inline-block`}>
-                Open Growth Studio to add or import posts
-              </Link>
-            </div>
           </div>
         ) : (
           <>
+            {/* The figures' source, stated once for the whole page (it used to repeat
+                verbatim under all four sections). */}
+            <p className="pt-8 text-[12px] text-sand-600">{analytics.sourceFootnote}</p>
             {/* -------------------------------------------------- Totals */}
             <section className="pt-10" aria-label="Totals">
               <h2 className={sectionTitleCls}>Totals — all posts</h2>
               <div className={`${cardCls} mt-4`}>
                 {analytics.totals.status === "insufficient" ? (
                   <p className="text-[13px] text-sand-700">
-                    Not enough data yet — your posts have no metric figures entered, so there is
-                    nothing honest to total. Add figures to a post in Growth Studio and its
-                    totals will appear here.
+                    Not enough data yet — add figures to a post in Growth Studio and its totals
+                    will appear here.
                   </p>
                 ) : (
                   <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -186,13 +196,17 @@ export default function AnalyticsPage() {
                           <p className="font-sora text-[20px] font-bold tabular-nums text-ink">
                             {m.total === null ? "—" : fmt(m.total)}
                           </p>
-                          <p className="mt-1 text-[11px] leading-relaxed text-sand-600">{m.coverageText}</p>
+                          {/* coverage is news only when it is partial (or empty) — at full
+                              coverage the line just repeats the total */}
+                          {m.missingCount > 0 || m.total === null ? (
+                            <p className="mt-1 text-[11px] leading-relaxed text-sand-600">{m.coverageText}</p>
+                          ) : null}
                         </li>
                       );
                     })}
                   </ul>
                 )}
-                <p className={footnoteCls}>{analytics.sourceFootnote}. Totals sum only figures that were entered.</p>
+                <BasisNote text={`${analytics.totals.basis}. Totals sum only figures that were entered.`} />
               </div>
             </section>
 
@@ -229,9 +243,7 @@ export default function AnalyticsPage() {
                     </ul>
                   </div>
                 )}
-                <p className={footnoteCls}>
-                  {analytics.engagementRate.basis}. {analytics.sourceFootnote}.
-                </p>
+                <BasisNote text={analytics.engagementRate.basis} />
               </div>
             </section>
 
@@ -242,8 +254,7 @@ export default function AnalyticsPage() {
                 {analytics.bestContent.status === "insufficient" ? (
                   <p className="text-[13px] text-sand-700">
                     Not enough data yet — no post has all four engagement figures entered, so
-                    there is no honest ranking yet. Posts missing a figure are excluded rather
-                    than ranked on a partial total.
+                    there is no honest ranking yet.
                   </p>
                 ) : (
                   <ol className="divide-y divide-sand-200">
@@ -273,9 +284,7 @@ export default function AnalyticsPage() {
                     ))}
                   </ol>
                 )}
-                <p className={footnoteCls}>
-                  {analytics.bestContent.basis}. {analytics.sourceFootnote}.
-                </p>
+                <BasisNote text={analytics.bestContent.basis} />
               </div>
             </section>
 
@@ -333,9 +342,9 @@ export default function AnalyticsPage() {
                   </ul>
                 )}
                 <p className={footnoteCls}>
-                  {analytics.weeklyTrend.basis}. Bar length is each week&apos;s views total
-                  relative to the biggest week shown. {analytics.sourceFootnote}.
+                  Bar length is each week&apos;s views total relative to the biggest week shown.
                 </p>
+                <BasisNote text={analytics.weeklyTrend.basis} />
               </div>
             </section>
           </>

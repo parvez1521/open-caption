@@ -56,6 +56,20 @@ const ghostBtn =
 const sectionTitleCls = "font-sora text-[13px] font-bold uppercase tracking-wider text-sand-600";
 const cardCls = "rounded-xl border border-sand-200 bg-white p-5";
 
+/**
+ * A section's basis ("how this figure was worked out") — kept on the page, one tap away,
+ * instead of a paragraph under every card. The data-source labels themselves (Manual/CSV,
+ * source mix) stay visible as before; this only moves the arithmetic.
+ */
+function BasisLine({ basis }: { basis: string }) {
+  return (
+    <details className="mt-1">
+      <summary className="cursor-pointer text-[12px] font-semibold text-sand-600">How this is worked out</summary>
+      <p className="mt-1 text-[12px] leading-relaxed text-sand-600">{basis}</p>
+    </details>
+  );
+}
+
 const METRIC_LABELS: Record<MetricKey, string> = {
   views: "Views",
   reach: "Reach",
@@ -99,6 +113,7 @@ export default function GrowthPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [posts, setPosts] = useState<GrowthPost[]>([]);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [growthReady, setGrowthReady] = useState(true);
   const [competitors, setCompetitors] = useState<CompetitorProfile[]>([]);
   const [analysisItems, setAnalysisItems] = useState<ContentItem[]>([]);
@@ -434,10 +449,8 @@ export default function GrowthPage() {
             next week built from those numbers only.
           </p>
           <p className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            Growth Studio runs on numbers you enter or import yourself — every figure below is
-            labelled Manual or CSV. Nothing is scraped, nothing is synced from a platform, and
-            nothing is estimated. Connected accounts do not exist yet, so no figure here comes
-            from one.
+            Every figure here is yours — typed in (Manual) or imported (CSV). Nothing is scraped,
+            synced or estimated.
           </p>
         </div>
 
@@ -584,7 +597,11 @@ export default function GrowthPage() {
                                 {METRIC_LABELS[key]}: {post[key] === null ? "—" : post[key]}
                               </span>
                             ))}
-                            <span className="font-semibold text-ink">Engagement: {engagementOf(post)}</span>
+                            <span className="font-semibold text-ink">
+                              {post.likes !== null && post.comments !== null && post.shares !== null && post.saves !== null
+                                ? `Engagement: ${engagementOf(post)}`
+                                : `Engagement so far: ${engagementOf(post)} (some figures not entered)`}
+                            </span>
                           </p>
                         </div>
                         <span className="rounded-full border border-sand-300 bg-sand-100 px-2.5 py-1 font-sora text-[11px] font-semibold text-sand-800">
@@ -592,7 +609,14 @@ export default function GrowthPage() {
                         </span>
                         <div className="flex gap-2">
                           <button type="button" className={ghostBtn} disabled={!growthReady} onClick={() => startEditPost(post)}>Edit</button>
-                          <button type="button" className={ghostBtn} disabled={!growthReady} onClick={() => void removePost(post)}>Delete</button>
+                          {confirmDeleteId === post.id ? (
+                            <>
+                              <button type="button" className={ghostBtn} onClick={() => { setConfirmDeleteId(null); void removePost(post); }}>Confirm delete</button>
+                              <button type="button" className={ghostBtn} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                            </>
+                          ) : (
+                            <button type="button" className={ghostBtn} disabled={!growthReady} onClick={() => setConfirmDeleteId(post.id)}>Delete</button>
+                          )}
                         </div>
                       </div>
                     </li>
@@ -652,7 +676,7 @@ export default function GrowthPage() {
                   disabled={!growthReady || csvBusy || csvRows.length === 0}
                   onClick={() => void importCsv()}
                 >
-                  {csvBusy ? "Importing…" : `Import ${csvRows.length} posts`}
+                  {csvBusy ? "Importing…" : `Import ${csvRows.length} post${csvRows.length === 1 ? "" : "s"}`}
                 </button>
               </div>
             </section>
@@ -718,7 +742,14 @@ export default function GrowthPage() {
                           </div>
                           <div className="flex gap-2">
                             <button type="button" className={ghostBtn} disabled={!growthReady} onClick={() => startEditCompetitor(profile)}>Edit</button>
-                            <button type="button" className={ghostBtn} disabled={!growthReady} onClick={() => void removeCompetitor(profile)}>Delete</button>
+                            {confirmDeleteId === profile.id ? (
+                              <>
+                                <button type="button" className={ghostBtn} onClick={() => { setConfirmDeleteId(null); void removeCompetitor(profile); }}>Confirm delete</button>
+                                <button type="button" className={ghostBtn} onClick={() => setConfirmDeleteId(null)}>Cancel</button>
+                              </>
+                            ) : (
+                              <button type="button" className={ghostBtn} disabled={!growthReady} onClick={() => setConfirmDeleteId(profile.id)}>Delete</button>
+                            )}
                           </div>
                         </div>
                         {breakdowns.length ? (
@@ -748,8 +779,7 @@ export default function GrowthPage() {
                 <p className="font-sora text-[13px] font-semibold text-ink">Competitor hook library</p>
                 {competitorAnalyses.length === 0 ? (
                   <p className="mt-2 text-[13px] text-sand-700">
-                    Not enough data yet — analyse a competitor video in the Reel Analyzer and save
-                    it, and its hook will be collected here.
+                    Not enough data yet — save a competitor breakdown from the Reel Analyzer and its hook lands here.
                   </p>
                 ) : (
                   <ul className="mt-3 space-y-2">
@@ -772,15 +802,14 @@ export default function GrowthPage() {
               <div className="mt-4 grid gap-4">
                 <div className={cardCls}>
                   <p className="font-sora text-[13px] font-semibold text-ink">Overview — last 7 days</p>
-                  <p className="mt-1 text-[12px] text-sand-600">{report.overview.basis}</p>
+                  <BasisLine basis={report.overview.basis} />
                   <p className="mt-1 text-[12px] text-sand-600">
                     Source mix: {report.overview.sourceMix.manual} Manual, {report.overview.sourceMix.csv} CSV
                     {" · "}Prior 7 days: {report.overview.priorWindowPosts} posts
                   </p>
                   {report.overview.status === "insufficient" ? (
                     <p className="mt-3 text-[13px] text-sand-700">
-                      Not enough data yet — add a post from the last 7 days and its numbers will
-                      appear here.
+                      Not enough data yet — add a post from the last 7 days.
                     </p>
                   ) : (
                     <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -801,12 +830,11 @@ export default function GrowthPage() {
                 </div>
 
                 <div className={cardCls}>
-                  <p className="font-sora text-[13px] font-semibold text-ink">Best posting hours</p>
-                  <p className="mt-1 text-[12px] text-sand-600">{report.bestHours.basis}</p>
+                  <p className="font-sora text-[13px] font-semibold text-ink">Best posting hours — all your posts</p>
+                  <BasisLine basis={report.bestHours.basis} />
                   {report.bestHours.status === "insufficient" ? (
                     <p className="mt-3 text-[13px] text-sand-700">
-                      Not enough data yet — add at least 3 posts with times spread across the day,
-                      with at least 2 posts in the same hour, and your best hours will appear here.
+                      Not enough data yet — add at least 3 posts, with times spread across the day.
                     </p>
                   ) : (
                     <ul className="mt-3 space-y-1 text-[13px] text-sand-800">
@@ -822,11 +850,10 @@ export default function GrowthPage() {
 
                 <div className={cardCls}>
                   <p className="font-sora text-[13px] font-semibold text-ink">Top and bottom posts — last 7 days</p>
-                  <p className="mt-1 text-[12px] text-sand-600">{report.topBottom.basis}</p>
+                  <BasisLine basis={report.topBottom.basis} />
                   {report.topBottom.status === "insufficient" ? (
                     <p className="mt-3 text-[13px] text-sand-700">
-                      Not enough data yet — posts from the last 7 days will be ranked here by
-                      engagement.
+                      Not enough data yet — posts from the last 7 days are ranked here.
                     </p>
                   ) : (
                     <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -856,11 +883,10 @@ export default function GrowthPage() {
 
                 <div className={cardCls}>
                   <p className="font-sora text-[13px] font-semibold text-ink">Trend — last 7 days vs prior 7 days</p>
-                  <p className="mt-1 text-[12px] text-sand-600">{report.trend.basis}</p>
+                  <BasisLine basis={report.trend.basis} />
                   {report.trend.status === "insufficient" ? (
                     <p className="mt-3 text-[13px] text-sand-700">
-                      Not enough data yet — a trend needs at least 1 post in each of the last two
-                      7-day windows.
+                      Not enough data yet — a trend needs a post in each of the last two weeks.
                     </p>
                   ) : (
                     <ul className="mt-3 space-y-1 text-[13px] text-sand-800">
@@ -891,11 +917,10 @@ export default function GrowthPage() {
 
                 <div className={cardCls}>
                   <p className="font-sora text-[13px] font-semibold text-ink">Your niche — competitor breakdowns</p>
-                  <p className="mt-1 text-[12px] text-sand-600">{report.niche.basis}</p>
+                  <BasisLine basis={report.niche.basis} />
                   {report.niche.status === "insufficient" ? (
                     <p className="mt-3 text-[13px] text-sand-700">
-                      Not enough data yet — analyse a competitor video in the Reel Analyzer and
-                      save it, and patterns across those breakdowns will appear here.
+                      Not enough data yet — save a competitor breakdown from the Reel Analyzer.
                     </p>
                   ) : (
                     <div className="mt-3 space-y-3 text-[13px] text-sand-800">
@@ -968,7 +993,7 @@ export default function GrowthPage() {
                             {plan.recommendations.map((rec, i) => (
                               <li key={i} className="text-[13px] text-sand-800">
                                 {rec.text}
-                                <span className="block text-[12px] text-sand-600">{rec.basis}</span>
+                                <BasisLine basis={rec.basis} />
                               </li>
                             ))}
                           </ul>

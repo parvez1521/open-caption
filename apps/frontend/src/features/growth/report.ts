@@ -180,7 +180,7 @@ export function computeTopBottom(posts: ReadonlyArray<GrowthPost>, now: number):
   const bottom = sorted.slice(-3).filter((p) => !topIds.has(p.id));
   return {
     status: "ok",
-    basis: `Based on ${sorted.length} posts from the last 7 days, ranked by engagement (likes + comments + shares + saves)`,
+    basis: `Based on ${sorted.length} posts from the last 7 days, ranked by engagement (likes + comments + shares + saves, counting the figures entered — a post with figures missing counts only what was entered)`,
     top,
     bottom,
   };
