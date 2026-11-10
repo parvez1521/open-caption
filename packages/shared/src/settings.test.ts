@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CompositionSettingsSchema, DEFAULT_COMPOSITION_TRACKS, DEFAULT_TRACK_STATE, EMPTY_COMPOSITION_SETTINGS,
   OverlayItemSchema, ProjectSettingsSchema, defaultSettings,
   exportDimensions, exportDimensionsForAspect, exportMemoryErrorMessage, framesForDurationMs,
   type ExportResolution,
@@ -203,6 +204,75 @@ describe("exportMemoryErrorMessage (OOM mapping)", () => {
     expect(exportMemoryErrorMessage(new Error("network timeout"))).toBeNull();
     expect(exportMemoryErrorMessage(null)).toBeNull();
     expect(exportMemoryErrorMessage(undefined)).toBeNull();
+  });
+});
+
+describe("composition (Stage-B composition slice in settings)", () => {
+  const allDefaultTracks = {
+    video: { locked: false, visible: true, muted: false },
+    captions: { locked: false, visible: true, muted: false },
+    text: { locked: false, visible: true, muted: false },
+    graphics: { locked: false, visible: true, muted: false },
+  };
+
+  it("parse({}) yields the empty composition: no segments, no markers, all tracks neutral", () => {
+    const s = ProjectSettingsSchema.parse({});
+    expect(s.composition).toEqual({ version: 1, videoSegments: [], markers: [], tracks: allDefaultTracks });
+    expect(s.composition).toEqual(EMPTY_COMPOSITION_SETTINGS);
+    expect(defaultSettings().composition).toEqual(EMPTY_COMPOSITION_SETTINGS);
+    expect(CompositionSettingsSchema.parse({})).toEqual(EMPTY_COMPOSITION_SETTINGS);
+    expect(DEFAULT_TRACK_STATE).toEqual({ locked: false, visible: true, muted: false });
+    expect(DEFAULT_COMPOSITION_TRACKS).toEqual(allDefaultTracks);
+  });
+
+  it("legacy settings JSON without a composition key parses with the empty composition", () => {
+    const legacy = { maxWordsPerCard: 5, language: "en", clipRange: { startMs: 32_000, endMs: 65_000 }, overlays: [] };
+    const s = ProjectSettingsSchema.parse(legacy);
+    expect(s.composition).toEqual(EMPTY_COMPOSITION_SETTINGS);
+    expect(s.maxWordsPerCard).toBe(5);
+    expect(s.clipRange).toEqual({ startMs: 32_000, endMs: 65_000 });
+  });
+
+  it("fills partial composition input with defaults (marker label, per-track state)", () => {
+    const s = ProjectSettingsSchema.parse({
+      composition: { markers: [{ id: "m1", atMs: 1500 }], tracks: { video: { locked: true } } },
+    });
+    expect(s.composition.version).toBe(1);
+    expect(s.composition.videoSegments).toEqual([]);
+    expect(s.composition.markers).toEqual([{ id: "m1", atMs: 1500, label: "" }]);
+    expect(s.composition.tracks.video).toEqual({ locked: true, visible: true, muted: false });
+    expect(s.composition.tracks.captions).toEqual({ locked: false, visible: true, muted: false });
+    expect(s.composition.tracks.graphics).toEqual({ locked: false, visible: true, muted: false });
+  });
+
+  it("round-trips stored segments, markers and non-default track state", () => {
+    const composition = {
+      version: 1 as const,
+      videoSegments: [
+        { id: "seg-1", sourceInMs: 10_000, sourceOutMs: 25_000 },
+        { id: "seg-2", sourceInMs: 25_000, sourceOutMs: 40_000 },
+      ],
+      markers: [{ id: "mk-1", atMs: 5000, label: "Hook" }],
+      tracks: {
+        video: { locked: false, visible: true, muted: true },
+        captions: { locked: false, visible: true, muted: false },
+        text: { locked: true, visible: true, muted: false },
+        graphics: { locked: false, visible: false, muted: false },
+      },
+    };
+    expect(ProjectSettingsSchema.parse({ composition }).composition).toEqual(composition);
+  });
+
+  it("rejects a segment whose out point is at or before its in point", () => {
+    expect(() => ProjectSettingsSchema.parse({ composition: { videoSegments: [{ id: "s1", sourceInMs: 5000, sourceOutMs: 5000 }] } })).toThrow();
+    expect(() => ProjectSettingsSchema.parse({ composition: { videoSegments: [{ id: "s1", sourceInMs: 6000, sourceOutMs: 5000 }] } })).toThrow();
+    expect(() => CompositionSettingsSchema.parse({ videoSegments: [{ id: "s1", sourceInMs: -1, sourceOutMs: 5000 }] })).toThrow();
+  });
+
+  it("rejects an invalid marker (negative time, over-long label) and a wrong version", () => {
+    expect(() => ProjectSettingsSchema.parse({ composition: { markers: [{ id: "m1", atMs: -1 }] } })).toThrow();
+    expect(() => ProjectSettingsSchema.parse({ composition: { markers: [{ id: "m1", atMs: 0, label: "x".repeat(81) }] } })).toThrow();
+    expect(() => ProjectSettingsSchema.parse({ composition: { version: 2 } })).toThrow();
   });
 });
 
