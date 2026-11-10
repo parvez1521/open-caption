@@ -20,6 +20,8 @@ import {
   type ChatTurnResult,
 } from "../chat";
 import { EMPTY_VOICE, type BrandProfile } from "../brandProfile";
+import { analyzeReel } from "@/features/analyzer/analyze";
+import { buildAnalysisBody } from "@/features/analyzer/breakdownItem";
 import type { ModelRunner } from "../service";
 import type { ContentItem } from "../library";
 
@@ -383,5 +385,48 @@ describe("client bridge", () => {
 
     const plain: ContentItem = { ...base, kind: "hook", title: "Just a title", body: {} };
     expect(contextTextForItem(plain)).toBe("Just a title");
+  });
+
+  it("contextTextForItem renders a saved analysis as its breakdown text", () => {
+    const base = { id: "i1", source: "manual", folder: null, projectId: null, createdAt: "", updatedAt: "" };
+    const breakdown = analyzeReel({
+      words: [
+        { text: "How", startMs: 0, endMs: 400 },
+        { text: "to", startMs: 500, endMs: 900 },
+        { text: "follow", startMs: 5000, endMs: 5400 },
+      ],
+      durationMs: 10_000,
+      sceneCutsMs: [4000],
+    });
+    const body = buildAnalysisBody({
+      subject: { type: "competitor", name: "Rival Creates" },
+      sourceProjectId: null,
+      videoTitle: "Their reel",
+      durationMs: 10_000,
+      breakdown,
+    });
+    const item: ContentItem = {
+      ...base,
+      kind: "analysis",
+      title: "Analysis — Their reel",
+      body: body as unknown as Record<string, unknown>,
+    };
+    const text = contextTextForItem(item);
+    expect(text).toContain("Video: Their reel");
+    expect(text).toContain("Subject: Competitor: Rival Creates");
+    expect(text).toContain("Hook: How to");
+    expect(text).toContain("Call to action: follow (0:05)");
+    expect(text).toContain("words/min");
+  });
+
+  it("contextTextForItem falls back to the title for a malformed analysis body", () => {
+    const base = { id: "i1", source: "manual", folder: null, projectId: null, createdAt: "", updatedAt: "" };
+    const malformed: ContentItem = {
+      ...base,
+      kind: "analysis",
+      title: "Analysis — Broken",
+      body: { version: 99, breakdown: null },
+    };
+    expect(contextTextForItem(malformed)).toBe("Analysis — Broken");
   });
 });
