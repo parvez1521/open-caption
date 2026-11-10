@@ -249,3 +249,78 @@ describe("applyTrimCuts — one step, everything consistent", () => {
     expect(b.doc.words.map((w) => [w.startMs, w.endMs])).toEqual(a.doc.words.map((w) => [w.startMs, w.endMs]));
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* Phase 9 (W5): A3 apply retimes placed audio clips + bleeps          */
+/* ------------------------------------------------------------------ */
+
+import type { AudioClip } from "@capseasy/shared";
+import { buildMixPlan } from "../audio/mixPlan";
+
+const trimAClip = (id: string, trackId: string, startMs: number, sourceInMs: number, sourceOutMs: number): AudioClip => ({
+  id,
+  assetId: `asset-${id}`,
+  assetName: `${id}.mp3`,
+  trackId,
+  startMs,
+  sourceInMs,
+  sourceOutMs,
+  volume: 1,
+  fadeInMs: 0,
+  fadeOutMs: 0,
+  processors: {
+    eq: { lowDb: 0, midDb: 0, highDb: 0 },
+    cleanup: { enabled: false, highPassHz: 80, gateDb: -50 },
+    reverb: 0,
+  },
+});
+
+describe("applyTrimCuts — placed audio clips follow the cuts (Phase 9, W5)", () => {
+  const FILLER = { startMs: 1000, endMs: 1300 };
+  const PAUSE = { startMs: 3000, endMs: 4000 };
+
+  it("a music clip spanning a cut splits and shifts, a voice clip after the cuts shifts whole, bleeps follow — and the mix plan still builds on the retimed positions", () => {
+    const base = applyComp();
+    const comp = {
+      ...base,
+      audioTracks: [
+        { id: "tr-music", name: "Music", role: "music" as const, volume: 1, muted: false, locked: false, ducking: { enabled: false, amountDb: 12, thresholdDb: -42 } },
+        { id: "tr-voice", name: "Voice", role: "voice" as const, volume: 1, muted: false, locked: false, ducking: { enabled: false, amountDb: 12, thresholdDb: -42 } },
+      ],
+      // music [2000, 8000): the pause cut [3000, 4000) lands wholly inside it
+      audioClips: [
+        trimAClip("music", "tr-music", 2000, 10_000, 16_000),
+        trimAClip("voice", "tr-voice", 5000, 0, 2000),
+      ],
+      audioBleeps: [
+        { id: "b-filler", startMs: 1050, endMs: 1250, toneHz: 1000, level: 0.5, wordText: "um" },
+        { id: "b-late", startMs: 5500, endMs: 6000, toneHz: 1000, level: 0.5, wordText: "x" },
+      ],
+    };
+    const { comp: nextComp } = applyTrimCuts(comp, applyDoc, [FILLER, PAUSE]);
+    expect(nextComp.durationMs).toBe(8700);
+
+    // music split by the pause cut, then BOTH pieces shifted by the filler cut:
+    // head [1700, 2700) over source [10000, 11000); tail [2700, 6700) over source [12000, 16000)
+    expect(nextComp.audioClips).toHaveLength(3);
+    const [head, tail, voice] = nextComp.audioClips as [AudioClip, AudioClip, AudioClip];
+    expect(head).toMatchObject({ id: "music", startMs: 1700, sourceInMs: 10_000, sourceOutMs: 11_000 });
+    expect(tail.id).not.toBe("music");
+    expect(tail).toMatchObject({ startMs: 2700, sourceInMs: 12_000, sourceOutMs: 16_000 });
+    expect(voice).toMatchObject({ id: "voice", startMs: 3700, sourceInMs: 0, sourceOutMs: 2000 });
+
+    // the bleep on the filler word is gone with it; the later bleep shifted by both cuts
+    expect(nextComp.audioBleeps.map((b) => [b.id, b.startMs, b.endMs])).toEqual([["b-late", 4200, 4700]]);
+
+    // the mix plan builds on the retimed composition, at the retimed positions
+    const plan = buildMixPlan(nextComp, nextComp.durationMs);
+    const clipItems = plan.items.filter((i) => i.kind === "clip");
+    expect(clipItems.map((i) => [i.key, i.timelineStartMs, i.sourceStartMs, i.sourceDurationMs])).toEqual([
+      ["clip:music", 1700, 10_000, 1000],
+      [`clip:${tail.id}`, 2700, 12_000, 4000],
+      ["clip:voice", 3700, 0, 2000],
+    ]);
+    expect(plan.bleeps.map((b) => [b.id, b.startMs, b.endMs])).toEqual([["b-late", 4200, 4700]]);
+    expect(() => projectComposition(nextComp, applySettings)).not.toThrow();
+  });
+});

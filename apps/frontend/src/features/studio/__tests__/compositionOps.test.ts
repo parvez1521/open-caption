@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   CaptionDocSchema,
   ProjectSettingsSchema,
+  type AudioBleep,
+  type AudioClip,
   type CaptionDoc,
   type Page,
   type ProjectSettings,
@@ -1461,5 +1463,201 @@ describe("Run 3: keyframe/effect remapping in the existing ops", () => {
     setSegmentPlaybackRate(comp, "seg-2", 2);
     duplicateVideoSegment(comp, "seg-2");
     expect(comp).toEqual(before);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Phase 9 (W5): audio retiming through applyContentEffect /           */
+/* applyContentShift — the A3 deferral, closed                         */
+/* ------------------------------------------------------------------ */
+
+const aClip = (
+  id: string,
+  startMs: number,
+  sourceInMs: number,
+  sourceOutMs: number,
+  extra: Partial<AudioClip> = {},
+): AudioClip => ({
+  id,
+  assetId: `asset-${id}`,
+  assetName: `${id}.mp3`,
+  trackId: "tr-music",
+  startMs,
+  sourceInMs,
+  sourceOutMs,
+  volume: 1,
+  fadeInMs: 0,
+  fadeOutMs: 0,
+  processors: {
+    eq: { lowDb: 1, midDb: 0, highDb: 0 },
+    cleanup: { enabled: false, highPassHz: 80, gateDb: -50 },
+    reverb: 0.2,
+  },
+  ...extra,
+});
+
+const bleep = (id: string, startMs: number, endMs: number): AudioBleep => ({
+  id, startMs, endMs, toneHz: 1000, level: 0.5, wordText: "x",
+});
+
+const compWithAudio = (audioClips: AudioClip[], audioBleeps: AudioBleep[] = []): EditorComposition => ({
+  ...segmentedComp(),
+  audioClips,
+  audioBleeps,
+});
+
+describe("Phase 9 (W5): audio retiming — rangeRemove geometry", () => {
+  // removed range [15000, 30000), duration 15000
+  const effect = { type: "rangeRemove", startMs: 15_000, durationMs: 15_000 } as const;
+
+  it("before is untouched (same object), inside drops, after shifts by −duration (source unchanged)", () => {
+    const before = aClip("before", 1000, 0, 4000); // timeline [1000, 5000)
+    const inside = aClip("inside", 16_000, 5000, 9000); // [16000, 20000)
+    const after = aClip("after", 32_000, 0, 4000); // [32000, 36000)
+    const comp = compWithAudio([before, inside, after]);
+    const snap = snapshot(comp);
+    const out = applyContentEffect(comp, effect);
+    expect(out.audioClips).toHaveLength(2);
+    expect(out.audioClips[0]).toBe(before);
+    expect(out.audioClips[1]).toMatchObject({ id: "after", startMs: 17_000, sourceInMs: 0, sourceOutMs: 4000 });
+    expectUnmutated(comp, snap);
+  });
+
+  it("spanning the range START keeps the head: end clamps to s, fadeOut 0, fadeIn clamps to the new span", () => {
+    const clip = aClip("span-start", 10_000, 0, 10_000, { fadeInMs: 8000 }); // [10000, 20000)
+    const out = applyContentEffect(compWithAudio([clip]), effect);
+    expect(out.audioClips).toHaveLength(1);
+    expect(out.audioClips[0]).toMatchObject({
+      id: "span-start", startMs: 10_000, sourceInMs: 0, sourceOutMs: 5000, fadeInMs: 5000, fadeOutMs: 0,
+    });
+  });
+
+  it("spanning the range END keeps the tail: start clamps to s, sourceIn advances by the removed head, fadeIn 0, fadeOut clamps", () => {
+    const clip = aClip("span-end", 25_000, 2000, 12_000, { fadeOutMs: 9000 }); // [25000, 35000)
+    const out = applyContentEffect(compWithAudio([clip]), effect);
+    expect(out.audioClips).toHaveLength(1);
+    expect(out.audioClips[0]).toMatchObject({
+      id: "span-end", startMs: 15_000, sourceInMs: 7000, sourceOutMs: 12_000, fadeInMs: 0, fadeOutMs: 5000,
+    });
+  });
+
+  it("spanning the WHOLE range splits into head + tail: head keeps the id, tail gets a fresh id, processors deep-copied to both, cut fades 0", () => {
+    const clip = aClip("span-whole", 10_000, 0, 30_000, { fadeInMs: 300, fadeOutMs: 400 }); // [10000, 40000)
+    const out = applyContentEffect(compWithAudio([clip]), effect);
+    expect(out.audioClips).toHaveLength(2);
+    const [head, tail] = out.audioClips as [AudioClip, AudioClip];
+    expect(head).toMatchObject({ id: "span-whole", startMs: 10_000, sourceInMs: 0, sourceOutMs: 5000, fadeInMs: 300, fadeOutMs: 0 });
+    expect(tail.id).not.toBe("span-whole");
+    expect(tail.id.length).toBeGreaterThan(0);
+    expect(tail).toMatchObject({ startMs: 15_000, sourceInMs: 20_000, sourceOutMs: 30_000, fadeInMs: 0, fadeOutMs: 400 });
+    expect(head.processors).toEqual(clip.processors);
+    expect(tail.processors).toEqual(clip.processors);
+    expect(head.processors).not.toBe(clip.processors);
+    expect(tail.processors).not.toBe(clip.processors);
+    expect(tail.processors).not.toBe(head.processors);
+  });
+
+  it("a surviving piece shorter than MIN_AUDIO_MS (100) is dropped, not kept as a sliver", () => {
+    // head would be 50 ms: start 14950, ends inside the range
+    const sliver = aClip("sliver", 14_950, 0, 1000);
+    const out = applyContentEffect(compWithAudio([sliver]), effect);
+    expect(out.audioClips).toEqual([]);
+    // whole-range span whose tail is 50 ms: only the head survives, keeping the id
+    const clip = aClip("span-whole-sliver-tail", 10_000, 0, 20_050); // [10000, 30050): head 5000, tail 50
+    const out2 = applyContentEffect(compWithAudio([clip]), effect);
+    expect(out2.audioClips).toHaveLength(1);
+    expect(out2.audioClips[0]).toMatchObject({ id: "span-whole-sliver-tail", startMs: 10_000, sourceInMs: 0, sourceOutMs: 5000 });
+  });
+
+  it("bleeps follow as windows: inside drops, spanning keeps its tail at s, after shifts", () => {
+    const comp = compWithAudio([], [
+      bleep("b-before", 1000, 2000),
+      bleep("b-inside", 16_000, 17_000),
+      bleep("b-span-end", 29_000, 31_000),
+      bleep("b-after", 32_000, 33_000),
+    ]);
+    const out = applyContentEffect(comp, effect);
+    expect(out.audioBleeps.map((b) => [b.id, b.startMs, b.endMs])).toEqual([
+      ["b-before", 1000, 2000],
+      ["b-span-end", 15_000, 16_000],
+      ["b-after", 17_000, 18_000],
+    ]);
+  });
+
+  it("returns the SAME reference when no marker/overlay/audio/bleep would change", () => {
+    const comp: EditorComposition = {
+      ...plainComp(),
+      audioClips: [aClip("early", 0, 0, 2000)],
+      audioBleeps: [bleep("b-early", 0, 500)],
+    };
+    expect(comp.markers).toEqual([]);
+    expect(comp.overlayClips).toEqual([]);
+    expect(applyContentEffect(comp, { type: "rangeRemove", startMs: 20_000, durationMs: 5000 })).toBe(comp);
+  });
+});
+
+describe("Phase 9 (W5): audio retiming — headShift", () => {
+  it("is a rangeRemove of [0, delta) for audio clips and bleeps", () => {
+    const inside = aClip("inside", 0, 0, 2000); // [0, 2000) — fully in the cut head
+    const spanning = aClip("spanning", 3000, 1000, 11_000); // [3000, 13000)
+    const after = aClip("after", 6000, 0, 3000);
+    const comp = compWithAudio([inside, spanning, after], [
+      bleep("b-inside", 1000, 2000),
+      bleep("b-spanning", 4000, 7000),
+      bleep("b-after", 8000, 9000),
+    ]);
+    const out = applyContentShift(comp, 5000);
+    expect(out.audioClips.map((c) => [c.id, c.startMs, c.sourceInMs, c.sourceOutMs])).toEqual([
+      ["spanning", 0, 3000, 11_000], // tail: start 0, sourceIn advanced by 5000 − 3000
+      ["after", 1000, 0, 3000],
+    ]);
+    expect(out.audioBleeps.map((b) => [b.id, b.startMs, b.endMs])).toEqual([
+      ["b-spanning", 0, 2000],
+      ["b-after", 3000, 4000],
+    ]);
+    // the headShift DocEffect form delegates to the same path
+    const viaEffect = applyContentEffect(comp, { type: "headShift", deltaMs: 5000 });
+    expect(viaEffect.audioClips).toEqual(out.audioClips);
+    expect(viaEffect.audioBleeps).toEqual(out.audioBleeps);
+  });
+});
+
+describe("Phase 9 (W5): audio retiming — rangeInsert / rangeShift", () => {
+  it("clips starting at/after the point shift whole; a spanning clip is left whole", () => {
+    const spanning = aClip("spanning", 5000, 0, 10_000); // [5000, 15000) spans 10000
+    const after = aClip("after", 12_000, 100, 3100);
+    const comp = compWithAudio([spanning, after]);
+    const inserted = applyContentEffect(comp, { type: "rangeInsert", atMs: 10_000, durationMs: 5000 });
+    expect(inserted.audioClips[0]).toBe(spanning);
+    expect(inserted.audioClips[1]).toMatchObject({ id: "after", startMs: 17_000, sourceInMs: 100, sourceOutMs: 3100 });
+    const shiftedBack = applyContentEffect(comp, { type: "rangeShift", fromMs: 10_000, deltaMs: -3000 });
+    expect(shiftedBack.audioClips[0]).toBe(spanning);
+    expect(shiftedBack.audioClips[1]).toMatchObject({ id: "after", startMs: 9000, sourceInMs: 100, sourceOutMs: 3100 });
+  });
+});
+
+describe("Phase 9 (W5): audio retiming — rangeScale never stretches audio", () => {
+  // scale [15000, 30000) from 15000 to 7500 (k = 0.5, delta −7500)
+  const effect = { type: "rangeScale", startMs: 15_000, oldDurationMs: 15_000, newDurationMs: 7500 } as const;
+
+  it("start-before clips are left whole; start-inside clips move whole by the remapped start; start-after clips shift by the difference — source span and fades never change", () => {
+    const beforeStart = aClip("before-start", 10_000, 0, 10_000, { fadeInMs: 200 }); // overlaps the range
+    const insideStart = aClip("inside-start", 20_000, 500, 4500, { fadeInMs: 200, fadeOutMs: 300 });
+    const afterStart = aClip("after-start", 32_000, 0, 4000);
+    const comp = compWithAudio([beforeStart, insideStart, afterStart], [bleep("b-inside", 16_000, 17_000), bleep("b-after", 31_000, 32_000)]);
+    const out = applyContentEffect(comp, effect);
+    expect(out.audioClips[0]).toBe(beforeStart); // left whole, by reference
+    expect(out.audioClips[1]).toMatchObject({
+      id: "inside-start",
+      startMs: 17_500, // 15000 + (20000 − 15000) × 0.5 — the marker rule on its start
+      sourceInMs: 500, sourceOutMs: 4500, // duration 4000 unchanged: NOT stretched
+      fadeInMs: 200, fadeOutMs: 300,
+    });
+    expect(out.audioClips[2]).toMatchObject({ id: "after-start", startMs: 24_500, sourceInMs: 0, sourceOutMs: 4000 });
+    // bleeps DO rescale with the speech they mute: both edges remap
+    expect(out.audioBleeps.map((b) => [b.id, b.startMs, b.endMs])).toEqual([
+      ["b-inside", 15_500, 16_000],
+      ["b-after", 23_500, 24_500],
+    ]);
   });
 });

@@ -372,7 +372,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     let comp = nextComp;
     let nextDoc: CaptionDoc | undefined;
     if (effects.length > 0) {
-      // The composition's outside content (markers/overlays) and the caption doc's
+      // The composition's outside content (markers/overlays, placed audio
+      // clips and bleeps) and the caption doc's
       // words both follow the SAME effect — headShift (range moved), rangeRemove /
       // rangeInsert (ripple delete / still insert), rangeShift / rangeScale (speed
       // changes) — all landing in the one editAll call below (one undo step).
@@ -393,7 +394,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   };
 
   /* ---------- Phase 5 (A3): trim fillers & pauses — the checked ranges are cut
-   * from the video partition AND followed by captions/markers/overlays through
+   * from the video partition AND followed by captions/markers/overlays/audio through
    * the rangeRemove effects, all in commitComposition's single editAll step. */
   const applyTrim = (ranges: TrimRange[]) => {
     if (!editorComp || ranges.length === 0) return;

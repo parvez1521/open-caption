@@ -366,16 +366,18 @@ export function removeRangesFromVideo(comp: EditorComposition, ranges: readonly 
 }
 
 /**
- * The full apply, as ONE pure step: video partition cut + markers/overlays
- * and caption words following the SAME rangeRemove effects (descending), so
- * everything lands consistently. StudioPage performs exactly these steps
- * through `commitComposition` (video comp + the effects array), which makes
- * the whole apply ONE undo step (`editAll`). Empty / all-refused input
- * returns the inputs unchanged (same references).
+ * The full apply, as ONE pure step: video partition cut + markers/overlays,
+ * placed audio clips, bleeps and caption words following the SAME
+ * rangeRemove effects (descending), so everything lands consistently.
+ * StudioPage performs exactly these steps through `commitComposition`
+ * (video comp + the effects array), which makes the whole apply ONE undo
+ * step (`editAll`). Empty / all-refused input returns the inputs unchanged
+ * (same references).
  *
- * Note: placed audio clips (Audio Studio) are NOT retimed by this path —
- * the rangeRemove content effect covers captions, markers and overlays, as
- * specified for A3; audio-clip retiming is a declared deferral.
+ * Audio (Phase 9, W5): placed audio clips ARE retimed by this path — the
+ * rangeRemove content effect remaps them per the audio retiming rules in
+ * compositionOps.ts (window/source semantics, split on a whole-range span,
+ * never stretched), and bleeps follow as timeline windows.
  */
 export function applyTrimCuts(
   comp: EditorComposition,
