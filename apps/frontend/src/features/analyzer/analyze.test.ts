@@ -170,6 +170,21 @@ describe("analyzeReel — beat boundaries", () => {
     expect(withoutCut.beats).toHaveLength(1);
   });
 
+  it("scene figures report 'not measured' (never a fake zero) when scene detection has not run", () => {
+    const out = analyzeReel({ words: fixtureWords, durationMs: 45_000, sceneCutsMs: null });
+    expect(out.pacing.cutCount).toBeNull();
+    expect(out.pacing.cutsPerMin).toBeNull();
+    expect(out.pacing.avgShotMs).toBeNull();
+    for (const id of ["scene-cuts", "cuts-per-minute", "average-shot-length"]) {
+      const m = out.metrics.find((x) => x.id === id)!;
+      expect(m.value).toBeNull();
+      expect(m.display).toBe("Not measured");
+    }
+    // an empty array still means measured-with-no-cuts, and reports a real zero
+    const measured = analyzeReel({ words: fixtureWords, durationMs: 45_000, sceneCutsMs: [] });
+    expect(measured.metrics.find((x) => x.id === "scene-cuts")!.display).toBe("0");
+  });
+
   it("a gap of exactly 700 ms is a pause and splits beats", () => {
     const out = analyzeReel({
       words: [

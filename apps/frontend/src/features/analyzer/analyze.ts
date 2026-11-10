@@ -30,8 +30,10 @@ export interface ReelAnalysisInput {
   /** the visible transcript words, in any order — a sorted copy is taken, the input is never mutated */
   words: readonly AnalyzerWord[];
   durationMs: number;
-  /** scene-cut times in media ms (e.g. from the clipper's scene detection) */
-  sceneCutsMs: readonly number[];
+  /** scene-cut times in media ms (e.g. from the clipper's scene detection);
+   *  null = scene detection has not run — cut-based figures report "not measured",
+   *  never a fake zero (an empty array means measured, and there were no cuts) */
+  sceneCutsMs: readonly number[] | null;
 }
 
 /** The hook window: the first 3 seconds of the reel. */
@@ -110,6 +112,21 @@ const normaliseToken = (text: string): string =>
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
+/**
+ * The hook's question/number signals for a given hook TEXT — the exact computation
+ * analyzeReel performs, exported so the breakdown editor can recompute the badges
+ * live while the user edits the hook text (they used to stay frozen at whatever the
+ * original transcript produced, silently contradicting the edited text).
+ */
+export function hookSignalsForText(text: string): { hasQuestion: boolean; hasNumber: boolean } {
+  const tokens = text.split(/\s+/).filter((t) => t.length > 0);
+  const first = tokens.length ? normaliseToken(tokens[0]!) : "";
+  return {
+    hasQuestion: text.includes("?") || QUESTION_WORDS.has(first),
+    hasNumber: tokens.some((t) => /\d/.test(t)),
+  };
+}
+
 export type BeatLabel = "Hook" | "Story" | "Call to action" | "Close";
 
 export interface ReelBeat {
@@ -169,9 +186,9 @@ export interface ReelBreakdown {
     durationMs: number;
     totalWords: number;
     wordsPerMin: number;
-    cutCount: number;
-    cutsPerMin: number;
-    avgShotMs: number;
+    cutCount: number | null;
+    cutsPerMin: number | null;
+    avgShotMs: number | null;
     pauseCount: number;
     longestPauseMs: number;
     method: string;
@@ -223,14 +240,13 @@ export function analyzeReel(input: ReelAnalysisInput): ReelBreakdown {
     .map((w) => ({ text: w.text, startMs: w.startMs, endMs: w.endMs }))
     .sort((a, b) => a.startMs - b.startMs || a.endMs - b.endMs);
   const durationMs = Number.isFinite(input.durationMs) && input.durationMs > 0 ? input.durationMs : 0;
+  const sceneMeasured = input.sceneCutsMs != null;
   const sceneCutsMs = (input.sceneCutsMs ?? []).filter((n) => Number.isFinite(n));
 
   // --- hook: words starting inside the first HOOK_WINDOW_MS -----------------
   const hookWords = words.filter((w) => w.startMs < HOOK_WINDOW_MS);
   const hookText = hookWords.map((w) => w.text).join(" ");
-  const hookFirstToken = hookWords.length ? normaliseToken(hookWords[0]!.text) : "";
-  const hasQuestion = hookText.includes("?") || QUESTION_WORDS.has(hookFirstToken);
-  const hasNumber = hookWords.some((w) => /\d/.test(w.text));
+  const { hasQuestion, hasNumber } = hookSignalsForText(hookText);
   const hookSignals: string[] = [];
   if (hasQuestion) hookSignals.push("question");
   if (hasNumber) hookSignals.push("number");
@@ -293,11 +309,11 @@ export function analyzeReel(input: ReelAnalysisInput): ReelBreakdown {
     }
   }
   const totalWords = words.length;
-  const cutCount = sceneCutsMs.length;
+  const cutCount = sceneMeasured ? sceneCutsMs.length : null;
   const durationMin = durationMs / 60_000;
   const wordsPerMin = durationMs > 0 ? round1(totalWords / durationMin) : 0;
-  const cutsPerMin = durationMs > 0 ? round1(cutCount / durationMin) : 0;
-  const avgShotMs = durationMs > 0 ? Math.round(durationMs / (cutCount + 1)) : 0;
+  const cutsPerMin = cutCount !== null && durationMs > 0 ? round1(cutCount / durationMin) : cutCount !== null ? 0 : null;
+  const avgShotMs = cutCount !== null ? (durationMs > 0 ? Math.round(durationMs / (cutCount + 1)) : 0) : null;
 
   // --- metrics: the same computed values, re-listed with their methods --------
   const metrics: BreakdownMetric[] = [
@@ -326,22 +342,31 @@ export function analyzeReel(input: ReelAnalysisInput): ReelBreakdown {
       id: "scene-cuts",
       label: "Scene cuts",
       value: cutCount,
-      display: `${cutCount}`,
-      method: "Count of scene-cut times supplied from frame-difference scene detection.",
+      display: cutCount === null ? "Not measured" : `${cutCount}`,
+      method:
+        cutCount === null
+          ? "Scene detection has not run for this video yet, so there is no count — this is not a zero."
+          : "Count of scene-cut times supplied from frame-difference scene detection.",
     },
     {
       id: "cuts-per-minute",
       label: "Cuts per minute",
       value: cutsPerMin,
-      display: `${cutsPerMin.toFixed(1)}`,
-      method: "Scene cuts divided by the duration in minutes, to 1 decimal (0 when the duration is 0).",
+      display: cutsPerMin === null ? "Not measured" : `${cutsPerMin.toFixed(1)}`,
+      method:
+        cutsPerMin === null
+          ? "Scene detection has not run for this video yet, so there is no rate — this is not a zero."
+          : "Scene cuts divided by the duration in minutes, to 1 decimal (0 when the duration is 0).",
     },
     {
       id: "average-shot-length",
       label: "Average shot length",
       value: avgShotMs,
-      display: `${avgShotMs} ms`,
-      method: "Duration divided by (scene cuts + 1), rounded to the nearest millisecond.",
+      display: avgShotMs === null ? "Not measured" : `${avgShotMs} ms`,
+      method:
+        avgShotMs === null
+          ? "Needs the scene-cut count, which has not been measured for this video yet."
+          : "Duration divided by (scene cuts + 1), rounded to the nearest millisecond.",
     },
     {
       id: "hook-word-count",

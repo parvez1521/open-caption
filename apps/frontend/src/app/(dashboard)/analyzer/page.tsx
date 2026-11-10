@@ -10,7 +10,7 @@ import { projectsService } from "@/services/projects";
 import { studioService, type StudioData } from "@/services/studio";
 import StudioShell from "@/components/studio/StudioShell";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
-import { analyzeReel, type ReelBeat } from "@/features/analyzer/analyze";
+import { analyzeReel, hookSignalsForText, type ReelBeat } from "@/features/analyzer/analyze";
 import {
   buildAnalysisBody,
   fmtMs,
@@ -40,6 +40,24 @@ import {
  * "analysis" item — which also feeds the hook library below and can be
  * attached as context in Creator Studio chat.
  */
+
+/** The four structural beat labels — the only values a beat label can hold. */
+const BEAT_LABELS: ReelBeat["label"][] = ["Hook", "Story", "Call to action", "Close"];
+
+/**
+ * A section's method text, one tap away instead of printed under every section:
+ * the honesty stays on the page, the findings get the surface.
+ */
+function MethodNote({ text }: { text?: string }) {
+  if (!text) return null;
+  return (
+    <details className="mt-3">
+      <summary className="cursor-pointer text-[12px] font-semibold text-sand-600">How this is measured</summary>
+      <p className="mt-1.5 text-[12px] leading-relaxed text-sand-600">{text}</p>
+    </details>
+  );
+}
+
 export default function AnalyzerPage() {
   const router = useRouter();
   const [signedIn, setSignedIn] = useState(false);
@@ -151,7 +169,7 @@ export default function AnalyzerPage() {
     const breakdown = analyzeReel({
       words: visibleWords,
       durationMs,
-      sceneCutsMs: scene.state === "ready" ? scene.cuts.map((c) => c.atMs) : [],
+      sceneCutsMs: scene.state === "ready" ? scene.cuts.map((c) => c.atMs) : null,
     });
     setBody((prev) => {
       if (prev && prev.sourceProjectId === projectId && prev.editedFields.length > 0) return prev;
@@ -400,27 +418,24 @@ export default function AnalyzerPage() {
                   className={`${inputClass} mt-3`}
                 />
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {body.breakdown.hook.hasQuestion ? (
+                  {hookSignalsForText(body.breakdown.hook.text).hasQuestion ? (
                     <span className="rounded-md bg-sand-200 px-2 py-0.5 font-sora text-[11px] font-bold uppercase tracking-wide text-sand-700">Question opening</span>
                   ) : null}
-                  {body.breakdown.hook.hasNumber ? (
+                  {hookSignalsForText(body.breakdown.hook.text).hasNumber ? (
                     <span className="rounded-md bg-sand-200 px-2 py-0.5 font-sora text-[11px] font-bold uppercase tracking-wide text-sand-700">Number in hook</span>
                   ) : null}
-                  {!body.breakdown.hook.hasQuestion && !body.breakdown.hook.hasNumber ? (
+                  {!hookSignalsForText(body.breakdown.hook.text).hasQuestion && !hookSignalsForText(body.breakdown.hook.text).hasNumber ? (
                     <span className="text-[13px] text-sand-700">No question or number signal in the hook.</span>
                   ) : null}
                   {body.editedFields.includes("hook.text") ? (
-                    <span className="text-[12px] text-sand-600">(measured on the original transcript)</span>
+                    <span className="text-[12px] text-sand-600">(signals follow the edited text)</span>
                   ) : null}
                 </div>
-                <p className={methodClass}>{body.breakdown.hook.method}</p>
+                <MethodNote text={body.breakdown.hook.method} />
               </section>
 
-              {/* On-screen text */}
-              <section className={cardClass} aria-label="On-screen text">
-                <h3 className={labelClass}>On-screen text</h3>
-                <p className="mt-2 text-[14px] leading-relaxed text-sand-800">{body.breakdown.onScreenText.note}</p>
-              </section>
+              {/* On-screen text is not a measurement — one honest line, not a card. */}
+              <p className="px-1 text-[12px] leading-relaxed text-sand-600">{body.breakdown.onScreenText.note}</p>
 
               {/* Beat map */}
               <section className={cardClass} aria-label="Beat map">
@@ -434,12 +449,16 @@ export default function AnalyzerPage() {
                         <li key={beat.index} className="rounded-lg border border-sand-200 bg-sand-50 px-4 py-3">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-sora text-[13px] font-bold tabular-nums text-ink">{fmtMs(beat.startMs)}–{fmtMs(beat.endMs)}</span>
-                            <input
+                            <select
                               value={beat.label}
                               onChange={(e) => editBeat(i, { label: e.target.value as ReelBeat["label"] }, `beats.${i}.label`)}
                               aria-label={`Beat ${i + 1} label`}
                               className="w-36 rounded-md border border-sand-300 bg-white px-2 py-1 font-sora text-[13px] font-semibold text-ink outline-none"
-                            />
+                            >
+                              {BEAT_LABELS.map((l) => (
+                                <option key={l} value={l}>{l}</option>
+                              ))}
+                            </select>
                             {editedMark(`beats.${i}.label`)}
                             {editedMark(`beats.${i}.text`)}
                             <span className="ml-auto text-[12px] tabular-nums text-sand-600">{beat.wordCount} words</span>
@@ -454,7 +473,7 @@ export default function AnalyzerPage() {
                         </li>
                       ))}
                     </ul>
-                    <p className={methodClass}>{body.breakdown.beats[0]?.method}</p>
+                    <MethodNote text={body.breakdown.beats[0]?.method} />
                   </>
                 )}
               </section>
@@ -474,7 +493,7 @@ export default function AnalyzerPage() {
                 ) : (
                   <p className="mt-2 text-[14px] text-sand-800">No call-to-action phrase found in the transcript.</p>
                 )}
-                <p className={methodClass}>{body.breakdown.cta.method}</p>
+                <MethodNote text={body.breakdown.cta.method} />
               </section>
 
               {/* Pacing & metrics */}
@@ -485,11 +504,20 @@ export default function AnalyzerPage() {
                     <div key={metric.id} className="flex flex-wrap items-baseline gap-x-6 gap-y-0.5 py-2.5">
                       <dt className="w-44 shrink-0 font-sora text-[13px] font-semibold text-ink">{metric.label}</dt>
                       <dd className="font-sora text-[14px] font-bold tabular-nums text-ink">{metric.display}</dd>
-                      <dd className="min-w-0 flex-1 text-[12px] leading-relaxed text-sand-600">{metric.method}</dd>
                     </div>
                   ))}
                 </dl>
-                <p className={methodClass}>{body.breakdown.pacing.method}</p>
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-[12px] font-semibold text-sand-600">How each figure is measured</summary>
+                  <div className="mt-2 space-y-1.5">
+                    {body.breakdown.metrics.map((metric) => (
+                      <p key={metric.id} className="text-[12px] leading-relaxed text-sand-600">
+                        <span className="font-semibold text-sand-800">{metric.label}:</span> {metric.method}
+                      </p>
+                    ))}
+                    <p className="text-[12px] leading-relaxed text-sand-600">{body.breakdown.pacing.method}</p>
+                  </div>
+                </details>
               </section>
 
               {/* Notes */}
@@ -555,7 +583,7 @@ export default function AnalyzerPage() {
             <p role="status" className="mt-4 text-[14px] text-sand-700">Loading your saved analyses…</p>
           ) : !libraryReady ? (
             <p role="status" className="mt-4 rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-              Your content library is not set up on the server yet — a database update is pending. You can still analyse; saving is unavailable until then.
+              Saving is unavailable right now — see the note by the Save button above.
             </p>
           ) : parsedSaved.length === 0 ? (
             <p className="mt-4 text-[14px] text-sand-800">No saved analyses yet. Analyse a project above and save the breakdown — it will be listed here.</p>

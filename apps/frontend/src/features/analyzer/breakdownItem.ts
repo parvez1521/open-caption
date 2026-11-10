@@ -96,7 +96,8 @@ export function readAnalysisBody(body: unknown): AnalysisBody | null {
   if (!Array.isArray(breakdown.beats)) return null;
   if (!Array.isArray(breakdown.metrics)) return null;
   if (!isRecord(breakdown.pacing)) return null;
-  if (typeof breakdown.pacing.wordsPerMin !== "number" || typeof breakdown.pacing.cutsPerMin !== "number") return null;
+  if (typeof breakdown.pacing.wordsPerMin !== "number") return null;
+  if (!(typeof breakdown.pacing.cutsPerMin === "number" || breakdown.pacing.cutsPerMin === null)) return null;
   if (!isRecord(breakdown.cta) || !Array.isArray(breakdown.cta.found)) return null;
 
   const editedFields = Array.isArray(body.editedFields)
@@ -143,7 +144,9 @@ export function analysisContextText(body: AnalysisBody): string {
       : "Call to action: none found",
   );
   lines.push(
-    `Pacing: ${breakdown.pacing.wordsPerMin.toFixed(1)} words/min, ${breakdown.pacing.cutsPerMin.toFixed(1)} cuts/min`,
+    `Pacing: ${breakdown.pacing.wordsPerMin.toFixed(1)} words/min, ${
+      breakdown.pacing.cutsPerMin === null ? "cuts/min not measured" : `${breakdown.pacing.cutsPerMin.toFixed(1)} cuts/min`
+    }`,
   );
   if (body.notes.trim()) lines.push(`Notes: ${body.notes.trim()}`);
   return lines.join("\n");
