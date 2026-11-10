@@ -1,5 +1,5 @@
 import { rateLimit } from "@/lib/api/rateLimit";
-import { CreateVideoBody, VIDEO_MIME_TYPES, newId, planFor } from "@capseasy/shared";
+import { CreateVideoBody, VIDEO_MIME_TYPES, newId, effectivePlanId, planFor } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { extFromMime, signedPut } from "@/lib/api/storage";
@@ -17,8 +17,8 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   if (!(VIDEO_MIME_TYPES as readonly string[]).includes(body.mime)) {
     throw new ApiFailure("UNSUPPORTED_MEDIA", "Unsupported video type. Use MP4, MOV, WebM or MKV.");
   }
-  const { data: profile } = await user.db.from("profiles").select("plan").eq("id", user.id).maybeSingle();
-  const limits = planFor(profile?.plan);
+  const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
+  const limits = planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at));
   // on-device videos never reach our storage: the cap only protects the browser's own storage quota
   const cap = body.local ? limits.maxLocalBytes : limits.maxUploadBytes;
   if (body.size > cap) {

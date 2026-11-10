@@ -21,7 +21,7 @@ export const PRODUCTION_URL = "https://open-caption-ten.vercel.app";
 export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).replace(/\/$/, "");
 
 /** Routes search engines may index: public marketing, auth and legal only. */
-export const INDEXABLE_PATHS = ["/", "/login", ...LEGAL_PAGES.map((p) => p.href as string), "/credits"] as const;
+export const INDEXABLE_PATHS = ["/", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string), "/credits"] as const;
 
 /** App routes behind sign-in: never indexed (metadata noindex + robots disallow). */
 export const APP_PATHS = [

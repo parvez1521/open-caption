@@ -612,6 +612,7 @@ const FOOTER_COLUMNS = [
     title: "PRODUCT",
     links: [
       { label: "How it works", href: "/#how" },
+      { label: "Pricing", href: "/pricing" },
       { label: "Clipper", href: "/clipper" },
       { label: "Looks gallery", href: "/#looks" },
       { label: "Precision controls", href: "/#control" },

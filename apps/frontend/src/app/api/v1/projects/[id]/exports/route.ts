@@ -1,6 +1,6 @@
 import { rateLimit } from "@/lib/api/rateLimit";
 import {
-  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, EXPORT_EXTENSIONS, ProjectSettingsSchema, TEXT_EXPORT_KINDS, TEXT_EXPORT_MIME, planFor, translationModelFor, type CaptionDoc, type RenderJob, type TextExportKind,
+  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, EXPORT_EXTENSIONS, ProjectSettingsSchema, TEXT_EXPORT_KINDS, TEXT_EXPORT_MIME, effectivePlanId, planFor, translationModelFor, type CaptionDoc, type RenderJob, type TextExportKind,
 } from "@capseasy/shared";
 import { exportDimsWithCanvas } from "@/features/studio/exportOptions";
 import { canvasOf } from "@/features/studio/canvas";
@@ -114,8 +114,8 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const fps = body.fps ?? settings.exportSettings.fps;
   const format = body.kind as RenderJob["format"];
 
-  const { data: profile } = await user.db.from("profiles").select("plan").eq("id", user.id).maybeSingle();
-  const retentionDays = planFor(profile?.plan).exportRetentionDays;
+  const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
+  const retentionDays = planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at)).exportRetentionDays;
 
   const { error: exErr } = await admin.from("exports").insert({
     id: exportId, project_id: projectId, owner_id: user.id, kind: body.kind, status_v2: "queued", status: "queued",

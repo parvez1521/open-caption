@@ -33,7 +33,9 @@ describe("securityHeaders", () => {
     expect(directive("default-src")).toBe("'self'");
     expect(directive("object-src")).toBe("'none'");
     expect(directive("frame-ancestors")).toBe("'none'");
-    expect(directive("frame-src")).toBe("'none'");
+    // frame-src names exactly the Cashfree checkout hosts (billing) — no
+    // wildcard, no 'self', nothing else may be framed.
+    expect(directive("frame-src")).toBe("https://sdk.cashfree.com https://payments.cashfree.com");
     expect(directive("base-uri")).toBe("'self'");
     expect(directive("form-action")).toBe("'self'");
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
@@ -152,6 +153,23 @@ export default function SettingsPage() {
               </div>
             </form>
           )}
+        </section>
+
+        {/* Plan & billing */}
+        <section className="pt-10">
+          <h2 className="font-sora text-[15px] font-bold text-ink">Plan &amp; billing</h2>
+          <div className="mt-4 flex flex-wrap items-center gap-4 rounded-xl border border-sand-200 bg-sand-100 p-6">
+            <p className="max-w-[52ch] flex-1 text-[14px] leading-relaxed text-sand-800">
+              Your current plan, its limits, and your payment history live on the billing page. Paid plans are 30-day
+              passes — no auto-renewal.
+            </p>
+            <Link
+              href="/settings/billing"
+              className="rounded-full border border-sand-300 px-6 py-2.5 font-sora text-[12px] font-semibold text-sand-800 transition-colors hover:border-ink hover:text-ink"
+            >
+              Open billing
+            </Link>
+          </div>
         </section>
 
         {/* Security */}

@@ -30,6 +30,9 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     // React Refresh / HMR in `next dev` evaluates code; never in production.
     ...(isDev ? ["'unsafe-eval'"] : []),
     "https://va.vercel-scripts.com",
+    // Cashfree checkout: the JS SDK that opens the hosted payment modal
+    // (billing, Phase B). Only the SDK origin — no other third-party scripts.
+    "https://sdk.cashfree.com",
   ];
   const directives: Array<[string, string[]]> = [
     ["default-src", ["'self'"]],
@@ -64,6 +67,11 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         "https://vitals.vercel-insights.com",
         "https://*.ingest.sentry.io",
         "https://*.ingest.us.sentry.io",
+        // Cashfree: the checkout SDK talks to the PG API (orders are created
+        // server-side; these are the SDK's own session/telemetry calls).
+        "https://api.cashfree.com",
+        "https://sandbox-api.cashfree.com",
+        "https://sdk.cashfree.com",
       ],
     ],
     ["worker-src", ["'self'", "blob:"]],
@@ -72,7 +80,9 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],
     ["form-action", ["'self'"]],
-    ["frame-src", ["'none'"]],
+    // The only framed third-party content on the site: Cashfree's hosted
+    // checkout modal (billing). Everything else stays unframable.
+    ["frame-src", ["https://sdk.cashfree.com", "https://payments.cashfree.com"]],
     ["frame-ancestors", ["'none'"]],
   ];
   return directives.map(([name, values]) => `${name} ${values.join(" ")}`).join("; ");

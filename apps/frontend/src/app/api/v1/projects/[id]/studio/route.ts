@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/api/auth";
 import { notFound, ok, route, type Ctx } from "@/lib/api/http";
 import { HOUR, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
-import { planFor } from "@capseasy/shared";
+import { effectivePlanId, planFor } from "@capseasy/shared";
 
 /**
  * Everything the editor needs in one RLS-scoped call: project, playable video URL, caption document and the latest
@@ -29,7 +29,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
       : user.db.from("caption_documents").select("revision, doc").eq("project_id", id).maybeSingle(),
     // only v2 jobs (legacy pipeline jobs have no `kind` and will never run again)
     user.db.from("jobs").select("id, kind, status, progress, stage, message, error_code, error_message, attempts, created_at").eq("project_id", id).not("kind", "is", null).order("created_at", { ascending: false }).limit(6),
-    user.db.from("profiles").select("plan").eq("id", user.id).maybeSingle(),
+    user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle(),
   ]);
   if (!project) throw notFound("Project");
 
@@ -88,7 +88,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
     job: active ?? latestFailed ?? null,
     // video uploaded but nothing is running and there are no captions: offer "Generate captions"
     canTranscribe: Boolean(video && video.status !== "uploading" && !doc && !active),
-    limits: { maxBytes: planFor(profile?.plan).maxLocalBytes, maxDurationSec: planFor(profile?.plan).maxDurationSec },
+    limits: { maxBytes: planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at)).maxLocalBytes, maxDurationSec: planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at)).maxDurationSec },
     cloudAvailable: false,
   });
 });

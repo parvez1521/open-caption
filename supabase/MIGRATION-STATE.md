@@ -52,6 +52,7 @@ guest users after 7 days away) is separate: the Vercel cron
 | `APPLY-CAPTION-TRANSLATIONS.sql` | `20261110040000_caption_translations.sql` | **Applied + verified live** 2026-11-10 (table, RLS, owner policy, unique index checked after apply). |
 | `APPLY-GROWTH-STUDIO.sql` | `20261110050000_growth_studio.sql` | **Applied + verified live** 2026-11-10 (both tables, RLS + owner policies checked after apply). |
 | `APPLY-PROJECT-FOLDERS-TAGS.sql` | `20261110060000_project_folders_tags.sql` | **Applied + verified live** 2026-11-10 ~22:52 IST (folder + tags columns, both indexes; RLS unchanged) — corrected in Phase 9 W1: this row still said PENDING after the apply. The honest-degradation path (`org_ready:false`, pending-message writes) remains in code for any not-yet-migrated environment. |
+| `APPLY-BILLING.sql` | `20261111000000_billing.sql` | **NOT applied yet** (Completion programme Phase B, 2026-11-11). Adds `profiles.plan_expires_at` + the `payments` table (owner-read RLS, service-role writes only). Until it is applied: checkout answers `configured:false, dbPending:true`, billing/me returns an empty payment list, and plan enforcement reads Free limits for everyone (today's behaviour). Owner step: paste STEP 1 → run, STEP 2 → run, STEP 3 → run in the SQL Editor (project `nwqmmvqobjxguvfxeafs`). |
 
 ## Guest → account claim flow (code-level state, Phase 8 re-verification)
 

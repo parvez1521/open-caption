@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { planFor } from "@capseasy/shared";
+import { effectivePlanId, planFor } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import {
@@ -75,10 +75,10 @@ export const POST = route(async (req: Request) => {
   const wantsOrg = body.folder !== undefined || body.tags !== undefined;
 
   const [{ data: profile }, { count }] = await Promise.all([
-    user.db.from("profiles").select("plan").eq("id", user.id).maybeSingle(),
+    user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle(),
     user.db.from("projects").select("id", { count: "exact", head: true }).is("deleted_at", null),
   ]);
-  const limits = planFor(profile?.plan);
+  const limits = planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at));
   if ((count ?? 0) >= limits.maxProjects) {
     throw new ApiFailure("LIMIT_EXCEEDED", `Your plan allows ${limits.maxProjects} projects. Delete an old one to create a new one.`);
   }
