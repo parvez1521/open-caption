@@ -17,6 +17,7 @@ import { GET as adsTxtGET } from "../../app/ads.txt/route";
 import { metadata as loginMetadata } from "../../app/login/layout";
 import { metadata as startMetadata } from "../../app/start/layout";
 import { metadata as dashboardMetadata } from "../../app/(dashboard)/dashboard/layout";
+import { metadata as motionMetadata } from "../../app/(dashboard)/motion/layout";
 import { metadata as privacyMetadata } from "../../app/(legal)/privacy/page";
 import { metadata as termsMetadata } from "../../app/(legal)/terms/page";
 
@@ -53,6 +54,17 @@ describe("sitemap", () => {
     expect(urls.some((u) => u.includes("/api/"))).toBe(false);
   });
 
+  it("does not list /motion or any /motion/<template> detail URL (Wave-4 audit decision)", () => {
+    // Motion Studio is an app route behind sign-in, like every other dashboard
+    // section: sitemap.ts lists exactly INDEXABLE_PATHS, the customize pages are
+    // per-template views of that one noindex route, so neither /motion nor the
+    // 30 template URLs belong in the sitemap. Crawl protection for them is the
+    // noindex metadata (motion/layout.tsx) + the robots disallow below.
+    expect(APP_PATHS).toContain("/motion");
+    expect(urls).not.toContain(`${SITE_URL}/motion`);
+    expect(urls.some((u) => u.includes("/motion"))).toBe(false);
+  });
+
   it("gives the homepage top priority", () => {
     expect(entries[0]).toMatchObject({ url: `${SITE_URL}/`, priority: 1 });
   });
@@ -72,6 +84,12 @@ describe("robots", () => {
     for (const p of ["/api/", "/dashboard", "/projects/", "/captions", "/editor", "/exports", "/brand", "/settings", "/start", "/pair", "/forgot-password", "/reset-password"]) {
       expect(disallow).toContain(p);
     }
+    // every app path in APP_PATHS is disallowed too (the /projects entry is the
+    // trailing-slash form, which covers the same route tree)
+    for (const p of APP_PATHS) {
+      expect(disallow.some((d) => d === p || d === `${p}/`), `robots should disallow ${p}`).toBe(true);
+    }
+    expect(disallow).toContain("/motion");
     expect(disallow).not.toContain("/login");
     expect(disallow).not.toContain("/");
   });
@@ -163,6 +181,13 @@ describe("per-route metadata (shipped modules)", () => {
     expect(startMetadata.robots).toEqual({ index: false, follow: false });
     expect(dashboardMetadata.robots).toEqual({ index: false, follow: false });
     expect(dashboardMetadata.title).toBe("Dashboard");
+  });
+
+  it("/motion (Motion Studio) is noindex with its own title, like its dashboard siblings", () => {
+    expect(motionMetadata.robots).toEqual({ index: false, follow: false });
+    expect(motionMetadata.title).toBe("Motion Studio");
+    expect(motionMetadata.alternates).toBeUndefined();
+    expect(motionMetadata.description).toContain("motion graphics");
   });
 
   it("legal pages carry unique titles and canonicals", () => {

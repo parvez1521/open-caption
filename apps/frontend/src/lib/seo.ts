@@ -23,13 +23,24 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).repl
 /** Routes search engines may index: public marketing, auth and legal only. */
 export const INDEXABLE_PATHS = ["/", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string), "/credits"] as const;
 
-/** App routes behind sign-in: never indexed (metadata noindex + robots disallow). */
+/** App routes behind sign-in: never indexed (metadata noindex + robots disallow).
+ *  Covers every (dashboard) route in the shell nav, plus the auth-flow helpers —
+ *  Motion Studio (/motion) joined with the Motion Studio surfaces, and the Phase
+ *  6–8 sections (growth/planner/analytics/library/analyzer/prompter) were added
+ *  in the Wave-4 audit: they were live routes missing from this list. */
 export const APP_PATHS = [
   "/dashboard",
   "/projects",
   "/captions",
   "/editor",
+  "/motion",
+  "/growth",
+  "/planner",
+  "/analytics",
+  "/library",
   "/clipper",
+  "/analyzer",
+  "/prompter",
   "/exports",
   "/brand",
   "/create",
@@ -112,6 +123,7 @@ export function softwareApplicationJsonLd() {
     featureList: [
       "Automatic word-timed captions",
       "20+ animated caption styles",
+      "Motion Studio animated graphics (subscribe pills, follow cards, counters, titles)",
       "English and Hindi / Hinglish speech recognition",
       "MP4 export with burned-in captions",
       "SRT subtitle export",
