@@ -40,6 +40,9 @@ export default function LoginPage() {
   const router = useRouter();
 
   const [mode, setMode] = useState<Mode>("google");
+  // /start sends people here with ?mode=signup when a guest session could not be started:
+  // the page must then speak as sign-up, not sign-in (the param used to be ignored entirely)
+  const [signupIntent, setSignupIntent] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -62,6 +65,7 @@ export default function LoginPage() {
     const q = new URLSearchParams(window.location.search);
     // a page that sent them here (e.g. a project link) is where they continue after signing in
     setAfterSignIn(q.get("redirect"));
+    if (q.get("mode") === "signup") setSignupIntent(true);
     // arriving with an email means "I already have an email account": open the email form, filled in
     const e = q.get("email");
     if (e) {
@@ -173,8 +177,14 @@ export default function LoginPage() {
   if (mode === "google") {
     return (
       <AuthShell
-        title={`Sign in to ${BRAND_NAME}`}
-        subtitle={<p className="text-[13.5px] text-sand-600">New here? Continue with Google and your free account is ready in one tap.</p>}
+        title={signupIntent ? "Create your free account" : `Sign in to ${BRAND_NAME}`}
+        subtitle={
+          <p className="text-[13.5px] text-sand-600">
+            {signupIntent
+              ? "One tap with Google — free, no card. You can also make captions as a guest first and add an account when you export."
+              : "New here? Continue with Google and your free account is ready in one tap."}
+          </p>
+        }
       >
         <div className="space-y-4">
           {error && <ErrorNote>{error}</ErrorNote>}

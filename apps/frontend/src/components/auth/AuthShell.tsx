@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { Logo } from "@/components/brand/Logo";
 
 /* ————— Shared form primitives matching modern UI ————— */
 
@@ -156,7 +156,7 @@ export function friendlyAuthError(raw: string): string {
 
 export const validEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 
-/* ————— Split Auth Shell: Left Photo Hero + Right Clean Form ————— */
+/* ————— Split Auth Shell: Left brand panel + Right Clean Form ————— */
 
 export default function AuthShell({
   title,
@@ -169,38 +169,44 @@ export default function AuthShell({
 }) {
   return (
     <div className="min-h-screen w-full bg-major flex flex-col lg:flex-row font-sans selection:bg-emerald-accent selection:text-[#141412]">
-      {/* Left visual hero section */}
-      <div className="relative w-full lg:w-1/2 min-h-[300px] lg:min-h-screen bg-neutral-950 overflow-hidden select-none">
-        <Image
-          src="/images/auth-hero.jpg"
-          alt="Creator wearing a futuristic visor against a city skyline at dusk"
-          fill
-          priority
-          sizes="(max-width: 1024px) 100vw, 50vw"
-          className="object-cover object-center transform scale-[1.01]"
-        />
-
-        {/* Subtle subtle gradient vignette to ensure clean contrast */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20 pointer-events-none" />
-
-        {/* Back navigation button (Top Left) */}
-        <Link
-          href="/"
-          aria-label="Back to home"
-          className="absolute top-6 left-6 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md hover:bg-black/60 text-[#FFFFEB] flex items-center justify-center transition duration-200 border border-[#FFFFEB]/20 shadow-lg group"
-        >
-          <svg
-            className="w-4 h-4 transform group-hover:-translate-x-0.5 transition-transform"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      {/* Left brand panel. On phones it collapses to a slim bar so the form starts at the
+          top — the earlier full-width stock photo pushed sign-in below the fold. */}
+      <div className="relative w-full lg:w-1/2 lg:min-h-screen bg-[#1C1C1A] overflow-hidden select-none">
+        <div className="flex items-center justify-between px-6 py-4 lg:absolute lg:top-0 lg:left-0 lg:right-0 lg:px-8 lg:py-6">
+          <Link
+            href="/"
+            className="z-20 inline-flex items-center gap-2 rounded-full border border-[#FFFFEB]/20 px-3.5 py-2 text-[13px] font-semibold text-[#FFFFEB] transition duration-200 hover:bg-[#232320]"
           >
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-        </Link>
+            <svg
+              className="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            Home
+          </Link>
+          <span className="lg:hidden">
+            <Logo height={22} />
+          </span>
+        </div>
+
+        <div className="hidden lg:flex h-full flex-col items-start justify-center px-14 xl:px-20">
+          <Logo height={34} />
+          <p className="mt-8 max-w-md text-[26px] font-bold leading-snug text-[#FFFFEB]">
+            Captions for every video you post — made right in your browser.
+          </p>
+          <ul className="mt-6 space-y-2.5 text-[14px] font-medium text-[#FFFFEB]/70">
+            <li>Automatic captions in English, Hindi and Hinglish</li>
+            <li>150 animated looks, free to use</li>
+            <li>Your video stays on your device — nothing to install</li>
+          </ul>
+        </div>
       </div>
 
       {/* Right form section */}
