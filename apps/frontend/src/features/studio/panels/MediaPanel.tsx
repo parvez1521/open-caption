@@ -34,8 +34,8 @@ export interface MediaPanelProps {
  * Media: the project's source video (facts + re-link, read off the composition's video track) and
  * the media bin — video/audio/image files imported into THIS project, stored in this browser's
  * IndexedDB and nowhere else. An imported video can take over as the project source through the
- * same attach path as re-link; an imported image can be placed as a timed overlay; audio is kept
- * with its metadata until the audio-studio milestone gives it a timeline track.
+ * same attach path as re-link; an imported image can be placed as a timed overlay; an imported
+ * audio file can be dragged onto the timeline or placed from the Audio panel.
  */
 export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRelink, assets, importing, onImport, onDeleteAsset, onPlaceImage }) => {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +76,7 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
           ))}
         </dl>
       </Section>
-      <Section title="Media bin" hint="Video, audio and image files for this project, kept in this browser only — they are not uploaded, and opening this project in another browser shows an empty bin there. Audio files are stored with their details now; placing audio on the timeline arrives with the audio studio.">
+      <Section title="Media bin" hint="Video, audio and image files for this project, kept in this browser only — they are not uploaded, and opening this project in another browser shows an empty bin there. Audio files can be dragged onto the timeline or placed from the Audio panel.">
         <Button disabled={importing} onClick={() => binRef.current?.click()} className="w-full">{importing ? "Importing…" : "Import media"}</Button>
         <input
           ref={binRef}
@@ -151,9 +151,9 @@ const AssetRow: React.FC<{
 }> = ({ asset, busy, onUseAsSource, onPlace, onDelete }) => (
   <div
     className="flex items-center gap-2.5 rounded-lg bg-st-raised/60 px-2.5 py-2"
-    draggable={asset.kind === "image" || asset.kind === "video"}
+    draggable={asset.kind === "image" || asset.kind === "video" || asset.kind === "audio"}
     onDragStart={
-      asset.kind === "image" || asset.kind === "video"
+      asset.kind === "image" || asset.kind === "video" || asset.kind === "audio"
         ? (e) => {
             e.dataTransfer.setData("application/x-opencaption-asset", JSON.stringify({ id: asset.id, kind: asset.kind }));
             e.dataTransfer.effectAllowed = "copy";

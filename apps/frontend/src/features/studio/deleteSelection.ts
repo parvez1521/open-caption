@@ -9,8 +9,10 @@
  *      multi-segment composition, middle ones included since Run 2; the only segment of a
  *      single-segment composition cannot, so the key stays inert rather than falling
  *      through to a selection the user isn't looking at),
- *   4. the selected marker,
- *   5. the single selected word.
+ *   4. the selected audio clip (Run 3; StudioPage passes null when its track is
+ *      locked, so the lock exclusion lives there, not in this resolver),
+ *   5. the selected marker,
+ *   6. the single selected word.
  *
  * `blocked` covers the states where the key must stay inert: a modal or conflict dialog is open,
  * or a transcription session is live and the captions are locked.
@@ -19,6 +21,7 @@ export type DeleteAction =
   | { kind: "words"; ids: string[] }
   | { kind: "overlay"; id: string }
   | { kind: "videoSegment"; id: string }
+  | { kind: "audioClip"; id: string }
   | { kind: "marker"; id: string }
   | { kind: "word"; id: string };
 
@@ -29,6 +32,7 @@ export function resolveDeleteAction(input: {
   selectedId: string | null;
   selectedVideoClipId?: string | null;
   canRippleDeleteVideoSegment?: boolean;
+  selectedAudioClipId?: string | null;
   selectedMarkerId?: string | null;
 }): DeleteAction | null {
   if (input.blocked) return null;
@@ -38,6 +42,7 @@ export function resolveDeleteAction(input: {
   if (input.selectedVideoClipId) {
     return input.canRippleDeleteVideoSegment ? { kind: "videoSegment", id: input.selectedVideoClipId } : null;
   }
+  if (input.selectedAudioClipId) return { kind: "audioClip", id: input.selectedAudioClipId };
   if (input.selectedMarkerId) return { kind: "marker", id: input.selectedMarkerId };
   if (input.selectedId) return { kind: "word", id: input.selectedId };
   return null;
