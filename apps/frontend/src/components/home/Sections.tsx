@@ -637,6 +637,7 @@ const FOOTER_COLUMNS = [
   {
     title: "COMPANY",
     links: [
+      { label: "About", href: "/about" },
       { label: "Sign in to app", href: "/login" },
       { label: "Terms of service", href: "/terms" },
       { label: "Privacy policy", href: "/privacy" },

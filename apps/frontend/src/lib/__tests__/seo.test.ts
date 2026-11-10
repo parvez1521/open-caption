@@ -6,6 +6,7 @@ import {
   SITE_URL,
   faqPageJsonLd,
   googleSiteVerification,
+  adsensePublisherId,
   pageMetadata,
   softwareApplicationJsonLd,
 } from "../seo";
@@ -78,6 +79,7 @@ describe("robots", () => {
 
 describe("ads.txt route", () => {
   it("404s while ADSENSE_PUBLISHER_ID is unset — no fake sellers line", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_PUBLISHER_ID", "");
     vi.stubEnv("ADSENSE_PUBLISHER_ID", "");
     const res = adsTxtGET();
     expect(res.status).toBe(404);
@@ -85,17 +87,41 @@ describe("ads.txt route", () => {
   });
 
   it("404s for a malformed publisher id", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_PUBLISHER_ID", "");
     vi.stubEnv("ADSENSE_PUBLISHER_ID", "ca-pub-123");
     const res = adsTxtGET();
     expect(res.status).toBe(404);
   });
 
   it("serves the exact sellers line when a valid publisher id is configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_PUBLISHER_ID", "");
     vi.stubEnv("ADSENSE_PUBLISHER_ID", "pub-1234567890123456");
     const res = adsTxtGET();
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/plain");
     expect(await res.text()).toBe("google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0\n");
+  });
+
+  it("serves the sellers line from NEXT_PUBLIC_ADSENSE_PUBLISHER_ID alone (the loader's variable)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_PUBLISHER_ID", "pub-9999888877776666");
+    vi.stubEnv("ADSENSE_PUBLISHER_ID", "");
+    const res = adsTxtGET();
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("google.com, pub-9999888877776666, DIRECT, f08c47fec0942fa0\n");
+  });
+});
+
+describe("adsensePublisherId (loader gate)", () => {
+  it("is undefined while the env var is unset or malformed — no ad code ships", () => {
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_PUBLISHER_ID", "");
+    expect(adsensePublisherId()).toBeUndefined();
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_PUBLISHER_ID", "ca-pub-123");
+    expect(adsensePublisherId()).toBeUndefined();
+  });
+
+  it("returns the id once a valid one is configured", () => {
+    vi.stubEnv("NEXT_PUBLIC_ADSENSE_PUBLISHER_ID", "pub-1234567890123456");
+    expect(adsensePublisherId()).toBe("pub-1234567890123456");
   });
 });
 

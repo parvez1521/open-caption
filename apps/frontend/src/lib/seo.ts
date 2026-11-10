@@ -51,6 +51,19 @@ export function googleSiteVerification(): string | undefined {
 }
 
 /**
+ * The AdSense publisher id ("pub-XXXXXXXXXXXXXXXX") — read from
+ * NEXT_PUBLIC_ADSENSE_PUBLISHER_ID. Returns undefined while unset or
+ * malformed, and EVERY ad surface keys off this: the loader script in the
+ * root layout renders only when this returns a value, so a deployment
+ * without the env var ships zero ad code. (The /ads.txt route additionally
+ * honours the server-only ADSENSE_PUBLISHER_ID as a fallback.)
+ */
+export function adsensePublisherId(): string | undefined {
+  const value = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID?.trim();
+  return value && /^pub-\d+$/.test(value) ? value : undefined;
+}
+
+/**
  * Metadata for one route. Indexable pages get a canonical URL plus matching
  * Open Graph / Twitter cards; app pages get robots noindex instead (a
  * canonical on a noindex page would contradict it, so it is omitted).

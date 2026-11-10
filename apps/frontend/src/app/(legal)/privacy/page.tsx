@@ -18,7 +18,8 @@ export default function PrivacyPage() {
         <ul>
           <li>Speech recognition runs <strong>in your browser</strong>, on your own device. We do not send your audio to a third-party speech service.</li>
           <li>We store your account, your projects, your uploaded videos and your exports so the studio works across devices.</li>
-          <li>We do not sell personal data, do not show ads, and do not train AI models on your videos or transcripts.</li>
+          <li>We do not sell personal data, and do not train AI models on your videos or transcripts.</li>
+          <li>If advertising is enabled on the site, Google and other third-party vendors may use cookies to serve ads based on your prior visits — section 8 explains this and how to opt out. No ads run inside the editor, and advertising never touches your videos or transcripts.</li>
         </ul>
       </Sec>
 
@@ -67,28 +68,39 @@ export default function PrivacyPage() {
         </ul>
       </Sec>
 
-      <Sec id="rights" title="8. Your rights and choices">
+      <Sec id="advertising" title="8. Advertising">
+        <p>We may show advertising on this website, served by Google AdSense. This section applies whenever advertising is enabled; while it is not enabled, no advertising cookies are set and no ad requests are made.</p>
+        <ul>
+          <li>Third-party vendors, including Google, use cookies to serve ads based on your prior visits to this and other websites.</li>
+          <li>Google&rsquo;s use of advertising cookies enables it and its partners to serve ads based on your visits to this site and/or other sites on the Internet.</li>
+          <li>You can opt out of personalised advertising by visiting <a href="https://www.google.com/settings/ads" target="_blank" rel="noreferrer">Google Ads Settings</a>, or opt out of many third-party vendors&rsquo; cookies at <a href="https://www.aboutads.info/choices/" target="_blank" rel="noreferrer">aboutads.info</a>. Opting out does not remove ads; it makes them non-personalised.</li>
+          <li>Where the law requires it (for example in the EEA and the UK), personalised ads are only served after a consent choice through a Google-certified consent management platform.</li>
+          <li>Advertising is separate from the product: it never uses your videos, audio, transcripts or projects, and ads are not shown inside the editor or your account pages.</li>
+        </ul>
+      </Sec>
+
+      <Sec id="rights" title="9. Your rights and choices">
         <p>Depending on where you live (including under India&rsquo;s Digital Personal Data Protection Act, the GDPR and US state privacy laws) you can ask to access, correct, download or delete your personal data, object to or restrict some processing, withdraw consent, and nominate someone to exercise your rights. Email {LEGAL.email}; we reply within 30 days. You can also complain to your local data protection authority.</p>
         <p>You can edit your name in Settings, delete projects in the studio, revoke paired computers in Settings, and ask us to delete your account.</p>
       </Sec>
 
-      <Sec id="security" title="9. Security">
+      <Sec id="security" title="10. Security">
         <p>Data is encrypted in transit (HTTPS) and at rest by our storage providers. Each account&rsquo;s data is isolated with database row-level security, files are private and served only through short-lived signed links, and Companion tokens are hashed and revocable. No system is perfectly secure; if a breach affects you we will notify you and the authorities as the law requires.</p>
       </Sec>
 
-      <Sec id="children" title="10. Children">
+      <Sec id="children" title="11. Children">
         <p>{LEGAL.product} is not directed at children under {LEGAL.minAge}, and we do not knowingly collect their data. If you believe a child has given us data, contact us and we will delete it.</p>
       </Sec>
 
-      <Sec id="cookies" title="11. Cookies and local storage">
-        <p>We use only what is needed to keep you signed in and remember a few editor preferences. See the <Link href="/cookies">Cookie Policy</Link>.</p>
+      <Sec id="cookies" title="12. Cookies and local storage">
+        <p>We use only what is needed to keep you signed in and remember a few editor preferences. If advertising is enabled, Google and its partners may also set advertising cookies as described in section 8. See the <Link href="/cookies">Cookie Policy</Link>.</p>
       </Sec>
 
-      <Sec id="changes" title="12. Changes">
+      <Sec id="changes" title="13. Changes">
         <p>We will update this policy as the service changes and tell you about material changes by email or in the app before they apply. The effective date at the top shows the current version.</p>
       </Sec>
 
-      <Sec id="contact" title="13. Contact and grievance officer">
+      <Sec id="contact" title="14. Contact and grievance officer">
         <p>Privacy questions and requests: {LEGAL.email}. {LEGAL.operator}, {LEGAL.address}.</p>
       </Sec>
     </LegalDoc>

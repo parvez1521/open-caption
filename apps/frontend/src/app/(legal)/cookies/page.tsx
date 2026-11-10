@@ -17,7 +17,7 @@ export default function CookiesPage() {
     <LegalDoc
       title="Cookie"
       accent="Policy"
-      intro={<>{LEGAL.product} uses <strong>no advertising or cross-site tracking cookies</strong>. We only store what the site needs to work: your sign-in session and a few editor preferences.</>}
+      intro={<>{LEGAL.product} itself stores only what the site needs to work: your sign-in session and a few editor preferences — no advertising or cross-site tracking cookies of our own. If advertising is ever enabled on the site, Google and its partners may set advertising cookies as described below.</>}
     >
       <Sec id="what" title="What we store">
         <div className="-mx-1 overflow-x-auto">
@@ -37,6 +37,11 @@ export default function CookiesPage() {
           </table>
         </div>
         <p>All of these are strictly necessary or remember a choice you made, so they do not need consent under most cookie laws. If we ever add analytics or marketing cookies, we will ask for your consent first and update this page.</p>
+      </Sec>
+
+      <Sec id="ads" title="Advertising cookies (only if ads are enabled)">
+        <p>If advertising is enabled on this site, it is served by Google AdSense. Third-party vendors, including Google, may then use cookies to serve ads based on your prior visits to this and other websites, and Google and its partners may serve ads based on those visits. While advertising is not enabled, none of these cookies are set and no ad requests are made.</p>
+        <p>You can opt out of personalised advertising at <a href="https://www.google.com/settings/ads" target="_blank" rel="noreferrer">Google Ads Settings</a> or <a href="https://www.aboutads.info/choices/" target="_blank" rel="noreferrer">aboutads.info</a>. Where consent is required by law (for example in the EEA and the UK), personalised ads require a consent choice through a Google-certified consent management platform first.</p>
       </Sec>
 
       <Sec id="third" title="Third-party requests">

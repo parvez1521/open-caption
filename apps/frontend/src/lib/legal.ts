@@ -28,6 +28,7 @@ export const LEGAL = {
 export const FEEDBACK_MAILTO = `mailto:${LEGAL.email}?subject=${encodeURIComponent("Open Caption feedback")}`;
 
 export const LEGAL_PAGES = [
+  { href: "/about", title: "About" },
   { href: "/terms", title: "Terms of Service" },
   { href: "/privacy", title: "Privacy Policy" },
   { href: "/cookies", title: "Cookie Policy" },

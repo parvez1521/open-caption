@@ -4,7 +4,7 @@ import QueryProvider from "@/providers/QueryProvider";
 import { introScript } from "@/components/home/intro";
 import { authReturnScript } from "@/lib/authReturn";
 import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE, BRAND_TITLE } from "@/lib/brand";
-import { SITE_URL, googleSiteVerification } from "@/lib/seo";
+import { SITE_URL, adsensePublisherId, googleSiteVerification } from "@/lib/seo";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -34,6 +34,10 @@ const SITE_DESCRIPTION = BRAND_DESCRIPTION;
 // Search Console: verification renders ONLY when NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
 // is set in the environment (see lib/seo.ts) — no empty meta tag otherwise.
 const googleVerification = googleSiteVerification();
+
+// AdSense: the loader renders ONLY when NEXT_PUBLIC_ADSENSE_PUBLISHER_ID holds a
+// valid publisher id — no env, zero ad code on any page (see lib/seo.ts).
+const adsenseId = adsensePublisherId();
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: BRAND_TITLE, template: `%s · ${BRAND_NAME}` },
@@ -70,6 +74,10 @@ export default function RootLayout({
         {/* first: a Google / email sign-in return goes straight to the studio, never the homepage */}
         <script dangerouslySetInnerHTML={{ __html: authReturnScript() }} />
         <script dangerouslySetInnerHTML={{ __html: introScript(process.env.NODE_ENV !== "production") }} />
+        {adsenseId ? (
+          // eslint-disable-next-line @next/next/no-sync-scripts
+          <script async src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${adsenseId}`} crossOrigin="anonymous" />
+        ) : null}
       </head>
       <body
         className="h-full bg-major text-obsidian font-sans selection:bg-emerald-accent selection:text-[#141412]"
