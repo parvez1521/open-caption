@@ -3,11 +3,18 @@ import {
   type CaptionDoc,
   type CaptionStyleV2,
   type ProjectSettings,
+  type SegmentTransition,
 } from "@capseasy/shared";
 import { applyLook, getLook, TRENDING_LOOKS } from "@capseasy/templates";
 import type { Source } from "../create/model";
 import type { GenerationDeps, ModelRunner } from "../create/service";
-import { setAudioDucking } from "./audioOps";
+import { addAudioBleeps, setAudioDucking } from "./audioOps";
+import {
+  applyContentEffect,
+  applyDocEffect,
+  setSegmentPlaybackRate,
+  setSegmentTransition,
+} from "./compositionOps";
 import {
   applyAutoZooms,
   generateAutoZoomPlan,
@@ -75,7 +82,14 @@ export type PolishStepKind =
   | "auto-zooms"
   | "caption-look"
   | "title-card"
-  | "music-ducking";
+  | "music-ducking"
+  /* Phase 8 (A8): the Edit Assistant's extra step kinds ride THIS plan
+   * system (one plan type, one apply, one revert machinery) rather than a
+   * second one. buildPolishPlan never produces them — only the assistant's
+   * plan builder does. */
+  | "bleep-profanity"
+  | "segment-speed"
+  | "segment-transition";
 
 /** Display order of the plan (apply order is {@link POLISH_APPLY_ORDER}). */
 export const POLISH_STEP_ORDER: readonly PolishStepKind[] = [
@@ -85,6 +99,9 @@ export const POLISH_STEP_ORDER: readonly PolishStepKind[] = [
   "caption-look",
   "title-card",
   "music-ducking",
+  "bleep-profanity",
+  "segment-speed",
+  "segment-transition",
 ];
 
 const POLISH_APPLY_ORDER: readonly PolishStepKind[] = [
@@ -94,6 +111,9 @@ const POLISH_APPLY_ORDER: readonly PolishStepKind[] = [
   "tighten-silences",
   "title-card",
   "music-ducking",
+  "segment-speed",
+  "segment-transition",
+  "bleep-profanity",
 ];
 
 /**
@@ -150,7 +170,11 @@ export type PolishStepPayload =
   | { kind: "auto-zooms"; intensity: AutoZoomIntensity; plan: AutoZoomPlan }
   | { kind: "caption-look"; lookId: string; lookName: string }
   | { kind: "title-card"; title: string }
-  | { kind: "music-ducking"; trackId: string; trackName: string; patch: { enabled: true; amountDb: number } };
+  | { kind: "music-ducking"; trackId: string; trackName: string; patch: { enabled: true; amountDb: number } }
+  /* A8 payloads: the same step envelope, for ops A2's own pass never plans */
+  | { kind: "bleep-profanity"; ranges: { startMs: number; endMs: number; wordText: string }[]; matchCount: number }
+  | { kind: "segment-speed"; clipId: string; segmentIndex: number; rate: number }
+  | { kind: "segment-transition"; clipId: string; segmentIndex: number; transition: SegmentTransition };
 
 export interface PolishStep {
   /** == kind (one step per kind in a plan) — stable checkbox/revert key */
@@ -480,6 +504,25 @@ function applyPolishStep(
       const comp = setAudioDucking(state.comp, p.trackId, p.patch);
       return { state: { ...state, comp } };
     }
+    case "bleep-profanity": {
+      // A6's store op: only the ranges in the (user-confirmed) payload land
+      const comp = addAudioBleeps(state.comp, p.ranges);
+      return { state: { ...state, comp } };
+    }
+    case "segment-speed": {
+      const r = setSegmentPlaybackRate(state.comp, p.clipId, p.rate);
+      if (r.comp === state.comp) return { state };
+      const comp = applyContentEffect(r.comp, r.docEffect);
+      const doc = applyDocEffect(state.doc, r.docEffect);
+      return { state: { ...state, comp, doc } };
+    }
+    case "segment-transition": {
+      const r = setSegmentTransition(state.comp, p.clipId, p.transition);
+      if (r.comp === state.comp) return { state };
+      const comp = applyContentEffect(r.comp, r.docEffect);
+      const doc = applyDocEffect(state.doc, r.docEffect);
+      return { state: { ...state, comp, doc } };
+    }
   }
 }
 
@@ -516,7 +559,11 @@ function restoreStepScope(current: PolishProjectState, entry: PolishStepRecord):
   switch (entry.kind) {
     case "trim-fillers":
     case "tighten-silences":
-      // the trim scope: caption doc + the composition fields range removal touches
+    case "segment-speed":
+    case "segment-transition":
+      // the trim scope: caption doc + the composition fields range removal
+      // touches — a rate change (rangeScale) and a transition change
+      // (rangeShift) move exactly the same fields, so they share it
       return {
         ...current,
         doc: before.doc,
@@ -549,6 +596,8 @@ function restoreStepScope(current: PolishProjectState, entry: PolishStepRecord):
       return { ...current, comp: { ...current.comp, overlayClips: before.comp.overlayClips } };
     case "music-ducking":
       return { ...current, comp: { ...current.comp, audioTracks: before.comp.audioTracks } };
+    case "bleep-profanity":
+      return { ...current, comp: { ...current.comp, audioBleeps: before.comp.audioBleeps } };
   }
 }
 
