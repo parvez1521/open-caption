@@ -45,3 +45,16 @@ export function isSupabaseConfigured(): boolean {
     return false;
   }
 }
+
+/**
+ * True only when Google sign-in has been switched on for this deployment
+ * (NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true). The flag exists so the login page
+ * never renders a Google button that cannot work: the button appears only
+ * after the Google provider is enabled in the Supabase dashboard with a real
+ * OAuth client (Google Cloud Console → OAuth client, redirect URI
+ * https://<project-ref>.supabase.co/auth/v1/callback). Until then, email
+ * sign-in is the login page's default and no dead button is shown.
+ */
+export function isGoogleAuthEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+}

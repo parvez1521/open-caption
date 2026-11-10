@@ -63,6 +63,19 @@ export default function CreditsPage() {
           ))}
         </ul>
       </Sec>
+      <Sec id="face-model" title="Face detection model">
+        <p>
+          The clipper&rsquo;s optional face-centring runs on-device in your browser with{" "}
+          <a href="https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet" className="font-semibold underline underline-offset-2" target="_blank" rel="noreferrer">
+            YuNet (face_detection_yunet_2023mar)
+          </a>{" "}
+          from the OpenCV Zoo · MIT licence · © Shiqi Yu · about 0.23 MB, loaded from this site only when you ask
+          it to centre a crop window. It detects faces only — no recognition, nothing about the frames leaves
+          your device, and no detection result is stored: the outcome is a crop position you can change, exactly
+          like one you set by dragging. Inference uses ONNX Runtime Web (MIT), the same runtime the speech and
+          text models already use.
+        </p>
+      </Sec>
     </LegalDoc>
   );
 }

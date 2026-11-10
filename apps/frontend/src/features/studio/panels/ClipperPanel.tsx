@@ -176,6 +176,7 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
                       sourceWidth={sourceWidth}
                       sourceHeight={sourceHeight}
                       startMs={range.startMs}
+                      endMs={range.endMs}
                       enabled={!reframeOff[k]}
                       onEnabledChange={(on) => setReframeOff((prev) => ({ ...prev, [k]: !on }))}
                       window={windows[k] ?? DEFAULT_CROP_WINDOW}

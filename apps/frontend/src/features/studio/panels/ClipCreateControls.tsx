@@ -13,6 +13,7 @@ import {
   type CropWindow,
 } from "@/features/clipper/reframe";
 import { generateClipTitle, type ClipTitleResult } from "@/features/clipper/clipTitle";
+import { useFaceReframe } from "@/features/clipper/useFaceReframe";
 import { Button } from "../controls";
 
 /**
@@ -26,8 +27,10 @@ import { Button } from "../controls";
  *   title appears with its `SourceBadge` (template-engine titles are badged as the
  *   template engine, never as AI) and stays editable before the clip is created.
  * - `ReframeControl` is the draggable 9:16 crop window over the landscape frame.
- *   It is described honestly as a crop window — no face tracking ships in this
- *   slice, so nothing here claims to follow a subject.
+ *   The window itself is static — it never follows a subject. An optional,
+ *   explicitly-invoked assist (G5 Level 1) can CENTRE the window on a face
+ *   detected on-device in the clip's frames; the suggestion lands in the same
+ *   window state the drag control shows, so the user sees and can override it.
  */
 
 export function useClipTitleDeps(): GenerationDeps {
@@ -135,15 +138,17 @@ export const ReframeControl: React.FC<{
   sourceWidth: number;
   sourceHeight: number;
   startMs: number;
+  endMs: number;
   enabled: boolean;
   onEnabledChange: (enabled: boolean) => void;
   window: CropWindow;
   onWindowChange: (win: CropWindow) => void;
-}> = ({ sourceUrl, sourceWidth, sourceHeight, startMs, enabled, onEnabledChange, window: win, onWindowChange }) => {
+}> = ({ sourceUrl, sourceWidth, sourceHeight, startMs, endMs, enabled, onEnabledChange, window: win, onWindowChange }) => {
   const stageRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
   const fractions = cropWindowFractions(win, sourceWidth, sourceHeight);
+  const face = useFaceReframe({ sourceUrl, startMs, endMs, sourceWidth, sourceHeight, currentWindow: win, onSuggest: onWindowChange });
 
   // park the preview on the clip's first frame so the framing is judged on the clip, not the poster
   useEffect(() => {
@@ -218,8 +223,9 @@ export const ReframeControl: React.FC<{
       </label>
       <p className="mt-1 text-[11px] leading-snug text-st-faint">
         This clip becomes a vertical project: the frame is cropped to the window you choose — nothing is
-        stretched, and you can still adjust the crop later in the studio. The window does not follow faces;
-        position it yourself.
+        stretched, and you can still adjust the crop later in the studio. The window stays where you put
+        it; it never follows movement. You can position it yourself, or ask the face check below to centre
+        it on the speaker.
       </p>
       {enabled ? (
         <>
@@ -301,6 +307,72 @@ export const ReframeControl: React.FC<{
           >
             Reset to centre
           </button>
+
+          {/* Face centring (G5 Level 1): opt-in, on-device, suggestion only. */}
+          <div className="mt-3 border-t border-st-line pt-2.5">
+            {face.state.kind === "consent" ? (
+              <>
+                <p className="text-[11px] leading-snug text-st-faint">
+                  Face centring uses a small face-detection model — YuNet, MIT licence, about 0.25 MB — loaded
+                  from this site. It runs entirely on your device: frames from this clip are checked here and
+                  nothing is uploaded. It centres the window once, on the largest face it finds; the window
+                  does not follow movement afterwards.
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={face.confirm}
+                    className="rounded-full bg-[#FFA946] px-3.5 py-1.5 text-[11.5px] font-semibold text-[#141412]"
+                  >
+                    Use face centring
+                  </button>
+                  <button
+                    type="button"
+                    onClick={face.dismiss}
+                    className="rounded-full border border-st-line px-3.5 py-1.5 text-[11.5px] font-medium text-st-muted"
+                  >
+                    Not now
+                  </button>
+                </div>
+              </>
+            ) : face.state.kind === "working" ? (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[11px] text-st-faint" role="status">
+                  Checking frames for a face… {face.state.done}/{face.state.total}
+                </p>
+                <button
+                  type="button"
+                  onClick={face.cancel}
+                  className="shrink-0 text-[11px] font-medium text-st-muted underline decoration-st-line underline-offset-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={face.begin}
+                  className="rounded-full border border-st-line px-3.5 py-1.5 text-[11.5px] font-medium text-st-text transition hover:border-st-faint"
+                >
+                  Centre window on face
+                </button>
+                {face.state.kind === "applied" ? (
+                  <p className="mt-1.5 text-[11px] leading-snug text-st-faint" role="status">
+                    Centred on the face found in this clip — drag or use the sliders to adjust.
+                  </p>
+                ) : face.state.kind === "noface" ? (
+                  <p className="mt-1.5 text-[11px] leading-snug text-st-faint" role="status">
+                    No face found in this clip — the window is unchanged.
+                  </p>
+                ) : face.state.kind === "error" ? (
+                  <p className="mt-1.5 text-[11px] leading-snug text-st-faint" role="alert">
+                    {face.state.message} The window is unchanged.
+                  </p>
+                ) : null}
+              </>
+            )}
+          </div>
         </>
       ) : null}
     </div>

@@ -20,6 +20,7 @@ describe("ReframeControl", () => {
         sourceWidth={1920}
         sourceHeight={1080}
         startMs={32_000}
+        endMs={47_000}
         enabled
         onEnabledChange={() => undefined}
         window={win}
@@ -68,7 +69,7 @@ describe("ReframeControl", () => {
   it("zooming reveals the vertical position slider; the copy never claims face tracking", () => {
     setup({ x: 0.5, y: 0.5, zoom: 2 });
     expect(screen.getByLabelText("Crop window vertical position")).toBeTruthy();
-    expect(screen.getByText(/does not follow faces/)).toBeTruthy();
+    expect(screen.getByText(/never follows movement/)).toBeTruthy();
     expect(screen.getByText(/Vertical 9:16 crop window/)).toBeTruthy();
   });
 
@@ -79,6 +80,7 @@ describe("ReframeControl", () => {
         sourceWidth={1080}
         sourceHeight={1920}
         startMs={0}
+        endMs={15_000}
         enabled
         onEnabledChange={() => undefined}
         window={DEFAULT_CROP_WINDOW}

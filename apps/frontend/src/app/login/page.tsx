@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth";
-import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
+import { supabase, isGoogleAuthEnabled, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { setAfterSignIn } from "@/services/auth/guest";
 import AuthShell, { Field, PasswordField, SubmitButton, ErrorNote, friendlyAuthError, validEmail } from "@/components/auth/AuthShell";
 import { BRAND_NAME } from "@/lib/brand";
@@ -39,7 +39,11 @@ type Mode = "google" | "email";
 export default function LoginPage() {
   const router = useRouter();
 
-  const [mode, setMode] = useState<Mode>("google");
+  // Google sign-in renders only when the deployment has it switched on
+  // (isGoogleAuthEnabled) — otherwise email is the default mode and no
+  // Google button exists on the page at all.
+  const googleEnabled = isGoogleAuthEnabled();
+  const [mode, setMode] = useState<Mode>(googleEnabled ? "google" : "email");
   // /start sends people here with ?mode=signup when a guest session could not be started:
   // the page must then speak as sign-up, not sign-in (the param used to be ignored entirely)
   const [signupIntent, setSignupIntent] = useState(false);
@@ -174,7 +178,7 @@ export default function LoginPage() {
     );
   }
 
-  if (mode === "google") {
+  if (mode === "google" && googleEnabled) {
     return (
       <AuthShell
         title={signupIntent ? "Create your free account" : `Sign in to ${BRAND_NAME}`}
@@ -251,20 +255,24 @@ export default function LoginPage() {
           </SubmitButton>
         </form>
 
-        <div className="relative py-2 flex items-center justify-center">
-          <div className="w-full border-t border-sand-200" />
-          <span className="absolute bg-major px-3 text-[12px] font-medium text-sand-500 lowercase">or</span>
-        </div>
+        {googleEnabled ? (
+          <>
+            <div className="relative py-2 flex items-center justify-center">
+              <div className="w-full border-t border-sand-200" />
+              <span className="absolute bg-major px-3 text-[12px] font-medium text-sand-500 lowercase">or</span>
+            </div>
 
-        {googleButton}
+            {googleButton}
 
-        <button
-          type="button"
-          onClick={() => switchTo("google")}
-          className="w-full text-center text-[13px] font-medium text-sand-500 hover:text-[#FFFFEB] transition cursor-pointer py-1"
-        >
-          New to {BRAND_NAME}? Create your account with Google
-        </button>
+            <button
+              type="button"
+              onClick={() => switchTo("google")}
+              className="w-full text-center text-[13px] font-medium text-sand-500 hover:text-[#FFFFEB] transition cursor-pointer py-1"
+            >
+              New to {BRAND_NAME}? Create your account with Google
+            </button>
+          </>
+        ) : null}
       </div>
     </AuthShell>
   );

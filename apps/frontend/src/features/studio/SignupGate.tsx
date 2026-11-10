@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { rememberGuestForClaim, signInWithGoogleKeepingWork } from "@/services/auth/guest";
-import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
+import { isGoogleAuthEnabled, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { friendlyAuthError } from "@/components/auth/AuthShell";
 import { Button } from "./controls";
 
@@ -49,6 +49,26 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
           {notice ? <p role="status" className="mt-3 rounded-lg border border-st-line bg-st-raised px-3 py-2 text-sm text-st-text">{notice}</p> : null}
           <Button tone="primary" className="mt-5 w-full !py-3" onClick={onDone}>
             Continue to export
+          </Button>
+          <p className="mt-4 text-center text-sm text-st-muted">Changed your mind? <button type="button" className="font-semibold text-st-text underline" onClick={onClose}>Keep editing</button>.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Google sign-up not switched on for this deployment: new accounts are
+  // Google-only here, so a "Continue with Google" button would be dead.
+  // Offer the working path instead — sign in to an existing account (this
+  // project moves with it) — and say plainly why sign-up is missing.
+  if (!isGoogleAuthEnabled()) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+        <div role="dialog" aria-label="Create your free account" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
+          <h2 className="text-lg font-semibold">Create a free account to export</h2>
+          <p className="mt-1 text-sm text-st-muted">Sign-up with Google isn&rsquo;t switched on yet, so new accounts can&rsquo;t be created here right now. If you already have an account, sign in — everything you&rsquo;ve made comes with you.</p>
+          {notice ? <p role="status" className="mt-3 rounded-lg border border-st-line bg-st-raised px-3 py-2 text-sm text-st-text">{notice}</p> : null}
+          <Button tone="primary" className="mt-5 w-full !py-3" onClick={() => void signInInstead()}>
+            Sign in to your account
           </Button>
           <p className="mt-4 text-center text-sm text-st-muted">Changed your mind? <button type="button" className="font-semibold text-st-text underline" onClick={onClose}>Keep editing</button>.</p>
         </div>
