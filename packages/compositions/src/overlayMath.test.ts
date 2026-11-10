@@ -110,9 +110,19 @@ describe("resolveVideoSegments (Stage-B segmentation)", () => {
       },
     });
     const segments = resolveVideoSegments({ settings });
+    // "Untouched" = the resolver returns the stored array as-is (identity, asserted
+    // below); since Phase 4 Run 2 the schema parse itself fills the Run-2 segment
+    // defaults (rate 1, identity transform, no transition/asset, not a still).
+    const run2Defaults = {
+      playbackRate: 1,
+      transform: { cropLeft: 0, cropTop: 0, cropRight: 0, cropBottom: 0, rotateDeg: 0, flipH: false, flipV: false, scale: 1, offsetX: 0, offsetY: 0 },
+      transitionIn: null,
+      assetId: null,
+      still: false,
+    };
     expect(segments).toEqual([
-      { id: "seg-1", sourceInMs: 10_000, sourceOutMs: 25_000 },
-      { id: "seg-2", sourceInMs: 25_000, sourceOutMs: 40_000 },
+      { id: "seg-1", sourceInMs: 10_000, sourceOutMs: 25_000, ...run2Defaults },
+      { id: "seg-2", sourceInMs: 25_000, sourceOutMs: 40_000, ...run2Defaults },
     ]);
     expect(segments).toBe(settings.composition.videoSegments);
   });
@@ -122,11 +132,17 @@ describe("videoSegmentFrames (segment chain tiling)", () => {
   // Three source-continuous segments of 1040ms each, starting at 2000ms in the source. 1040ms is
   // deliberately NOT frame-aligned at either rate, so independent per-segment rounding would drift
   // (3 x round(31.2) = 93 frames at 30fps) while cumulative-boundary rounding tiles exactly (94).
-  const segments: VideoSegment[] = [
-    { id: "a", sourceInMs: 2000, sourceOutMs: 3040 },
-    { id: "b", sourceInMs: 3040, sourceOutMs: 4080 },
-    { id: "c", sourceInMs: 4080, sourceOutMs: 5120 },
-  ];
+  // Built through the schema so the fixtures carry the canonical (default-filled)
+  // segment shape, exactly as stored segments arrive at the renderer.
+  const segments: VideoSegment[] = ProjectSettingsSchema.parse({
+    composition: {
+      videoSegments: [
+        { id: "a", sourceInMs: 2000, sourceOutMs: 3040 },
+        { id: "b", sourceInMs: 3040, sourceOutMs: 4080 },
+        { id: "c", sourceInMs: 4080, sourceOutMs: 5120 },
+      ],
+    },
+  }).composition.videoSegments;
 
   it("computes exact windows and per-segment source trims at 30fps", () => {
     expect(videoSegmentFrames(segments, 30)).toEqual([
