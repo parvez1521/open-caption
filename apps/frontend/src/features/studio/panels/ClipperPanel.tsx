@@ -8,7 +8,9 @@ import { detectSilences } from "@/features/clipper/analysis";
 import { useSceneAnalysis } from "@/features/clipper/useSceneAnalysis";
 import { ClipExplanation } from "@/features/clipper/ClipExplanation";
 import { PEAKS_PER_SECOND } from "../useWaveform";
+import { DEFAULT_CROP_WINDOW, needsVerticalReframe, type CropWindow } from "@/features/clipper/reframe";
 import { Button, Section } from "../controls";
+import { ClipTitleControl, ReframeControl, useClipTitleDeps, type ClipTitleState } from "./ClipCreateControls";
 
 interface Props {
   projectId: string;
@@ -21,6 +23,10 @@ interface Props {
   peaks?: Float32Array | null;
   /** playable source-video URL, for on-device frame-difference scene sampling */
   videoUrl?: string | null;
+  /** Phase 5 (5.4): the source video's real dimensions + playable URL, for the 9:16 crop window */
+  sourceWidth?: number | null;
+  sourceHeight?: number | null;
+  sourceUrl?: string | null;
 }
 
 /**
@@ -32,7 +38,7 @@ interface Props {
  * proposal's edges, then Create clip makes a normal caption project for just that
  * segment and opens it in the studio.
  */
-export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVideoId, mediaDurationMs, doc, peaks, videoUrl }) => {
+export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVideoId, mediaDurationMs, doc, peaks, videoUrl, sourceWidth = null, sourceHeight = null, sourceUrl = null }) => {
   const router = useRouter();
   const scene = useSceneAnalysis(sourceVideoId, videoUrl, mediaDurationMs);
   const silences = useMemo(
@@ -46,6 +52,14 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
   const [edits, setEdits] = useState<Record<number, { startMs: number; endMs: number }>>({});
   const [busyIdx, setBusyIdx] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Phase 5 (5.4): per-proposal crop windows + generated titles, keyed like `edits`.
+  // Reframing defaults ON (centred window) exactly when the source is wider than 9:16;
+  // the user can position the window or switch it off per clip.
+  const canReframe = needsVerticalReframe(sourceWidth, sourceHeight);
+  const [reframeOff, setReframeOff] = useState<Record<number, boolean>>({});
+  const [windows, setWindows] = useState<Record<number, CropWindow>>({});
+  const [titles, setTitles] = useState<Record<number, ClipTitleState | null>>({});
+  const titleDeps = useClipTitleDeps();
 
   if (doc.words.length === 0) {
     return (
@@ -73,6 +87,10 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
         doc,
         startMs: range.startMs,
         endMs: range.endMs,
+        // a generated title the user confirmed (blank text = never mind, plain range title)
+        title: titles[i]?.text.trim() ? titles[i]!.text : undefined,
+        // the chosen crop window, only when reframing is on for this clip
+        reframeWindow: canReframe && !reframeOff[i] ? (windows[i] ?? DEFAULT_CROP_WINDOW) : undefined,
       });
       router.push(`/projects/${newId}`);
     } catch (e) {
@@ -144,6 +162,27 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
                     value={Math.round(range.startMs / 1000)}
                     onChange={(e) => setRange(i, { startMs: Number(e.target.value) * 1000 })}
                     className="mt-2 w-full"
+                  />
+                  {canReframe && sourceWidth && sourceHeight ? (
+                    <ReframeControl
+                      sourceUrl={sourceUrl}
+                      sourceWidth={sourceWidth}
+                      sourceHeight={sourceHeight}
+                      startMs={range.startMs}
+                      enabled={!reframeOff[i]}
+                      onEnabledChange={(on) => setReframeOff((prev) => ({ ...prev, [i]: !on }))}
+                      window={windows[i] ?? DEFAULT_CROP_WINDOW}
+                      onWindowChange={(win) => setWindows((prev) => ({ ...prev, [i]: win }))}
+                    />
+                  ) : null}
+                  <ClipTitleControl
+                    sourceTitle={sourceTitle}
+                    segmentText={p.text}
+                    startMs={range.startMs}
+                    endMs={range.endMs}
+                    deps={titleDeps}
+                    state={titles[i] ?? null}
+                    onState={(next) => setTitles((prev) => ({ ...prev, [i]: next }))}
                   />
                   <Button tone="primary" disabled={busyIdx !== null} onClick={() => void create(i)} className="mt-2 w-full">
                     {busyIdx === i ? "Creating clip…" : "Create clip"}

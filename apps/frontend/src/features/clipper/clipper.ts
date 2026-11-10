@@ -20,6 +20,7 @@ import {
 } from "./analysis";
 import { studioService } from "@/services/studio";
 import { getLocalVideo, saveLocalVideo } from "@/features/upload/localVideos";
+import { clampCropWindow, type CropWindow } from "./reframe";
 
 /** The shortest clip a user can dial in by hand (proposals themselves target 15–60s). */
 export const CLIP_MIN_MS = 3000;
@@ -75,13 +76,27 @@ export async function createClipProject(input: {
   doc: CaptionDoc;
   startMs: number;
   endMs: number;
+  /**
+   * A title already generated for this clip (clipTitle.ts, via the Phase-3 routing) and
+   * confirmed by the user in the creation flow. When absent, the plain range title is
+   * used — exactly the pre-Phase-5 behaviour.
+   */
+  title?: string;
+  /**
+   * The 9:16 crop window the user chose for this clip (reframe.ts), when the clip is
+   * being reframed vertical. The clips API re-derives the stored transform from the
+   * window and the video row's own dimensions; when absent, no reframing is stored.
+   */
+  reframeWindow?: CropWindow;
 }): Promise<{ projectId: string; videoCopied: boolean }> {
   const doc = clipDocForSegment(input.doc, { startMs: input.startMs, endMs: input.endMs });
+  const chosenTitle = input.title?.trim().slice(0, 120).trim();
   const created = await studioService.createClip(input.sourceProjectId, {
-    title: clipProjectTitle(input.sourceTitle, input.startMs, input.endMs),
+    title: chosenTitle || clipProjectTitle(input.sourceTitle, input.startMs, input.endMs),
     startMs: input.startMs,
     endMs: input.endMs,
     doc,
+    ...(input.reframeWindow ? { reframe: clampCropWindow(input.reframeWindow) } : {}),
   });
   let videoCopied = false;
   if (created.videoId && input.sourceVideoId && created.videoId !== input.sourceVideoId) {
