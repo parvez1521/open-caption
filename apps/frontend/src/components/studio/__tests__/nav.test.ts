@@ -22,6 +22,7 @@ describe("shell nav config", () => {
       ["primary", "Video Editor", "/editor"],
       ["primary", "Growth Studio", "/growth"],
       ["primary", "Content Planner", "/planner"],
+      ["primary", "Creator Analytics", "/analytics"],
       ["supporting", "Media Library", "/library"],
       ["supporting", "Brand Kit", "/brand"],
       ["supporting", "Clipper", "/clipper"],
@@ -42,18 +43,22 @@ describe("shell nav config", () => {
     }
   });
 
-  it("does not mention sections that do not exist yet (no placeholder nav)", () => {
-    // Content Planner + Teleprompter entered the nav in Phase 7, when their
-    // slices shipped; Creator Analytics (Phase 8) is still honestly absent.
-    const forbidden = ["Creator Analytics"];
+  it("mentions only sections that exist (the Phase-8 pin: Creator Analytics resolved)", () => {
+    // Every phase-gated section has now shipped: Content Planner + Teleprompter
+    // entered in Phase 7; Creator Analytics — the last honestly-absent entry —
+    // entered in Phase 8 when slice 8.1 shipped. The absence list is empty by
+    // design; this test now pins the positive half: Analytics is present, in
+    // the primary group, and (per the page-existence test above) backed by a
+    // real page. If a future section is ever planned-but-unbuilt, it belongs
+    // on a new absence list here, NOT in the nav.
+    const analytics = NAV_ITEMS.find((i) => i.id === "analytics");
+    expect(analytics).toMatchObject({ label: "Creator Analytics", href: "/analytics", group: "primary" });
+    const forbidden: string[] = [];
     for (const item of NAV_ITEMS) {
       for (const label of forbidden) {
         expect(item.label).not.toBe(label);
-        expect(item.href.toLowerCase()).not.toContain(label.toLowerCase().replace(/\s+/g, "-"));
       }
     }
-    const blob = JSON.stringify(NAV_ITEMS);
-    for (const label of forbidden) expect(blob).not.toContain(label);
   });
 
   it("every activeMatch prefix is the href itself or an extra real prefix", () => {
