@@ -16,6 +16,7 @@ import { ColorField } from "@/features/studio/controls";
 import { useMediaAssets } from "@/features/studio/useMediaAssets";
 import { deleteAsset, listProjectAssets, type MediaAssetRecord } from "@/features/studio/mediaStore";
 import { MotionPreview } from "@/features/motion/MotionPreview";
+import { MotionExportSection } from "@/features/motion/MotionExportSection";
 import { MOTION_STAGING_PROJECT_ID, addMotionToProject, buildMotionOverlayItem } from "@/features/motion/addToProject";
 import { clampTextLines, lineLabelsFor } from "@/features/motion/lineLabels";
 import { deleteMotionPreset, listMotionPresets, saveMotionPreset, type MotionPreset } from "@/features/motion/presets";
@@ -432,7 +433,8 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
               {addError ? <p role="alert" className="mt-2 text-[12px] text-orange-accent">{addError}</p> : null}
             </section>
 
-            {/* Wave 3: the export section mounts below this line — no export UI in this wave. */}
+            {/* Wave 3: standalone overlay export (solid background, in-browser, no project created). */}
+            <MotionExportSection config={config} asset={asset ? { id: asset.id, name: asset.name } : null} assetSrc={assetSrc} />
           </div>
         </div>
       </div>
