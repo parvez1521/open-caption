@@ -87,7 +87,7 @@ describe("addMotionToProject", () => {
     h.listAllAssets.mockResolvedValue([staged]);
     const item = await addMotionToProject("proj-1", { config: { variant: "qr-frame", text: "Scan", color: "#34D399", durationMs: 4000 }, assetId: "staged-1" });
     expect(h.saveAsset).toHaveBeenCalledTimes(1);
-    const copy = h.saveAsset.mock.calls[0]![0] as unknown as { id: string; projectId: string; name: string };
+    const copy = (h.saveAsset.mock.calls[0] as unknown as [{ id: string; projectId: string; name: string }])[0];
     expect(copy.projectId).toBe("proj-1");
     expect(copy.id).not.toBe("staged-1");
     expect(item.assetId).toBe(copy.id);
