@@ -20,7 +20,7 @@ describe("social overlay items (schema)", () => {
   });
   it("every new Motion Studio variant is accepted and made-up ones rejected", () => {
     const NEW = ["profile-card", "notification-pop", "dm-popup", "story-ring", "lower-third", "logo-reveal", "qr-frame", "kinetic-title", "glitch-title", "neon-sign", "particle-burst", "typing-post", "upvote-card", "live-badge", "product-tag", "form-card", "audio-bars"];
-    expect(OVERLAY_SOCIAL_VARIANTS).toHaveLength(27);
+    expect(OVERLAY_SOCIAL_VARIANTS).toHaveLength(30);
     for (const variant of NEW) {
       expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant }).success, variant).toBe(true);
     }
@@ -28,6 +28,16 @@ describe("social overlay items (schema)", () => {
       expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant }).success, variant).toBe(true);
     }
     expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant: "hologram" }).success).toBe(false);
+  });
+  it("every Wave 1.5 parity variant (post-card / repost-card / voice-card) is accepted", () => {
+    for (const variant of ["post-card", "repost-card", "voice-card"]) {
+      expect(OVERLAY_SOCIAL_VARIANTS).toContain(variant);
+      expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant }).success, variant).toBe(true);
+    }
+    // avatar slots on the two post cards accept an image asset; the voice card needs none
+    expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant: "post-card", assetId: "a1", assetName: "me.png" }).success).toBe(true);
+    expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant: "repost-card", assetId: "a1", assetName: "me.png" }).success).toBe(true);
+    expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant: "voice-card" }).success).toBe(true);
   });
   it("social items may carry an optional image asset for avatar / QR slots", () => {
     expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant: "profile-card", assetId: "a1", assetName: "me.png" }).success).toBe(true);

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { OverlayView } from "./overlays";
-import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, chatStackAt, counterAt, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, searchBarAt, socialSeededUnit, typingAt, upvoteAt } from "./social";
+import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, chatStackAt, counterAt, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, postCardAt, repostAt, searchBarAt, socialSeededUnit, typingAt, upvoteAt, voiceCardAt } from "./social";
 
 /**
  * Animated Social Media overlays: phases are pure functions of the item's own window, so the same
@@ -210,9 +210,9 @@ describe("SocialOverlayView (static markup — the same tree every render path d
       expect(late, `${meta.id} does not animate between 350ms and 2650ms`).not.toBe(early);
     }
   });
-  it("SOCIAL_META covers 27 variants with unique ids", () => {
-    expect(SOCIAL_META).toHaveLength(27);
-    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(27);
+  it("SOCIAL_META covers 30 variants with unique ids", () => {
+    expect(SOCIAL_META).toHaveLength(30);
+    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(30);
     for (const m of SOCIAL_META) { expect(m.label.length).toBeGreaterThan(0); expect(m.hint.length).toBeGreaterThan(0); expect(m.defaultColor).toMatch(/^#[0-9A-Fa-f]{6}$/); }
   });
   it("new helpers are pure, seeded and deterministic", () => {
@@ -253,6 +253,67 @@ describe("SocialOverlayView (static markup — the same tree every render path d
     expect(withAsset).toContain("blob:avatar");
     const noAsset = render(item("profile-card", "Ada\n@ada\n9K\nFollow\nFollowing"), 1000);
     expect(noAsset).toContain(">A<");
+  });
+  it("Wave 1.5 helpers are pure, seeded and deterministic", () => {
+    expect(postCardAt(300, 4000).liked).toBe(false);
+    expect(postCardAt(2600, 4000).liked).toBe(true);
+    expect(postCardAt(2000, 4000)).toEqual(postCardAt(2000, 4000));
+    expect(repostAt(300, 4000, 248)).toMatchObject({ count: 248, acted: false });
+    expect(repostAt(2600, 4000, 248)).toMatchObject({ count: 249, acted: true });
+    expect(repostAt(2000, 4000, 248)).toEqual(repostAt(2000, 4000, 248));
+    // voice: exactly one speaker at a time, ring only on the speaker, rotation visits >1 member
+    const vc = voiceCardAt(1000, 42, 3);
+    expect(vc).toEqual(voiceCardAt(1000, 42, 3));
+    expect(vc.members).toHaveLength(3);
+    expect(vc.members.filter((m) => m.speaking)).toHaveLength(1);
+    expect(vc.members[vc.activeIndex]!.speaking).toBe(true);
+    expect(vc.members.every((m) => m.speaking === (m.ringOpacity > 0))).toBe(true);
+    const speakers = new Set(Array.from({ length: 20 }, (_, s) => voiceCardAt(s * 650 + 100, 42, 3).activeIndex));
+    expect(speakers.size).toBeGreaterThan(1);
+    expect(voiceCardAt(1000, 42, 9).members).toHaveLength(3); // clamped to the card's 3 rows
+    expect(voiceCardAt(1000, 42, 0).members).toHaveLength(0);
+  });
+  it("post-card shows name/time/body and fills its Like on the beat; avatar slot is wired", () => {
+    const it2 = item("post-card", "Ada Creator\n3 hrs ago\nMy brand new post is live");
+    const early = render(it2, 300);
+    expect(early).toContain("Ada Creator");
+    expect(early).toContain("3 hrs ago");
+    expect(early).toContain("My brand new post is live");
+    expect(early).toContain("Like");
+    expect(early).toContain("Comment");
+    expect(early).toContain("Share");
+    expect(early).not.toContain('fill="#FFA946"'); // thumb still unfilled before the beat
+    expect(render(it2, 2600)).toContain('fill="#FFA946"'); // filled with the accent after it
+    expect(render(it2, 1000)).toContain(">A<"); // initial-letter fallback without an asset
+    const withAsset = renderToStaticMarkup(<SocialOverlayView item={it2} sc={1} localMs={1000} assetSrc="blob:avatar" />);
+    expect(withAsset).toContain("blob:avatar");
+  });
+  it("repost-card ticks its count +1 with a colour flip on the beat; avatar slot is wired", () => {
+    const it2 = item("repost-card", "Ada\n@ada\nShipping today\n248");
+    const early = render(it2, 300);
+    expect(early).toContain("Ada");
+    expect(early).toContain("@ada");
+    expect(early).toContain("Shipping today");
+    expect(early).toContain(">248<");
+    expect(early).toContain('stroke="#9A9A94"'); // repost icon in its muted pre-beat colour
+    const late = render(it2, 2600);
+    expect(late).toContain(">249<");
+    expect(late).toContain('stroke="#FFA946"'); // flipped to the accent after the beat
+    expect(render(it2, 1000)).toContain(">A<");
+    const withAsset = renderToStaticMarkup(<SocialOverlayView item={it2} sc={1} localMs={1000} assetSrc="blob:avatar" />);
+    expect(withAsset).toContain("blob:avatar");
+  });
+  it("voice-card renders the channel and all 3 members, with a pulsing speaking ring", () => {
+    const it2 = item("voice-card", "voice-lounge\nAlex\nPriya\nSam");
+    const html = render(it2, 1000);
+    expect(html).toContain("voice-lounge");
+    expect(html).toContain("Alex");
+    expect(html).toContain("Priya");
+    expect(html).toContain("Sam");
+    expect(html).toContain("3 in voice");
+    expect(html).toBe(render(it2, 1000)); // deterministic
+    expect(html).not.toBe(render(it2, 1750)); // the speaking rotation / pulse moves on
+    expect(html.toLowerCase()).not.toContain("discord");
   });
   it("renders through OverlayView (the composition entry) with the item's position/scale", () => {
     const it2 = item("subscribe-pill", "Subscribe\nSubscribed");

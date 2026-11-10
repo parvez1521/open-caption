@@ -49,7 +49,7 @@ export const OVERLAY_SOCIAL_VARIANTS = [
   "profile-card", "notification-pop", "dm-popup", "story-ring", "lower-third",
   "logo-reveal", "qr-frame", "kinetic-title", "glitch-title", "neon-sign",
   "particle-burst", "typing-post", "upvote-card", "live-badge", "product-tag",
-  "form-card", "audio-bars",
+  "form-card", "audio-bars", "post-card", "repost-card", "voice-card",
 ] as const;
 export const OverlaySocialVariantSchema = z.enum(OVERLAY_SOCIAL_VARIANTS);
 export type OverlaySocialVariant = z.infer<typeof OverlaySocialVariantSchema>;

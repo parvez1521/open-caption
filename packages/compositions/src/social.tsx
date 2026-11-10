@@ -38,6 +38,9 @@ export const SOCIAL_META: { id: OverlaySocialVariant; label: string; hint: strin
   { id: "product-tag", label: "Product Tag", hint: "Price-tag card swinging in on a string pivot. Lines: product line / price line.", defaultText: "Creator Preset Pack\n$29", defaultColor: "#34D399" },
   { id: "form-card", label: "Poll / Form Card", hint: "Question plus option rows whose bars fill to seeded percentages. Lines: question / option 1 / option 2 / option 3 (optional).", defaultText: "What should I post next?\nTutorial\nBehind the scenes\nLive Q&A", defaultColor: "#38BDF8" },
   { id: "audio-bars", label: "Audio Bars", hint: "Seeded equalizer bars dancing to the beat. Optional line: a label under the bars.", defaultText: "", defaultColor: "#34D399" },
+  { id: "post-card", label: "Post Card", hint: "Post card with avatar, name and time lines and body text; the Like in its Like / Comment / Share row fills on the beat. Lines: name / time line / body text. Avatar uses the item image asset when set.", defaultText: "Creator Name\n2 hrs ago\nJust shared a new tutorial — hope it helps!", defaultColor: "#5B8DEF" },
+  { id: "repost-card", label: "Repost Card", hint: "Compact post card; the repost icon flips colour and its count ticks +1 on the beat. Lines: name / handle / body text / starting repost count. Avatar uses the item image asset when set.", defaultText: "Creator Name\n@handle\nJust shipped a new tutorial — link in bio!\n248", defaultColor: "#34D399" },
+  { id: "voice-card", label: "Voice Card", hint: "Voice-channel card with three member rows; speaking rings pulse around members in a seeded rotation. Lines: channel name / member 1 / member 2 / member 3.", defaultText: "voice-lounge\nAlex\nPriya\nSam", defaultColor: "#6C7CFF" },
 ];
 
 export interface OverlayPhases {
@@ -215,6 +218,48 @@ export function formCardAt(localMs: number, durationMs: number, seed: number, op
   const sum = raw.reduce((a, b) => a + b, 0) || 1;
   const fill = easeOutCubic(clamp01((localMs - durationMs * 0.25) / (durationMs * 0.5)));
   return { options: raw.map((r, i) => ({ index: i, pct: Math.round((r / sum) * 100), fill })), fill };
+}
+
+/** Post card: the Like in the action row fills on the act beat, with a press pulse through the beat. */
+export function postCardAt(localMs: number, durationMs: number) {
+  const ph = overlayPhase(localMs, durationMs);
+  return {
+    liked: ph.acted,
+    acted: ph.acted,
+    act: ph.act,
+    likeScale: ph.acted ? 1 + 0.22 * Math.sin(Math.min(1, ph.act) * Math.PI) : 1,
+  };
+}
+
+/** Repost card: the count ticks exactly +1 at the act flip, and the icon flips colour with it. */
+export function repostAt(localMs: number, durationMs: number, base: number) {
+  const ph = overlayPhase(localMs, durationMs);
+  return { count: Math.max(0, Math.floor(base)) + (ph.acted ? 1 : 0), acted: ph.acted, act: ph.act };
+}
+
+/**
+ * Voice card: exactly one member speaks at a time, rotating every 650 ms to a member chosen by
+ * the seeded hash of (seed, step) — the same (localMs, seed) always picks the same speaker, and
+ * the speaking member's ring pulses within its step. Pure in (localMs, seed, memberCount).
+ */
+export function voiceCardAt(localMs: number, seed: number, memberCount = 3) {
+  const n = Math.max(0, Math.min(3, Math.floor(memberCount)));
+  const at = Math.max(0, localMs);
+  const stepMs = 650;
+  const step = Math.floor(at / stepMs);
+  const stepP = (at % stepMs) / stepMs;
+  const activeIndex = n > 0 ? Math.min(n - 1, Math.floor(socialSeededUnit(seed + step * 101 + 17) * n)) : -1;
+  const members = Array.from({ length: n }, (_, i) => {
+    const speaking = i === activeIndex;
+    return {
+      index: i,
+      speaking,
+      ringScale: speaking ? 1 + 0.16 * Math.sin(stepP * Math.PI) : 1,
+      ringOpacity: speaking ? 0.55 + 0.45 * Math.sin(stepP * Math.PI) : 0,
+      level: speaking ? 0.35 + 0.65 * Math.abs(Math.sin(at / 170 + i * 1.3)) : 0,
+    };
+  });
+  return { step, activeIndex, members };
 }
 
 /** Audio bars: 16 seeded bars, height 0..1 as a pure function of localMs. */
@@ -734,6 +779,104 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
             {bars.map((b) => <span key={b.index} style={{ width: 18 * sc, height: b.h * 140 * sc, backgroundColor: accent, borderRadius: 6 * sc }} />)}
           </span>
           {ls[0] ? <span style={{ fontSize: 27 * sc, fontWeight: 700 }}>{ls[0]}</span> : null}
+        </div>
+      );
+    }
+    case "post-card": {
+      const pc = postCardAt(localMs, dur);
+      const action = (labelNow: string, icon: React.ReactNode, active: boolean) => (
+        <span style={{ display: "flex", alignItems: "center", gap: 9 * sc, fontSize: 26 * sc, fontWeight: 700, color: active ? accent : CARD_FG, opacity: active ? 1 : 0.75 }}>
+          {icon}{labelNow}
+        </span>
+      );
+      return (
+        <div style={{ ...root, ...card, width: 580 * sc }}>
+          <span style={{ display: "flex", gap: 14 * sc, alignItems: "center", marginBottom: 12 * sc }}>
+            {avatar(64)}
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 800, fontSize: 30 * sc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 0, "Creator Name")}</span>
+              <span style={{ display: "block", fontSize: 24 * sc, opacity: 0.7 }}>{line(ls, 1, "2 hrs ago")}</span>
+            </span>
+          </span>
+          <span style={{ display: "block", fontSize: 28 * sc, lineHeight: 1.35, marginBottom: 16 * sc }}>{line(ls, 2, "Just shared a new tutorial!")}</span>
+          <span style={{ display: "block", height: 1, backgroundColor: "#FFFFEB22", marginBottom: 14 * sc }} />
+          <span style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {action("Like", <span style={{ display: "block", transform: `scale(${pc.likeScale.toFixed(3)})` }}><ThumbPath color={accent} filled={pc.liked} size={38 * sc} /></span>, pc.liked)}
+            {action("Comment", (
+              <svg width={38 * sc} height={38 * sc} viewBox="0 0 100 100" aria-hidden style={{ display: "block" }}>
+                <path d="M16 22 C16 16 20 12 26 12 L74 12 C80 12 84 16 84 22 L84 58 C84 64 80 68 74 68 L44 68 L26 84 L26 68 L26 68 C20 68 16 64 16 58 Z" fill="none" stroke={CARD_FG} strokeWidth={6} strokeLinejoin="round" />
+              </svg>
+            ), false)}
+            {action("Share", (
+              <svg width={38 * sc} height={38 * sc} viewBox="0 0 100 100" aria-hidden style={{ display: "block" }}>
+                <path d="M22 62 C22 40 38 28 62 26 L62 14 L86 34 L62 54 L62 42 C44 44 34 50 28 66 Z" fill="none" stroke={CARD_FG} strokeWidth={6} strokeLinejoin="round" />
+              </svg>
+            ), false)}
+          </span>
+        </div>
+      );
+    }
+    case "repost-card": {
+      const baseCount = parseInt((ls[3] ?? "248").replace(/[^0-9]/g, ""), 10) || 0;
+      const rp = repostAt(localMs, dur, baseCount);
+      const repostColor = rp.acted ? accent : "#9A9A94";
+      return (
+        <div style={{ ...root, ...card, width: 560 * sc }}>
+          <span style={{ display: "flex", gap: 13 * sc, alignItems: "center", marginBottom: 10 * sc }}>
+            {avatar(56)}
+            <span style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "baseline", gap: 10 * sc }}>
+              <span style={{ fontWeight: 800, fontSize: 29 * sc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 0, "Creator Name")}</span>
+              <span style={{ fontSize: 24 * sc, opacity: 0.7, whiteSpace: "nowrap" }}>{line(ls, 1, "@handle")}</span>
+            </span>
+          </span>
+          <span style={{ display: "block", fontSize: 28 * sc, lineHeight: 1.35, marginBottom: 14 * sc }}>{line(ls, 2, "Just shipped a new tutorial!")}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 26 * sc }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 9 * sc, transform: `scale(${rp.acted ? (1 + 0.14 * Math.sin(Math.min(1, rp.act) * Math.PI)).toFixed(3) : "1.000"})` }}>
+              <svg width={42 * sc} height={42 * sc} viewBox="0 0 100 100" aria-hidden style={{ display: "block" }}>
+                <path d="M16 36 L68 36 M56 22 L70 36 L56 50" fill="none" stroke={repostColor} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M84 64 L32 64 M44 50 L30 64 L44 78" fill="none" stroke={repostColor} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span style={{ fontWeight: 800, fontSize: 26 * sc, color: repostColor }}>{rp.count.toLocaleString("en-US")}</span>
+            </span>
+            <svg width={36 * sc} height={36 * sc} viewBox="0 0 100 100" aria-hidden style={{ display: "block", opacity: 0.55 }}>
+              <path d="M16 22 C16 16 20 12 26 12 L74 12 C80 12 84 16 84 22 L84 58 C84 64 80 68 74 68 L44 68 L26 84 L26 68 C20 68 16 64 16 58 Z" fill="none" stroke={CARD_FG} strokeWidth={6} strokeLinejoin="round" />
+            </svg>
+            <span style={{ opacity: 0.55 }}><HeartPath color={CARD_FG} filled={false} size={36 * sc} /></span>
+          </span>
+        </div>
+      );
+    }
+    case "voice-card": {
+      const memberDefaults = ["Alex", "Priya", "Sam"];
+      const memberNames = memberDefaults.map((d, i) => line(ls, i + 1, d));
+      const vc = voiceCardAt(localMs, seedOf(item.id), memberNames.length);
+      return (
+        <div style={{ ...root, ...card, width: 520 * sc }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 12 * sc, marginBottom: 16 * sc }}>
+            <svg width={36 * sc} height={36 * sc} viewBox="0 0 100 100" aria-hidden style={{ display: "block", flexShrink: 0 }}>
+              <path d="M14 40 L30 40 L50 22 L50 78 L30 60 L14 60 Z" fill={accent} />
+              <path d="M62 34 C68 42 68 58 62 66 M74 26 C84 40 84 60 74 74" fill="none" stroke={accent} strokeWidth={6} strokeLinecap="round" />
+            </svg>
+            <span style={{ fontWeight: 800, fontSize: 30 * sc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 0, "voice-lounge")}</span>
+            <span style={{ marginLeft: "auto", fontSize: 23 * sc, opacity: 0.7, whiteSpace: "nowrap" }}>{memberNames.length} in voice</span>
+          </span>
+          {memberNames.map((name, i) => {
+            const m = vc.members[i] ?? { speaking: false, ringScale: 1, ringOpacity: 0, level: 0 };
+            return (
+              <span key={i} style={{ display: "flex", alignItems: "center", gap: 14 * sc, marginBottom: i < memberNames.length - 1 ? 13 * sc : 0 }}>
+                <span style={{ position: "relative", width: 56 * sc, height: 56 * sc, flexShrink: 0, display: "block" }}>
+                  <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `${3 * sc}px solid ${accent}`, opacity: m.ringOpacity.toFixed(2), transform: `scale(${m.ringScale.toFixed(3)})` }} />
+                  <span style={{ position: "absolute", left: 5 * sc, top: 5 * sc, display: "flex", alignItems: "center", justifyContent: "center", width: 46 * sc, height: 46 * sc, borderRadius: "50%", backgroundColor: shade(accent, [0.85, 0.62, 0.42][i] ?? 0.7), color: CARD_FG, fontWeight: 800, fontSize: 20 * sc }}>{name.trim().replace(/^@/, "").charAt(0).toUpperCase() || "?"}</span>
+                </span>
+                <span style={{ flex: 1, minWidth: 0, fontWeight: m.speaking ? 800 : 600, fontSize: 27 * sc, color: m.speaking ? CARD_FG : "#FFFFEBBB", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
+                <span style={{ display: "flex", alignItems: "flex-end", gap: 3 * sc, height: 22 * sc }}>
+                  {[0, 1, 2].map((b) => (
+                    <span key={b} style={{ width: 5 * sc, height: (6 + m.level * (8 + b * 4)) * sc, borderRadius: 2, backgroundColor: accent, opacity: m.speaking ? 1 : 0.22 }} />
+                  ))}
+                </span>
+              </span>
+            );
+          })}
         </div>
       );
     }
