@@ -819,7 +819,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
           {/* audio waveform */}
           <div className="relative cursor-ew-resize bg-st-em/10" {...scrub}>
             <Waveform peaks={peaks} width={width} />
-            {waveState !== "ready" ? <span className="absolute left-2 top-1 text-[10px] text-st-faint">{waveState === "loading" ? "Loading audio…" : waveState === "unavailable" ? "Waveform unavailable for this file" : ""}</span> : null}
+            {waveState !== "ready" ? <span className="absolute left-2 top-1 text-[10px] text-st-faint">{waveState === "loading" ? "Loading audio…" : waveState === "unavailable" ? "Couldn't read a waveform from this file's audio" : ""}</span> : null}
           </div>
 
           {/* Run 3: one row per audio track — placed clips as blocks (drag moves, the
