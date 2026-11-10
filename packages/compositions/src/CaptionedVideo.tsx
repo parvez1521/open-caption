@@ -5,7 +5,7 @@ import { CaptionDocSchema, type CaptionStyleV2, OverlayItemSchema, ProjectSettin
 import { applyFillerFilter, applyProfanity, derivePages } from "@motion-ai/caption-engine/core";
 import { EMOJI_FONT, PageView, VideoFrameBus, VideoFrameContext, famCss, getTemplate, layoutBox, measure, resolveStyle, scaleOf, useFontsReady, wordGapEm, wordGapPx, type Canvas } from "@capseasy/templates";
 import type { CaptionedVideoInput } from "./props";
-import { buildVideoFilter, overlayFrames, resolveClipRange, resolveOverlays, resolveVideoAdjust, videoTrimFrames } from "./overlayMath";
+import { buildVideoFilter, overlayFrames, resolveClipRange, resolveOverlays, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, videoSegmentFrames, videoTrimFrames } from "./overlayMath";
 import { OverlayView } from "./overlays";
 
 /** Doc -> what the audience should see (filters are display-time, so the stored doc is never mutated). */
@@ -81,6 +81,23 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
   // trimBefore/trimAfter as source frames), so preview, browser export and server render all show
   // ONLY the segment — the caption doc is already shifted to segment time, everything lines up at 0.
   const clipTrim = useMemo(() => videoTrimFrames(resolveClipRange({ settings }), fps), [settings, fps]);
+  // Stage-B segmentation (Phase 4): >=2 stored segments render as a segment chain; null / a single
+  // segment keeps EXACTLY today's single-layer path, so untouched projects are pixel-identical.
+  // By the Stage-B invariant the segments' span equals the clipRange span, so the chain needs no
+  // additional offset and the composition duration (Root.tsx) is unchanged.
+  const videoSegments = useMemo(() => resolveVideoSegments({ settings }), [settings]);
+  const segmentFrames = useMemo(
+    () => (videoSegments && videoSegments.length >= 2 ? videoSegmentFrames(videoSegments, fps) : null),
+    [videoSegments, fps],
+  );
+  // Track state (Stage B): video mute silences the video element(s); a hidden captions track
+  // renders no caption pages at all. Both default to neutral, so legacy projects are unaffected.
+  const videoMuted = useMemo(() => resolveTrackState({ settings }, "video").muted, [settings]);
+  const captionsVisible = useMemo(() => resolveTrackState({ settings }, "captions").visible, [settings]);
+  // Both engines accept a boolean `muted` prop (remotion OffthreadVideo OptionalOffthreadVideoProps.muted
+  // and @remotion/media Video OptionalVideoProps.muted in the installed 4.0.484 types). It is only
+  // spread in when actually muted, so an unmuted render carries no extra prop at all.
+  const muteProps = videoMuted ? { muted: true as const } : {};
   const hasTextOverlay = overlays.some((o) => o.kind === "text" || o.kind === "social");
 
   const fontFamilies = useMemo(() => [resolved.fontId, resolved.hero.fontId ?? "", ...getTemplate(resolved.templateId).fonts, resolved.emoji.enabled ? EMOJI_FONT : "", hasTextOverlay ? "Plus Jakarta Sans" : ""], [resolved, hasTextOverlay]);
@@ -100,10 +117,24 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
     <AbsoluteFill>
       {mode === "burn" && src ? (
         <AbsoluteFill style={{ backgroundColor: "black", ...(videoFilter ? { filter: videoFilter } : {}) }}>
-          {videoEngine === "media" ? (
-            <MediaVideo src={src} objectFit="contain" style={{ width: "100%", height: "100%" }} onVideoFrame={frameBus?.emit} {...(clipTrim ?? {})} />
+          {segmentFrames && videoSegments ? (
+            // Segment chain: one Sequence per segment, tiling the composition exactly (see
+            // videoSegmentFrames). The CSS-filter wrapper stays single and wraps the whole chain —
+            // the filter is uniform across segments. Each segment's element carries that segment's
+            // source trim, and the media engine keeps reporting frames to the frame bus per segment.
+            segmentFrames.map((win, i) => (
+              <Sequence key={videoSegments[i].id} from={win.from} durationInFrames={win.durationInFrames} layout="none">
+                {videoEngine === "media" ? (
+                  <MediaVideo src={src} objectFit="contain" style={{ width: "100%", height: "100%" }} onVideoFrame={frameBus?.emit} trimBefore={win.trimBefore} trimAfter={win.trimAfter} {...muteProps} />
+                ) : (
+                  <OffthreadVideo src={src} style={{ width: "100%", height: "100%", objectFit: "contain" }} trimBefore={win.trimBefore} trimAfter={win.trimAfter} {...muteProps} />
+                )}
+              </Sequence>
+            ))
+          ) : videoEngine === "media" ? (
+            <MediaVideo src={src} objectFit="contain" style={{ width: "100%", height: "100%" }} onVideoFrame={frameBus?.emit} {...(clipTrim ?? {})} {...muteProps} />
           ) : (
-            <OffthreadVideo src={src} style={{ width: "100%", height: "100%", objectFit: "contain" }} {...(clipTrim ?? {})} />
+            <OffthreadVideo src={src} style={{ width: "100%", height: "100%", objectFit: "contain" }} {...(clipTrim ?? {})} {...muteProps} />
           )}
         </AbsoluteFill>
       ) : mode === "burn" && backdrop ? (
@@ -119,7 +150,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
         );
       })}
       <VideoFrameContext.Provider value={frameBus}>
-        {pages.map((page) => {
+        {(captionsVisible ? pages : []).map((page) => {
           const from = Math.floor((page.startMs / 1000) * fps);
           const duration = Math.max(1, Math.ceil(((page.endMs - page.startMs) / 1000) * fps));
           return (

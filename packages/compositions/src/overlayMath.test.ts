@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ProjectSettingsSchema, type OverlayItem } from "@capseasy/shared";
+import { DEFAULT_TRACK_STATE, ProjectSettingsSchema, type OverlayItem, type VideoSegment } from "@capseasy/shared";
 import { CaptionedVideoProps } from "./props";
-import { buildVideoFilter, overlayFrames, overlayVisibleAt, resolveOverlays, resolveVideoAdjust } from "./overlayMath";
+import { buildVideoFilter, overlayFrames, overlayTrackKind, overlayVisibleAt, resolveOverlays, resolveTrackState, resolveVideoAdjust, resolveVideoSegments, videoSegmentFrames } from "./overlayMath";
 
 describe("buildVideoFilter", () => {
   it("is undefined when all three adjustments are neutral (filter omitted entirely)", () => {
@@ -88,6 +88,155 @@ describe("resolve helpers (props win, settings are the fallback)", () => {
   it("defaults to neutral / empty with neither source", () => {
     expect(resolveVideoAdjust({})).toEqual({ brightness: 1, contrast: 1, saturation: 1 });
     expect(resolveOverlays({})).toEqual([]);
+  });
+});
+
+describe("resolveVideoSegments (Stage-B segmentation)", () => {
+  it("is null when there are no settings, no composition, or an empty segment array", () => {
+    expect(resolveVideoSegments({})).toBeNull();
+    expect(resolveVideoSegments({ settings: null })).toBeNull();
+    expect(resolveVideoSegments({ settings: ProjectSettingsSchema.parse({}) })).toBeNull();
+    expect(resolveVideoSegments({ settings: ProjectSettingsSchema.parse({ composition: { videoSegments: [] } }) })).toBeNull();
+  });
+
+  it("passes the stored segments through untouched", () => {
+    const settings = ProjectSettingsSchema.parse({
+      composition: {
+        videoSegments: [
+          { id: "seg-1", sourceInMs: 10_000, sourceOutMs: 25_000 },
+          { id: "seg-2", sourceInMs: 25_000, sourceOutMs: 40_000 },
+        ],
+      },
+    });
+    const segments = resolveVideoSegments({ settings });
+    expect(segments).toEqual([
+      { id: "seg-1", sourceInMs: 10_000, sourceOutMs: 25_000 },
+      { id: "seg-2", sourceInMs: 25_000, sourceOutMs: 40_000 },
+    ]);
+    expect(segments).toBe(settings.composition.videoSegments);
+  });
+});
+
+describe("videoSegmentFrames (segment chain tiling)", () => {
+  // Three source-continuous segments of 1040ms each, starting at 2000ms in the source. 1040ms is
+  // deliberately NOT frame-aligned at either rate, so independent per-segment rounding would drift
+  // (3 x round(31.2) = 93 frames at 30fps) while cumulative-boundary rounding tiles exactly (94).
+  const segments: VideoSegment[] = [
+    { id: "a", sourceInMs: 2000, sourceOutMs: 3040 },
+    { id: "b", sourceInMs: 3040, sourceOutMs: 4080 },
+    { id: "c", sourceInMs: 4080, sourceOutMs: 5120 },
+  ];
+
+  it("computes exact windows and per-segment source trims at 30fps", () => {
+    expect(videoSegmentFrames(segments, 30)).toEqual([
+      { from: 0, durationInFrames: 31, trimBefore: 60, trimAfter: 91 },
+      { from: 31, durationInFrames: 31, trimBefore: 91, trimAfter: 122 },
+      { from: 62, durationInFrames: 32, trimBefore: 122, trimAfter: 154 },
+    ]);
+  });
+
+  it("computes exact windows and per-segment source trims at 60fps", () => {
+    expect(videoSegmentFrames(segments, 60)).toEqual([
+      { from: 0, durationInFrames: 62, trimBefore: 120, trimAfter: 182 },
+      { from: 62, durationInFrames: 63, trimBefore: 182, trimAfter: 245 },
+      { from: 125, durationInFrames: 62, trimBefore: 245, trimAfter: 307 },
+    ]);
+  });
+
+  it("tiles exactly at both rates: no gaps, no overlaps, durations sum to the total frame count", () => {
+    for (const [fps, totalFrames] of [
+      [30, 94],
+      [60, 187],
+    ] as const) {
+      const windows = videoSegmentFrames(segments, fps);
+      expect(windows[0].from).toBe(0);
+      for (let i = 1; i < windows.length; i++) {
+        expect(windows[i].from).toBe(windows[i - 1].from + windows[i - 1].durationInFrames);
+      }
+      expect(windows.reduce((sum, w) => sum + w.durationInFrames, 0)).toBe(totalFrames);
+      // and the total is the rounded span of the whole chain (3120ms), not a per-segment sum
+      expect(totalFrames).toBe(Math.round((3120 / 1000) * fps));
+    }
+  });
+
+  it("a single segment starts at frame 0 with its own source trim", () => {
+    expect(videoSegmentFrames([segments[0]], 30)).toEqual([{ from: 0, durationInFrames: 31, trimBefore: 60, trimAfter: 91 }]);
+  });
+});
+
+describe("resolveTrackState (Stage-B track state)", () => {
+  it("defaults every track to unlocked / visible / unmuted for legacy or missing settings", () => {
+    for (const kind of ["video", "captions", "text", "graphics"] as const) {
+      expect(resolveTrackState({}, kind)).toEqual(DEFAULT_TRACK_STATE);
+      expect(resolveTrackState({ settings: null }, kind)).toEqual(DEFAULT_TRACK_STATE);
+      expect(resolveTrackState({ settings: ProjectSettingsSchema.parse({}) }, kind)).toEqual({ locked: false, visible: true, muted: false });
+    }
+  });
+
+  it("returns the stored state for the requested track only", () => {
+    const settings = ProjectSettingsSchema.parse({
+      composition: {
+        tracks: {
+          video: { muted: true },
+          captions: { visible: false },
+          text: { locked: true },
+        },
+      },
+    });
+    expect(resolveTrackState({ settings }, "video")).toEqual({ locked: false, visible: true, muted: true });
+    expect(resolveTrackState({ settings }, "captions")).toEqual({ locked: false, visible: false, muted: false });
+    expect(resolveTrackState({ settings }, "text")).toEqual({ locked: true, visible: true, muted: false });
+    expect(resolveTrackState({ settings }, "graphics")).toEqual({ locked: false, visible: true, muted: false });
+  });
+});
+
+describe("overlayTrackKind", () => {
+  it("maps text/image to the text track and shape/social to the graphics track", () => {
+    expect(overlayTrackKind("text")).toBe("text");
+    expect(overlayTrackKind("image")).toBe("text");
+    expect(overlayTrackKind("shape")).toBe("graphics");
+    expect(overlayTrackKind("social")).toBe("graphics");
+  });
+});
+
+describe("resolveOverlays track-visibility filtering (Stage B)", () => {
+  const oneOfEachKind: OverlayItem[] = [
+    { id: "txt", kind: "text", text: "Title", startMs: 0, endMs: 1000, x: 0.5, y: 0.5, scale: 1, rotation: 0, color: "#FFFFFF" },
+    { id: "img", kind: "image", assetId: "asset-1", startMs: 0, endMs: 1000, x: 0.5, y: 0.5, scale: 1, rotation: 0, color: "#FFFFFF" },
+    { id: "shp", kind: "shape", shape: "star", startMs: 0, endMs: 1000, x: 0.5, y: 0.5, scale: 1, rotation: 0, color: "#FFFFFF" },
+    { id: "soc", kind: "social", variant: "like-pop", startMs: 0, endMs: 1000, x: 0.5, y: 0.5, scale: 1, rotation: 0, color: "#FFFFFF" },
+  ];
+  const settingsWith = (tracks: Record<string, unknown>, overlays?: OverlayItem[]) =>
+    ProjectSettingsSchema.parse({ ...(overlays ? { overlays } : {}), composition: { tracks } });
+  const ids = (items: OverlayItem[]) => items.map((o) => o.id);
+
+  it("hiding graphics drops shape + social and keeps text + image (settings-sourced overlays)", () => {
+    const settings = settingsWith({ graphics: { visible: false } }, oneOfEachKind);
+    expect(ids(resolveOverlays({ settings }))).toEqual(["txt", "img"]);
+  });
+
+  it("hiding text drops text + image and keeps shape + social (settings-sourced overlays)", () => {
+    const settings = settingsWith({ text: { visible: false } }, oneOfEachKind);
+    expect(ids(resolveOverlays({ settings }))).toEqual(["shp", "soc"]);
+  });
+
+  it("filters explicit-prop overlays too — visibility lives in settings, not in the overlay source", () => {
+    const graphicsHidden = settingsWith({ graphics: { visible: false } });
+    expect(ids(resolveOverlays({ overlays: oneOfEachKind, settings: graphicsHidden }))).toEqual(["txt", "img"]);
+    const textHidden = settingsWith({ text: { visible: false } });
+    expect(ids(resolveOverlays({ overlays: oneOfEachKind, settings: textHidden }))).toEqual(["shp", "soc"]);
+  });
+
+  it("hiding both overlay tracks drops everything", () => {
+    const settings = settingsWith({ text: { visible: false }, graphics: { visible: false } }, oneOfEachKind);
+    expect(resolveOverlays({ settings })).toEqual([]);
+  });
+
+  it("legacy settings (no composition) and missing settings filter nothing", () => {
+    const legacy = ProjectSettingsSchema.parse({ overlays: oneOfEachKind });
+    expect(ids(resolveOverlays({ settings: legacy }))).toEqual(["txt", "img", "shp", "soc"]);
+    expect(ids(resolveOverlays({ overlays: oneOfEachKind }))).toEqual(["txt", "img", "shp", "soc"]);
+    expect(ids(resolveOverlays({ overlays: oneOfEachKind, settings: settingsWith({}) }))).toEqual(["txt", "img", "shp", "soc"]);
   });
 });
 
