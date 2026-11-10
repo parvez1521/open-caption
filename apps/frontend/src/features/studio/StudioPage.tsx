@@ -31,6 +31,8 @@ import { AdjustPanel } from "./panels/AdjustPanel";
 import { AudioPanel } from "./panels/AudioPanel";
 import { ClipperPanel } from "./panels/ClipperPanel";
 import { TranslatePanel } from "./panels/TranslatePanel";
+import { TrimPanel } from "./panels/TrimPanel";
+import { removeRangesFromVideo, trimRangeEffects, type TrimRange } from "./trim";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
 import { Timeline } from "./Timeline";
@@ -86,7 +88,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "clipper" | "translate";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "clipper" | "translate" | "trim";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -104,6 +106,7 @@ const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?:
   { id: "audio", label: "Audio", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /></>) },
   { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
   { id: "clipper", label: "Clipper", icon: railIcon(<><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" /></>) },
+  { id: "trim", label: "Trim", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /><path d="M3 21l7-7" /></>) },
 ];
 
 const SAVE_LABEL: Record<SaveState, { text: string; dot: string }> = {
@@ -347,24 +350,45 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const captionsLockedRef = useRef(false);
   captionsLockedRef.current = editorComp?.trackState.captions.locked ?? false;
 
-  const commitComposition = (nextComp: EditorComposition, docEffect?: DocEffect) => {
+  const commitComposition = (nextComp: EditorComposition, docEffect?: DocEffect | DocEffect[]) => {
     if (!editorComp) return;
-    if (nextComp === editorComp && (!docEffect || docEffect.type === "none")) return;
+    // Phase 5 (A3): an ARRAY of effects is supported for multi-range applies
+    // (trim fillers & pauses) — effects apply sequentially, in the caller's
+    // order (trim passes them descending so coordinates never shift under
+    // later effects), and still land in the one editAll below (one undo step).
+    const effects = (docEffect ? (Array.isArray(docEffect) ? docEffect : [docEffect]) : []).filter((e) => e.type !== "none");
+    if (nextComp === editorComp && effects.length === 0) return;
     let comp = nextComp;
     let nextDoc: CaptionDoc | undefined;
-    if (docEffect && docEffect.type !== "none") {
+    if (effects.length > 0) {
       // The composition's outside content (markers/overlays) and the caption doc's
       // words both follow the SAME effect — headShift (range moved), rangeRemove /
       // rangeInsert (ripple delete / still insert), rangeShift / rangeScale (speed
       // changes) — all landing in the one editAll call below (one undo step).
-      comp = applyContentEffect(comp, docEffect);
-      if (s.doc) {
-        const shifted = applyDocEffect(s.doc, docEffect);
-        if (shifted !== s.doc) nextDoc = shifted;
+      let currentDoc = s.doc;
+      for (const effect of effects) {
+        comp = applyContentEffect(comp, effect);
+        if (currentDoc) {
+          const shifted = applyDocEffect(currentDoc, effect);
+          if (shifted !== currentDoc) {
+            nextDoc = shifted;
+            currentDoc = shifted;
+          }
+        }
       }
     }
     const projected = projectComposition(comp, settings);
     s.editAll({ ...(nextDoc ? { doc: nextDoc } : {}), settings: projected });
+  };
+
+  /* ---------- Phase 5 (A3): trim fillers & pauses — the checked ranges are cut
+   * from the video partition AND followed by captions/markers/overlays through
+   * the rangeRemove effects, all in commitComposition's single editAll step. */
+  const applyTrim = (ranges: TrimRange[]) => {
+    if (!editorComp || ranges.length === 0) return;
+    const videoComp = removeRangesFromVideo(editorComp, ranges);
+    if (videoComp === editorComp && editorComp.videoClips.length > 0) return;
+    commitComposition(videoComp, trimRangeEffects(ranges));
   };
 
   /* ---------- Run 3 audio wiring: every AudioPanel / Timeline audio callback is an
@@ -1023,6 +1047,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       ) : null)
       : t === "translate" ? (doc ? <TranslatePanel projectId={projectId} doc={doc} settings={settings} patch={s.patchSettings} translations={translations} onTranslated={(lang, tdoc) => setTranslations((prev) => ({ ...prev, [lang]: tdoc }))} /> : null)
       : t === "clipper" ? (doc ? <ClipperPanel projectId={projectId} sourceTitle={data.project.title} sourceVideoId={data.video?.id ?? null} mediaDurationMs={settings.clipRange ? durationMs : (data.video?.durationMs ?? 0)} doc={doc} peaks={wave.peaks} videoUrl={video?.url ?? null} sourceWidth={data.video?.width ?? null} sourceHeight={data.video?.height ?? null} sourceUrl={video?.url ?? null} /> : null)
+      : t === "trim" ? (doc ? <TrimPanel doc={doc} peaks={wave.peaks} durationMs={durationMs} onSeek={seek} onApply={applyTrim} /> : null)
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
 
