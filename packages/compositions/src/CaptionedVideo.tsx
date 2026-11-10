@@ -93,6 +93,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
   // Track state (Stage B): video mute silences the video element(s); a hidden captions track
   // renders no caption pages at all. Both default to neutral, so legacy projects are unaffected.
   const videoMuted = useMemo(() => resolveTrackState({ settings }, "video").muted, [settings]);
+  const videoVisible = useMemo(() => resolveTrackState({ settings }, "video").visible, [settings]);
   const captionsVisible = useMemo(() => resolveTrackState({ settings }, "captions").visible, [settings]);
   // Both engines accept a boolean `muted` prop (remotion OffthreadVideo OptionalOffthreadVideoProps.muted
   // and @remotion/media Video OptionalVideoProps.muted in the installed 4.0.484 types). It is only
@@ -115,7 +116,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
 
   return (
     <AbsoluteFill>
-      {mode === "burn" && src ? (
+      {mode === "burn" && src && videoVisible ? (
         <AbsoluteFill style={{ backgroundColor: "black", ...(videoFilter ? { filter: videoFilter } : {}) }}>
           {segmentFrames && videoSegments ? (
             // Segment chain: one Sequence per segment, tiling the composition exactly (see
@@ -137,7 +138,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
             <OffthreadVideo src={src} style={{ width: "100%", height: "100%", objectFit: "contain" }} {...(clipTrim ?? {})} {...muteProps} />
           )}
         </AbsoluteFill>
-      ) : mode === "burn" && backdrop ? (
+      ) : mode === "burn" && !src && backdrop ? (
         <AbsoluteFill style={{ background: backdrop }} />
       ) : null}
       {/* overlays sit above the video, below the captions — timed Sequences, same in preview and export */}

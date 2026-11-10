@@ -6,10 +6,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
-import { CaptionDocSchema, effectiveDurationMs } from "@capseasy/shared";
+import { CaptionDocSchema, effectiveDurationMs, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
 import { deleteWordsByIds, insertWordAfter, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
-import { EyeOff, Redo2, Star, Trash2, Undo2 } from "lucide-react";
+import { Copy, EyeOff, Keyboard, Redo2, Scissors, Star, Trash2, Undo2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { StudioSkeleton } from "@/components/brand/Skeletons";
 import { useBrandNav } from "@/components/brand/BrandNav";
@@ -42,6 +42,14 @@ import { getSession, useSessionView } from "@/features/transcribe/session";
 import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError } from "@/services/auth/guest";
 import { useWaveform } from "./useWaveform";
 import { toComposition } from "./composition";
+import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
+import {
+  addMarker, applyContentShift, applyDocEffect, canRippleDeleteVideoSegment, deleteOverlayClip,
+  duplicateOverlayClip, moveOverlayClip, overlayTrackOf, removeMarker, rippleDeleteOverlayClip,
+  rippleDeleteVideoSegment, setTrackState, splitOverlayClipAt, splitVideoClipAt, trimOverlayClip,
+  trimVideoClipEdge, type DocEffect,
+} from "./compositionOps";
+import { listProjectAssets } from "./mediaStore";
 import { splitWordIdAtPlayhead } from "./playheadSplit";
 import { resolveDeleteAction } from "./deleteSelection";
 import { useMediaAssets } from "./useMediaAssets";
@@ -139,6 +147,31 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   /** drag selection of caption words (ids, spanning cards), shared by the captions panel + timeline */
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [selVideoClipId, setSelVideoClipId] = useState<string | null>(null);
+  const [selMarkerId, setSelMarkerId] = useState<string | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  // one selection kind at a time: picking a word / overlay / video segment / marker clears the
+  // others, so Delete and the contextual timeline tools always act on what the user just picked
+  const selectWord = (id: string | null) => {
+    setSelectedId(id);
+    if (id) { setSelectedOverlayId(null); setSelVideoClipId(null); setSelMarkerId(null); }
+  };
+  const selectOverlay = (id: string | null) => {
+    setSelectedOverlayId(id);
+    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelVideoClipId(null); setSelMarkerId(null); }
+  };
+  const selectVideoClip = (id: string | null) => {
+    setSelVideoClipId(id);
+    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelMarkerId(null); }
+  };
+  const selectMarker = (id: string | null) => {
+    setSelMarkerId(id);
+    if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelVideoClipId(null); }
+  };
+  const handleWordSelectionChange = (ids: Set<string>) => {
+    setSelectedWordIds(ids);
+    if (ids.size > 0) { setSelectedOverlayId(null); setSelVideoClipId(null); setSelMarkerId(null); }
+  };
   const [showTour, setShowTour] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -255,6 +288,75 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     [doc, style, pages, settings, width, height, fps, durationMs, data?.video?.id, data?.video?.filename, data?.video?.size],
   );
 
+  // Stage-B editor composition: the partition / markers / track state the timeline edits.
+  // Built from the Stage-A view + stored settings; every timeline op produces a new
+  // EditorComposition which commitComposition projects back into settings (and, for a
+  // headShift, a shifted caption doc) as ONE editAll step.
+  const editorComp = useMemo(
+    () => (composition ? buildEditorComposition({ view: composition, settings, sourceDurationMs }) : null),
+    [composition, settings, sourceDurationMs],
+  );
+  const captionsLockedRef = useRef(false);
+  captionsLockedRef.current = editorComp?.trackState.captions.locked ?? false;
+
+  const commitComposition = (nextComp: EditorComposition, docEffect?: DocEffect) => {
+    if (!editorComp) return;
+    if (nextComp === editorComp && (!docEffect || docEffect.type === "none")) return;
+    let comp = nextComp;
+    let nextDoc: CaptionDoc | undefined;
+    if (docEffect?.type === "headShift") {
+      // the head moved: markers/overlays re-base inside the composition, caption words
+      // re-base in the doc — both land in the same editAll call below (one undo step)
+      comp = applyContentShift(comp, docEffect.deltaMs);
+      if (s.doc) {
+        const shifted = applyDocEffect(s.doc, docEffect);
+        if (shifted !== s.doc) nextDoc = shifted;
+      }
+    }
+    const projected = projectComposition(comp, settings);
+    s.editAll({ ...(nextDoc ? { doc: nextDoc } : {}), settings: projected });
+  };
+
+  const videoLocked = editorComp?.trackState.video.locked ?? false;
+  const overlayLockedForId = (id: string | null): boolean => {
+    if (!editorComp || !id) return false;
+    const clip = editorComp.overlayClips.find((c) => c.id === id);
+    return clip ? editorComp.trackState[overlayTrackOf(clip.kind)].locked : false;
+  };
+
+  const splitVideoAtPlayhead = () => {
+    if (!editorComp || videoLocked) return;
+    const r = splitVideoClipAt(editorComp, getPlayerMs());
+    commitComposition(r.comp, r.docEffect);
+  };
+  const addMarkerAtPlayhead = () => {
+    if (!editorComp) return;
+    commitComposition(addMarker(editorComp, getPlayerMs()));
+  };
+  const toggleTrack = (kind: CompositionTrackKind, patch: Partial<TrackState>) => {
+    if (!editorComp) return;
+    commitComposition(setTrackState(editorComp, kind, patch));
+  };
+  /** the overlays row's single lock/eye: the same patch applied to BOTH overlay track kinds in one commit */
+  const overlayTrackPatch = (patch: Partial<TrackState>) => {
+    if (!editorComp) return;
+    commitComposition(setTrackState(setTrackState(editorComp, "text", patch), "graphics", patch));
+  };
+  const trimVideoEdge = (clipId: string, edge: "start" | "end", targetMs: number) => {
+    if (!editorComp || videoLocked) return;
+    const r = trimVideoClipEdge(editorComp, clipId, edge, targetMs);
+    commitComposition(r.comp, r.docEffect);
+  };
+  const rippleVideoSegment = (clipId: string) => {
+    if (!editorComp || videoLocked) return;
+    const r = rippleDeleteVideoSegment(editorComp, clipId);
+    commitComposition(r.comp, r.docEffect);
+  };
+  const splitVideoRef = useRef<() => void>(() => undefined);
+  splitVideoRef.current = splitVideoAtPlayhead;
+  const addMarkerRef = useRef<() => void>(() => undefined);
+  addMarkerRef.current = addMarkerAtPlayhead;
+
   // resolved URLs for placed image overlays (device-local bytes → object URLs for this session);
   // threaded into the one input object, so the Player preview and the in-browser export agree
   const [overlayAssetUrls, setOverlayAssetUrls] = useState<Record<string, string>>({});
@@ -317,7 +419,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     const wordId = splitWordIdAtPlayhead(pages, getPlayerMs());
     if (!wordId) return;
     s.edit((d) => splitCardAt(d, wordId));
-    setSelectedId(wordId);
+    selectWord(wordId);
   };
 
   // Delete / Backspace target (owner bug 2026-11-10: the key had no handler at all). One code
@@ -326,11 +428,16 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // is one undo step like every other edit. Inert while a dialog is open or captions are live.
   const deleteSelectionRef = useRef<() => boolean>(() => false);
   deleteSelectionRef.current = () => {
+    // a locked captions track protects its words only — overlays / segments / markers still delete
+    const captionsLocked = editorComp?.trackState.captions.locked ?? false;
     const action = resolveDeleteAction({
-      blocked: live || showExport || showSignup || Boolean(s.conflict),
-      selectedWordIds,
+      blocked: live || showExport || showSignup || showShortcuts || Boolean(s.conflict),
+      selectedWordIds: captionsLocked ? [] : selectedWordIds,
       selectedOverlayId,
-      selectedId,
+      selectedId: captionsLocked ? null : selectedId,
+      selectedVideoClipId: selVideoClipId,
+      canRippleDeleteVideoSegment: editorComp && selVideoClipId ? canRippleDeleteVideoSegment(editorComp, selVideoClipId) : false,
+      selectedMarkerId: selMarkerId,
     });
     if (!action) return false;
     if (action.kind === "words") {
@@ -338,8 +445,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       setSelectedWordIds(new Set());
       setSelectedId(null);
     } else if (action.kind === "overlay") {
-      s.patchSettings({ overlays: settings.overlays.filter((o) => o.id !== action.id) });
+      if (editorComp) commitComposition(deleteOverlayClip(editorComp, action.id));
+      else s.patchSettings({ overlays: settings.overlays.filter((o) => o.id !== action.id) });
       setSelectedOverlayId(null);
+    } else if (action.kind === "videoSegment") {
+      rippleVideoSegment(action.id);
+      setSelVideoClipId(null);
+    } else if (action.kind === "marker") {
+      if (editorComp) commitComposition(removeMarker(editorComp, action.id));
+      setSelMarkerId(null);
     } else {
       s.edit((d) => deleteWordsByIds(d, [action.id]));
       setSelectedId(null);
@@ -361,7 +475,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       else if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); void s.saveNow().catch(() => undefined); }
       else if ((e.key === "Delete" || e.key === "Backspace") && !typing && !mod && !e.altKey) { if (deleteSelectionRef.current()) e.preventDefault(); }
       else if (e.key.toLowerCase() === "s" && !typing && !mod && !e.altKey) { e.preventDefault(); splitAtPlayheadRef.current(); }
-      else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !typing && !mod && selectedWordIds.size > 0) {
+      else if (e.key.toLowerCase() === "b" && !typing && !mod && !e.altKey) { e.preventDefault(); splitVideoRef.current(); }
+      else if (e.key.toLowerCase() === "m" && !typing && !mod && !e.altKey) { e.preventDefault(); addMarkerRef.current(); }
+      else if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !typing && !mod && !captionsLockedRef.current && selectedWordIds.size > 0) {
         e.preventDefault();
         const delta = (e.key === "ArrowRight" ? 1 : -1) * (e.shiftKey ? 10 : 100);
         const ids = [...selectedWordIds];
@@ -372,6 +488,14 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [s, selectedWordIds]);
+
+  // Esc closes the shortcuts help dialog
+  useEffect(() => {
+    if (!showShortcuts) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setShowShortcuts(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showShortcuts]);
 
   if (s.query.isLoading) return <StudioSkeleton />;
   if (s.query.error instanceof ApiError && s.query.error.status === 401) {
@@ -503,7 +627,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const captions = doc && style ? (
     <div data-tour="captions" className="flex h-full min-h-0 flex-col">
       <div className={`min-h-0 flex-1 ${live ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
-        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={setSelectedId} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={setSelectedWordIds} />
+        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWord} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} />
       </div>
       {live && liveView ? (
         // the captions that haven't been written yet: shimmering placeholders with the time left
@@ -518,14 +642,27 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     </div>
   ) : null;
 
-  const overlayPanelProps = { settings, patch: s.patchSettings, selectedId: selectedOverlayId, onSelect: setSelectedOverlayId, getTimeMs: getPlayerMs, durationMs, composition };
-  // place an imported image as a timed overlay, then open its editor in Elements
-  const placeImage = (asset: { id: string; name: string }) => {
-    const item = makeImageOverlay(asset, getPlayerMs(), durationMs);
+  const overlayPanelProps = { settings, patch: s.patchSettings, selectedId: selectedOverlayId, onSelect: selectOverlay, getTimeMs: getPlayerMs, durationMs, composition };
+  // place an imported image as a timed overlay at a given time, then open its editor in Elements
+  const placeImageAt = (asset: { id: string; name: string }, atMs: number) => {
+    const item = makeImageOverlay(asset, atMs, durationMs);
     s.patchSettings({ overlays: [...settings.overlays, item] });
-    setSelectedOverlayId(item.id);
+    selectOverlay(item.id);
     setSection("elements");
     setMobileTimeline(false);
+  };
+  const placeImage = (asset: { id: string; name: string }) => placeImageAt(asset, getPlayerMs());
+  // media-bin drop on the timeline: image -> overlay at the drop point; video -> take over as
+  // the project source through the same device attach path as MediaPanel's "Use as source";
+  // audio -> ignored (no audio timeline track yet). No single-record getter exists in
+  // mediaStore, so the project's assets are listed and matched by id.
+  const onDropAsset = (assetId: string, _kind: string, atMs: number) => {
+    void (async () => {
+      const record = (await listProjectAssets(projectId)).find((a) => a.id === assetId);
+      if (!record) return;
+      if (record.kind === "image") placeImageAt(record, atMs);
+      else if (record.kind === "video") await device.attach(new File([record.blob], record.name, { type: record.mime }));
+    })();
   };
   // panel registry: every rail section maps to its real panel here (same props/state as before the move)
   const renderPanel = (t: PanelId) =>
@@ -557,13 +694,30 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   );
   const none = !selected;
   const ic = "h-4 w-4";
+  const selOverlayClip = editorComp?.overlayClips.find((c) => c.id === selectedOverlayId) ?? null;
+  const selVideoCanRipple = Boolean(editorComp && selVideoClipId && canRippleDeleteVideoSegment(editorComp, selVideoClipId));
   const extraTools = (
     <>
       {tool(selected?.emphasis === "hero" ? "Key word (click to unset)" : "Make key word", <Star className={ic} />, () => selected && s.edit((d) => setEmphasis(d, selected.id, selected.emphasis === "hero" ? "none" : "hero")), { disabled: none || !heroSupported, active: selected?.emphasis === "hero" })}
       {tool("Hide word", <EyeOff className={ic} />, () => { if (!selected) return; s.edit((d) => setHidden(d, selected.id, true)); setSelectedId(null); }, { disabled: none })}
-      {tool("Delete selected (Del)", <Trash2 className={ic} />, () => { deleteSelectionRef.current(); }, { disabled: selectedWordIds.size === 0 && !selected && !selectedOverlayId })}
+      {tool("Delete selected (Del)", <Trash2 className={ic} />, () => { deleteSelectionRef.current(); }, { disabled: selectedWordIds.size === 0 && !selected && !selectedOverlayId && !selMarkerId && !selVideoCanRipple })}
       {tool("Undo", <Undo2 className={ic} />, s.undo, { disabled: !s.canUndo })}
       {tool("Redo", <Redo2 className={ic} />, s.redo, { disabled: !s.canRedo })}
+      {selOverlayClip && editorComp && !overlayLockedForId(selOverlayClip.id) ? (
+        <>
+          {tool("Split overlay at playhead", <Scissors className={ic} />, () => commitComposition(splitOverlayClipAt(editorComp, selOverlayClip.id, getPlayerMs())))}
+          {tool("Duplicate overlay", <Copy className={ic} />, () => commitComposition(duplicateOverlayClip(editorComp, selOverlayClip.id)))}
+          {tool("Ripple delete overlay", <Trash2 className={ic} />, () => { commitComposition(rippleDeleteOverlayClip(editorComp, selOverlayClip.id)); setSelectedOverlayId(null); })}
+        </>
+      ) : null}
+      {selVideoClipId && editorComp && editorComp.videoClips.some((c) => c.id === selVideoClipId) && !videoLocked ? (
+        <>
+          {tool("Split video at playhead (B)", <Scissors className={ic} />, () => splitVideoAtPlayhead())}
+          {selVideoCanRipple ? tool("Ripple delete video segment", <Trash2 className={ic} />, () => { rippleVideoSegment(selVideoClipId); setSelVideoClipId(null); }) : null}
+        </>
+      ) : null}
+      {selMarkerId && editorComp ? tool("Delete marker", <Trash2 className={ic} />, () => { commitComposition(removeMarker(editorComp, selMarkerId)); setSelMarkerId(null); }) : null}
+      {tool("Keyboard shortcuts", <Keyboard className={ic} />, () => setShowShortcuts(true))}
     </>
   );
 
@@ -581,7 +735,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       const end = Math.min(next ? next.startMs : start + 400, start + 400);
       return end - start >= 80 ? retimeRun(withWord, w.id, w.id, start, end) : withWord;
     });
-    if (created) setSelectedId(created);
+    if (created) selectWord(created);
     return created;
   };
 
@@ -600,9 +754,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       videoAspect={width / height}
       waveState={wave.state}
       onSeek={seek}
-      onSelect={setSelectedId}
+      onSelect={selectWord}
       selectedWordIds={selectedWordIds}
-      onWordSelectionChange={setSelectedWordIds}
+      onWordSelectionChange={handleWordSelectionChange}
       onShiftWords={(ids, deltaMs) => s.edit((d) => shiftWordsByIds(d, ids, deltaMs))}
       onRetimeRun={(a, b, st, en, ripple) => s.edit((d) => retimeRun(d, a, b, st, en, ripple))}
       onRename={(id, text) => s.edit((d) => setWordText(d, id, text))}
@@ -611,17 +765,23 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onSplitAtPlayhead={() => splitAtPlayheadRef.current()}
       composition={composition}
       selectedOverlayId={selectedOverlayId}
-      onSelectOverlay={setSelectedOverlayId}
+      onSelectOverlay={selectOverlay}
       onMoveOverlay={(id, deltaMs) => {
-        // one patchSettings update per drag: shift both edges by the (≥0-clamped) delta, duration kept
-        s.patchSettings({
-          overlays: settings.overlays.map((o) => {
-            if (o.id !== id) return o;
-            const d = Math.max(-o.startMs, Math.round(deltaMs));
-            return d === 0 ? o : { ...o, startMs: o.startMs + d, endMs: o.endMs + d };
-          }),
-        });
+        // one composition commit per drag, via the op layer (moveOverlayClip clamps at 0, duration kept)
+        if (editorComp) commitComposition(moveOverlayClip(editorComp, id, deltaMs));
       }}
+      editorComp={editorComp}
+      selectedVideoClipId={selVideoClipId}
+      onSelectVideoClip={selectVideoClip}
+      selectedMarkerId={selMarkerId}
+      onSelectMarker={selectMarker}
+      onTrimVideoEdge={trimVideoEdge}
+      onTrimOverlayClip={(id, edge, targetMs) => {
+        if (editorComp) commitComposition(trimOverlayClip(editorComp, id, edge, targetMs));
+      }}
+      onTrackPatch={toggleTrack}
+      onOverlayTrackPatch={overlayTrackPatch}
+      onDropAsset={onDropAsset}
       onJoin={() => selected && s.edit((d) => mergeWithPrevious(d, selected.id))}
       onOpenSettings={() => { setSection("timing"); setMobileTimeline(false); }}
       extraTools={extraTools}
@@ -634,6 +794,34 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       {showTour ? <TutorialTour onClose={() => setShowTour(false)} /> : null}
       {showSignup ? <SignupGate notice={signupNotice} onClose={() => { setShowSignup(false); setSignupNotice(null); }} onDone={() => { setShowSignup(false); setShowExport(true); }} /> : null}
       {showExport ? <ExportModal projectId={projectId} title={data.project.title} video={{ width, height, durationMs, fps }} renderInput={exportInput} mp4Block={mp4Block} saving={s.saveState === "saving" || s.saveState === "dirty"} flushSave={s.saveNow} exportSettings={settings.exportSettings} onExportSettings={(next) => s.patchSettings({ exportSettings: next })} onClose={() => setShowExport(false)} /> : null}
+      {showShortcuts ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowShortcuts(false)}>
+          <div role="dialog" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()} className="st-rise w-full max-w-md rounded-2xl border border-st-line bg-st-panel p-6">
+            <h2 className="font-display text-lg font-bold">Keyboard shortcuts</h2>
+            <dl className="mt-4 space-y-2.5 text-sm">
+              {[
+                ["Space", "Play / pause"],
+                ["Ctrl/⌘+Z", "Undo"],
+                ["Ctrl/⌘+Shift+Z / Ctrl+Y", "Redo"],
+                ["Ctrl/⌘+S", "Save"],
+                ["S", "Split caption at playhead"],
+                ["B", "Split video at playhead"],
+                ["M", "Add marker at playhead"],
+                ["Delete / Backspace", "Delete selection"],
+                ["← / →", "Nudge selected words 100 ms (Shift: 10 ms)"],
+              ].map(([keys, action]) => (
+                <div key={keys} className="flex items-baseline justify-between gap-4">
+                  <dt className="shrink-0 rounded-md border border-st-line bg-st-raised px-2 py-0.5 font-mono text-xs text-st-text">{keys}</dt>
+                  <dd className="text-right text-st-muted">{action}</dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-5 flex justify-end">
+              <Button tone="primary" onClick={() => setShowShortcuts(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {s.conflict ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div role="alertdialog" aria-label="Editing conflict" className="st-rise w-full max-w-md rounded-2xl border border-st-line bg-st-panel p-6">

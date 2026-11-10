@@ -348,6 +348,38 @@ export function useStudio(projectId: string) {
     [persist],
   );
 
+  /**
+   * Apply a precomputed caption doc and/or full settings value as ONE atomic history step
+   * (Phase 4 studio integration): a head trim shifts the caption words AND re-projects the
+   * settings in the same gesture, so it must undo as a single step — two patchSettings/edit
+   * calls would leave a half-applied state one Ctrl+Z in. No coalescing (each call is a
+   * discrete timeline op), and a call whose values are identical to the current ones (or
+   * absent) records nothing at all. Persist is scheduled for whichever side changed:
+   * the doc via the revisioned save, settings via the project patch.
+   */
+  const editAll = useCallback(
+    (next: { doc?: CaptionDoc; settings?: ProjectSettings }) => {
+      const docChanged = next.doc !== undefined && next.doc !== docRef.current;
+      const settingsChanged =
+        next.settings !== undefined && JSON.stringify(next.settings) !== JSON.stringify(settingsRef.current);
+      if (!docChanged && !settingsChanged) return;
+      recordHistory();
+      if (docChanged && next.doc) {
+        docRef.current = next.doc;
+        setDocState(next.doc);
+        schedule();
+      }
+      if (settingsChanged && next.settings) {
+        const parsed = ProjectSettingsSchema.parse(next.settings);
+        settingsRef.current = parsed;
+        setSettingsState(parsed);
+        persist();
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [schedule, persist],
+  );
+
   /** A new video replaced the old one: its captions are gone on the server, drop them here too (no save, no undo). */
   const resetDoc = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -375,11 +407,11 @@ export function useStudio(projectId: string) {
     () => ({
       query, data, doc, style, settings, lookId, saveState, conflict,
       canUndo: past.current.length > 0, canRedo: future.current.length > 0,
-      edit, undo, redo, resolveConflict, chooseLook, patchStyle, patchSettings, rename, resetDoc,
+      edit, editAll, undo, redo, resolveConflict, chooseLook, patchStyle, patchSettings, rename, resetDoc,
       refetch: () => qc.invalidateQueries({ queryKey: ["studio", projectId] }),
       saveNow,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [query, data, doc, style, settings, lookId, saveState, conflict, edit, undo, redo, resolveConflict, chooseLook, patchStyle, patchSettings, rename, resetDoc, saveNow],
+    [query, data, doc, style, settings, lookId, saveState, conflict, edit, editAll, undo, redo, resolveConflict, chooseLook, patchStyle, patchSettings, rename, resetDoc, saveNow],
   );
 }

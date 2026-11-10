@@ -149,7 +149,18 @@ const AssetRow: React.FC<{
   onPlace?: () => void;
   onDelete: () => void;
 }> = ({ asset, busy, onUseAsSource, onPlace, onDelete }) => (
-  <div className="flex items-center gap-2.5 rounded-lg bg-st-raised/60 px-2.5 py-2">
+  <div
+    className="flex items-center gap-2.5 rounded-lg bg-st-raised/60 px-2.5 py-2"
+    draggable={asset.kind === "image" || asset.kind === "video"}
+    onDragStart={
+      asset.kind === "image" || asset.kind === "video"
+        ? (e) => {
+            e.dataTransfer.setData("application/x-opencaption-asset", JSON.stringify({ id: asset.id, kind: asset.kind }));
+            e.dataTransfer.effectAllowed = "copy";
+          }
+        : undefined
+    }
+  >
     <AssetThumb asset={asset} />
     <div className="min-w-0 flex-1">
       <p className="truncate text-sm font-medium text-st-text" title={asset.name}>{asset.name}</p>
