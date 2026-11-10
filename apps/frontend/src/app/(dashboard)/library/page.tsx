@@ -9,7 +9,25 @@ import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
 import StudioShell from "@/components/studio/StudioShell";
 import { formatBytes } from "@/features/studio/mediaAssets";
-import { deleteAsset, listAllAssets, type MediaAssetRecord } from "@/features/studio/mediaStore";
+import { clearAssetPreviews, deleteAsset, listAllAssets, type MediaAssetRecord } from "@/features/studio/mediaStore";
+import {
+  DERIVED_KIND_LABELS,
+  classifyDerivedAsset,
+  clearProjectDerivedCache,
+  collectReferencedAssetIds,
+  planDerivedCleanup,
+  summarizeDerivedCache,
+  type DerivedCleanupPlan,
+  type DerivedKind,
+} from "@/features/studio/derivedCache";
+import { readCompositionSettings } from "@/features/studio/stageC";
+import { studioService } from "@/services/studio";
+
+const DERIVED_SINGULAR: Record<Exclude<DerivedKind, "previews">, string> = {
+  reversed: "Reversed copy",
+  freeze: "Freeze-frame still",
+  "noise-suppressed": "Noise-suppressed copy",
+};
 import {
   LIBRARY_FILTERS,
   countByKind,
@@ -35,6 +53,15 @@ export default function LibraryPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<LibraryKindFilter>("all");
   const [deleteTarget, setDeleteTarget] = useState<MediaAssetRecord | null>(null);
+  const [cleanupProjectId, setCleanupProjectId] = useState<string | null>(null);
+  const [cleanupPrep, setCleanupPrep] = useState<
+    | { status: "loading" }
+    | { status: "error"; message: string }
+    | { status: "ready"; plan: DerivedCleanupPlan; referenced: Set<string> }
+    | null
+  >(null);
+  const [cleanupBusy, setCleanupBusy] = useState(false);
+  const [cleanupNotice, setCleanupNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -64,8 +91,70 @@ export default function LibraryPage() {
 
   const all = assets ?? [];
   const counts = countByKind(all);
-  const visible = filterLibraryAssets(all, query, filter);
+  const visible = filterLibraryAssets(all, query, filter, titles);
   const totalSize = all.reduce((n, a) => n + a.size, 0);
+  const derived = useMemo(() => summarizeDerivedCache(assets ?? []), [assets]);
+
+  /**
+   * Prepare a per-project derived-cache cleanup. The referenced set is loaded
+   * from the project's stored composition FIRST: a derived copy a segment,
+   * audio clip, overlay or the noise-suppression setting still points at is
+   * KEPT and named in the plan, never silently deleted. If the references
+   * can't be loaded, the cleanup fails closed — except for a bin whose
+   * project is no longer in the account's project list at all (its stored
+   * composition was deleted with the project, so nothing can reference it).
+   */
+  const prepareCleanup = async (projectId: string) => {
+    setCleanupNotice(null);
+    setCleanupProjectId(projectId);
+    setCleanupPrep({ status: "loading" });
+    try {
+      let referenced: Set<string>;
+      try {
+        const data = await studioService.getStudio(projectId);
+        const resolved = readCompositionSettings({
+          settingsComposition: data.project.settings_json?.composition ?? null,
+          compositionJson: data.project.composition_json,
+        });
+        referenced = collectReferencedAssetIds({
+          composition: resolved.settings,
+          overlays: data.project.settings_json?.overlays ?? [],
+        });
+      } catch {
+        if (projectsData && !titles.has(projectId)) {
+          referenced = new Set();
+        } else {
+          throw new Error("Couldn't check what this project's timeline still uses, so nothing was cleared. Check your connection and try again.");
+        }
+      }
+      setCleanupPrep({ status: "ready", plan: planDerivedCleanup(all, projectId, referenced), referenced });
+    } catch (e) {
+      setCleanupPrep({ status: "error", message: e instanceof Error ? e.message : "Couldn't prepare the cleanup." });
+    }
+  };
+
+  const confirmCleanup = async () => {
+    if (!cleanupProjectId || cleanupPrep?.status !== "ready" || cleanupBusy) return;
+    const projectId = cleanupProjectId;
+    const referenced = cleanupPrep.referenced;
+    const title = projectTitleFor(projectId, titles);
+    setCleanupBusy(true);
+    try {
+      const result = await clearProjectDerivedCache(
+        { listAll: listAllAssets, deleteAsset, clearPreviews: clearAssetPreviews },
+        projectId,
+        referenced,
+      );
+      setAssets(result.remaining);
+      setCleanupNotice(
+        `Derived cache cleared for “${title}”: freed ${formatBytes(result.freedBytes)} on this device (measured after clearing; ${formatBytes(result.afterBytes)} of derived data remains, including anything the project's timeline still uses). Your original media was not touched.`,
+      );
+    } finally {
+      setCleanupBusy(false);
+      setCleanupProjectId(null);
+      setCleanupPrep(null);
+    }
+  };
 
   const download = (a: MediaAssetRecord) => {
     const url = URL.createObjectURL(a.blob);
@@ -122,7 +211,7 @@ export default function LibraryPage() {
             <div className="flex flex-wrap items-center gap-3 pt-8">
               <label className="flex min-w-52 flex-1 items-center gap-2 rounded-lg border border-sand-300 bg-white px-3 py-2.5 sm:max-w-xs">
                 <svg className="h-4 w-4 shrink-0 text-sand-500" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M20 20l-3.5-3.5" /></svg>
-                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by file name" aria-label="Search media by file name" className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-sand-500" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by file name, type or project" aria-label="Search media by file name, type or project" className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-sand-500" />
               </label>
               <div className="flex rounded-full border border-sand-300 p-1" role="tablist" aria-label="Media type filters">
                 {LIBRARY_FILTERS.map((f) => (
@@ -133,6 +222,46 @@ export default function LibraryPage() {
               </div>
               <p className="ml-auto text-[12px] tabular-nums text-sand-600">{all.length} file{all.length === 1 ? "" : "s"} · {formatBytes(totalSize)} on this device</p>
             </div>
+
+            {derived.totalBytes > 0 && (
+              <section aria-label="Derived cache" className="mt-6 rounded-xl border border-sand-200 bg-sand-50 px-5 py-4">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <h2 className="font-sora text-[14px] font-bold text-ink">Derived cache on this device</h2>
+                  <p className="text-[12px] tabular-nums text-sand-600">{formatBytes(derived.totalBytes)} across all projects</p>
+                </div>
+                <p className="mt-1.5 max-w-[72ch] text-[12px] leading-relaxed text-sand-700">
+                  Processed copies and previews made on this device from your media: reversed copies,
+                  freeze-frame stills, noise-suppressed copies, and thumbnail / waveform previews.
+                  Clearing a project&apos;s derived cache removes those derived previews and processed
+                  copies — your original media stays. A copy a project&apos;s timeline still uses is
+                  kept, and named before anything is deleted.
+                </p>
+                {cleanupNotice && <p role="status" className="mt-2 text-[12px] font-semibold text-sand-800">{cleanupNotice}</p>}
+                <ul className="mt-3 divide-y divide-sand-200">
+                  {derived.projects.map((p) => (
+                    <li key={p.projectId} className="flex flex-wrap items-center gap-3 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] text-sand-800">
+                          <Link href={`/projects/${p.projectId}`} className="font-semibold text-ink underline decoration-sand-300 underline-offset-2 hover:text-sand-800">
+                            {projectTitleFor(p.projectId, titles)}
+                          </Link>
+                          {" · "}{formatBytes(p.totalBytes)}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-sand-600">
+                          {(Object.keys(DERIVED_KIND_LABELS) as DerivedKind[])
+                            .filter((k) => p.byKind[k] > 0)
+                            .map((k) => `${DERIVED_KIND_LABELS[k]} ${formatBytes(p.byKind[k])}`)
+                            .join(" · ")}
+                        </p>
+                      </div>
+                      <button onClick={() => void prepareCleanup(p.projectId)} className="rounded-full border border-sand-300 px-4 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">
+                        Clear derived cache
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {visible.length === 0 ? (
               <div className="mt-6 rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-12 text-center">
@@ -153,6 +282,7 @@ export default function LibraryPage() {
                         {" · "}{formatBytes(a.size)}
                         {a.kind !== "image" ? <>{" · "}{formatDurationMs(a.durationMs)}</> : null}
                         {a.width || a.height ? <>{" · "}{formatDimensions(a.width, a.height)}</> : null}
+                        {classifyDerivedAsset(a) ? <>{" · "}<span className="font-semibold">Derived: {DERIVED_SINGULAR[classifyDerivedAsset(a)!]}</span></> : null}
                       </p>
                       <p className="mt-0.5 truncate text-[12px] text-sand-600">
                         Project:{" "}
@@ -189,6 +319,66 @@ export default function LibraryPage() {
             <div className="mt-6 flex justify-end gap-3">
               <button onClick={() => setDeleteTarget(null)} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Keep it</button>
               <button onClick={() => void confirmDelete()} className="rounded-full bg-orange-accent px-6 py-2.5 font-sora text-[12px] font-semibold text-[#141412] hover:bg-orange-accent/85 transition-all cursor-pointer">Delete file</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {cleanupProjectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={() => { if (!cleanupBusy) { setCleanupProjectId(null); setCleanupPrep(null); } }}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep sm:p-8" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label="Clear derived cache">
+            <h3 className="font-serif text-2xl font-semibold text-ink">Clear derived cache?</h3>
+            <p className="mt-1 text-[13px] font-semibold text-sand-700">Project: {projectTitleFor(cleanupProjectId, titles)}</p>
+            {cleanupPrep?.status === "loading" && (
+              <p role="status" className="mt-3 text-[14px] text-sand-800">Checking what this project&apos;s timeline still uses…</p>
+            )}
+            {cleanupPrep?.status === "error" && (
+              <p className="mt-3 text-[14px] leading-relaxed text-sand-800">{cleanupPrep.message}</p>
+            )}
+            {cleanupPrep?.status === "ready" && (
+              <div className="mt-3 space-y-3 text-[14px] leading-relaxed text-sand-800">
+                <p>
+                  This removes derived previews and processed copies — <strong className="text-ink">your original
+                  media stays</strong>, on this device only.
+                </p>
+                {cleanupPrep.plan.deleteAssets.length > 0 ? (
+                  <div>
+                    <p className="font-semibold text-ink">Will be deleted ({formatBytes(cleanupPrep.plan.deleteAssets.reduce((n, d) => n + d.bytes, 0))}):</p>
+                    <ul className="mt-1 list-disc pl-5">
+                      {cleanupPrep.plan.deleteAssets.map((d) => (
+                        <li key={d.id}>{d.name} — {DERIVED_SINGULAR[d.kind]}, {formatBytes(d.bytes)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p>No unreferenced processed copies to delete.</p>
+                )}
+                {cleanupPrep.plan.stripPreviewAssetIds.length > 0 && (
+                  <p>
+                    Thumbnail / waveform previews will also be removed from {cleanupPrep.plan.stripPreviewAssetIds.length}{" "}
+                    file{cleanupPrep.plan.stripPreviewAssetIds.length === 1 ? "" : "s"} ({formatBytes(cleanupPrep.plan.stripPreviewBytes)}) —
+                    those files stay; their tiles will show a plain placeholder afterwards.
+                  </p>
+                )}
+                {cleanupPrep.plan.keptReferenced.length > 0 && (
+                  <div>
+                    <p className="font-semibold text-ink">Kept — this project&apos;s timeline still uses {cleanupPrep.plan.keptReferenced.length === 1 ? "it" : "them"}:</p>
+                    <ul className="mt-1 list-disc pl-5">
+                      {cleanupPrep.plan.keptReferenced.map((d) => (
+                        <li key={d.id}>{d.name} — {DERIVED_SINGULAR[d.kind]}, {formatBytes(d.bytes)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <p className="text-[13px] text-sand-600">Expected to free {formatBytes(cleanupPrep.plan.expectedFreedBytes)}; the result is measured again after clearing.</p>
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button onClick={() => { setCleanupProjectId(null); setCleanupPrep(null); }} disabled={cleanupBusy} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer disabled:opacity-50">Cancel</button>
+              {cleanupPrep?.status === "ready" && (
+                <button onClick={() => void confirmCleanup()} disabled={cleanupBusy || cleanupPrep.plan.expectedFreedBytes === 0} className="rounded-full bg-orange-accent px-6 py-2.5 font-sora text-[12px] font-semibold text-[#141412] hover:bg-orange-accent/85 transition-all cursor-pointer disabled:opacity-50">
+                  {cleanupBusy ? "Clearing…" : "Clear derived cache"}
+                </button>
+              )}
             </div>
           </div>
         </div>

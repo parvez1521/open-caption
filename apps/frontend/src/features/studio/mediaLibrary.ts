@@ -19,14 +19,35 @@ export const LIBRARY_FILTERS: { id: LibraryKindFilter; label: string }[] = [
 export interface LibraryAssetLike {
   name: string;
   kind: MediaAssetKind;
+  /** owning project — the bin is global (mediaStore.listAllAssets spans every project) */
+  projectId?: string;
 }
 
-export function filterLibraryAssets<T extends LibraryAssetLike>(assets: T[], query: string, filter: LibraryKindFilter): T[] {
+/**
+ * Cross-project search over the whole device bin: a query matches an asset's
+ * file name, its kind ("video" / "audio" / "image"), its owning project's
+ * TITLE (when `projectTitles` is supplied) or its project id — so searching a
+ * project name returns that project's assets alongside everyone else's
+ * name/kind matches. Kind filter still applies on top.
+ */
+export function filterLibraryAssets<T extends LibraryAssetLike>(
+  assets: T[],
+  query: string,
+  filter: LibraryKindFilter,
+  projectTitles?: ReadonlyMap<string, string>,
+): T[] {
   const q = query.trim().toLowerCase();
   return assets.filter((a) => {
     if (filter !== "all" && a.kind !== filter) return false;
-    if (q && !a.name.toLowerCase().includes(q)) return false;
-    return true;
+    if (!q) return true;
+    if (a.name.toLowerCase().includes(q)) return true;
+    if (a.kind.includes(q)) return true;
+    if (a.projectId) {
+      if (a.projectId.toLowerCase().includes(q)) return true;
+      const title = projectTitles?.get(a.projectId);
+      if (title && title.toLowerCase().includes(q)) return true;
+    }
+    return false;
   });
 }
 
