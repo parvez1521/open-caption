@@ -1,4 +1,5 @@
-import { CREATABLE_EXPORT_KINDS, type CreatableExportKind } from "@capseasy/shared";
+import { CREATABLE_EXPORT_KINDS, exportDimensionsForAspect, type CreatableExportKind, type ExportResolution } from "@capseasy/shared";
+import { effectiveAspect, type CanvasSettings } from "./canvas";
 
 /**
  * The Export modal's options, derived from the shared CREATABLE_EXPORT_KINDS — the same list the
@@ -68,3 +69,20 @@ const META: Record<CreatableExportKind, Omit<ExportOption, "kind">> = {
 };
 
 export const EXPORT_OPTIONS: ExportOption[] = CREATABLE_EXPORT_KINDS.map((kind) => ({ kind, ...META[kind] }));
+
+/**
+ * Output dims for an export, with the Run-2 canvas taken into account: the resolution's
+ * short-edge rule (shared `exportDimensionsForAspect`) applied to the EFFECTIVE aspect —
+ * the project's canvas aspect when one is chosen, else the source's own aspect. This is
+ * the one dims computation both render paths use: the Export modal resolves `outDims`
+ * through it (feeding the in-browser render AND the dims it sends in the companion-export
+ * payload), and the create-export API route falls back to it when a client sends no dims.
+ */
+export function exportDimsWithCanvas(
+  video: { width: number; height: number },
+  canvas: Pick<CanvasSettings, "aspect"> | null | undefined,
+  resolution: ExportResolution,
+): { width: number; height: number } {
+  const aspect = canvas ? effectiveAspect(canvas, video.width, video.height) : `${Math.max(1, video.width)}:${Math.max(1, video.height)}`;
+  return exportDimensionsForAspect(aspect, resolution);
+}

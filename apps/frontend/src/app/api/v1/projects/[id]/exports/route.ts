@@ -1,7 +1,9 @@
 import { rateLimit } from "@/lib/api/rateLimit";
 import {
-  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, EXPORT_EXTENSIONS, ProjectSettingsSchema, TEXT_EXPORT_KINDS, TEXT_EXPORT_MIME, exportDimensions, planFor, type RenderJob, type TextExportKind,
+  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, EXPORT_EXTENSIONS, ProjectSettingsSchema, TEXT_EXPORT_KINDS, TEXT_EXPORT_MIME, planFor, type RenderJob, type TextExportKind,
 } from "@capseasy/shared";
+import { exportDimsWithCanvas } from "@/features/studio/exportOptions";
+import { canvasOf } from "@/features/studio/canvas";
 import { applyFillerFilter, applyProfanity, derivePages, toAss, toJson, toSrt, toTxt, toVtt } from "@motion-ai/caption-engine/core";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
@@ -80,7 +82,10 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   // export settings as absolute dims + fps) win; otherwise fall back to the project's persisted
   // exportSettings, resolved from the source's aspect by the shared short-edge rule. Never the
   // raw source fps alone any more — the saved choice is the default for every client.
-  const savedDims = exportDimensions(video.width ?? 1080, video.height ?? 1920, settings.exportSettings.resolution);
+  // …resolved from the EFFECTIVE aspect (the project's canvas aspect when chosen, else the
+  // source's own) by the same helper the Export modal uses, so the fallback can never drift
+  // from what the client would have sent.
+  const savedDims = exportDimsWithCanvas({ width: video.width ?? 1080, height: video.height ?? 1920 }, canvasOf(settings), settings.exportSettings.resolution);
   const width = even(body.width ?? savedDims.width);
   const height = even(body.height ?? savedDims.height);
   const fps = body.fps ?? settings.exportSettings.fps;

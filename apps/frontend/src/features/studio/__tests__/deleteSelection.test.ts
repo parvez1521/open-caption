@@ -50,7 +50,7 @@ describe("resolveDeleteAction", () => {
       .toEqual({ kind: "videoSegment", id: "seg1" });
   });
 
-  it("does nothing for a selected video segment that cannot ripple (middle / only segment)", () => {
+  it("does nothing for a selected video segment that cannot ripple (the only segment)", () => {
     expect(resolveDeleteAction({ ...base, selectedVideoClipId: "seg1", canRippleDeleteVideoSegment: false, selectedMarkerId: "m1", selectedId: "w9" }))
       .toBeNull();
     expect(resolveDeleteAction({ ...base, selectedVideoClipId: "seg1", selectedId: "w9" })).toBeNull();

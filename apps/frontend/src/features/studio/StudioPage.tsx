@@ -44,11 +44,21 @@ import { useWaveform } from "./useWaveform";
 import { toComposition } from "./composition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
-  addMarker, applyContentShift, applyDocEffect, canRippleDeleteVideoSegment, deleteOverlayClip,
+  addMarker, applyContentShift, applyDocEffect, deleteOverlayClip,
   duplicateOverlayClip, moveOverlayClip, overlayTrackOf, removeMarker, rippleDeleteOverlayClip,
-  rippleDeleteVideoSegment, setTrackState, splitOverlayClipAt, splitVideoClipAt, trimOverlayClip,
+  setTrackState, splitOverlayClipAt, splitVideoClipAt, trimOverlayClip,
   trimVideoClipEdge, type DocEffect,
 } from "./compositionOps";
+import { canvasDims, canvasOf } from "./canvas";
+import {
+  buildSegmentAssetUrls, pickStudioDurationMs, resolveSegmentView, type SegmentLike,
+} from "./segmentView";
+import {
+  applyReversedSegment, canRippleDeleteSegment, duplicateVideoSegment, insertStillSegmentAt,
+  rippleDeleteVideoSegment, setSegmentPlaybackRate, setSegmentTransition, setSegmentTransform,
+} from "./segmentOps";
+import { SegmentInspector, type SegmentProductionState } from "./panels/SegmentInspector";
+import { getLocalVideo } from "@/features/upload/localVideos";
 import { listProjectAssets } from "./mediaStore";
 import { splitWordIdAtPlayhead } from "./playheadSplit";
 import { resolveDeleteAction } from "./deleteSelection";
@@ -233,10 +243,21 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const height = video?.height || 1920;
   const fps = video?.fps || 30;
   const sourceDurationMs = video?.durationMs || (doc ? Math.max(0, ...doc.words.map((w) => w.endMs)) + 500 : 10000);
-  // clip projects: the working duration is ONLY the segment (the video row still reports the full
-  // source length); the caption doc is already shifted to segment time, so everything downstream
-  // (player, timeline, export modal) works in clip time from this one number
-  const durationMs = video?.durationMs ? effectiveDurationMs(sourceDurationMs, settings.clipRange) : sourceDurationMs;
+  // Run-2 duration truth: when at least one video segment is stored, the composition's own
+  // duration (rate-aware timeline sum minus transition overlaps, segmentView.ts) is the truth.
+  // Otherwise the pre-Run-2 path stands — clip projects: the working duration is ONLY the
+  // segment (the video row still reports the full source length); the caption doc is already
+  // shifted to segment time, so everything downstream (player, timeline, export modal) works
+  // in clip time from this one number.
+  const storedSegments = (settings.composition?.videoSegments ?? []) as SegmentLike[];
+  const durationMs = pickStudioDurationMs({
+    storedSegments,
+    fallbackDurationMs: video?.durationMs ? effectiveDurationMs(sourceDurationMs, settings.clipRange) : sourceDurationMs,
+  });
+  // the canvas the preview + export are authored at: the source box, or the chosen aspect
+  // fitted inside it (canvas.ts). Source width/height above stay the truth about the file.
+  const canvasSettings = canvasOf(settings);
+  const canvasSize = canvasDims(canvasSettings, width, height);
 
   // load the fonts the style needs before measuring text (same requirement as the render)
   const fontKey = style ? [style.fontId, style.hero.fontId ?? "", ...getTemplate(style.templateId).fonts].join("|") : "";
@@ -352,6 +373,111 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     const r = rippleDeleteVideoSegment(editorComp, clipId);
     commitComposition(r.comp, r.docEffect);
   };
+
+  /* ---------- Run-2 segment inspector: selection view + reverse/freeze production ---------- */
+  // production state is tagged with the segment it belongs to: selecting another segment
+  // derives back to idle (no reset effect), and a late async completion for a segment the
+  // user has since left can never paint its progress/error onto the new selection
+  const [segProd, setSegProd] = useState<{ clipId: string | null; state: SegmentProductionState }>({ clipId: null, state: { kind: "idle" } });
+  const segProduction: SegmentProductionState = segProd.clipId === selVideoClipId ? segProd.state : { kind: "idle" };
+  const setSegProduction = (clipId: string, state: SegmentProductionState) => setSegProd({ clipId, state });
+  const selClipIndex = editorComp && selVideoClipId ? editorComp.videoClips.findIndex((c) => c.id === selVideoClipId) : -1;
+  const selClip = selClipIndex >= 0 ? editorComp!.videoClips[selClipIndex]! : null;
+  const selSegmentView = selClip
+    ? resolveSegmentView(selClip, selClipIndex, storedSegments.find((sg) => sg.id === selClip.id) ?? null)
+    : null;
+
+  /** The blob a segment plays: its own media-bin asset when it has one (a reversed conform, a
+   *  still's source), else the project's source video — device-local copy first, then the
+   *  server URL for older uploads, exactly the order useDeviceVideo resolves them. */
+  const loadSegmentSourceBlob = async (view: NonNullable<typeof selSegmentView>): Promise<{ blob: Blob; durationMs: number; name: string } | null> => {
+    if (view.assetId) {
+      const rec = mediaBin.assets.find((a) => a.id === view.assetId);
+      if (rec) return { blob: rec.blob, durationMs: rec.durationMs ?? sourceDurationMs, name: rec.name };
+    }
+    if (data?.video?.id) {
+      const local = await getLocalVideo(data.video.id);
+      if (local) return { blob: local, durationMs: sourceDurationMs, name: data.video.filename ?? "video" };
+    }
+    if (video?.url) {
+      try {
+        const res = await fetch(video.url);
+        if (res.ok) return { blob: await res.blob(), durationMs: sourceDurationMs, name: data?.video?.filename ?? "video" };
+      } catch { /* fall through to the honest null */ }
+    }
+    return null;
+  };
+
+  const reverseSelectedSegment = async () => {
+    if (!editorComp || !selSegmentView || videoLocked) return;
+    const view = selSegmentView;
+    setSegProduction(view.id, { kind: "working", action: "reverse", progress: 0 });
+    try {
+      const src = await loadSegmentSourceBlob(view);
+      if (!src) throw new Error("This project's video isn't on this device, so there's nothing to reverse here. Re-link the video file first.");
+      const { reverseVideoBlob, remapRangeToReversed, reversedAssetName, storeSegmentAsset } = await import("./segmentAssets");
+      const reversed = await reverseVideoBlob(src.blob, {
+        onProgress: (f) => setSegProduction(view.id, { kind: "working", action: "reverse", progress: f }),
+      });
+      const rec = await storeSegmentAsset({
+        projectId, kind: "video", name: reversedAssetName(src.name), blob: reversed,
+        durationMs: src.durationMs, width, height,
+      });
+      await mediaBin.refresh();
+      const remapped = remapRangeToReversed(src.durationMs, view.sourceInMs, view.sourceOutMs);
+      const r = applyReversedSegment(editorComp, view.id, rec.id, remapped.sourceInMs, remapped.sourceOutMs);
+      commitComposition(r.comp, r.docEffect);
+      setSegProduction(view.id, { kind: "idle" });
+    } catch (e) {
+      setSegProduction(view.id, { kind: "error", action: "reverse", message: e instanceof Error ? e.message : "Reversing failed on this device." });
+    }
+  };
+
+  const freezeSelectedSegment = async () => {
+    if (!editorComp || !selSegmentView || videoLocked) return;
+    const view = selSegmentView;
+    const playheadMs = getPlayerMs();
+    setSegProduction(view.id, { kind: "working", action: "freeze", progress: null });
+    try {
+      const src = await loadSegmentSourceBlob(view);
+      if (!src) throw new Error("This project's video isn't on this device, so no frame can be taken here. Re-link the video file first.");
+      const { extractFramePng, freezeAssetName, sourceMsAtTimeline, storeSegmentAsset } = await import("./segmentAssets");
+      const sourceMs = sourceMsAtTimeline(
+        { sourceInMs: view.sourceInMs, startMs: view.startMs, playbackRate: view.playbackRate },
+        playheadMs,
+      );
+      const png = await extractFramePng(src.blob, sourceMs);
+      const rec = await storeSegmentAsset({
+        projectId, kind: "image", name: freezeAssetName(src.name, sourceMs), blob: png,
+        durationMs: null, width, height,
+      });
+      await mediaBin.refresh();
+      const r = insertStillSegmentAt(editorComp, playheadMs, 2000, rec.id);
+      commitComposition(r.comp, r.docEffect);
+      const stillClip = r.comp.videoClips.find(
+        (c) => resolveSegmentView(c, 0).still && playheadMs >= c.startMs && playheadMs < c.startMs + c.durationMs,
+      );
+      if (stillClip) selectVideoClip(stillClip.id);
+      setSegProduction(view.id, { kind: "idle" });
+    } catch (e) {
+      setSegProduction(view.id, { kind: "error", action: "freeze", message: e instanceof Error ? e.message : "Couldn't take a freeze frame on this device." });
+    }
+  };
+
+  const segmentInspector = selSegmentView && editorComp ? (
+    <SegmentInspector
+      segment={selSegmentView}
+      playheadMs={timeMs}
+      production={segProduction}
+      onTransform={(patch) => { const r = setSegmentTransform(editorComp, selSegmentView.id, patch); commitComposition(r.comp, r.docEffect); }}
+      onPlaybackRate={(rate) => { const r = setSegmentPlaybackRate(editorComp, selSegmentView.id, rate); commitComposition(r.comp, r.docEffect); }}
+      onTransition={(transition) => { const r = setSegmentTransition(editorComp, selSegmentView.id, transition); commitComposition(r.comp, r.docEffect); }}
+      onDuplicate={() => { const r = duplicateVideoSegment(editorComp, selSegmentView.id); commitComposition(r.comp, r.docEffect); }}
+      onRippleDelete={() => { rippleVideoSegment(selSegmentView.id); setSelVideoClipId(null); }}
+      onReverse={() => void reverseSelectedSegment()}
+      onFreeze={() => void freezeSelectedSegment()}
+    />
+  ) : null;
   const splitVideoRef = useRef<() => void>(() => undefined);
   splitVideoRef.current = splitVideoAtPlayhead;
   const addMarkerRef = useRef<() => void>(() => undefined);
@@ -371,12 +497,36 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     return () => Object.values(urls).forEach((u) => URL.revokeObjectURL(u));
   }, [settings.overlays, mediaBin.assets]);
 
+  // resolved URLs for segment assets (reversed conforms + freeze stills referenced by a
+  // segment's assetId), built exactly like overlayAssetUrls above: device-local bytes →
+  // object URLs for this session, absent for assets that aren't on this device. Threaded
+  // into the one input object below as `segmentAssets`, mirroring the overlayAssets flow —
+  // the Player preview and the in-browser export resolve them; the server/companion path
+  // leaves them unresolved, the same device-local rule as image overlays.
+  const [segmentAssetUrls, setSegmentAssetUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const sources: SegmentLike[] = [
+      ...storedSegments,
+      ...((editorComp?.videoClips ?? []) as unknown as SegmentLike[]),
+    ];
+    const urls = buildSegmentAssetUrls(sources, mediaBin.assets, (a) => URL.createObjectURL(a.blob));
+    setSegmentAssetUrls(urls);
+    return () => Object.values(urls).forEach((u) => URL.revokeObjectURL(u));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.composition, editorComp?.videoClips, mediaBin.assets]);
+  const segmentAssetNames = useMemo(
+    () => Object.fromEntries(mediaBin.assets.map((a) => [a.id, a.name])),
+    [mediaBin.assets],
+  );
+
   const input = useMemo(
     () =>
       doc && style
         ? {
             src: video?.url ?? null,
-            media: { width, height, fps, durationMs, rotation: 0 },
+            // the composition is authored at the CANVAS size (source dims, or the chosen
+            // aspect fitted inside them) — the Player and the export render this same object
+            media: { width: canvasSize.width, height: canvasSize.height, fps, durationMs, rotation: 0 },
             doc,
             style,
             settings,
@@ -386,9 +536,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             videoAdjust: settings.videoAdjust,
             overlays: settings.overlays,
             overlayAssets: overlayAssetUrls,
+            segmentAssets: segmentAssetUrls,
           }
         : null,
-    [doc, style, settings, video?.url, width, height, fps, durationMs, overlayAssetUrls],
+    [doc, style, settings, video?.url, canvasSize.width, canvasSize.height, fps, durationMs, overlayAssetUrls, segmentAssetUrls],
   );
   // export reads frames: a video the decoder can't read uses the compatible copy instead
   const exportInput = useMemo(() => (input && compat.url ? { ...input, src: compat.url } : input), [input, compat.url]);
@@ -436,7 +587,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       selectedOverlayId,
       selectedId: captionsLocked ? null : selectedId,
       selectedVideoClipId: selVideoClipId,
-      canRippleDeleteVideoSegment: editorComp && selVideoClipId ? canRippleDeleteVideoSegment(editorComp, selVideoClipId) : false,
+      canRippleDeleteVideoSegment: editorComp && selVideoClipId ? canRippleDeleteSegment(editorComp, selVideoClipId) : false,
       selectedMarkerId: selMarkerId,
     });
     if (!action) return false;
@@ -595,8 +746,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <StudioPlayer
       ref={playerRef}
       input={input}
-      width={width}
-      height={height}
+      width={canvasSize.width}
+      height={canvasSize.height}
       fps={fps}
       durationMs={durationMs}
       position={style.position}
@@ -695,7 +846,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const none = !selected;
   const ic = "h-4 w-4";
   const selOverlayClip = editorComp?.overlayClips.find((c) => c.id === selectedOverlayId) ?? null;
-  const selVideoCanRipple = Boolean(editorComp && selVideoClipId && canRippleDeleteVideoSegment(editorComp, selVideoClipId));
+  const selVideoCanRipple = Boolean(editorComp && selVideoClipId && canRippleDeleteSegment(editorComp, selVideoClipId));
   const extraTools = (
     <>
       {tool(selected?.emphasis === "hero" ? "Key word (click to unset)" : "Make key word", <Star className={ic} />, () => selected && s.edit((d) => setEmphasis(d, selected.id, selected.emphasis === "hero" ? "none" : "hero")), { disabled: none || !heroSupported, active: selected?.emphasis === "hero" })}
@@ -782,6 +933,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onTrackPatch={toggleTrack}
       onOverlayTrackPatch={overlayTrackPatch}
       onDropAsset={onDropAsset}
+      segmentAssetUrls={segmentAssetUrls}
+      segmentAssetNames={segmentAssetNames}
       onJoin={() => selected && s.edit((d) => mergeWithPrevious(d, selected.id))}
       onOpenSettings={() => { setSection("timing"); setMobileTimeline(false); }}
       extraTools={extraTools}
@@ -793,7 +946,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <>
       {showTour ? <TutorialTour onClose={() => setShowTour(false)} /> : null}
       {showSignup ? <SignupGate notice={signupNotice} onClose={() => { setShowSignup(false); setSignupNotice(null); }} onDone={() => { setShowSignup(false); setShowExport(true); }} /> : null}
-      {showExport ? <ExportModal projectId={projectId} title={data.project.title} video={{ width, height, durationMs, fps }} renderInput={exportInput} mp4Block={mp4Block} saving={s.saveState === "saving" || s.saveState === "dirty"} flushSave={s.saveNow} exportSettings={settings.exportSettings} onExportSettings={(next) => s.patchSettings({ exportSettings: next })} onClose={() => setShowExport(false)} /> : null}
+      {showExport ? <ExportModal projectId={projectId} title={data.project.title} video={{ width, height, durationMs, fps }} renderInput={exportInput} mp4Block={mp4Block} saving={s.saveState === "saving" || s.saveState === "dirty"} flushSave={s.saveNow} exportSettings={settings.exportSettings} onExportSettings={(next) => s.patchSettings({ exportSettings: next })} canvas={canvasSettings} onClose={() => setShowExport(false)} /> : null}
       {showShortcuts ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setShowShortcuts(false)}>
           <div role="dialog" aria-label="Keyboard shortcuts" onClick={(e) => e.stopPropagation()} className="st-rise w-full max-w-md rounded-2xl border border-st-line bg-st-panel p-6">
@@ -886,6 +1039,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             <section data-tour="preview" aria-label="Preview" className="min-h-0 flex-1 bg-st-bg">{stage}</section>
             <section aria-label="Timeline section" className="h-[min(300px,34%)] min-h-[215px] shrink-0 border-t border-st-line">{timeline}</section>
           </div>
+          {segmentInspector ? (
+            <aside aria-label="Segment inspector" className="flex min-h-0 w-[300px] shrink-0 flex-col border-l border-st-line bg-st-panel">
+              {segmentInspector}
+            </aside>
+          ) : null}
         </div>
         {overlays}
       </div>
@@ -898,6 +1056,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <div className="studio flex h-[100dvh] flex-col">
       {header}
       <section data-tour="preview" aria-label="Preview" className="h-[40dvh] min-h-[250px] shrink-0 border-b border-st-line bg-st-bg">{stage}</section>
+      {segmentInspector ? (
+        <div className="h-[min(38dvh,360px)] shrink-0 overflow-hidden border-b border-st-line bg-st-panel">{segmentInspector}</div>
+      ) : null}
       <div key={mobileTimeline ? "timeline" : section} className="st-rise min-h-0 flex-1 bg-st-panel">
         {mobileTimeline ? timeline : renderPanel(section)}
       </div>

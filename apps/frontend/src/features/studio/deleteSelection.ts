@@ -5,9 +5,10 @@
  *
  *   1. the multi-word drag selection (caption list + timeline share it),
  *   2. the selected overlay (timeline block / Elements selection),
- *   3. the selected video segment — ONLY when it can ripple-delete (an end segment of a
- *      multi-segment partition; a middle or only segment has no Stage-B delete, so the key
- *      stays inert rather than falling through to a selection the user isn't looking at),
+ *   3. the selected video segment — ONLY when it can ripple-delete (any segment of a
+ *      multi-segment composition, middle ones included since Run 2; the only segment of a
+ *      single-segment composition cannot, so the key stays inert rather than falling
+ *      through to a selection the user isn't looking at),
  *   4. the selected marker,
  *   5. the single selected word.
  *
