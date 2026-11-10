@@ -63,6 +63,14 @@ to an anonymous guest, then re-owners every guest-owned table (projects,
 videos, transcripts, caption documents + versions + translations, jobs,
 exports, user looks, brand kits, user fonts, usage events) and merges
 `favorite_looks`. Linking an identity onto the guest user (email/Google
-link) keeps the same user id, so no move is needed on that path. There
-are currently **no dedicated route tests** for the claim endpoint — see
-the Phase 8 W4 report; the flow is covered by code inspection only.
+link) keeps the same user id, so no move is needed on that path.
+**Dedicated tests landed in Phase 9 W1 (2026-11-10):**
+`apps/frontend/src/app/api/v1/guest/claim/__tests__/route.test.ts`
+(13 tests: re-ownership across all OWNED tables, favorite_looks merge,
+token-verification no-ops, double-claim idempotency, no-rollback
+failure behaviour) and
+`apps/frontend/src/services/auth/__tests__/guest-claim.test.ts`
+(8 tests for the stash/claim helpers). The helper suite caught W1-A1:
+the stash was deleted before the claim request, so a transient failure
+permanently orphaned the guest's work — fixed; the stash now clears
+only after a successful hand-off (or on expiry/corruption).
