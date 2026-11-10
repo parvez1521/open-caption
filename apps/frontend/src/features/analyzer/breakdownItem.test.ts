@@ -110,7 +110,8 @@ describe("analysisContextText", () => {
     expect(text).toMatch(/0:00–0:02 Hook: Kya aap 3 galti karte ho\?/);
     expect(text).toContain("Call to action: follow karo (0:37)");
     expect(text).toContain(`Pacing: ${breakdown.pacing.wordsPerMin.toFixed(1)} words/min`);
-    expect(text).toContain(`${breakdown.pacing.cutsPerMin.toFixed(1)} cuts/min`);
+    // the fixture passes sceneCutsMs, so the cut figures are measured (non-null)
+    expect(text).toContain(`${breakdown.pacing.cutsPerMin!.toFixed(1)} cuts/min`);
   });
 
   it("names the competitor when the subject is a competitor, and includes notes", () => {
