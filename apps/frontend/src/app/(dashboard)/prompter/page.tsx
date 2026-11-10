@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import StudioShell from "@/components/studio/StudioShell";
+import PrompterRecorder from "@/features/prompter/PrompterRecorder";
 import { fetchContentItems, type ContentItem } from "@/features/create/library";
 import {
   COUNTDOWN_OPTIONS,
@@ -60,8 +61,10 @@ function formatReadEstimate(totalSeconds: number): string {
  * adjustable scroll speed, font size and text position, mirror mode, a
  * pre-roll countdown, pause/resume and documented keyboard controls.
  *
- * This page is read-only prompting: it displays and scrolls text. There is
- * no camera and no recording here.
+ * The prompter itself only displays and scrolls text. Recording is the
+ * separate, optional section below the shortcuts (features/prompter/
+ * PrompterRecorder): it uses the camera on-device only, and a take leaves
+ * this page only when the user opens it as a project.
  */
 export default function PrompterPage() {
   const router = useRouter();
@@ -347,8 +350,9 @@ export default function PrompterPage() {
             then set the scroll speed, size and position and press play.
           </p>
           <p className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            The Teleprompter only displays your text and scrolls it — there is no camera and no
-            recording on this page.
+            The Teleprompter itself only displays your text and scrolls it. If you want to film
+            yourself reading, the optional record mode below uses your camera entirely on this
+            device — nothing is uploaded.
           </p>
         </div>
 
@@ -601,6 +605,11 @@ export default function PrompterPage() {
             </p>
           </div>
         </section>
+
+        {/* -------------------------------------------------- Record (A13) */}
+        <div className="pb-4">
+          <PrompterRecorder />
+        </div>
       </div>
     </StudioShell>
   );
