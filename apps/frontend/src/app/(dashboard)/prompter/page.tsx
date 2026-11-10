@@ -184,7 +184,13 @@ export default function PrompterPage() {
       const { contentHeight, viewportHeight } = dimsRef.current;
       const max = maxScrollOffset(contentHeight, viewportHeight);
       const advanced = advanceOffset(offsetRef.current, elapsed, settingsRef.current, true);
-      if (max > 0 && advanced >= max) {
+      if (max === 0) {
+        // the script fits the screen: nothing can scroll, and without this stop the loop
+        // ran forever with Play stuck on (the end-check below requires max > 0)
+        setPlaying(false);
+        return;
+      }
+      if (advanced >= max) {
         updateOffset(max);
         setPlaying(false);
         return;
@@ -209,7 +215,10 @@ export default function PrompterPage() {
   const startPlay = () => {
     if (!hasText) return;
     const { contentHeight, viewportHeight } = dimsRef.current;
-    if (maxScrollOffset(contentHeight, viewportHeight) > 0 && offsetRef.current >= maxScrollOffset(contentHeight, viewportHeight)) {
+    // A script that fits the screen has nothing to scroll — Play is a no-op there, and
+    // the controls say so instead of starting a scroll that can never end.
+    if (maxScrollOffset(contentHeight, viewportHeight) === 0) return;
+    if (offsetRef.current >= maxScrollOffset(contentHeight, viewportHeight)) {
       updateOffset(0); // at the end: Play starts over
     }
     if (offsetRef.current === 0 && settings.countdownSec > 0) {
@@ -488,12 +497,15 @@ export default function PrompterPage() {
           <div className={`${cardCls} mt-4`}>
             <div className={`flex items-end gap-x-5 gap-y-4 ${readingMode ? "flex-nowrap overflow-x-auto pb-1" : "flex-wrap"}`}>
               <div className="flex shrink-0 gap-2">
-                <button type="button" className={primaryBtn} disabled={!hasText} onClick={togglePlay}>
+                <button type="button" className={primaryBtn} disabled={!hasText || (maxOffset === 0 && !playing && !counting)} onClick={togglePlay}>
                   {counting ? "Cancel countdown" : playing ? "Pause" : "Play"}
                 </button>
                 <button type="button" className={ghostBtn} disabled={!hasText} onClick={restart}>
                   Restart
                 </button>
+                {hasText && maxOffset === 0 ? (
+                  <span className="self-center text-[12px] text-sand-600">This script fits the screen — nothing to scroll.</span>
+                ) : null}
               </div>
 
               <label className={`${labelCls} w-40 shrink-0`}>
@@ -507,6 +519,10 @@ export default function PrompterPage() {
                   value={settings.speedPxPerSec}
                   onChange={(e) => updateSettings({ speedPxPerSec: Number(e.target.value) })}
                 />
+                <span className="mt-0.5 flex justify-between text-[11px] font-medium normal-case tracking-normal text-sand-600">
+                  <span>Slow</span>
+                  <span>Fast</span>
+                </span>
               </label>
 
               <label className={`${labelCls} w-40 shrink-0`}>
@@ -560,8 +576,9 @@ export default function PrompterPage() {
                   className={ghostBtn}
                   aria-pressed={settings.mirror}
                   onClick={() => updateSettings({ mirror: !settings.mirror })}
+                  title="Flip the script text left-right, for reading through a mirror or teleprompter glass"
                 >
-                  Mirror {settings.mirror ? "on" : "off"}
+                  Flip text {settings.mirror ? "on" : "off"}
                 </button>
                 <button
                   type="button"

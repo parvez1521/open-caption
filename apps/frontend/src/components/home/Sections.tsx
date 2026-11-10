@@ -136,7 +136,7 @@ export function Hero() {
         </h1>
 
         <p data-hero="sub" className="mx-auto mt-5 max-w-2xl text-[15px] sm:text-[17px] leading-relaxed text-[#FFFFEB]/70 px-4 font-medium">
-          Animated captions for your Shorts, Reels and TikToks, made right in your browser. 20+ viral looks, every word editable, no install and no watermark.
+          Animated captions for your Shorts, Reels and TikToks, made right in your browser. 150 animated looks, every word editable, no install and no watermark.
         </p>
 
 
@@ -380,163 +380,6 @@ export function ClipperSection() {
   );
 }
 
-function TimingArtifact() {
-  return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex flex-col justify-end group-hover:bg-[#FFFFEB]/10 transition-colors">
-      <div className="absolute inset-0 flex items-center justify-center opacity-20">
-         <div className="flex items-end gap-[2px] h-16">
-            {[2, 4, 3, 6, 8, 5, 3, 2, 5, 9, 7, 4, 2, 5, 8, 6, 4, 3, 5, 7, 4, 2, 3, 5, 2].map((h, i) => (
-              <div key={i} className="w-1.5 bg-[#FFFFEB] rounded-t-full" style={{ height: `${h * 10}%` }} />
-            ))}
-         </div>
-      </div>
-      <div className="relative z-10 w-full h-10 border-t border-[#FFFFEB]/20 bg-white/50 backdrop-blur-sm flex items-center px-4">
-        <div className="h-full w-2/5 bg-[#FFA946]/30 border-x-2 border-[#FFA946] flex items-center justify-center cursor-ew-resize hover:bg-[#FFA946]/50 transition-colors">
-          <span className="text-[10px] sm:text-xs font-bold text-[#FFFFEB] select-none">SYL-LA-BLE</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EmotionArtifact() {
-  return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex items-center justify-center group-hover:bg-[#FFFFEB]/10 transition-colors">
-      <div className="font-styled text-3xl font-black italic text-[#FFFFEB] origin-bottom transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3">
-        SERIOUSLY.
-      </div>
-      <div className="absolute top-3 right-3 flex gap-1.5">
-        {["💥", "😠", "😂"].map(e => (
-          <div key={e} className="w-7 h-7 rounded-full bg-white/80 flex items-center justify-center text-xs shadow-sm hover:scale-110 transition-transform cursor-pointer">{e}</div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PopArtifact() {
-  return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-white/50 overflow-hidden flex items-center justify-center px-6">
-      <div className="text-base font-semibold text-[#FFFFEB]/60 text-center leading-relaxed">
-        The word that matters gets <span className="inline-block px-3 py-1 mt-1 rounded-lg bg-[#34D399] text-[#141412] font-bold text-lg shadow-sm rotate-[-2deg] scale-110 group-hover:rotate-2 group-hover:scale-125 transition-transform duration-300">its own box</span> automatically.
-      </div>
-    </div>
-  );
-}
-
-function PrivateArtifact() {
-  return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex flex-col items-center justify-center gap-2 group-hover:bg-[#34D399]/15 transition-colors">
-      <div className="font-styled text-2xl font-bold text-[#FFFFEB] group-hover:scale-105 transition-transform">0 MB uploaded</div>
-      <span className="font-mono text-[10px] uppercase text-[#FFFFEB]/50 tracking-widest bg-white/60 px-2 py-0.5 rounded">Made on your device</span>
-    </div>
-  );
-}
-
-function ExportArtifact() {
-  return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex items-center justify-center gap-3 px-2 group-hover:bg-[#FFFFEB]/10 transition-colors">
-       {['MP4', 'SRT'].map((ext, i) => (
-         <div key={ext} className="flex flex-col items-center justify-center w-14 h-16 bg-white rounded-xl shadow-sm border border-[#FFFFEB]/10 relative group-hover:-translate-y-3 transition-transform duration-300" style={{ transitionDelay: `${i * 75}ms` }}>
-            <div className="absolute top-0 right-0 w-4 h-4 bg-[#FFFFEB]/5 rounded-bl-xl" />
-            <span className="font-mono text-xs font-bold text-[#FFFFEB] mt-2">{ext}</span>
-         </div>
-       ))}
-    </div>
-  );
-}
-
-function LanguageArtifact() {
-  return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex flex-col items-center justify-center group-hover:bg-[#252B26]/30 transition-colors">
-       <div className="flex flex-col items-center space-y-1 group-hover:scale-105 transition-transform">
-         <span className="font-sans text-base text-[#FFFFEB]/50 line-through decoration-[#FFFFEB]/30">क्या हाल है?</span>
-         <span className="font-sans text-2xl font-bold text-[#FFFFEB]">Kya haal hai?</span>
-         <span className="font-mono text-[10px] uppercase text-[#FFFFEB]/60 tracking-widest mt-2 bg-white/50 px-2 py-0.5 rounded">Hinglish, as you type it</span>
-       </div>
-    </div>
-  );
-}
-
-function BrandArtifact() {
-  return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-white/50 overflow-hidden flex items-center justify-center gap-5 group-hover:bg-white/80 transition-colors">
-      <div className="flex flex-col gap-3">
-        <div className="flex gap-1.5">
-           <div className="w-6 h-6 rounded-full bg-[#FFFFEB] shadow-sm hover:scale-110 transition-transform cursor-pointer" />
-           <div className="w-6 h-6 rounded-full bg-[#FFA946] shadow-sm hover:scale-110 transition-transform cursor-pointer" />
-           <div className="w-6 h-6 rounded-full bg-[#34D399] shadow-sm hover:scale-110 transition-transform cursor-pointer" />
-        </div>
-        <div className="text-[11px] font-mono font-bold text-[#FFFFEB]/60 bg-[#FFFFEB]/5 px-2 py-0.5 rounded text-center">Inter · 800</div>
-      </div>
-      <div className="h-12 w-px bg-[#FFFFEB]/10" />
-      <div className="font-sans font-black text-xl text-[#FFFFEB] italic group-hover:scale-105 transition-transform">
-        YOUR<br/><span className="text-[#FFA946]">LOOK.</span>
-      </div>
-    </div>
-  );
-}
-
-function UndoArtifact() {
-  return (
-    <div className="relative mt-6 h-28 sm:h-32 rounded-2xl border border-[#FFFFEB]/10 bg-[#FFFFEB]/5 overflow-hidden flex items-center justify-center group-hover:bg-[#FFFFEB]/10 transition-colors">
-      <div className="w-16 h-16 rounded-full border-[3px] border-[#FFFFEB]/15 border-t-[#FFFFEB] flex items-center justify-center group-hover:-rotate-[360deg] transition-transform duration-700 ease-in-out">
-         <svg className="w-6 h-6 text-[#FFFFEB]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-         </svg>
-      </div>
-    </div>
-  );
-}
-
-const FEATURES = [
-  { t: "Word-perfect timing", d: "Every word lands on the syllable. Drag any word on the timeline to nudge it; the waveform shows you exactly where.", k: "wide", artifact: <TimingArtifact /> },
-  { t: "Captions that feel it", d: "Excited, funny, serious: each card's emotion changes how hard it moves. Dial it up or switch it off.", k: "", artifact: <EmotionArtifact /> },
-  { t: "Key words that pop", d: "The word that matters on every card gets its own size, colour or box. Picked automatically, always editable.", k: "", artifact: <PopArtifact /> },
-  { t: "Your video stays yours", d: "Captions and the MP4 export are made right in your browser. Your video is never uploaded.", k: "", artifact: <PrivateArtifact /> },
-  { t: "MP4 & SRT", d: "A ready-to-post MP4 with captions burned in, or an SRT file for YouTube, LinkedIn, Premiere, CapCut and every editor.", k: "", artifact: <ExportArtifact /> },
-  { t: "English & Hinglish", d: "Code-switching creators welcome. Hindi and Hinglish speech comes out in Roman script, the way you would type it.", k: "wide", artifact: <LanguageArtifact /> },
-  { t: "Your brand, saved", d: "Save colours, fonts and your favourite looks once. Every new project is on-brand from the first second.", k: "", artifact: <BrandArtifact /> },
-  { t: "Undo everything", d: "Autosave, full undo/redo, and a safety net if you edit the same project in two tabs.", k: "", artifact: <UndoArtifact /> },
-];
-
-export function Features() {
-  return (
-    <section id="features" className="px-4 py-24 sm:py-32">
-      <div className="mx-auto max-w-6xl">
-        <div data-reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-6xl">
-            A caption studio, <em className="font-normal italic">not a subtitle box.</em>
-          </h2>
-        </div>
-        <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((f, i) => (
-            <article
-              key={f.t}
-              data-feature
-              className={`group relative overflow-hidden rounded-[2rem] border border-[#FFFFEB]/10 p-7 transition-[translate,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-30px_rgba(0,0,0,0.6)] flex flex-col justify-between ${f.k === "wide" ? "lg:col-span-2" : ""} ${i === 0 ? "bg-[#262622] text-[#FFFFEB]" : i === 5 ? "bg-[#252B26]" : "bg-white/70"}`}
-            >
-              <div className="relative z-10">
-                <span className={`absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full ${i % 3 === 0 ? "bg-[#FFA946]" : i % 3 === 1 ? "bg-[#34D399]" : "bg-[#FFFFEB]/30"}`} />
-                <h3 className="font-styled text-2xl font-bold">{f.t}</h3>
-                <p className={`mt-2.5 text-sm sm:text-base leading-relaxed ${i === 0 ? "text-[#FFFFEB]/70" : "text-[#FFFFEB]/70"}`}>{f.d}</p>
-              </div>
-              
-              {/* Feature Artifact */}
-              <div className="mt-auto pt-4 relative z-0">
-                {/* For the first card which is dark, we need to pass a prop or handle inversion in the component, or just let CSS do it via mix-blend-mode or direct styling if needed. Since we hardcoded the artifacts, we'll invert colors for the first one manually here or use CSS filters */}
-                <div className={i === 0 ? "invert brightness-90 hue-rotate-180" : ""}>
-                  {f.artifact}
-                </div>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function BrowserCard() {
   const rows = [
     ["Speech recognition", "runs on your device"],
@@ -575,40 +418,6 @@ export function Privacy() {
           <div className="min-w-0 lg:h-full">
             <BrowserCard />
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function Pricing() {
-  const free = PLANS.free;
-  const pro = PLANS.pro;
-  const tiers = [
-    { name: "Free", price: "₹0", note: "forever", cta: "Start free", href: "/start", hi: false,
-      items: [`Videos up to ${free.maxDurationSec / 60} minutes`, "Unlimited captions, made in your browser", "Every look, full editor, all export formats", `${free.maxProjects} projects · exports kept ${free.exportRetentionDays} days`] },
-    { name: "Pro", price: "Soon", note: "join the waitlist", cta: "Get notified", href: "/login", hi: true,
-      items: [`Videos up to ${pro.maxDurationSec / 3600} hours`, "Unlimited projects", `Exports kept ${pro.exportRetentionDays} days`, "Priority support"] },
-  ];
-  return (
-    <section id="pricing" className="px-4 pb-24 sm:pb-32">
-      <div className="mx-auto max-w-5xl">
-        <div data-reveal className="text-center">
-          <h2 className="font-styled text-4xl font-bold tracking-tight text-[#FFFFEB] sm:text-6xl">Free while you grow.</h2>
-        </div>
-        <div className="mt-12 grid gap-5 md:grid-cols-2">
-          {tiers.map((t) => (
-            <article key={t.name} data-tier className={`relative rounded-[2rem] border p-8 ${t.hi ? "border-[#FFFFEB] bg-[#0F3D2E] text-[#FFFFEB] shadow-[8px_8px_0_rgba(0,0,0,0.55)]" : "border-[#FFFFEB]/15 bg-white/70"}`}>
-              <h3 className="font-styled text-2xl font-bold">{t.name}</h3>
-              <p className="mt-4 font-styled text-5xl font-bold">{t.price}<span className={`ml-2 text-base font-normal ${t.hi ? "text-[#FFFFEB]/60" : "text-[#FFFFEB]/50"}`}>{t.note}</span></p>
-              <ul className="mt-6 space-y-3">
-                {t.items.map((it) => (
-                  <li key={it} className="flex gap-3"><span className={t.hi ? "text-[#34D399]" : "text-[#34D399]"}>✓</span><span className={t.hi ? "text-[#FFFFEB]/85" : "text-[#FFFFEB]/75"}>{it}</span></li>
-                ))}
-              </ul>
-              <Link href={t.href} className={`mt-8 inline-flex w-full justify-center rounded-2xl border px-5 py-3 font-bold transition hover:scale-[1.02] ${t.hi ? "border-[#FFFFEB] bg-[#1E1E1B] text-[#FFFFEB]" : "border-[#FFFFEB] bg-[#252B26] text-[#FFFFEB]"}`}>{t.cta}</Link>
-            </article>
-          ))}
         </div>
       </div>
     </section>
@@ -811,10 +620,9 @@ const FOOTER_COLUMNS = [
   {
     title: "CREATORS",
     links: [
-      { label: "TikTok & Shorts", href: "/#looks" },
-      { label: "Instagram Reels", href: "/#looks" },
-      { label: "Hinglish & Multi-lingual", href: "/#faq" },
-      { label: "Transparent Overlays", href: "/#faq" },
+      { label: "Looks for Shorts, Reels & TikTok", href: "/#looks" },
+      { label: "Hindi & Hinglish support", href: "/#faq" },
+      { label: "Export formats, incl. overlays", href: "/#faq" },
     ],
   },
   {
@@ -832,6 +640,9 @@ const FOOTER_COLUMNS = [
       { label: "Terms of service", href: "/terms" },
       { label: "Privacy policy", href: "/privacy" },
       { label: "Cookie policy", href: "/cookies" },
+      { label: "Acceptable use", href: "/acceptable-use" },
+      { label: "Copyright & takedowns", href: "/copyright" },
+      { label: "Credits & licences", href: "/credits" },
     ],
   },
 ];

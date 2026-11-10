@@ -6,7 +6,7 @@ export const FAQS = [
   },
   {
     q: "Is my video uploaded anywhere?",
-    a: "No. Speech recognition and the MP4 export both run inside your browser, so your video stays on your device. Only your captions and settings are saved, so you can pick a project up again later.",
+    a: "For transcription and the normal MP4 export, no — speech recognition and rendering run inside your browser, so the video is not sent anywhere for those. Your captions and settings are saved with your project so you can reopen it later. One exception: transparent overlay exports are rendered by the optional desktop Companion app, and that render does use the video from your project.",
   },
   {
     q: "Will Open Caption work with vertical 9:16 Shorts, Reels, and TikToks?",
@@ -14,7 +14,7 @@ export const FAQS = [
   },
   {
     q: "How is Open Caption different from basic CapCut or Premiere captions?",
-    a: "Every word is timed to the speech, the key word on each line gets its own colour, box or motion, and you pick from 20+ animated looks instead of plain text. There is no watermark and nothing to install.",
+    a: "Every word is timed to the speech, the key word on each line gets its own colour, box or motion, and you pick from 150 animated looks instead of plain text. There is no watermark and nothing to install.",
   },
   {
     q: "Do I need to install anything?",
@@ -30,6 +30,6 @@ export const FAQS = [
   },
   {
     q: "What export formats are supported?",
-    a: "An MP4 with the captions burned in, ready to post on Reels, Shorts and TikTok, or an SRT subtitle file for YouTube, LinkedIn, Premiere, CapCut and other editors.",
+    a: "An MP4 with the captions burned in, ready to post on Reels, Shorts and TikTok; transparent overlay videos (MOV and WebM) rendered by the free desktop Companion; and caption files — SRT, VTT, ASS, plain text and JSON — for YouTube, LinkedIn, Premiere, CapCut and other editors.",
   },
 ];

@@ -49,7 +49,8 @@ export default function ProjectsList() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
-  const [deleteError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
   const [hiding, setHiding] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ProjectView>("active");
@@ -63,7 +64,9 @@ export default function ProjectsList() {
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgError, setOrgError] = useState<string | null>(null);
 
-  useEffect(() => { void import("@/features/transcribe/browserWhisper").then((m) => m.warmSpeechModel()); }, []);
+  // NOTE: no speech-model warm-up here. This list used to download the ~90 MB Whisper
+  // model on mount — on mobile data, for visitors who may never transcribe. The model
+  // now downloads when a transcription actually starts, where the progress text says so.
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["projects"],
@@ -98,20 +101,22 @@ export default function ProjectsList() {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || deleteBusy) return;
     const target = deleteTarget;
-    setDeleteTarget(null);
-    setHiding((h) => [...h, target.id]);
-    setDeleting((n) => n + 1);
+    // The modal stays OPEN during the delete so a failure can be shown inside it — the
+    // old flow closed the modal first and fell back to window.alert, which is why the
+    // modal's error state could never render (its setter didn't even exist).
+    setDeleteError(null);
+    setDeleteBusy(true);
     try {
       await Promise.all([projectsService.deleteProject(target.id), new Promise((r) => setTimeout(r, 700))]);
       qc.removeQueries({ queryKey: ["studio", target.id] });
-    } catch (err: any) {
-      setHiding((h) => h.filter((id) => id !== target.id));
-      window.alert(err?.message || "Couldn't delete the project. It is back in your list.");
-    } finally {
-      setDeleting((n) => n - 1);
+      setDeleteTarget(null);
       refetch();
+    } catch (err: any) {
+      setDeleteError(err?.message || "Couldn't delete the project. It is still in your list — check your connection and try again.");
+    } finally {
+      setDeleteBusy(false);
     }
   };
 
@@ -214,7 +219,7 @@ export default function ProjectsList() {
         ) : isError ? (
           <div className="rounded-xl border border-orange-accent/60 bg-orange-accent/10 p-8 text-center space-y-3">
             <p className="font-sora text-[14px] font-semibold text-obsidian">Couldn&apos;t load your projects.</p>
-            <p className="text-[13px] text-obsidian">The backend may be offline. Start it, then try again.</p>
+            <p className="text-[13px] text-obsidian">We couldn&apos;t reach Open Caption just now. Check your connection, then try again.</p>
             <button onClick={() => refetch()} className="rounded-full border border-orange-accent/60 px-5 py-2 font-sora text-[12px] font-semibold text-obsidian hover:bg-orange-accent/20 transition-colors cursor-pointer">Retry</button>
           </div>
         ) : projects.length === 0 ? (
@@ -237,7 +242,7 @@ export default function ProjectsList() {
                 <div key={project.id} onClick={() => nav.go(`/projects/${project.id}`, "Opening your project")} onPointerEnter={() => warmProject(project.id)} onTouchStart={() => warmProject(project.id)} className="group relative flex h-32 cursor-pointer flex-col justify-between rounded-xl border border-sand-200 bg-white p-4 sm:h-40 sm:p-5 transition-all hover:border-sand-500 hover:shadow-sand-soft">
                   <div className="min-w-0">
                     <h3 className="truncate pr-10 font-sora text-[15px] font-bold text-ink">{project.title}</h3>
-                    <p className="mt-1 font-mono text-[11px] text-sand-600">{project.id.slice(0, 8)}{project.archived_at ? " · archived" : ""}</p>
+                    {project.archived_at ? <p className="mt-1 text-[11px] text-sand-600">Archived</p> : null}
                     {orgReady && (project.folder || (project.tags ?? []).length > 0) ? (
                       <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-sand-700">
                         {project.folder ? <span className="rounded-full bg-sand-200 px-2 py-0.5 font-sora font-semibold">{project.folder}</span> : null}
@@ -327,14 +332,14 @@ export default function ProjectsList() {
 
       {/* Delete confirmation */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => setDeleteTarget(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => { if (!deleteBusy) setDeleteTarget(null); }}>
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-serif text-2xl font-semibold text-ink">Delete this project?</h3>
             <p className="mt-2 text-[14px] leading-relaxed text-sand-800"><strong className="text-ink">&quot;{deleteTarget.title}&quot;</strong> and its uploads, transcript, and exports will be removed. This can&apos;t be undone.</p>
-            {deleteError && <div className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{deleteError}</div>}
+            {deleteError && <div role="alert" className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{deleteError}</div>}
             <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Keep it</button>
-              <button onClick={handleDelete} className="rounded-full bg-orange-accent px-6 py-2.5 font-sora text-[12px] font-semibold text-[#141412] hover:bg-orange-accent/85 transition-all cursor-pointer">Delete project</button>
+              <button onClick={() => setDeleteTarget(null)} disabled={deleteBusy} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer disabled:opacity-60">Keep it</button>
+              <button onClick={handleDelete} disabled={deleteBusy} className="rounded-full bg-orange-accent px-6 py-2.5 font-sora text-[12px] font-semibold text-[#141412] hover:bg-orange-accent/85 transition-all cursor-pointer disabled:opacity-60">{deleteBusy ? "Deleting…" : "Delete project"}</button>
             </div>
           </div>
         </div>

@@ -69,7 +69,13 @@ function PairConfirmContent() {
     }
   };
 
-  if (!authorized) return null;
+  if (!authorized) {
+    return (
+      <div className="min-h-screen bg-dune-white flex items-center justify-center px-6">
+        <p role="status" className="font-sora text-[14px] text-sand-700">Checking your sign-in…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-dune-white flex items-center justify-center px-6">
@@ -129,7 +135,13 @@ function PairConfirmContent() {
 
 export default function PairPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-dune-white flex items-center justify-center px-6">
+          <p role="status" className="font-sora text-[14px] text-sand-700">Loading the pairing request…</p>
+        </div>
+      }
+    >
       <PairConfirmContent />
     </Suspense>
   );

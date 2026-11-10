@@ -54,6 +54,8 @@ export default function LibraryPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<LibraryKindFilter>("all");
   const [deleteTarget, setDeleteTarget] = useState<MediaAssetRecord | null>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState<string | null>(null);
+  const [deleteCheckingId, setDeleteCheckingId] = useState<string | null>(null);
   const [cleanupProjectId, setCleanupProjectId] = useState<string | null>(null);
   const [cleanupPrep, setCleanupPrep] = useState<
     | { status: "loading" }
@@ -149,7 +151,7 @@ export default function LibraryPage() {
       );
       setAssets(result.remaining);
       setCleanupNotice(
-        `Derived cache cleared for “${title}”: freed ${formatBytes(result.freedBytes)} on this device (measured after clearing; ${formatBytes(result.afterBytes)} of derived data remains, including anything the project's timeline still uses). Your original media was not touched.`,
+        `Cleared processed copies for “${title}”: freed ${formatBytes(result.freedBytes)} on this device; ${formatBytes(result.afterBytes)} of processed data remains, including anything the timeline still uses. Your original media was not touched.`,
       );
     } finally {
       setCleanupBusy(false);
@@ -167,6 +169,52 @@ export default function LibraryPage() {
     el.click();
     el.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  };
+
+  /**
+   * Delete asks the same question the derived-cache cleanup asks: is this file still
+   * referenced by its project's timeline? The generic warning used to be the only guard,
+   * so one click could orphan a project's media. Referenced → blocked with the reason;
+   * references uncheckable while the project exists → fail closed, like the cleanup.
+   */
+  const requestDelete = async (asset: MediaAssetRecord) => {
+    setDeleteBlocked(null);
+    if (!asset.projectId) {
+      setDeleteTarget(asset);
+      return;
+    }
+    setDeleteCheckingId(asset.id);
+    try {
+      let referenced: Set<string>;
+      try {
+        const data = await studioService.getStudio(asset.projectId);
+        const resolved = readCompositionSettings({
+          settingsComposition: data.project.settings_json?.composition ?? null,
+          compositionJson: data.project.composition_json,
+        });
+        referenced = collectReferencedAssetIds({
+          composition: resolved.settings,
+          overlays: data.project.settings_json?.overlays ?? [],
+        });
+      } catch {
+        if (projectsData && !titles.has(asset.projectId)) {
+          referenced = new Set();
+        } else {
+          throw new Error("check-failed");
+        }
+      }
+      if (referenced.has(asset.id)) {
+        setDeleteBlocked(
+          `“${asset.name}” is used in ${projectTitleFor(asset.projectId, titles)}'s timeline, so it can't be deleted here. Remove it from the project first.`,
+        );
+        return;
+      }
+      setDeleteTarget(asset);
+    } catch {
+      setDeleteBlocked("Couldn't check whether that file is still used by its project, so it wasn't deleted. Check your connection and try again.");
+    } finally {
+      setDeleteCheckingId(null);
+    }
   };
 
   const confirmDelete = async () => {
@@ -188,17 +236,22 @@ export default function LibraryPage() {
             Every video, audio and image file imported into your projects&apos; media bins, in one place.
           </p>
           <p className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            These files live in this browser on this device only — they are not uploaded or stored on
-            our servers. This library is empty on other devices and in other browsers, and clearing
-            this browser&apos;s site data removes them.
+            These files live in this browser on this device only — nothing here is uploaded.
+            This library is empty on other devices, and clearing this browser&apos;s site data
+            removes the files.
           </p>
+          {deleteBlocked ? (
+            <p role="alert" className="mt-4 rounded-lg border border-orange-accent/50 bg-orange-accent/10 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
+              {deleteBlocked}
+            </p>
+          ) : null}
         </div>
 
         {signedIn && (
           <section aria-label="Stock audio" className="mt-8 rounded-xl border border-sand-200 bg-white px-5 py-4">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="font-sora text-[14px] font-bold text-ink">Stock audio</h2>
-              <p className="text-[12px] text-sand-600">Bundled CC0 sound effects + Pixabay browse-import (A10)</p>
+              <p className="text-[12px] text-sand-600">Bundled CC0 sound effects + browse-and-import from Pixabay</p>
             </div>
             <p className="mt-1.5 max-w-[72ch] text-[12px] leading-relaxed text-sand-700">
               Stock audio is added to a project&apos;s media bin on this device, as a normal asset with
@@ -261,17 +314,16 @@ export default function LibraryPage() {
             </div>
 
             {derived.totalBytes > 0 && (
-              <section aria-label="Derived cache" className="mt-6 rounded-xl border border-sand-200 bg-sand-50 px-5 py-4">
+              <section aria-label="Processed copies" className="mt-6 rounded-xl border border-sand-200 bg-sand-50 px-5 py-4">
                 <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h2 className="font-sora text-[14px] font-bold text-ink">Derived cache on this device</h2>
+                  <h2 className="font-sora text-[14px] font-bold text-ink">Processed copies on this device</h2>
                   <p className="text-[12px] tabular-nums text-sand-600">{formatBytes(derived.totalBytes)} across all projects</p>
                 </div>
                 <p className="mt-1.5 max-w-[72ch] text-[12px] leading-relaxed text-sand-700">
-                  Processed copies and previews made on this device from your media: reversed copies,
-                  freeze-frame stills, noise-suppressed copies, and thumbnail / waveform previews.
-                  Clearing a project&apos;s derived cache removes those derived previews and processed
-                  copies — your original media stays. A copy a project&apos;s timeline still uses is
-                  kept, and named before anything is deleted.
+                  Copies the editor made from your media on this device — reversed or
+                  noise-cleaned versions, freeze-frame stills, thumbnails. Clearing them never
+                  touches your originals, and a copy a timeline still uses is kept and named
+                  first.
                 </p>
                 {cleanupNotice && <p role="status" className="mt-2 text-[12px] font-semibold text-sand-800">{cleanupNotice}</p>}
                 <ul className="mt-3 divide-y divide-sand-200">
@@ -341,7 +393,7 @@ export default function LibraryPage() {
                     <div className="flex flex-wrap gap-2">
                       <Link href={`/projects/${a.projectId}`} className="rounded-full bg-ink px-4 py-2 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 transition-all">Open in project</Link>
                       <button onClick={() => download(a)} className="rounded-full border border-sand-300 px-4 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Download</button>
-                      <button onClick={() => setDeleteTarget(a)} className="rounded-full border border-orange-accent/60 px-4 py-2 font-sora text-[12px] font-semibold text-obsidian hover:bg-orange-accent/10 transition-colors cursor-pointer">Delete from device</button>
+                      <button onClick={() => void requestDelete(a)} disabled={deleteCheckingId === a.id} className="rounded-full border border-orange-accent/60 px-4 py-2 font-sora text-[12px] font-semibold text-obsidian hover:bg-orange-accent/10 transition-colors cursor-pointer disabled:opacity-60">{deleteCheckingId === a.id ? "Checking…" : "Delete from device"}</button>
                     </div>
                   </li>
                 ))}

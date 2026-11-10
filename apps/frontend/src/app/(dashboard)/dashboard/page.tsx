@@ -39,12 +39,12 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 gap-4 pt-8 sm:grid-cols-2">
           <Link href="/exports" className="rounded-xl border border-sand-200 bg-white p-5 transition-colors hover:border-sand-500">
-            <p className="font-sora text-[14px] font-bold text-ink">Exports history</p>
-            <p className="mt-1 text-[13px] leading-relaxed text-sand-700">Every file you have exported, across all projects — download the ones still within their retention window.</p>
+            <p className="font-sora text-[14px] font-bold text-ink">Export History</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-sand-700">Every file you have exported, across all projects.</p>
           </Link>
           <Link href="/brand" className="rounded-xl border border-sand-200 bg-white p-5 transition-colors hover:border-sand-500">
-            <p className="font-sora text-[14px] font-bold text-ink">Brand presets</p>
-            <p className="mt-1 text-[13px] leading-relaxed text-sand-700">Your saved colours and font from Creator Studio, applied in every project&apos;s Style panel.</p>
+            <p className="font-sora text-[14px] font-bold text-ink">Brand Kit</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-sand-700">Your saved colours, font and voice — used by the generators and every project&apos;s Style panel.</p>
           </Link>
         </div>
 

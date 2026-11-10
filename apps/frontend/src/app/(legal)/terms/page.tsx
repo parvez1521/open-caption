@@ -30,7 +30,7 @@ export default function TermsPage() {
       </Sec>
 
       <Sec id="plans" title="3. Free service and limits">
-        <p>The <strong>Free</strong> plan currently includes videos up to {Math.round(free.maxDurationSec / 60)} minutes, up to {free.maxProjects} projects and up to {free.maxProjects} projects, with exports kept for {free.exportRetentionDays} days. Transcription runs in your browser and is unlimited.</p>
+        <p>The <strong>Free</strong> plan currently includes videos up to {Math.round(free.maxDurationSec / 60)} minutes and {Math.round(free.maxUploadBytes / (1024 * 1024))} MB, up to {free.maxProjects} projects, with exports kept for {free.exportRetentionDays} days. Transcription runs in your browser and is unlimited.</p>
         <p>{LEGAL.product} is free to use and we do not take payment. If we ever introduce paid plans, we will publish their price and terms first, and nothing will be charged unless you explicitly choose a paid plan.</p>
       </Sec>
 

@@ -148,22 +148,23 @@ export default function PrompterRecorder() {
           </p>
         ) : (
           <>
-            {/* Mirror toggle: read when the camera starts (see the hook). */}
+            {/* Mirror toggle: read when the camera starts (see the hook) — so it is disabled
+                whenever the camera is on, not just while recording; a toggle that can be
+                flipped with no effect is a dead control. */}
             <div>
               <label className="flex cursor-pointer items-center gap-2.5">
                 <input
                   type="checkbox"
                   checked={mirrorRecording}
-                  disabled={status === "recording"}
+                  disabled={cameraOn}
                   onChange={(e) => setMirrorRecording(e.target.checked)}
                 />
                 <span className={labelCls}>Mirror the saved recording</span>
               </label>
               <p className="mt-2 max-w-[68ch] text-[12px] leading-relaxed text-sand-600">
-                Off by default: with it off, anything you hold up to the camera — notes, a
-                product, text — reads correctly in the saved video. Turn it on if you want the
-                saved video to look exactly like the preview. This applies from the next camera
-                start — if the camera is already on, turn it off and on again to change it.
+                Off by default, so text you hold up to the camera reads correctly in the saved
+                video. On = the saved video looks exactly like the preview.
+                {cameraOn ? " Set before you turn the camera on — it applies from the next camera start." : ""}
               </p>
             </div>
 

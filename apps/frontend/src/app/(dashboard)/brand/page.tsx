@@ -136,7 +136,17 @@ export default function BrandKitPage() {
     setSaved(false);
   };
 
+  const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
+
   const selectProfile = (id: string) => {
+    // A chip switch reloads the form from the newly selected profile — with unsaved
+    // edits in the form that silently threw them away. Ask first.
+    if (id !== selectedId && form && selectedProfile && formFor === selectedProfile.id
+      && JSON.stringify(form) !== JSON.stringify(formFromProfile(selectedProfile))) {
+      setPendingSwitch(id);
+      return;
+    }
+    setPendingSwitch(null);
     setSelectedId(id);
     setConfirmDelete(false);
     setSaved(false);
@@ -252,7 +262,6 @@ export default function BrandKitPage() {
             <p className="font-sora text-[15px] font-bold text-ink">No brand profiles yet</p>
             <p className="text-[13px] text-sand-700">
               Create your first profile to save a voice — how your content sounds — alongside your colours and font.
-              The generators in Creator Studio will use the active profile automatically.
             </p>
             {error ? <div className="rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{error}</div> : null}
             <button onClick={() => void newProfile()} disabled={actionBusy} className={primaryBtn}>
@@ -283,6 +292,22 @@ export default function BrandKitPage() {
                     );
                   })}
                 </div>
+                {pendingSwitch ? (
+                  <div role="alert" className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-orange-accent/50 bg-orange-accent/10 px-4 py-3">
+                    <p className="text-[13px] text-sand-800">
+                      You have unsaved changes to &ldquo;{selectedProfile?.name}&rdquo;. Switching profiles drops them.
+                    </p>
+                    <button
+                      onClick={() => { const id = pendingSwitch; setPendingSwitch(null); setSelectedId(id); setConfirmDelete(false); setSaved(false); setError(null); }}
+                      className="rounded-full bg-ink px-4 py-1.5 font-sora text-[12px] font-semibold text-dune-white cursor-pointer"
+                    >
+                      Switch anyway
+                    </button>
+                    <button onClick={() => setPendingSwitch(null)} className="font-sora text-[12px] font-semibold text-sand-800 underline underline-offset-2 cursor-pointer">
+                      Keep editing
+                    </button>
+                  </div>
+                ) : null}
                 {mode === "voice" && selectedProfile ? (
                   <div className="mt-4 flex flex-wrap items-center gap-2">
                     {!selectedProfile.isActive && selectedProfile.id !== data.activeId ? (
@@ -388,6 +413,9 @@ export default function BrandKitPage() {
                     <input type="color" value={HEX.test(newColor) ? newColor : "#000000"} onChange={(e) => setNewColor(e.target.value.toUpperCase())} aria-label="Pick a colour" className="h-10 w-12 cursor-pointer rounded-lg border border-sand-300 bg-transparent" />
                     <input type="text" value={newColor} onChange={(e) => setNewColor(e.target.value)} placeholder="#FFA946" aria-label="Colour hex value" className="w-32 rounded-lg border border-sand-300 bg-white px-3 py-2.5 font-mono text-[13px] text-ink outline-none focus:border-sand-600" />
                     <button onClick={addColor} disabled={form.colors.length >= MAX_COLORS} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink disabled:opacity-50 transition-colors cursor-pointer">Add colour</button>
+                    {form.colors.length >= MAX_COLORS ? (
+                      <span className="text-[12px] text-sand-600">Maximum {MAX_COLORS} colours — remove one to add another.</span>
+                    ) : null}
                     <span className="text-[12px] text-sand-600">{form.colors.length}/{MAX_COLORS}</span>
                   </div>
                 </section>
@@ -396,7 +424,7 @@ export default function BrandKitPage() {
                   <h2 className="font-sora text-[15px] font-bold text-ink">Preferred font</h2>
                   <p className="mt-1 text-[13px] text-sand-700">Offered in the Style panel as your brand font for new caption styles.</p>
                   <div className="mt-4 rounded-lg border border-sand-200 bg-sand-50 p-4">
-                    <FontPicker label="Brand font" value={form.fontId ?? "Plus Jakarta Sans"} onChange={(f) => patchForm({ fontId: f })} />
+                    <FontPicker label="Brand font" value={form.fontId ?? ""} placeholder="No font saved yet" onChange={(f) => patchForm({ fontId: f })} />
                     {!form.fontId ? <p className="mt-2 text-[12px] text-sand-600">No brand font saved yet — pick one above and save.</p> : (
                       <button onClick={() => patchForm({ fontId: null })} className="mt-3 font-sora text-[12px] font-semibold text-sand-700 hover:text-ink cursor-pointer">Clear brand font</button>
                     )}
