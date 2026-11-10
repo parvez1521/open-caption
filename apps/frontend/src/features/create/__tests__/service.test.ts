@@ -230,6 +230,59 @@ describe("hook mechanisms on every source", () => {
   });
 });
 
+describe("sponsored captions through the service (3.6)", () => {
+  const sponsoredCaptions = {
+    topic: "trail running",
+    platform: "reels" as const,
+    tone: "friendly" as const,
+    sponsored: {
+      talkingPoints: ["Made with real sourdough starter"],
+      requiredTags: ["#adpartner"],
+      disclosure: "#ad — paid partnership with Test Bakery",
+    },
+  };
+
+  it("enforces sponsored wording verbatim on a FAKE cloud batch, with source still cloud", async () => {
+    const runCloud: ModelRunner = async () =>
+      "Plain cloud caption one :: #running\nPlain cloud caption two :: #trails\nPlain cloud caption three :: #mud";
+    const out = await generateContent("captions", sponsoredCaptions, { runCloud, modelEnabled: false });
+    expect(out.source).toBe("cloud");
+    expect(out.fellBack).toBe(false);
+    expect(out.items).toHaveLength(3);
+    for (const item of out.items) {
+      expect(item.title).toContain("\nMade with real sourdough starter\n");
+      expect(item.title.split("\n").pop()).toBe("#ad — paid partnership with Test Bakery");
+      expect(item.hashtags).toContain("#adpartner");
+    }
+    expect(out.items[0]!.title.startsWith("Plain cloud caption one")).toBe(true);
+  });
+
+  it("enforces sponsored wording on the template path too, after the profile CTA", async () => {
+    const profile = makeProfile({ preferredCtas: ["Follow for more"] });
+    const out = await generateContent("captions", sponsoredCaptions, { modelEnabled: false, profile });
+    expect(out.source).toBe("template");
+    for (const item of out.items) {
+      // Order: caption → profile CTA → talking point → disclosure (final line).
+      expect(item.title).toContain("\nFollow for more\nMade with real sourdough starter\n");
+      expect(item.title.split("\n").pop()).toBe("#ad — paid partnership with Test Bakery");
+      expect(item.hashtags).toContain("#adpartner");
+    }
+  });
+
+  it("the captions prompt instructs the model to include sponsored wording exactly", () => {
+    const prompt = buildPrompt("captions", sponsoredCaptions);
+    expect(prompt.user).toContain("Sponsored post");
+    expect(prompt.user).toContain("Made with real sourdough starter");
+    expect(prompt.user).toContain("#adpartner");
+    expect(prompt.user).toContain("disclosure line exactly: #ad — paid partnership with Test Bakery");
+  });
+
+  it("captions without sponsored input are untouched by enforcement", async () => {
+    const out = await generateContent("captions", captions, { modelEnabled: false });
+    for (const item of out.items) expect(item.title).not.toContain("paid partnership");
+  });
+});
+
 describe("profile plumbing through the service and prompts", () => {
   it("buildPrompt appends the profile block for all three kinds, and only when the voice is non-empty", () => {
     const profile = makeProfile({ niche: "home workouts", wordsToAvoid: ["guaranteed"] });
