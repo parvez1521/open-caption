@@ -44,19 +44,16 @@ import { useWaveform } from "./useWaveform";
 import { toComposition } from "./composition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
-  addMarker, applyContentShift, applyDocEffect, deleteOverlayClip,
-  duplicateOverlayClip, moveOverlayClip, overlayTrackOf, removeMarker, rippleDeleteOverlayClip,
-  setTrackState, splitOverlayClipAt, splitVideoClipAt, trimOverlayClip,
-  trimVideoClipEdge, type DocEffect,
+  addMarker, applyContentEffect, applyDocEffect, canRippleDeleteVideoSegment, deleteOverlayClip,
+  duplicateOverlayClip, duplicateVideoSegment, insertStillSegmentAt, moveOverlayClip, overlayTrackOf,
+  removeMarker, rippleDeleteOverlayClip, rippleDeleteVideoSegment, setSegmentPlaybackRate,
+  setSegmentTransition, setSegmentTransform, setTrackState, splitOverlayClipAt, splitVideoClipAt,
+  trimOverlayClip, trimVideoClipEdge, type DocEffect,
 } from "./compositionOps";
 import { canvasDims, canvasOf } from "./canvas";
 import {
-  buildSegmentAssetUrls, pickStudioDurationMs, resolveSegmentView, type SegmentLike,
+  applyReversedSegment, buildSegmentAssetUrls, pickStudioDurationMs, resolveSegmentView, type SegmentLike,
 } from "./segmentView";
-import {
-  applyReversedSegment, canRippleDeleteSegment, duplicateVideoSegment, insertStillSegmentAt,
-  rippleDeleteVideoSegment, setSegmentPlaybackRate, setSegmentTransition, setSegmentTransform,
-} from "./segmentOps";
 import { SegmentInspector, type SegmentProductionState } from "./panels/SegmentInspector";
 import { getLocalVideo } from "@/features/upload/localVideos";
 import { listProjectAssets } from "./mediaStore";
@@ -277,7 +274,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     return () => { alive = false; };
   }, [fontKey]);
 
-  const canvas = useMemo(() => ({ width, height, fps }), [width, height, fps]);
+  // Caption pages are laid out on the COMPOSITION canvas (canvasSize), the same frame
+  // the Player and the export render — with aspect "source" that is the source box, so
+  // untouched projects are unchanged; with a chosen aspect the captions follow the frame.
+  const canvas = useMemo(() => ({ width: canvasSize.width, height: canvasSize.height, fps }), [canvasSize.width, canvasSize.height, fps]);
   // the media bin (device-local assets for this project) — the panel manages it, the composition
   // rendering below resolves placed image overlays from it
   const mediaBin = useMediaAssets(projectId);
@@ -325,10 +325,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     if (nextComp === editorComp && (!docEffect || docEffect.type === "none")) return;
     let comp = nextComp;
     let nextDoc: CaptionDoc | undefined;
-    if (docEffect?.type === "headShift") {
-      // the head moved: markers/overlays re-base inside the composition, caption words
-      // re-base in the doc — both land in the same editAll call below (one undo step)
-      comp = applyContentShift(comp, docEffect.deltaMs);
+    if (docEffect && docEffect.type !== "none") {
+      // The composition's outside content (markers/overlays) and the caption doc's
+      // words both follow the SAME effect — headShift (range moved), rangeRemove /
+      // rangeInsert (ripple delete / still insert), rangeShift / rangeScale (speed
+      // changes) — all landing in the one editAll call below (one undo step).
+      comp = applyContentEffect(comp, docEffect);
       if (s.doc) {
         const shifted = applyDocEffect(s.doc, docEffect);
         if (shifted !== s.doc) nextDoc = shifted;
@@ -587,7 +589,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       selectedOverlayId,
       selectedId: captionsLocked ? null : selectedId,
       selectedVideoClipId: selVideoClipId,
-      canRippleDeleteVideoSegment: editorComp && selVideoClipId ? canRippleDeleteSegment(editorComp, selVideoClipId) : false,
+      canRippleDeleteVideoSegment: editorComp && selVideoClipId ? canRippleDeleteVideoSegment(editorComp, selVideoClipId) : false,
       selectedMarkerId: selMarkerId,
     });
     if (!action) return false;
@@ -846,7 +848,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const none = !selected;
   const ic = "h-4 w-4";
   const selOverlayClip = editorComp?.overlayClips.find((c) => c.id === selectedOverlayId) ?? null;
-  const selVideoCanRipple = Boolean(editorComp && selVideoClipId && canRippleDeleteSegment(editorComp, selVideoClipId));
+  const selVideoCanRipple = Boolean(editorComp && selVideoClipId && canRippleDeleteVideoSegment(editorComp, selVideoClipId));
   const extraTools = (
     <>
       {tool(selected?.emphasis === "hero" ? "Key word (click to unset)" : "Make key word", <Star className={ic} />, () => selected && s.edit((d) => setEmphasis(d, selected.id, selected.emphasis === "hero" ? "none" : "hero")), { disabled: none || !heroSupported, active: selected?.emphasis === "hero" })}

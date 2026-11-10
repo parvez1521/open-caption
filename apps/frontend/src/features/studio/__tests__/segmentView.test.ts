@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_COMPOSITION_TRACKS } from "@capseasy/shared";
 import {
-  buildSegmentAssetUrls, collectSegmentAssetIds, compositionDurationMs, formatPlaybackRate,
+  applyReversedSegment, buildSegmentAssetUrls, collectSegmentAssetIds, compositionDurationMs, formatPlaybackRate,
   pickStudioDurationMs, resolveSegmentView, segmentBadges, segmentExtras,
   segmentTimelineDurationMs, IDENTITY_TRANSFORM, type SegmentLike,
 } from "../segmentView";
-import type { EditorVideoClip } from "../compositionDoc";
+import { editorClipDefaults, type EditorComposition, type EditorVideoClip } from "../compositionDoc";
 
 const seg = (p: Partial<SegmentLike> & { id: string }): SegmentLike => ({ sourceInMs: 0, sourceOutMs: 1000, ...p });
 
@@ -67,7 +68,7 @@ describe("pickStudioDurationMs (StudioPage duration selection)", () => {
 });
 
 describe("resolveSegmentView", () => {
-  const clip: EditorVideoClip = { id: "c1", kind: "video", startMs: 500, durationMs: 2000, sourceInMs: 1000, sourceOutMs: 3000 };
+  const clip: EditorVideoClip = { id: "c1", kind: "video", startMs: 500, durationMs: 2000, sourceInMs: 1000, sourceOutMs: 3000, ...editorClipDefaults() };
   it("takes geometry from the clip and Run-2 fields from the stored segment", () => {
     const view = resolveSegmentView(clip, 1, seg({ id: "c1", sourceInMs: 1000, sourceOutMs: 3000, playbackRate: 2 }));
     expect(view.startMs).toBe(500);
@@ -118,5 +119,41 @@ describe("segmentBadges", () => {
   it("transition badge names type + duration", () => {
     expect(segmentBadges({ ...base, transitionIn: { type: "fade", durationMs: 300 } }))
       .toEqual([{ kind: "transition", label: "Fade 300ms" }]);
+  });
+});
+
+describe("applyReversedSegment", () => {
+  const vclip = (p: Partial<EditorVideoClip> & { id: string }): EditorVideoClip => ({
+    kind: "video", startMs: 0, durationMs: 2000, sourceInMs: 0, sourceOutMs: 2000,
+    ...editorClipDefaults(), ...p,
+  });
+  const compOf = (clips: EditorVideoClip[]): EditorComposition => {
+    let at = 0;
+    const laid = clips.map((c) => { const n = { ...c, startMs: at }; at += c.durationMs; return n; });
+    return {
+      version: 1, durationMs: at, sourceDurationMs: 10000,
+      rangeStartMs: laid[0]?.sourceInMs ?? 0,
+      videoClips: laid, captionClips: [], overlayClips: [], markers: [],
+      trackState: structuredClone(DEFAULT_COMPOSITION_TRACKS),
+    };
+  };
+
+  it("points the segment at the reversed asset with the remapped range, still cleared", () => {
+    const comp = compOf([vclip({ id: "a", still: true })]);
+    const r = applyReversedSegment(comp, "a", "rev-1", 6000, 8000);
+    const a = r.comp.videoClips[0]!;
+    expect(a.assetId).toBe("rev-1");
+    expect(a.still).toBe(false);
+    expect([a.sourceInMs, a.sourceOutMs]).toEqual([6000, 8000]);
+    expect(r.docEffect).toEqual({ type: "none" });
+    // the remap preserves the span, so the layout is untouched
+    expect(r.comp.durationMs).toBe(comp.durationMs);
+    expect(a.durationMs).toBe(2000);
+  });
+
+  it("is a same-reference no-op for an unknown clip", () => {
+    const comp = compOf([vclip({ id: "a" })]);
+    const r = applyReversedSegment(comp, "nope", "rev-1", 0, 1000);
+    expect(r.comp).toBe(comp);
   });
 });

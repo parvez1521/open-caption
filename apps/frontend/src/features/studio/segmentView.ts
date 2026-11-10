@@ -1,5 +1,5 @@
 import type { VideoSegment } from "@capseasy/shared";
-import type { EditorVideoClip } from "./compositionDoc";
+import type { EditorComposition, EditorVideoClip } from "./compositionDoc";
 
 /**
  * Run-2 segment view layer (Worker D — studio UI).
@@ -218,6 +218,42 @@ export function segmentBadges(
     badges.push({ kind: "transition", label: `${name} ${Math.round(view.transitionIn.durationMs)}ms` });
   }
   return badges;
+}
+
+/**
+ * Commit a reverse conform onto a segment: the segment now plays media-bin asset
+ * `assetId` over the source range the caller remapped onto the reversed copy (see
+ * remapRangeToReversed in segmentAssets.ts), and it is a normal video segment again
+ * (still cleared). Lives here, not in compositionOps, because the op layer must not
+ * know about media-bin production. The remap preserves the span, so in practice the
+ * timeline layout is unchanged; if the defensive clamp ever changed the span, later
+ * clips shift by the same delta (transition overlaps between them are preserved,
+ * since they all shift together) and the composition duration follows — the same
+ * accounting the op layer's relayout performs. Unknown id = same-composition
+ * no-op, matching the op layer's convention; docEffect is always "none" (nothing
+ * outside the segment moves).
+ */
+export function applyReversedSegment(
+  comp: EditorComposition,
+  clipId: string,
+  assetId: string,
+  sourceInMs: number,
+  sourceOutMs: number,
+): { comp: EditorComposition; docEffect: { type: "none" } } {
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return { comp, docEffect: { type: "none" } };
+  const clip = comp.videoClips[idx]!;
+  const inMs = Math.max(0, Math.round(sourceInMs));
+  const outMs = Math.max(inMs + 40, Math.round(sourceOutMs));
+  const next: EditorVideoClip = { ...clip, assetId, sourceInMs: inMs, sourceOutMs: outMs, still: false };
+  next.durationMs = segmentTimelineDurationMs(next);
+  const delta = next.durationMs - clip.durationMs;
+  const videoClips = comp.videoClips.map((c, i) => {
+    if (i === idx) return next;
+    if (i > idx && delta !== 0) return { ...c, startMs: c.startMs + delta };
+    return c;
+  });
+  return { comp: { ...comp, videoClips, durationMs: comp.durationMs + delta }, docEffect: { type: "none" } };
 }
 
 /** Reversed copies produced by segmentAssets.ts carry this name prefix — the timeline's only
