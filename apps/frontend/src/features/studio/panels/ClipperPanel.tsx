@@ -49,35 +49,40 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
     () => rankClipProposals(doc.words.filter((w) => !w.hidden), { silences, sceneCuts: scene.cuts }),
     [doc, silences, scene.cuts],
   );
-  const [edits, setEdits] = useState<Record<number, { startMs: number; endMs: number }>>({});
-  const [busyIdx, setBusyIdx] = useState<number | null>(null);
+  // Per-proposal user state is keyed by the proposal's own range (the same identity the
+  // article's React key uses), NOT by list position: when scene analysis lands, proposals
+  // re-rank, and index-keyed edits silently attached themselves to different clips.
+  const keyOf = (p: (typeof proposals)[number]) => `${p.startMs}-${p.endMs}`;
+  const [edits, setEdits] = useState<Record<string, { startMs: number; endMs: number }>>({});
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Phase 5 (5.4): per-proposal crop windows + generated titles, keyed like `edits`.
   // Reframing defaults ON (centred window) exactly when the source is wider than 9:16;
   // the user can position the window or switch it off per clip.
   const canReframe = needsVerticalReframe(sourceWidth, sourceHeight);
-  const [reframeOff, setReframeOff] = useState<Record<number, boolean>>({});
-  const [windows, setWindows] = useState<Record<number, CropWindow>>({});
-  const [titles, setTitles] = useState<Record<number, ClipTitleState | null>>({});
+  const [reframeOff, setReframeOff] = useState<Record<string, boolean>>({});
+  const [windows, setWindows] = useState<Record<string, CropWindow>>({});
+  const [titles, setTitles] = useState<Record<string, ClipTitleState | null>>({});
   const titleDeps = useClipTitleDeps();
 
   if (doc.words.length === 0) {
     return (
       <div className="h-full overflow-y-auto">
-        <Section title="Clipper" hint="Smart segment suggestions from your transcript appear here once this video has captions. Upload and transcribe the long video first, then come back to this panel.">
-          <p className="text-sm text-st-muted">No captions yet, so there are no segments to suggest.</p>
+        <Section title="Clipper" hint="Clip suggestions appear here once this video has captions.">
+          <p className="text-sm text-st-muted">No captions yet — transcribe the video first, then come back.</p>
         </Section>
       </div>
     );
   }
 
-  const rangeOf = (i: number) => edits[i] ?? { startMs: proposals[i]!.startMs, endMs: proposals[i]!.endMs };
-  const setRange = (i: number, patch: Partial<{ startMs: number; endMs: number }>) =>
-    setEdits((prev) => ({ ...prev, [i]: clampClipRange({ ...rangeOf(i), ...patch }, mediaDurationMs) }));
+  const rangeOf = (p: (typeof proposals)[number]) => edits[keyOf(p)] ?? { startMs: p.startMs, endMs: p.endMs };
+  const setRange = (p: (typeof proposals)[number], patch: Partial<{ startMs: number; endMs: number }>) =>
+    setEdits((prev) => ({ ...prev, [keyOf(p)]: clampClipRange({ ...rangeOf(p), ...patch }, mediaDurationMs) }));
 
-  const create = async (i: number) => {
-    const range = clampClipRange(rangeOf(i), mediaDurationMs);
-    setBusyIdx(i);
+  const create = async (p: (typeof proposals)[number]) => {
+    const k = keyOf(p);
+    const range = clampClipRange(rangeOf(p), mediaDurationMs);
+    setBusyKey(k);
     setError(null);
     try {
       const { projectId: newId } = await createClipProject({
@@ -88,14 +93,14 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
         startMs: range.startMs,
         endMs: range.endMs,
         // a generated title the user confirmed (blank text = never mind, plain range title)
-        title: titles[i]?.text.trim() ? titles[i]!.text : undefined,
+        title: titles[k]?.text.trim() ? titles[k]!.text : undefined,
         // the chosen crop window, only when reframing is on for this clip
-        reframeWindow: canReframe && !reframeOff[i] ? (windows[i] ?? DEFAULT_CROP_WINDOW) : undefined,
+        reframeWindow: canReframe && !reframeOff[k] ? (windows[k] ?? DEFAULT_CROP_WINDOW) : undefined,
       });
       router.push(`/projects/${newId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't create the clip. Try again.");
-      setBusyIdx(null);
+      setBusyKey(null);
     }
   };
 
@@ -103,7 +108,7 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
     <div className="h-full overflow-y-auto">
       <Section
         title="Clipper"
-        hint="Segment suggestions measured on your device by deterministic checks — transcript gaps, audio-energy silence from the waveform, and frame-difference scene changes — sized 15–60 seconds, ordered by the measured signals shown on each clip (no score is assigned). Adjust the edges if you like, then create a clip — it becomes its own caption project. The source video is not re-encoded or cut; the clip is a range on the same file, kept on your device."
+        hint="Clips suggested from your transcript, silences and scene changes — measured on your device, ordered by the signals on each clip. No score is assigned. Adjust the edges, then create a clip: it becomes its own caption project, and your source video is not cut."
       >
         <p className="mb-3 text-xs text-st-faint">
           Analysis on this video: {peaks ? `${silences.length} silence span${silences.length === 1 ? "" : "s"} measured from the audio` : "audio silence not measured yet (waveform still loading)"}
@@ -115,9 +120,10 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
         ) : (
           <div className="space-y-3">
             {proposals.map((p, i) => {
-              const range = rangeOf(i);
+              const k = keyOf(p);
+              const range = rangeOf(p);
               return (
-                <article key={`${p.startMs}-${p.endMs}`} className="rounded-xl border border-st-line bg-st-raised/50 p-3">
+                <article key={k} className="rounded-xl border border-st-line bg-st-raised/50 p-3">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="font-mono text-sm font-semibold text-st-text">
                       <span className="mr-2 text-st-faint">#{p.rank}</span>
@@ -137,7 +143,7 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
                         min={0}
                         step={0.1}
                         value={Math.round(range.startMs / 100) / 10}
-                        onChange={(e) => setRange(i, { startMs: Number(e.target.value) * 1000 })}
+                        onChange={(e) => setRange(p, { startMs: Number(e.target.value) * 1000 })}
                         className="w-full rounded-lg border border-st-line bg-st-panel px-2 py-1.5 text-sm tabular-nums outline-none focus:border-st-ink/40"
                       />
                     </label>
@@ -148,7 +154,7 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
                         min={0}
                         step={0.1}
                         value={Math.round(range.endMs / 100) / 10}
-                        onChange={(e) => setRange(i, { endMs: Number(e.target.value) * 1000 })}
+                        onChange={(e) => setRange(p, { endMs: Number(e.target.value) * 1000 })}
                         className="w-full rounded-lg border border-st-line bg-st-panel px-2 py-1.5 text-sm tabular-nums outline-none focus:border-st-ink/40"
                       />
                     </label>
@@ -160,7 +166,7 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
                     max={Math.max(1, Math.round(mediaDurationMs / 1000))}
                     step={1}
                     value={Math.round(range.startMs / 1000)}
-                    onChange={(e) => setRange(i, { startMs: Number(e.target.value) * 1000 })}
+                    onChange={(e) => setRange(p, { startMs: Number(e.target.value) * 1000 })}
                     className="mt-2 w-full"
                   />
                   {canReframe && sourceWidth && sourceHeight ? (
@@ -169,10 +175,10 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
                       sourceWidth={sourceWidth}
                       sourceHeight={sourceHeight}
                       startMs={range.startMs}
-                      enabled={!reframeOff[i]}
-                      onEnabledChange={(on) => setReframeOff((prev) => ({ ...prev, [i]: !on }))}
-                      window={windows[i] ?? DEFAULT_CROP_WINDOW}
-                      onWindowChange={(win) => setWindows((prev) => ({ ...prev, [i]: win }))}
+                      enabled={!reframeOff[k]}
+                      onEnabledChange={(on) => setReframeOff((prev) => ({ ...prev, [k]: !on }))}
+                      window={windows[k] ?? DEFAULT_CROP_WINDOW}
+                      onWindowChange={(win) => setWindows((prev) => ({ ...prev, [k]: win }))}
                     />
                   ) : null}
                   <ClipTitleControl
@@ -181,11 +187,11 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
                     startMs={range.startMs}
                     endMs={range.endMs}
                     deps={titleDeps}
-                    state={titles[i] ?? null}
-                    onState={(next) => setTitles((prev) => ({ ...prev, [i]: next }))}
+                    state={titles[k] ?? null}
+                    onState={(next) => setTitles((prev) => ({ ...prev, [k]: next }))}
                   />
-                  <Button tone="primary" disabled={busyIdx !== null} onClick={() => void create(i)} className="mt-2 w-full">
-                    {busyIdx === i ? "Creating clip…" : "Create clip"}
+                  <Button tone="primary" disabled={busyKey !== null} onClick={() => void create(p)} className="mt-2 w-full">
+                    {busyKey === k ? "Creating clip…" : "Create clip"}
                   </Button>
                 </article>
               );

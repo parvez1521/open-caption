@@ -30,10 +30,10 @@ export const ClipExplanation: React.FC<{ signals: ClipSignals; explanation: stri
     ["End edge", signals.endBoundary.label],
   ];
   return (
-    <div className="mt-3 rounded-lg border border-st-line bg-st-panel px-3 py-2">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-st-faint">
+    <details className="mt-3 rounded-lg border border-st-line bg-st-panel px-3 py-2">
+      <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-st-faint">
         Why this ranks here — measured signals
-      </p>
+      </summary>
       <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
         {rows.map(([label, value]) => (
           <div key={label} className="flex items-baseline justify-between gap-2">
@@ -43,10 +43,8 @@ export const ClipExplanation: React.FC<{ signals: ClipSignals; explanation: stri
         ))}
       </dl>
       <p className="mt-2 text-xs leading-relaxed text-st-muted">{explanation}</p>
-      <p className="mt-1 text-[11px] text-st-faint">
-        Measured on your device by deterministic checks — transcript timings, audio-energy
-        silence from the waveform, and frame-difference scene changes. No score is assigned.
-      </p>
-    </div>
+      {/* The "measured on your device… no score is assigned" line used to repeat under every
+          clip; it now lives once in the Clipper panel's intro. */}
+    </details>
   );
 };

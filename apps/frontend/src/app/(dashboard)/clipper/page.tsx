@@ -61,14 +61,11 @@ export default function ClipperPage() {
             <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-[-0.015em] text-ink">
               <em className="italic text-sand-600">Clipper</em>
             </h1>
-            <span className="rounded-md bg-[#FFA946] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Trending</span>
           </div>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Long-form video in, short captioned clips out. Smart segment suggestions from your transcript:
-            the speech runs between silences, sized 15–60 seconds. Pick a project that already has captions,
-            or start with a new long video — it is transcribed on your device, in the usual studio, and the
-            Clipper panel opens inside it. The source video is not re-encoded or cut; each clip is a range
-            on the same file.
+            Long-form video in, short captioned clips out. Clipper suggests 15–60 second segments
+            from your transcript — the speech between the silences — measured on your device. Pick a
+            project that already has captions, or start with a new long video.
           </p>
           <button
             onClick={() => void startNew()}
@@ -104,7 +101,10 @@ export default function ClipperPage() {
                       onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); nav.go(`/projects/${p.id}?clipper=1`, "Opening the Clipper"); }}
                       className="flex items-center justify-between gap-3 rounded-xl border border-sand-200 bg-sand-50 px-4 py-3 transition hover:border-sand-300 hover:bg-sand-100"
                     >
-                      <span className="min-w-0 truncate font-sora text-[14px] font-semibold text-ink">{p.title}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-sora text-[14px] font-semibold text-ink">{p.title}</span>
+                        <span className="block text-[12px] text-sand-600">Last edited {new Date(p.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
+                      </span>
                       <span className="shrink-0 font-sora text-[12px] font-semibold text-sand-600">Open Clipper →</span>
                     </Link>
                   </li>
