@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CaptionDocSchema, WordSchema } from "./doc";
+import { TranslationTargetSchema } from "./translate";
 import { JOB_KINDS, WorkerCapabilitiesSchema } from "./jobs";
 
 export const VIDEO_MIME_TYPES = ["video/mp4", "video/quicktime", "video/webm", "video/x-matroska"] as const;
@@ -36,6 +37,17 @@ export const SaveDocumentBody = z.object({
   doc: CaptionDocSchema,
 });
 
+/**
+ * Save a translated caption track (slice 5.1): same doc shape as SaveDocumentBody, keyed by its
+ * target language. The language must be a VERIFIED pair from the registry and must match the
+ * doc's own `language` (the route checks that), so a track can never be filed under a language
+ * it is not written in.
+ */
+export const SaveTranslationBody = z.object({
+  language: TranslationTargetSchema,
+  doc: CaptionDocSchema,
+});
+
 export const EXPORT_KINDS = ["mp4", "mov_alpha", "webm_alpha", "srt", "vtt", "ass", "txt", "json", "png"] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 export const TEXT_EXPORT_KINDS = ["srt", "vtt", "ass", "txt", "json"] as const;
@@ -63,6 +75,12 @@ export const TEXT_EXPORT_MIME: Record<TextExportKind, string> = {
 };
 export const CreateExportBody = z.object({
   kind: z.enum(CREATABLE_EXPORT_KINDS),
+  /**
+   * Text exports only (slice 5.1): export the TRANSLATED caption track for this target language
+   * instead of the primary doc. Validated against the verified-pairs registry (translate.ts) in
+   * the route; ignored for render kinds, whose bilingual track rides the job snapshot instead.
+   */
+  language: z.string().min(2).max(10).optional(),
   width: z.number().int().min(64).max(7680).optional(),
   height: z.number().int().min(64).max(7680).optional(),
   fps: z.number().min(1).max(120).optional(),

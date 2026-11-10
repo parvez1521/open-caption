@@ -8,7 +8,7 @@ import { getAdmin } from "@/lib/supabase/admin";
 const Body = z.object({ accessToken: z.string().min(10), refreshToken: z.string().min(5).optional() });
 
 /** Tables whose rows a guest can own; everything moves to the signed-in account. */
-const OWNED = ["projects", "videos", "transcripts", "caption_documents", "caption_document_versions", "jobs", "exports", "user_looks", "brand_kits", "user_fonts", "usage_events"] as const;
+const OWNED = ["projects", "videos", "transcripts", "caption_documents", "caption_document_versions", "caption_translations", "jobs", "exports", "user_looks", "brand_kits", "user_fonts", "usage_events"] as const;
 
 const isGuest = (u: User | null | undefined): u is User => !!u?.is_anonymous && !u.email && !u.new_email;
 

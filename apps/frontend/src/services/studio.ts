@@ -136,6 +136,15 @@ export const studioService = {
     }
   },
 
+  /** Translated caption tracks for a project (slice 5.1): one CaptionDoc per target language. */
+  getTranslations(projectId: string) {
+    return apiClient.get<{ translations: { language: string; revision: number; doc: CaptionDoc; updated_at: string }[] }>(`/projects/${projectId}/translations`);
+  },
+
+  saveTranslation(projectId: string, language: string, doc: CaptionDoc) {
+    return apiClient.put<{ revision: number }>(`/projects/${projectId}/translations`, { json: { language, doc } });
+  },
+
   savePatch(projectId: string, patch: Record<string, unknown> & { composition_json?: CompositionSettings }) {
     return apiClient.patch(`/projects/${projectId}`, { json: patch });
   },
@@ -153,7 +162,7 @@ export const studioService = {
     return apiClient.get<ExportRow[]>(`/projects/${projectId}/exports`);
   },
 
-  createExport(projectId: string, body: { kind: ExportKind; crf?: number; width?: number; height?: number; fps?: number; range?: { startMs: number; endMs: number } }) {
+  createExport(projectId: string, body: { kind: ExportKind; crf?: number; width?: number; height?: number; fps?: number; range?: { startMs: number; endMs: number }; language?: string }) {
     return apiClient.post<{ exportId: string; ready: boolean; downloadUrl?: string; jobId?: string; companionOnline?: boolean }>(`/projects/${projectId}/exports`, { json: body });
   },
 

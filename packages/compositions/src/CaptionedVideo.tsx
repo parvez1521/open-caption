@@ -179,20 +179,78 @@ export const SegmentFx: React.FC<{ segment: RenderVideoSegment; variant: "main" 
   );
 };
 
-const PageSequence: React.FC<{ page: Page; fromFrame: number; canvas: Canvas; style: CaptionStyleV2 }> = ({ page, fromFrame, canvas, style }) => {
+/**
+ * Bilingual secondary line (slice 5.1): the translated card that best overlaps the primary card
+ * on screen, as plain text. Matching is by TIME OVERLAP (not index), so a translated doc whose
+ * cards split slightly differently from the primary still lines up with what is spoken.
+ * Pure + exported for tests.
+ */
+export function secondaryTextForPage(page: Page, secondaryPages: Page[]): string | null {
+  let best: Page | null = null;
+  let bestOverlap = 0;
+  for (const sp of secondaryPages) {
+    const overlap = Math.min(page.endMs, sp.endMs) - Math.max(page.startMs, sp.startMs);
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap;
+      best = sp;
+    }
+  }
+  if (!best) return null;
+  const text = best.lines.map((l) => l.map((w) => w.text.trim()).join(" ")).join(" ").trim();
+  return text.length > 0 ? text : null;
+}
+
+const PageSequence: React.FC<{ page: Page; fromFrame: number; canvas: Canvas; style: CaptionStyleV2; secondaryText?: string | null }> = ({ page, fromFrame, canvas, style, secondaryText }) => {
   const frame = useCurrentFrame();
   // absolute media time, derived from frames only (never a wall clock)
   const timeMs = ((fromFrame + frame) / canvas.fps) * 1000;
   const pageStyle = page.styleOverride ? resolveStyle(style, page.styleOverride) : style;
-  return <PageView page={page} timeMs={timeMs} style={pageStyle} canvas={canvas} measure={measure} />;
+  if (!secondaryText) return <PageView page={page} timeMs={timeMs} style={pageStyle} canvas={canvas} measure={measure} />;
+  // Bilingual: the primary card renders exactly as before; the translated card is ONE secondary
+  // line under it — smaller, plain, centred on the same box, offset below the primary block.
+  const sc = scaleOf(canvas);
+  const box = layoutBox(pageStyle, canvas, page.position);
+  const fontSize = pageStyle.fontSize * sc * 0.58;
+  return (
+    <>
+      <PageView page={page} timeMs={timeMs} style={pageStyle} canvas={canvas} measure={measure} />
+      <div
+        data-bilingual-secondary="true"
+        style={{
+          position: "absolute",
+          left: box.cx,
+          top: box.cy + pageStyle.fontSize * sc * 1.35,
+          transform: "translate(-50%, 0)",
+          width: box.width,
+          textAlign: "center",
+          fontFamily: famCss(pageStyle.fontId),
+          fontSize,
+          fontWeight: 600,
+          lineHeight: 1.25,
+          color: "#ffffff",
+          textShadow: "0 2px 12px rgba(0,0,0,0.85), 0 0 3px rgba(0,0,0,0.9)",
+          pointerEvents: "none",
+        }}
+      >
+        {secondaryText}
+      </div>
+    </>
+  );
 };
 
 /**
  * Remotion does NOT run inputProps through the zod schema at render time, and the Player passes props
  * verbatim, so every surface must normalize here. Partial settings/styles are completed with defaults.
  */
-export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc: docIn, style: styleIn, settings: settingsIn, mode = "burn", backdrop = null, videoEngine = "offthread", videoAdjust: videoAdjustIn, overlays: overlaysIn, overlayAssets, segmentAssets }) => {
+export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc: docIn, translatedDoc: translatedDocIn, style: styleIn, settings: settingsIn, mode = "burn", backdrop = null, videoEngine = "offthread", videoAdjust: videoAdjustIn, overlays: overlaysIn, overlayAssets, segmentAssets }) => {
   const doc = useMemo(() => CaptionDocSchema.parse(docIn ?? { version: 2, words: [] }), [docIn]);
+  // Bilingual track (slice 5.1): parsed like the primary doc, but an invalid/absent one simply
+  // disables the secondary line — it must never break the primary render.
+  const translatedDoc = useMemo(() => {
+    if (!translatedDocIn) return null;
+    const parsed = CaptionDocSchema.safeParse(translatedDocIn);
+    return parsed.success ? parsed.data : null;
+  }, [translatedDocIn]);
   const settings = useMemo(() => ProjectSettingsSchema.parse(settingsIn ?? {}), [settingsIn]);
   const style = styleIn ?? {};
   const { fps, width, height } = useVideoConfig();
@@ -272,6 +330,16 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
   const { ready: fontsReady, epoch: fontsEpoch } = useFontsReady(fontFamilies);
 
   const pages = useMemo(() => (fontsReady ? computePages(doc, settings, resolved, canvas) : []), [fontsReady, fontsEpoch, doc, settings, resolved, canvas]);
+
+  // Bilingual secondary pages: ONLY when the toggle is on, a target is chosen, and the supplied
+  // track is actually in that language. Any other state leaves `secondaryPages` empty and the
+  // render byte-identical to the pre-5.1 composition (pinned in bilingual.test.tsx).
+  const bilingualActive = settings.bilingual && !!settings.translateTo && !!translatedDoc && translatedDoc.language === settings.translateTo;
+  const secondaryPages = useMemo(
+    () => (bilingualActive && fontsReady ? computePages(translatedDoc, settings, resolved, canvas) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bilingualActive, fontsReady, fontsEpoch, translatedDoc, settings, resolved, canvas],
+  );
 
   // The in-browser exporter redraws the DOM on a canvas and ignores mix-blend-mode, so a look that blends with the
   // picture (the difference look) composites it itself from the video layer's frames (see templates videoFrame.ts).
@@ -422,7 +490,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
           const duration = Math.max(1, Math.ceil(((page.endMs - page.startMs) / 1000) * fps));
           return (
             <Sequence key={page.id} from={from} durationInFrames={duration} layout="none">
-              <PageSequence page={page} fromFrame={from} canvas={canvas} style={resolved} />
+              <PageSequence page={page} fromFrame={from} canvas={canvas} style={resolved} secondaryText={secondaryPages.length ? secondaryTextForPage(page, secondaryPages) : null} />
             </Sequence>
           );
         })}

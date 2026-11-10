@@ -7,5 +7,6 @@ export * from "./filters";
 export * from "./color";
 export * from "./exporters";
 export * from "./srt-import";
+export * from "./translate";
 export * from "./legacy";
 export * from "./emoji";

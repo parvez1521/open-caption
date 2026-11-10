@@ -187,6 +187,21 @@ create table if not exists public.caption_document_versions (
 create index if not exists caption_document_versions_doc_idx
   on public.caption_document_versions (document_id, revision desc);
 
+-- caption_translations — translated caption tracks (slice 5.1): same doc
+-- shape as caption_documents, one row per (project, target language).
+-- Full notes: migrations/20261110040000_caption_translations.sql.
+create table if not exists public.caption_translations (
+  id          uuid primary key default gen_random_uuid(),
+  project_id  uuid not null references public.projects (id) on delete cascade,
+  language    text not null,
+  owner_id    uuid not null references auth.users (id) on delete cascade,
+  doc         jsonb not null default '{}'::jsonb,
+  revision    int not null default 0,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  unique (project_id, language)
+);
+
 -- ---------------------------------------------------------------------------
 -- workers (desktop companions) — created before jobs: jobs.worker_id points
 -- here, workers.current_job_id points back (FK added after jobs exists).
@@ -537,6 +552,7 @@ alter table public.projects                enable row level security;
 alter table public.videos                  enable row level security;
 alter table public.transcripts             enable row level security;
 alter table public.caption_documents       enable row level security;
+alter table public.caption_translations    enable row level security;
 alter table public.caption_document_versions enable row level security;
 alter table public.workers                 enable row level security;
 alter table public.jobs                    enable row level security;
@@ -567,6 +583,8 @@ create policy transcripts_owner_all on public.transcripts
   for all to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy caption_documents_owner_all on public.caption_documents
   for all to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+create policy caption_translations_owner_all on public.caption_translations
+  for all to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy caption_document_versions_owner_all on public.caption_document_versions
   for all to authenticated using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy workers_owner_all on public.workers
@@ -595,7 +613,7 @@ create policy job_events_owner_select on public.job_events
 -- ---------------------------------------------------------------------------
 grant select, insert, update, delete on
   public.profiles, public.projects, public.videos, public.transcripts,
-  public.caption_documents, public.caption_document_versions, public.workers,
+  public.caption_documents, public.caption_document_versions, public.caption_translations, public.workers,
   public.jobs, public.job_events, public.exports, public.brand_kits,
   public.user_looks, public.favorite_looks, public.user_fonts, public.usage_events
 to authenticated, service_role;

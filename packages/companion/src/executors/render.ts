@@ -77,6 +77,9 @@ export async function runRender(ctx: JobContext) {
       outputHeight: job.height,
       outputFps: job.fps,
       doc: job.docSnapshot,
+      // bilingual track (slice 5.1): only spread when the job carries one, so pre-5.1 jobs
+      // render with exactly the old input props
+      ...(job.translatedDocSnapshot ? { translatedDoc: job.translatedDocSnapshot } : {}),
       style: job.style,
       settings: job.settings,
       mode: burn ? "burn" : "overlay",

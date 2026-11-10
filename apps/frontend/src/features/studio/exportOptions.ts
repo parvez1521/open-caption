@@ -22,6 +22,39 @@ export interface ExportOption {
   desc: string;
   usesRange: boolean;
   popular?: boolean;
+  /**
+   * Translated-track variant (slice 5.1): when set, the create-export call carries this target
+   * language and the API generates the file from the TRANSLATED caption doc instead of the
+   * primary one. Only subtitle text kinds get translated variants (see translatedTextOptions).
+   */
+  language?: string;
+}
+
+/** Stable identity of an option row: the kind, plus the language for translated variants. */
+export const optionKey = (o: ExportOption): string => (o.language ? `${o.kind}:${o.language}` : o.kind);
+
+/**
+ * Translated subtitle options for the languages this project actually has a saved track for —
+ * one SRT and one VTT per language, built AFTER the primary options. A language with no saved
+ * translation gets no row (translate first, from the Translate panel).
+ */
+export function translatedTextOptions(tracks: { lang: string; label: string }[]): ExportOption[] {
+  return tracks.flatMap(({ lang, label }) => [
+    {
+      kind: "srt" as const,
+      language: lang,
+      title: `${label} subtitles (.srt)`,
+      desc: `The ${label} translation of your captions as an SRT file, with the same timings.`,
+      usesRange: false,
+    },
+    {
+      kind: "vtt" as const,
+      language: lang,
+      title: `${label} subtitles (.vtt)`,
+      desc: `The ${label} translation of your captions as a WebVTT file, with the same timings.`,
+      usesRange: false,
+    },
+  ]);
 }
 
 const META: Record<CreatableExportKind, Omit<ExportOption, "kind">> = {
