@@ -3,7 +3,7 @@
  * projects service so the old dashboard keeps working while the studio moves to the new pipeline.
  */
 
-import type { CaptionDoc, CaptionStyleV2, ProjectSettings } from "@capseasy/shared";
+import type { CaptionDoc, CaptionStyleV2, CreatableExportKind, ProjectSettings } from "@capseasy/shared";
 import { apiClient, ApiError } from "./api-client";
 import type { PreparedVideo } from "@/features/upload/prepareVideo";
 import { saveLocalVideo } from "@/features/upload/localVideos";
@@ -72,7 +72,8 @@ export interface ExportRow {
   render_duration_ms: number | null;
 }
 
-export type ExportKind = "mp4" | "mov_alpha" | "webm_alpha" | "srt" | "vtt" | "ass" | "txt" | "json";
+/** The kinds a user can create: the shared API list itself, not a hand-kept copy (png is not creatable). */
+export type ExportKind = CreatableExportKind;
 
 export class RevisionConflict extends Error {
   constructor(public server: { revision: number; doc: CaptionDoc }) {

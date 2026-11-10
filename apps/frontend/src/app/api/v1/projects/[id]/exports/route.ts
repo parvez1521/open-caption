@@ -1,6 +1,6 @@
 import { rateLimit } from "@/lib/api/rateLimit";
 import {
-  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, ProjectSettingsSchema, TEXT_EXPORT_KINDS, exportDimensions, planFor, type RenderJob,
+  CaptionDocSchema, CaptionStyleSchema, CreateExportBody, EXPORT_EXTENSIONS, ProjectSettingsSchema, TEXT_EXPORT_KINDS, TEXT_EXPORT_MIME, exportDimensions, planFor, type RenderJob, type TextExportKind,
 } from "@capseasy/shared";
 import { applyFillerFilter, applyProfanity, derivePages, toAss, toJson, toSrt, toTxt, toVtt } from "@motion-ai/caption-engine/core";
 import { requireUser } from "@/lib/api/auth";
@@ -9,8 +9,8 @@ import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
 import { putObject, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 
-const EXT: Record<string, string> = { mp4: "mp4", mov_alpha: "mov", webm_alpha: "webm", png: "png", srt: "srt", vtt: "vtt", ass: "ass", txt: "txt", json: "json" };
-const MIME: Record<string, string> = { srt: "application/x-subrip", vtt: "text/vtt", ass: "text/plain", txt: "text/plain", json: "application/json" };
+// Extension / MIME naming comes from @capseasy/shared (EXPORT_EXTENSIONS / TEXT_EXPORT_MIME),
+// keyed by the same CREATABLE_EXPORT_KINDS that CreateExportBody validates and the UI offers.
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
@@ -27,9 +27,13 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const user = await requireUser(req);
   const { id: projectId } = await params;
   await rateLimit(user.id, "export", 120, 3600);
-  const body = await parseBody(req, CreateExportBody);
+  // Guest gating first, exactly as before: a guest gets the signup response for every kind.
+  // (It runs before body parsing now only so that narrowing CreateExportBody to the creatable
+  // kinds — png included — cannot change what a guest sees.)
   if (user.guest) throw new ApiFailure("FORBIDDEN", "Create a free account to export your video.", { signupRequired: true });
-  if (body.kind === "png") throw new ApiFailure("VALIDATION", "PNG stills are not available yet.");
+  // Kind validation IS the creatable list: CreateExportBody only accepts CREATABLE_EXPORT_KINDS,
+  // so png (in EXPORT_KINDS but not creatable — no PNG stills yet) is rejected here as VALIDATION.
+  const body = await parseBody(req, CreateExportBody);
 
   const { data: project } = await user.db.from("projects").select("id, title, look_id, style_json, settings_json").eq("id", projectId).is("deleted_at", null).maybeSingle();
   if (!project) throw notFound("Project");
@@ -60,14 +64,14 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
       : body.kind === "txt" ? toTxt(pages)
       : body.kind === "json" ? toJson(doc)
       : toAss(pages, style, { width: w, height: h });
-    const path = `${user.id}/${projectId}/exports/${exportId}.${EXT[body.kind]}`;
-    await putObject(path, text, MIME[body.kind] ?? "text/plain");
+    const path = `${user.id}/${projectId}/exports/${exportId}.${EXPORT_EXTENSIONS[body.kind]}`;
+    await putObject(path, text, TEXT_EXPORT_MIME[body.kind as TextExportKind] ?? "text/plain");
     const { error } = await admin.from("exports").insert({
       id: exportId, project_id: projectId, owner_id: user.id, kind: body.kind, status_v2: "ready", status: "completed",
       storage_path: path, file_size: new TextEncoder().encode(text).length, doc_revision: docRow.revision, style: project.look_id,
     });
     if (error) throw new ApiFailure("INTERNAL", "Could not record the export", error.message);
-    return ok({ exportId, ready: true, downloadUrl: await signedGet(path, 600, `${safeTitle}.${EXT[body.kind]}`) }, 201);
+    return ok({ exportId, ready: true, downloadUrl: await signedGet(path, 600, `${safeTitle}.${EXPORT_EXTENSIONS[body.kind]}`) }, 201);
   }
 
   // ---- video formats: queue a render for the companion ----

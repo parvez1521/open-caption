@@ -37,9 +37,32 @@ export const SaveDocumentBody = z.object({
 });
 
 export const EXPORT_KINDS = ["mp4", "mov_alpha", "webm_alpha", "srt", "vtt", "ass", "txt", "json", "png"] as const;
+export type ExportKind = (typeof EXPORT_KINDS)[number];
 export const TEXT_EXPORT_KINDS = ["srt", "vtt", "ass", "txt", "json"] as const;
+export type TextExportKind = (typeof TEXT_EXPORT_KINDS)[number];
+/**
+ * The kinds `POST /projects/:id/exports` will actually create today — the ONE list both the API
+ * validation (CreateExportBody below) and the Export UI derive from, so they can never drift.
+ * Order is presentation order for the UI: browser MP4, then the text files, then the alpha overlays.
+ *
+ * `png` stays in EXPORT_KINDS (existing export rows and the companion's render formats still refer
+ * to it) but is deliberately NOT creatable: the API has never produced a PNG still — creating one
+ * was rejected with "PNG stills are not available yet", and it still is, now at schema validation.
+ */
+export const CREATABLE_EXPORT_KINDS = ["mp4", "srt", "vtt", "ass", "txt", "json", "mov_alpha", "webm_alpha"] as const satisfies readonly ExportKind[];
+export type CreatableExportKind = (typeof CREATABLE_EXPORT_KINDS)[number];
+/** Transparent-background caption overlays: rendered by the paired companion app, never in the browser. */
+export const ALPHA_EXPORT_KINDS = ["mov_alpha", "webm_alpha"] as const satisfies readonly CreatableExportKind[];
+export type AlphaExportKind = (typeof ALPHA_EXPORT_KINDS)[number];
+/** File extension for every creatable kind (the download / storage naming used by the exports route). */
+export const EXPORT_EXTENSIONS: Record<CreatableExportKind, string> = {
+  mp4: "mp4", mov_alpha: "mov", webm_alpha: "webm", srt: "srt", vtt: "vtt", ass: "ass", txt: "txt", json: "json",
+};
+export const TEXT_EXPORT_MIME: Record<TextExportKind, string> = {
+  srt: "application/x-subrip", vtt: "text/vtt", ass: "text/plain", txt: "text/plain", json: "application/json",
+};
 export const CreateExportBody = z.object({
-  kind: z.enum(EXPORT_KINDS),
+  kind: z.enum(CREATABLE_EXPORT_KINDS),
   width: z.number().int().min(64).max(7680).optional(),
   height: z.number().int().min(64).max(7680).optional(),
   fps: z.number().min(1).max(120).optional(),
