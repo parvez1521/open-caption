@@ -17,11 +17,13 @@ import type { BrowserExportContainer, BrowserExportVideoCodec, BrowserVideoExpor
  *
  * The "webm-alpha" format is the ONE transparent in-browser format: it renders with
  * `backdrop: null` (the composition then paints nothing behind the overlay) through the web
- * renderer's alpha path, and is offered ONLY behind the strict capability probe
- * (alphaCapability.ts) plus the renderer's own transparent check. After encoding, the run
- * helper demands a post-encode alpha verification (alphaVerify.ts, injected as a dep) —
- * without a passing verification NOTHING is saved: an opaque file is never delivered
- * labelled transparent. The copy constants below are the single source the UI renders.
+ * renderer's alpha path, and is offered behind the capability probe (alphaCapability.ts,
+ * probe v2: VideoEncoder present + VP9 `alpha: "keep"` supported at the chosen size; the
+ * probe's other checks are diagnostics, and a withheld option names the gate stage in the
+ * section's note line). After encoding, the run helper demands a post-encode alpha
+ * verification (alphaVerify.ts, injected as a dep) — without a passing verification
+ * NOTHING is saved: an opaque file is never delivered labelled transparent. The copy
+ * constants below are the single source the UI renders.
  */
 
 /* ---------------- honest copy (pinned by tests) ---------------- */

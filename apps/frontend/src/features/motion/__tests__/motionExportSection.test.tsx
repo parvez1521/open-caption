@@ -80,6 +80,22 @@ describe("MotionExportSection — options and honest copy", () => {
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("can't encode video"));
     expect((screen.getByRole("button", { name: "Export MP4" }) as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it("when the alpha probe withholds the transparent option, the note names the stage that withheld it", async () => {
+    const view = render(<MotionExportSection config={config} />);
+    // this test environment has no VideoEncoder, so the probe's truthful gate answer is
+    // no-videoencoder — once it lands, the generic transparency note is replaced by the
+    // line naming that stage (and the transparent format stays unlisted)
+    await waitFor(() =>
+      expect(view.container.textContent).toContain(
+        "Transparent export isn't available in this browser: no video encoder (WebCodecs) was found.",
+      ),
+    );
+    expect(view.container.textContent).toContain("desktop Companion app (MOV/WebM with alpha)");
+    expect(view.container.textContent).not.toContain(TRANSPARENT_EXPORT_NOTE);
+    expect(screen.queryByRole("button", { name: "WebM — transparent background" })).toBeNull();
+    view.unmount();
+  });
 });
 
 describe("MotionExportSection — render flow", () => {
