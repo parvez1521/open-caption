@@ -116,33 +116,80 @@ async function writeSyncedPosts(ownerId: string, posts: SyncedPost[]): Promise<n
   return written;
 }
 
+/** How many of the owner's stored posts carry this connection's source — the list's real total. */
+async function countStoredPosts(ownerId: string, source: ConnectPlatform): Promise<number> {
+  const db = getAdmin();
+  const { data, error } = await db
+    .from("growth_posts")
+    .select("id")
+    .eq("owner_id", ownerId)
+    .eq("source", source);
+  if (error) {
+    if (isMissingTableError(error) || isMissingExternalIdError(error)) throw new ConnectionStoreNotReady();
+    throw new Error(`growth_posts count failed: ${error.message ?? "unknown error"}`);
+  }
+  return (data ?? []).length;
+}
+
+/** Marks a failure of the WRITE phase mid-sync, so it is never re-labelled a provider failure. */
+class SyncWriteError extends Error {
+  constructor(readonly inner: unknown) {
+    super("sync write failed");
+    this.name = "SyncWriteError";
+  }
+}
+
 export interface SyncResult {
   platform: ConnectPlatform;
   accountName: string | null;
+  /** Rows this sync wrote (new posts + in-place updates). */
   synced: number;
+  /** Posts the provider handed over this sync. */
+  fetched: number;
+  /** The owner's stored posts from this connection after the sync — the number the list shows. */
+  stored: number;
+  /** YouTube only: the uploads playlist's totalResults, as the API reports it (null elsewhere/unreported). */
+  channelTotal: number | null;
 }
 
-/** Fetch the connected account's latest posts and write them into growth_posts. */
+/** Fetch the connected account's posts and write them into growth_posts. */
 export async function syncConnection(ownerId: string, platform: ConnectPlatform, fetchImpl: FetchImpl = fetch): Promise<SyncResult> {
   const stored = await getConnection(ownerId, platform);
   if (!stored) throw new ProviderSyncError("This account is not connected.");
   const conn = await ensureFreshToken(ownerId, stored, fetchImpl);
-  let posts: SyncedPost[];
+  let synced = 0;
+  let fetched = 0;
+  let channelTotal: number | null = null;
   try {
     if (platform === "youtube") {
       const channel = await fetchYoutubeChannel(conn.accessToken, fetchImpl);
       if (!channel.uploadsPlaylistId) throw new ProviderSyncError("YouTube did not return an uploads list for this channel.");
-      posts = await fetchYoutubeUploads(conn.accessToken, channel.uploadsPlaylistId, fetchImpl);
+      // The whole channel, page by page — each page is written as it lands,
+      // so a failure on a later page leaves the earlier pages' posts in the
+      // list (a sync only ever adds or updates; it never deletes).
+      const result = await fetchYoutubeUploads(conn.accessToken, channel.uploadsPlaylistId, fetchImpl, async (pagePosts) => {
+        try {
+          synced += await writeSyncedPosts(ownerId, pagePosts);
+        } catch (err) {
+          if (err instanceof ConnectionStoreNotReady) throw err;
+          throw new SyncWriteError(err);
+        }
+      });
+      fetched = result.posts.length;
+      channelTotal = result.totalResults;
     } else {
-      posts = await fetchInstagramMedia(conn.accessToken, conn.accountId, fetchImpl);
+      const posts = await fetchInstagramMedia(conn.accessToken, conn.accountId, fetchImpl);
+      fetched = posts.length;
+      synced = await writeSyncedPosts(ownerId, posts);
     }
   } catch (err) {
     if (err instanceof ConnectionStoreNotReady) throw err;
+    if (err instanceof SyncWriteError) throw err.inner;
     throw providerFail(platform, err);
   }
-  const synced = await writeSyncedPosts(ownerId, posts);
+  const storedCount = await countStoredPosts(ownerId, platform);
   await touchLastSync(ownerId, platform, new Date().toISOString());
-  return { platform, accountName: conn.accountName, synced };
+  return { platform, accountName: conn.accountName, synced, fetched, stored: storedCount, channelTotal };
 }
 
 export interface ConnectResult {

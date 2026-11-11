@@ -158,7 +158,7 @@ export const COACH_UI_MAP = [
   "Growth Studio is ONE page — everything below is on that page, in this order. Growth data has no separate settings or data page; never send the user to one.",
   '- "Connect your accounts" (top of the page): a YouTube card and an Instagram card. An account that is not connected shows a "Connect YouTube" or "Connect Instagram" button; a connected account shows "Sync now" and "Disconnect" buttons.',
   '- "Growth Coach": this chat, directly under "Connect your accounts".',
-  '- "Your posts": the "Add a post" form (fields: Platform, Posted at, Title, Post URL, Views, Reach, Likes, Comments, Shares, Saves) with an "Add post" button. Each listed post has "Edit" and "Delete" buttons; while editing, the form\'s button reads "Save changes".',
+  '- "Your posts": the user\'s post list — a sync fills it on its own. Under the heading, a collapsed "Missing a post? Add it manually" toggle opens the "Add a post" form (fields: Platform, Posted at, Title, Post URL, Views, Reach, Likes, Comments, Shares, Saves) with an "Add post" button; manual entry is only for a post a sync cannot bring (another platform, or Instagram before it is connected). Each listed post has "Edit" and "Delete" buttons; "Edit" opens the same form, and while editing, the form\'s button reads "Save changes".',
   '- "Import from CSV": a "Download the template" button and a "Choose a CSV file" picker; after a file is chosen, an import button labelled with the row count (for example "Import 12 posts").',
   '- "Competitors": an "Add a competitor" form with an "Add competitor" button.',
   '- "Weekly report" and "Weekly plan": read-only report cards, plus a "Draft next week\'s plan" button in the plan section.',

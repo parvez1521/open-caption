@@ -29,6 +29,8 @@ interface PlatformStatus {
   connected: boolean;
   accountName: string | null;
   lastSyncAt: string | null;
+  /** Stored posts this connection's syncs have brought in; null = the count couldn't be read. */
+  postCount?: number | null;
 }
 
 interface StatusResponse {
@@ -134,8 +136,18 @@ export function ConnectAccounts({ onSynced }: { onSynced: () => void }) {
     setBusyKey(`${platform}:sync`);
     setRowError((m) => ({ ...m, [platform]: undefined }));
     try {
-      const result = await api<{ synced: number }>(`/growth/connect/${platform}/sync`, { method: "POST" });
-      setRowNote((m) => ({ ...m, [platform]: `Synced ${result.synced} posts just now.` }));
+      const result = await api<{ synced: number; fetched: number; stored: number; channelTotal: number | null }>(
+        `/growth/connect/${platform}/sync`,
+        { method: "POST" },
+      );
+      setRowNote((m) => ({
+        ...m,
+        [platform]:
+          `Synced ${result.stored} post${result.stored === 1 ? "" : "s"} in your list.` +
+          (result.channelTotal !== null
+            ? ` YouTube reports ${result.channelTotal} upload${result.channelTotal === 1 ? "" : "s"} in total.`
+            : ""),
+      }));
       onSynced();
       await load();
     } catch (err) {
@@ -192,6 +204,9 @@ export function ConnectAccounts({ onSynced }: { onSynced: () => void }) {
               {row.lastSyncAt
                 ? `Last synced ${new Date(row.lastSyncAt).toLocaleString()}`
                 : "Not synced yet"}
+              {typeof row.postCount === "number"
+                ? ` · Synced ${row.postCount} post${row.postCount === 1 ? "" : "s"}`
+                : ""}
             </p>
             {confirming === row.platform ? (
               <div className="mt-3 flex flex-wrap items-center gap-2">

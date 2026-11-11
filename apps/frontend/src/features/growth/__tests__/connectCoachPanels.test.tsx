@@ -124,12 +124,12 @@ describe("ConnectAccounts", () => {
     }
   });
 
-  it("connected: name + last sync + Sync now; disconnect is two-step and says posts stay", async () => {
+  it("connected: name + last sync + synced-post count + Sync now; disconnect is two-step and says posts stay", async () => {
     stubFetch(() =>
       envelope({
         setupPending: false,
         platforms: [
-          { platform: "youtube", configured: true, connected: true, accountName: "My Channel", lastSyncAt: "2026-11-10T09:00:00.000Z" },
+          { platform: "youtube", configured: true, connected: true, accountName: "My Channel", lastSyncAt: "2026-11-10T09:00:00.000Z", postCount: 137 },
           { platform: "instagram", configured: false, connected: false, accountName: null, lastSyncAt: null },
         ],
       }),
@@ -137,10 +137,31 @@ describe("ConnectAccounts", () => {
     render(<ConnectAccounts onSynced={() => {}} />);
     expect(await screen.findByText(/Connected as/)).toBeTruthy();
     expect(screen.getByText("My Channel")).toBeTruthy();
+    expect(screen.getByText(/Synced 137 posts/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sync now" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
     expect(await screen.findByText(/Synced posts stay in your list/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Yes, disconnect" })).toBeTruthy();
+    expectEveryCallAuthed();
+  });
+
+  it("sync now: the note reconciles the list's total against the channel total YouTube reports", async () => {
+    stubFetch((url, init) => {
+      if (url.includes("/growth/connect/youtube/sync") && init?.method === "POST") {
+        return envelope({ synced: 40, fetched: 137, stored: 137, channelTotal: 137 });
+      }
+      return envelope({
+        setupPending: false,
+        platforms: [
+          { platform: "youtube", configured: true, connected: true, accountName: "My Channel", lastSyncAt: "2026-11-10T09:00:00.000Z", postCount: 97 },
+          { platform: "instagram", configured: false, connected: false, accountName: null, lastSyncAt: null },
+        ],
+      });
+    });
+    render(<ConnectAccounts onSynced={() => {}} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Sync now" }));
+    expect(await screen.findByText(/Synced 137 posts in your list\./)).toBeTruthy();
+    expect(screen.getByText(/YouTube reports 137 uploads in total\./)).toBeTruthy();
     expectEveryCallAuthed();
   });
 
