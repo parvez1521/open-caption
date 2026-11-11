@@ -1,4 +1,5 @@
 import type { MotionConfig } from "@capseasy/motion";
+import { defaultAvatarAssetId, defaultAvatarForTemplate, defaultVoiceMemberAvatars } from "@capseasy/motion";
 import { ProjectSettingsSchema, emptyDoc, exportDimensionsForAspect, type OverlayItem } from "@capseasy/shared";
 import type { CaptionedVideoInput } from "@capseasy/compositions";
 import { buildMotionOverlayItem, type MotionAssetRef } from "./addToProject";
@@ -174,6 +175,14 @@ export interface BuiltMotionExport {
  * Build everything a standalone render needs from the current config + export selection.
  * Pure (aside from the item's random id): same config + selection = same composition.
  * `asset`/`assetSrc` carry the graphic's avatar/QR image exactly like Add-to-project does.
+ *
+ * Default avatar (owner order 2026-11-12): when the user uploaded no image and the
+ * template has a default avatar photo, the export carries it through the SAME
+ * overlayAssets path a user upload takes — the item gets the synthetic asset id
+ * `default-avatar-<variant>` and the photo URL as its resolved src — so the MP4/WebM
+ * shows the photo, not the initial disc. A user asset always wins. Voice-card gets
+ * its three default member photos via overlayMemberAssets. The QR slot never gets
+ * a default (a fake QR would look scannable).
  */
 export function buildMotionExport(
   config: MotionConfig,
@@ -186,7 +195,13 @@ export function buildMotionExport(
   // Transparent: no backdrop at all — with src null the composition then paints nothing behind
   // the overlay, so the renderer's alpha path carries real transparency into the WebM.
   const backgroundColor = format.transparent ? "transparent" : motionExportBackgroundColor(selection);
-  const base = buildMotionOverlayItem(config, 0, asset ?? null);
+  const defaultAvatarSrc = !asset && !assetSrc ? defaultAvatarForTemplate(config.variant) : null;
+  const defaultAsset: MotionAssetRef | null = defaultAvatarSrc
+    ? { id: defaultAvatarAssetId(config.variant), name: "Default avatar photo" }
+    : null;
+  const effectiveAsset = asset ?? defaultAsset;
+  const effectiveAssetSrc = assetSrc ?? defaultAvatarSrc ?? undefined;
+  const base = buildMotionOverlayItem(config, 0, effectiveAsset);
   const item: OverlayItem = { ...base, x: 0.5, y: 0.5, scale: fitScaleForCanvas(config.variant, width, height) };
   const input: CaptionedVideoInput = {
     src: null,
@@ -197,7 +212,8 @@ export function buildMotionExport(
     backdrop: format.transparent ? null : backgroundColor,
     videoEngine: "media",
     overlays: [item],
-    ...(asset && assetSrc ? { overlayAssets: { [asset.id]: assetSrc } } : {}),
+    ...(effectiveAsset && effectiveAssetSrc ? { overlayAssets: { [effectiveAsset.id]: effectiveAssetSrc } } : {}),
+    ...(config.variant === "voice-card" ? { overlayMemberAssets: { [item.id]: defaultVoiceMemberAvatars() } } : {}),
   };
   return {
     width,
@@ -264,11 +280,41 @@ export interface RunStandaloneExportDeps {
 }
 
 /**
+ * Preload one image URL (decode it) — resolves false instead of rejecting when
+ * the URL cannot load, so a failed preload never blocks an export.
+ */
+async function preloadImageOk(src: string): Promise<boolean> {
+  if (typeof window === "undefined" || typeof Image === "undefined") return true;
+  try {
+    const img = new Image();
+    const loaded = new Promise<boolean>((resolve) => {
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+    });
+    img.src = src;
+    // never stall an export on a slow image: after 2 s proceed as if loaded
+    // (the render may still catch it); a hard load failure still resolves
+    // false fast via onerror and gets dropped by the caller.
+    const timedOut = new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 2000));
+    return await Promise.race([loaded, timedOut]);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Run one standalone export: render the built composition, then download it via the same
  * saveBlob helper the Studio export uses. Cancellation is cooperative through the
  * AbortSignal (the renderer checks it between frames, exactly like the Studio path):
  * an abort mid-render resolves as `{ cancelled: true }` and saves NOTHING; a real render
  * failure is rethrown with its original message so the UI can show it verbatim.
+ *
+ * Before rendering, every overlay image URL is preloaded (decoded): the social
+ * avatar draws through a plain <img>, which Remotion's delayRender never waits
+ * for, so without this a cold export could capture frames before the photo
+ * arrives. A URL that fails to preload is DROPPED from the input first — the
+ * render then falls back to the initial-letter disc (and a dropped default
+ * avatar also drops the item's assetId) instead of painting a broken image.
  *
  * Transparent builds additionally pass the encoded blob through deps.verify BEFORE saving:
  * if the file does not provably contain real alpha, the run throws
@@ -281,6 +327,28 @@ export async function runStandaloneExport(args: {
   onProgress?: (fraction: number) => void;
 }): Promise<{ cancelled: true } | { cancelled: false; filename: string; sizeBytes: number }> {
   const { built, deps, signal, onProgress } = args;
+  // preload + fail-safe drop (see the header note above)
+  const assetUrls = Object.entries(built.input.overlayAssets ?? {});
+  if (assetUrls.length) {
+    const ok = await Promise.all(assetUrls.map(([, src]) => preloadImageOk(src)));
+    const kept: Record<string, string> = {};
+    assetUrls.forEach(([id, src], i) => { if (ok[i]) kept[id] = src; });
+    built.input.overlayAssets = Object.keys(kept).length ? kept : undefined;
+    if (built.item.assetId && !kept[built.item.assetId]) {
+      delete built.item.assetId;
+      delete built.item.assetName;
+    }
+  }
+  const memberUrls = Object.entries(built.input.overlayMemberAssets ?? {});
+  if (memberUrls.length) {
+    const keptMembers: Record<string, string[]> = {};
+    for (const [itemId, srcs] of memberUrls) {
+      const ok = await Promise.all(srcs.map((src) => preloadImageOk(src)));
+      const kept = srcs.filter((_, i) => ok[i]);
+      if (kept.length) keptMembers[itemId] = kept;
+    }
+    built.input.overlayMemberAssets = Object.keys(keptMembers).length ? keptMembers : undefined;
+  }
   let blob: Blob;
   try {
     blob = await deps.render({

@@ -82,10 +82,10 @@ export function computePages(doc: CaptionDoc, settings: ProjectSettings, style: 
 
 /** One overlay inside its Sequence: local time comes from the frame (never a wall clock), so animated
  *  social overlays phase identically in the Player, the browser export and the server render. */
-const OverlaySequenceInner: React.FC<{ item: import("@capseasy/shared").OverlayItem; sc: number; assetSrc?: string }> = ({ item, sc, assetSrc }) => {
+const OverlaySequenceInner: React.FC<{ item: import("@capseasy/shared").OverlayItem; sc: number; assetSrc?: string; memberAssetSrcs?: string[] }> = ({ item, sc, assetSrc, memberAssetSrcs }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  return <OverlayView item={item} sc={sc} assetSrc={assetSrc} localMs={(frame / fps) * 1000} />;
+  return <OverlayView item={item} sc={sc} assetSrc={assetSrc} memberAssetSrcs={memberAssetSrcs} localMs={(frame / fps) * 1000} />;
 };
 
 /**
@@ -242,7 +242,7 @@ const PageSequence: React.FC<{ page: Page; fromFrame: number; canvas: Canvas; st
  * Remotion does NOT run inputProps through the zod schema at render time, and the Player passes props
  * verbatim, so every surface must normalize here. Partial settings/styles are completed with defaults.
  */
-export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc: docIn, translatedDoc: translatedDocIn, style: styleIn, settings: settingsIn, mode = "burn", backdrop = null, videoEngine = "offthread", videoAdjust: videoAdjustIn, overlays: overlaysIn, overlayAssets, segmentAssets }) => {
+export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc: docIn, translatedDoc: translatedDocIn, style: styleIn, settings: settingsIn, mode = "burn", backdrop = null, videoEngine = "offthread", videoAdjust: videoAdjustIn, overlays: overlaysIn, overlayAssets, overlayMemberAssets, segmentAssets }) => {
   const doc = useMemo(() => CaptionDocSchema.parse(docIn ?? { version: 2, words: [] }), [docIn]);
   // Bilingual track (slice 5.1): parsed like the primary doc, but an invalid/absent one simply
   // disables the secondary line — it must never break the primary render.
@@ -480,7 +480,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
         const { from, durationInFrames } = overlayFrames(item, fps);
         return (
           <Sequence key={item.id} from={from} durationInFrames={durationInFrames} layout="none">
-            <OverlaySequenceInner item={item} sc={scaleOf(canvas)} assetSrc={item.assetId ? overlayAssets?.[item.assetId] : undefined} />
+            <OverlaySequenceInner item={item} sc={scaleOf(canvas)} assetSrc={item.assetId ? overlayAssets?.[item.assetId] : undefined} memberAssetSrcs={overlayMemberAssets?.[item.id]} />
           </Sequence>
         );
       })}

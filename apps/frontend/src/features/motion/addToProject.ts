@@ -1,5 +1,5 @@
 import { ProjectSettingsSchema, newId, type OverlayItem, type ProjectSettings } from "@capseasy/shared";
-import { MotionConfigSchema, type MotionConfig } from "@capseasy/motion";
+import { MotionConfigSchema, defaultAvatarForTemplate, defaultAvatarPersonaForTemplate, type MotionConfig } from "@capseasy/motion";
 import { studioService } from "@/services/studio";
 import { buildStageCWritePatch, readCompositionSettings, STAGE_C_ENABLED } from "@/features/studio/stageC";
 import { makeSocialOverlay } from "@/features/studio/panels/overlayItems";
@@ -68,6 +68,36 @@ export async function copyAssetToProject(assetId: string, projectId: string): Pr
   return { id: copy.id, name: copy.name };
 }
 
+/**
+ * Save the template's bundled default avatar photo into the target project's
+ * bin, so a graphic added without an upload still shows a real photo in the
+ * Studio (and in project exports) instead of the initial disc. The photo is
+ * an ordinary media-bin record from then on: the user can replace it through
+ * the normal asset picker, or remove it. Any fetch/save failure resolves
+ * null — the caller inserts without an image rather than failing the add.
+ */
+export async function copyDefaultAvatarToProject(variant: string, projectId: string): Promise<MotionAssetRef | null> {
+  const src = defaultAvatarForTemplate(variant);
+  if (!src) return null;
+  try {
+    const res = await fetch(src);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (!blob.type.startsWith("image/")) return null;
+    const persona = defaultAvatarPersonaForTemplate(variant);
+    const rec = {
+      id: newId(), projectId, kind: "image" as const,
+      name: persona ? `Default avatar photo (${persona})` : "Default avatar photo",
+      mime: blob.type || "image/jpeg", size: blob.size, durationMs: null,
+      width: 512, height: 512, blob, thumb: null, peaks: null, createdAt: Date.now(),
+    };
+    await saveAsset(rec);
+    return { id: rec.id, name: rec.name };
+  } catch {
+    return null;
+  }
+}
+
 /** Insert the configured graphic into a project's overlays and persist it. Returns the item. */
 export async function addMotionToProject(
   projectId: string,
@@ -89,6 +119,10 @@ export async function addMotionToProject(
 
   let asset: MotionAssetRef | null = null;
   if (input.assetId) asset = await copyAssetToProject(input.assetId, projectId);
+  // no upload staged: the template's bundled default avatar photo goes into
+  // the project's bin, so the placed graphic shows a real photo (the user's
+  // own upload, when staged, always wins — see above).
+  if (!asset) asset = await copyDefaultAvatarToProject(config.variant, projectId);
 
   const startMs = chooseMotionStartMs(settings.overlays, data.video?.durationMs ?? 0, config.durationMs);
   const item = buildMotionOverlayItem(config, startMs, asset);

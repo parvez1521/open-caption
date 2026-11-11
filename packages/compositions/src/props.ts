@@ -58,6 +58,13 @@ export const CaptionedVideoProps = z.object({
    */
   overlayAssets: z.record(z.string()).optional(),
   /**
+   * Resolved URLs for voice-card member photos, keyed by overlay item id.
+   * Same device-local rule as overlayAssets — callers pass the bundled
+   * default member photos (or per-member uploads) here; without an entry a
+   * voice-card member falls back to its initial-letter disc.
+   */
+  overlayMemberAssets: z.record(z.array(z.string())).optional(),
+  /**
    * Resolved URLs for per-segment media, keyed by media-asset id (a segment's `assetId`).
    * Segment media bytes are device-local (IndexedDB), so only the browser paths (Player
    * preview + in-browser export) can resolve them — the studio passes object URLs here; a

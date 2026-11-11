@@ -395,6 +395,20 @@ describe("SocialOverlayView (static markup — the same tree every render path d
     expect(html).not.toBe(render(it2, 1750)); // the speaking rotation / pulse moves on
     expect(html.toLowerCase()).not.toContain("discord");
   });
+  it("voice-card members show photos when memberAssetSrcs are given, initials otherwise", () => {
+    const it2 = item("voice-card", "voice-lounge\nAlex\nPriya\nSam");
+    const withPhotos = renderToStaticMarkup(
+      <SocialOverlayView item={it2} sc={1} localMs={1000} memberAssetSrcs={["/motion-avatars/alex.jpg", "/motion-avatars/priya.jpg", "/motion-avatars/sam.jpg"]} />,
+    );
+    expect(withPhotos).toContain("/motion-avatars/alex.jpg");
+    expect(withPhotos).toContain("/motion-avatars/priya.jpg");
+    expect(withPhotos).toContain("/motion-avatars/sam.jpg");
+    const noPhotos = render(it2, 1000);
+    expect(noPhotos).not.toContain("/motion-avatars/");
+    expect(noPhotos).toContain(">A<");
+    expect(noPhotos).toContain(">P<");
+    expect(noPhotos).toContain(">S<");
+  });
   it("renders through OverlayView (the composition entry) with the item's position/scale", () => {
     const it2 = item("subscribe-pill", "Subscribe\nSubscribed");
     const html = renderToStaticMarkup(<OverlayView item={it2} sc={1} localMs={2600} />);

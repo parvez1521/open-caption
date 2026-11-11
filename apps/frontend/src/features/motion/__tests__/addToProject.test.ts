@@ -110,4 +110,47 @@ describe("addMotionToProject", () => {
     expect(item.assetId).toBeUndefined();
     expect(h.saveAsset).not.toHaveBeenCalled();
   });
+
+  it("copies the template's default avatar photo into the project bin when no image was staged", async () => {
+    const blob = new Blob(["fake-jpeg"], { type: "image/jpeg" });
+    const fetchMock = vi.fn(async () => ({ ok: true, blob: async () => blob }) as unknown as Response);
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const item = await addMotionToProject("proj-1", { config: { variant: "dm-popup", text: "Alex\nHey!", color: "#38BDF8", durationMs: 4000 } });
+      expect(fetchMock).toHaveBeenCalledWith("/motion-avatars/alex.jpg");
+      expect(h.saveAsset).toHaveBeenCalledTimes(1);
+      const rec = (h.saveAsset.mock.calls[0] as unknown as [{ id: string; projectId: string; kind: string; mime: string; blob: Blob }])[0];
+      expect(rec.projectId).toBe("proj-1");
+      expect(rec.kind).toBe("image");
+      expect(rec.mime).toBe("image/jpeg");
+      expect(rec.blob).toBe(blob);
+      expect(item.assetId).toBe(rec.id);
+      expect(item.assetName).toBe("Default avatar photo (alex)");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("inserts without an image when the default photo cannot be fetched", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+    try {
+      const item = await addMotionToProject("proj-1", { config: { variant: "dm-popup", text: "Alex\nHey!", color: "#38BDF8", durationMs: 4000 } });
+      expect(item.assetId).toBeUndefined();
+      expect(h.saveAsset).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not fetch a default photo for templates without an avatar", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, blob: async () => new Blob(["x"]) }) as unknown as Response);
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const item = await addMotionToProject("proj-1", { config: { variant: "counter", text: "0\n100\nfans", color: "#FFA946", durationMs: 5000 } });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(item.assetId).toBeUndefined();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
