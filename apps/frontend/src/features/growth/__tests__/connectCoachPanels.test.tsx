@@ -1,15 +1,19 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ConnectAccounts } from "../ConnectAccounts";
+import { AccountsBar } from "../AccountsBar";
 import { GrowthCoach } from "../GrowthCoach";
 
 /**
- * Panel honesty pins (P1/P2): the connect section renders exactly the state
- * the server reports — a platform that is not switched on shows NO connect
- * affordance at all; a connected platform shows name + sync + a two-step
- * disconnect that states synced posts stay. The coach shows its
- * not-switched-on state (and no input) when the free AI is unconfigured.
+ * Panel honesty pins (P1/P2; chat-first rebuild 2026-11-11): the accounts
+ * bar renders exactly the state the server reports — a platform that is
+ * not switched on shows NO connect affordance at all; a connected platform
+ * shows its identity (name + initials tile), its synced count, Sync now,
+ * and a two-step disconnect that states synced posts stay. The coach shows
+ * its not-switched-on state (and no input) when the free AI is
+ * unconfigured, opens on the vidIQ-style welcome state (headline, central
+ * composer, starter chips), and offers Copy + follow-up chips under each
+ * answer.
  *
  * REGRESSION (2026-11-11 production bug): these panels originally called
  * the API with raw fetch and NO Authorization header — the API accepts no
@@ -62,7 +66,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("ConnectAccounts", () => {
+describe("AccountsBar", () => {
   it("not switched on: the plain fact, and NO connect button/link for either platform", async () => {
     stubFetch(() =>
       envelope({
@@ -73,9 +77,8 @@ describe("ConnectAccounts", () => {
         ],
       }),
     );
-    render(<ConnectAccounts onSynced={() => {}} />);
-    expect(await screen.findByText("Connect your accounts")).toBeTruthy();
-    expect(screen.getAllByText(/isn't switched on for Open Caption yet/)).toHaveLength(2);
+    render(<AccountsBar />);
+    expect(await screen.findAllByText(/isn't switched on for Open Caption yet/)).toHaveLength(2);
     expect(screen.queryByRole("link", { name: /Connect/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Connect/ })).toBeNull();
     expectEveryCallAuthed();
@@ -110,7 +113,7 @@ describe("ConnectAccounts", () => {
       },
     });
     try {
-      render(<ConnectAccounts onSynced={() => {}} />);
+      render(<AccountsBar />);
       const yt = await screen.findByRole("button", { name: "Connect YouTube" });
       expect(screen.getByRole("button", { name: "Connect Instagram" })).toBeTruthy();
       expect(screen.getByText(/once Meta approves the app's insights permission/)).toBeTruthy();
@@ -124,7 +127,7 @@ describe("ConnectAccounts", () => {
     }
   });
 
-  it("connected: name + last sync + synced-post count + Sync now; disconnect is two-step and says posts stay", async () => {
+  it("connected: the account identity heads the card (name + initials tile + platform), with count and Sync now", async () => {
     stubFetch(() =>
       envelope({
         setupPending: false,
@@ -134,18 +137,20 @@ describe("ConnectAccounts", () => {
         ],
       }),
     );
-    render(<ConnectAccounts onSynced={() => {}} />);
-    expect(await screen.findByText(/Connected as/)).toBeTruthy();
-    expect(screen.getByText("My Channel")).toBeTruthy();
+    render(<AccountsBar />);
+    expect(await screen.findAllByText("My Channel")).toHaveLength(2);
+    expect(screen.getByText("MC")).toBeTruthy();
+    expect(screen.getByText("YouTube", { selector: "p" })).toBeTruthy();
+    expect(screen.getByText(/Connected as/)).toBeTruthy();
     expect(screen.getByText(/Synced 137 posts/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Sync now" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
-    expect(await screen.findByText(/Synced posts stay in your list/)).toBeTruthy();
+    expect(await screen.findByText(/Posts already synced stay yours/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Yes, disconnect" })).toBeTruthy();
     expectEveryCallAuthed();
   });
 
-  it("sync now: the note reconciles the list's total against the channel total YouTube reports", async () => {
+  it("sync now: the note reconciles the synced total against the channel total YouTube reports", async () => {
     stubFetch((url, init) => {
       if (url.includes("/growth/connect/youtube/sync") && init?.method === "POST") {
         return envelope({ synced: 40, fetched: 137, stored: 137, channelTotal: 137 });
@@ -158,9 +163,9 @@ describe("ConnectAccounts", () => {
         ],
       });
     });
-    render(<ConnectAccounts onSynced={() => {}} />);
+    render(<AccountsBar />);
     fireEvent.click(await screen.findByRole("button", { name: "Sync now" }));
-    expect(await screen.findByText(/Synced 137 posts in your list\./)).toBeTruthy();
+    expect(await screen.findByText(/Synced 137 posts\./)).toBeTruthy();
     expect(screen.getByText(/YouTube reports 137 uploads in total\./)).toBeTruthy();
     expectEveryCallAuthed();
   });
@@ -175,7 +180,7 @@ describe("ConnectAccounts", () => {
         ],
       }),
     );
-    render(<ConnectAccounts onSynced={() => {}} />);
+    render(<AccountsBar />);
     expect(await screen.findByText(/One server setup step is still pending/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Connect YouTube" })).toBeNull();
     expectEveryCallAuthed();
@@ -192,13 +197,23 @@ describe("GrowthCoach", () => {
     expectEveryCallAuthed();
   });
 
+  it("welcome state: headline, the honest free-AI badge, central composer and starter chips", async () => {
+    stubFetch(() => envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" }));
+    render(<GrowthCoach starters={["Why did reach drop last week?"]} />);
+    expect(await screen.findByRole("heading", { name: /Ask about your channel/ })).toBeTruthy();
+    expect(screen.getByText("Free AI · GPT-OSS 120B (Groq)")).toBeTruthy();
+    expect(screen.getByLabelText("Ask about your analytics")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Why did reach drop last week?" })).toBeTruthy();
+    expectEveryCallAuthed();
+  });
+
   it("markdown answers render formatted (no raw markers); the user's own message stays literal", async () => {
     stubFetch((url, init) => {
       if (init?.method === "POST") {
         return envelope({
           configured: true,
           answer:
-            "You have no posts tracked yet.\n\n**How to bring in past posts**\n\n- Import a CSV from the section below\n- Or add each post by hand",
+            "You have no posts tracked yet.\n\n**How to bring in past posts**\n\n- Connect YouTube in the accounts bar above\n- Then press Sync now on its card",
         });
       }
       return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
@@ -209,59 +224,15 @@ describe("GrowthCoach", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ask" }));
     const heading = await screen.findByText("How to bring in past posts");
     expect(heading.tagName).toBe("STRONG");
-    expect(screen.getByText("Import a CSV from the section below")).toBeTruthy();
+    expect(screen.getByText("Connect YouTube in the accounts bar above")).toBeTruthy();
     expect(document.body.textContent).not.toContain("**How to bring");
     // The user's own words are theirs: asterisks they typed stay literal.
     expect(screen.getByText("why did **reach** drop?")).toBeTruthy();
     expectEveryCallAuthed();
   });
 
-  it("header strip: connection chips come from the status route — connected name + synced count, Instagram not switched on", async () => {
-    stubFetch((url, init) => {
-      if (url.includes("/growth/connections")) {
-        return envelope({
-          setupPending: false,
-          platforms: [
-            { platform: "youtube", configured: true, connected: true, accountName: "Tech Hacks", lastSyncAt: "2026-11-11T10:00:00.000Z", postCount: 137 },
-            { platform: "instagram", configured: false, connected: false, accountName: null, lastSyncAt: null },
-          ],
-        });
-      }
-      if (init?.method === "POST") return envelope({ configured: true, answer: "Reach is steady." });
-      return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
-    });
-    render(<GrowthCoach starters={[]} />);
-    expect(await screen.findByText("YouTube · Connected · Tech Hacks · 137 posts synced")).toBeTruthy();
-    expect(screen.getByText("Instagram · Not switched on")).toBeTruthy();
-    expect(screen.getByText("Free AI · GPT-OSS 120B (Groq)")).toBeTruthy();
-    expectEveryCallAuthed();
-  });
-
-  it("header strip: an unusable connections payload degrades to a plain note, and the chat still works", async () => {
-    stubFetch((url, init) => {
-      if (init?.method === "POST") return envelope({ configured: true, answer: "All good." });
-      return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
-    });
-    render(<GrowthCoach starters={[]} />);
-    expect(await screen.findByText("Connection status couldn't load")).toBeTruthy();
-    const input = await screen.findByLabelText("Ask about your analytics");
-    fireEvent.change(input, { target: { value: "How am I doing?" } });
-    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
-    expect(await screen.findByText("All good.")).toBeTruthy();
-    expectEveryCallAuthed();
-  });
-
   it("a table in the coach's answer renders as a real table inside the chat thread", async () => {
     stubFetch((url, init) => {
-      if (url.includes("/growth/connections")) {
-        return envelope({
-          setupPending: false,
-          platforms: [
-            { platform: "youtube", configured: true, connected: true, accountName: "Tech Hacks", lastSyncAt: null, postCount: 2 },
-            { platform: "instagram", configured: false, connected: false, accountName: null, lastSyncAt: null },
-          ],
-        });
-      }
       if (init?.method === "POST") {
         return envelope({
           configured: true,
@@ -284,16 +255,34 @@ describe("GrowthCoach", () => {
     expectEveryCallAuthed();
   });
 
-  it("configured: provider badge (honest label), starter chips, and an answer round-trip", async () => {
+  it("after an answer: a Copy action copies it, and the starter questions return as follow-up chips", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    stubFetch((url, init) => {
+      if (init?.method === "POST") return envelope({ configured: true, answer: "Reach fell because your top post aged out." });
+      return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
+    });
+    render(<GrowthCoach starters={["What should I post next based on my data?"]} />);
+    fireEvent.click(await screen.findByRole("button", { name: "What should I post next based on my data?" }));
+    expect(await screen.findByText("Reach fell because your top post aged out.")).toBeTruthy();
+    // Follow-up chips: the same starter is offered again under the answer.
+    expect(screen.getByRole("button", { name: "What should I post next based on my data?" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith("Reach fell because your top post aged out."));
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
+    expectEveryCallAuthed();
+  });
+
+  it("configured: a starter chip asks, and the round-trip renders the answer", async () => {
     stubFetch((url, init) => {
       if (init?.method === "POST") return envelope({ configured: true, answer: "Reach fell because your top post aged out." });
       return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
     });
     render(<GrowthCoach starters={["Why did reach drop last week?"]} />);
-    expect(await screen.findByText("Free AI · GPT-OSS 120B (Groq)")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Why did reach drop last week?" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Why did reach drop last week?" }));
     await waitFor(() => expect(screen.getByText("Reach fell because your top post aged out.")).toBeTruthy());
-    expect(screen.getByText("Why did reach drop last week?")).toBeTruthy();
+    // The question shows twice: as the user's bubble and as a follow-up chip under the answer.
+    expect(screen.getAllByText("Why did reach drop last week?")).toHaveLength(2);
     expectEveryCallAuthed();
   });
 });

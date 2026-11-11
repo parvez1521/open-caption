@@ -16,8 +16,8 @@ import {
  * Growth Coach (P2, 2026-11-11): the grounding layer for the AI chat panel.
  *
  * Everything in this module is PURE and deterministic. The route assembles
- * the signed-in user's OWN stored growth dataset (their posts — manual, CSV
- * or synced from a connected account — plus the weekly-report sections
+ * the signed-in user's OWN stored growth dataset (their posts, however they
+ * arrived — plus the weekly-report sections
  * computed from those same rows) and this module renders it into a compact
  * text dataset. The chat route sends that dataset, and only that dataset,
  * as the model's context: the system prompt forbids inventing figures and
@@ -64,8 +64,8 @@ export function buildGrowthContext(
 ): string {
   const lines: string[] = [];
   if (posts.length === 0) {
-    lines.push("The user has NO posts tracked in Growth Studio yet — no manual entries, no CSV imports, no connected-account syncs.");
-    lines.push("Any performance question must be answered by saying there is no data yet and naming what to add: enter posts by hand, import a CSV, or connect their YouTube or Instagram account.");
+    lines.push("The user has NO posts tracked in Growth Studio yet — nothing has synced from a connected account.");
+    lines.push("Any performance question must be answered by saying there is no data yet and naming what to do: connect their YouTube or Instagram account in the accounts bar at the top of the page and press \"Sync now\".");
   } else {
     const mix = sourceMixOf(posts);
     const dates = posts.map((p) => p.postedAt).sort();
@@ -145,23 +145,23 @@ export function buildGrowthContext(
 
 /**
  * The VERIFIED UI map: where things actually are in Growth Studio, with the
- * exact on-screen labels. Read off app/(dashboard)/growth/page.tsx and
- * features/growth/ConnectAccounts.tsx on 2026-11-11, after the coach sent
- * the owner to places that do not exist ("Settings → Platforms", a "Data
- * section", an "Import CSV" button — none of which the product has: there
- * is no Settings surface for growth data and the CSV button carries the
- * row count, not the words "Import CSV"). coach.test.ts pins every label
- * below against the real components, so a future rename breaks the test
- * instead of silently making the coach lie again.
+ * exact on-screen labels. Read off app/(dashboard)/growth/page.tsx,
+ * features/growth/AccountsBar.tsx and features/growth/GrowthCoach.tsx on
+ * 2026-11-11, after TWO fabrication rounds: the coach first sent the owner
+ * to places that do not exist ("Settings → Platforms", a "Data section", an
+ * "Import CSV" button), and the chat-first rebuild then removed the manual
+ * surfaces the map used to cite (the add-post form, CSV import, competitors,
+ * weekly report and plan) — posts now arrive ONLY by syncing a connected
+ * account, so the map says exactly that and names the removed surfaces only
+ * to forbid citing them. coach.test.ts pins every label below against the
+ * real components, so a future rename breaks the test instead of silently
+ * making the coach lie again.
  */
 export const COACH_UI_MAP = [
-  "Growth Studio is ONE page — everything below is on that page, in this order. Growth data has no separate settings or data page; never send the user to one.",
-  '- "Connect your accounts" (top of the page): a YouTube card and an Instagram card. An account that is not connected shows a "Connect YouTube" or "Connect Instagram" button; a connected account shows "Sync now" and "Disconnect" buttons.',
-  '- "Growth Coach": this chat, directly under "Connect your accounts".',
-  '- "Your posts": the user\'s post list — a sync fills it on its own. Under the heading, a collapsed "Missing a post? Add it manually" toggle opens the "Add a post" form (fields: Platform, Posted at, Title, Post URL, Views, Reach, Likes, Comments, Shares, Saves) with an "Add post" button; manual entry is only for a post a sync cannot bring (another platform, or Instagram before it is connected). Each listed post has "Edit" and "Delete" buttons; "Edit" opens the same form, and while editing, the form\'s button reads "Save changes".',
-  '- "Import from CSV": a "Download the template" button and a "Choose a CSV file" picker; after a file is chosen, an import button labelled with the row count (for example "Import 12 posts").',
-  '- "Competitors": an "Add a competitor" form with an "Add competitor" button.',
-  '- "Weekly report" and "Weekly plan": read-only report cards, plus a "Draft next week\'s plan" button in the plan section.',
+  "Growth Studio is ONE page: an accounts bar at the top and this Coach chat filling the rest of it. There is nothing else on the page — no other sections, no settings page, no data page; never send the user anywhere else.",
+  '- The accounts bar (top of the page) holds a YouTube card and an Instagram card. A platform that is not switched on says so on its card and has no button. An account that is not connected shows a "Connect YouTube" or "Connect Instagram" button; a connected account shows its name, its synced-post count, and "Sync now" and "Disconnect" buttons.',
+  '- "Growth Coach": this chat, under the accounts bar. The welcome screen reads "Ask about your channel." and the composer placeholder is "Ask about your posts…".',
+  "Posts arrive ONLY by sync: the user connects YouTube (or Instagram, once it is switched on) in the accounts bar and presses \"Sync now\"; the account's posts are then stored, and this Coach answers from them. There is NO manual add-post form, NO CSV import, NO competitors section, NO weekly report and NO weekly plan in the product — never cite them as places, and never tell the user to type posts in, import a file, or open a report.",
 ].join("\n");
 
 /** The no-invention contract, pinned by tests. */
@@ -171,7 +171,7 @@ export const COACH_SYSTEM_PROMPT = [
   "Rules you must follow:",
   "- Use ONLY figures that appear in the dataset. Never invent, estimate, or extrapolate a number that is not there.",
   "- A figure described as 'not entered' was never recorded: treat it as missing, never as zero.",
-  "- If the dataset does not contain what a question needs, say so plainly and name what the user can add (more posts, a CSV import) or connect (their YouTube or Instagram account) to answer it.",
+  "- If the dataset does not contain what a question needs, say so plainly and name what the user can connect (their YouTube or Instagram account) to answer it. Posts arrive only by syncing a connected account — there is no manual entry and no file import to suggest.",
   "- Do not quote generic social-media statistics, benchmarks, or other creators' numbers — only this user's data.",
   "- When you tell the user where to do something in the product, cite ONLY the sections and labels in the UI MAP included below the dataset, exactly as written there. If the map does not cover what they need, describe what they are trying to do WITHOUT naming a place — never invent a section, page, or button.",
   "- Be brief and concrete: lead with the answer, then cite the posts or figures it rests on.",
