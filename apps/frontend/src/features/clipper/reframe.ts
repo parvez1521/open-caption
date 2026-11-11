@@ -36,6 +36,12 @@ export const VERTICAL_CANVAS_ASPECT = "9:16" as const;
 /** 9 / 16 as a number — the window's width ÷ height. */
 export const VERTICAL_ASPECT_RATIO = 9 / 16;
 
+/** The canvas aspects the AI Clipping Studio offers as crop targets. */
+export type ClipAspectId = "9:16" | "1:1" | "16:9";
+
+/** A target aspect id → its width ÷ height ratio. */
+export const ASPECT_RATIOS: Record<ClipAspectId, number> = { "9:16": 9 / 16, "1:1": 1, "16:9": 16 / 9 };
+
 /** How far a crop window may zoom in (the window shrinks to 1/zoom of the frame height). */
 export const MAX_CROP_ZOOM = 2.5;
 
@@ -77,12 +83,36 @@ export function cropWindowFractions(
   sourceWidth: number | null | undefined,
   sourceHeight: number | null | undefined,
 ): { fw: number; fh: number } | null {
+  return cropWindowFractionsFor(win, sourceWidth, sourceHeight, VERTICAL_ASPECT_RATIO);
+}
+
+/**
+ * The same computation for any target aspect ratio (the AI Clipping Studio's
+ * 1:1 and 16:9 targets): the window is the largest rectangle of the target
+ * shape that fits the source at the window's zoom; null when the source is
+ * not wider than the target (no crop exists to choose) or dims are unknown.
+ */
+export function cropWindowFractionsFor(
+  win: CropWindow,
+  sourceWidth: number | null | undefined,
+  sourceHeight: number | null | undefined,
+  targetRatio: number,
+): { fw: number; fh: number } | null {
   const aspect = sourceAspectRatio(sourceWidth, sourceHeight);
-  if (aspect === null || aspect <= VERTICAL_ASPECT_RATIO) return null;
+  if (aspect === null || aspect <= targetRatio) return null;
   const fh = 1 / clampCropWindow(win).zoom;
-  const fw = (fh * VERTICAL_ASPECT_RATIO) / aspect;
+  const fw = (fh * targetRatio) / aspect;
   if (!(fw > 0) || fw >= 1) return null;
   return { fw, fh };
+}
+
+/** True when a source of this size has a crop window of the target aspect to choose. */
+export function needsReframeFor(
+  sourceWidth: number | null | undefined,
+  sourceHeight: number | null | undefined,
+  targetRatio: number,
+): boolean {
+  return cropWindowFractionsFor(DEFAULT_CROP_WINDOW, sourceWidth, sourceHeight, targetRatio) !== null;
 }
 
 /** True when a source of this size has a 9:16 crop window to choose (it is wider than 9:16). */
@@ -103,8 +133,18 @@ export function cropWindowToTransform(
   sourceWidth: number | null | undefined,
   sourceHeight: number | null | undefined,
 ): SegmentTransform {
+  return cropWindowToTransformFor(win, sourceWidth, sourceHeight, VERTICAL_ASPECT_RATIO);
+}
+
+/** {@link cropWindowToTransform} for any target aspect ratio. */
+export function cropWindowToTransformFor(
+  win: CropWindow,
+  sourceWidth: number | null | undefined,
+  sourceHeight: number | null | undefined,
+  targetRatio: number,
+): SegmentTransform {
   const w = clampCropWindow(win);
-  const fractions = cropWindowFractions(w, sourceWidth, sourceHeight);
+  const fractions = cropWindowFractionsFor(w, sourceWidth, sourceHeight, targetRatio);
   if (!fractions) return SegmentTransformSchema.parse({});
   const { fw, fh } = fractions;
   // Keep every inset inside the schema's 0..0.9 range even for extreme aspect/zoom
@@ -198,6 +238,54 @@ export function reframedClipSettings(input: {
   const settings: ProjectSettings = {
     ...input.settings,
     canvas: { aspect: VERTICAL_CANVAS_ASPECT, background: input.settings.canvas?.background ?? "blur" },
+    composition,
+  };
+  return { settings, composition };
+}
+
+/** {@link reframeSegmentForClip} for any of the Clipping Studio's target aspects. */
+export function reframeSegmentForClipAspect(input: {
+  window: CropWindow;
+  aspect: ClipAspectId;
+  sourceWidth: number | null | undefined;
+  sourceHeight: number | null | undefined;
+  startMs: number;
+  endMs: number;
+}): VideoSegment | null {
+  if (!needsReframeFor(input.sourceWidth, input.sourceHeight, ASPECT_RATIOS[input.aspect])) return null;
+  const startMs = Math.round(input.startMs);
+  const endMs = Math.round(input.endMs);
+  if (!(endMs > startMs)) return null;
+  return {
+    id: "main-video",
+    sourceInMs: startMs,
+    sourceOutMs: endMs,
+    playbackRate: 1,
+    transform: cropWindowToTransformFor(input.window, input.sourceWidth, input.sourceHeight, ASPECT_RATIOS[input.aspect]),
+    transitionIn: null,
+    assetId: null,
+    still: false,
+    keyframes: [],
+    effects: [],
+  };
+}
+
+/** {@link reframedClipSettings} for any target aspect: canvas → that aspect, one window segment. */
+export function reframedClipSettingsAspect(input: {
+  settings: ProjectSettings;
+  window: CropWindow;
+  aspect: ClipAspectId;
+  sourceWidth: number | null | undefined;
+  sourceHeight: number | null | undefined;
+  startMs: number;
+  endMs: number;
+}): { settings: ProjectSettings; composition: CompositionSettings } | null {
+  const segment = reframeSegmentForClipAspect(input);
+  if (!segment) return null;
+  const composition = CompositionSettingsSchema.parse({ videoSegments: [segment] });
+  const settings: ProjectSettings = {
+    ...input.settings,
+    canvas: { aspect: input.aspect, background: input.settings.canvas?.background ?? "blur" },
     composition,
   };
   return { settings, composition };

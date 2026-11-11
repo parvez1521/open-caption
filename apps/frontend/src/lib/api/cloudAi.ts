@@ -92,7 +92,16 @@ interface ChatCompletionBody {
  */
 export async function runCloudChat(
   prompt: { system: string; user: string },
-  opts: { config?: CloudAiConfig | null; fetchImpl?: typeof fetch; timeoutMs?: number } = {},
+  opts: {
+    config?: CloudAiConfig | null;
+    fetchImpl?: typeof fetch;
+    timeoutMs?: number;
+    /** response cap; defaults to MAX_TOKENS (the short-batch budget). The clipper's
+     *  highlight route passes a larger one — its replies carry several candidates. */
+    maxTokens?: number;
+    /** defaults to 0.8 (creative batches). The clipper passes 0.4 (editorial judgment). */
+    temperature?: number;
+  } = {},
 ): Promise<string> {
   const config = opts.config !== undefined ? opts.config : cloudAiConfig();
   if (!config) throw new CloudAiError("The free AI service is not configured (GROQ_API_KEY is unset).");
@@ -109,8 +118,8 @@ export async function runCloudChat(
           { role: "system", content: prompt.system },
           { role: "user", content: prompt.user },
         ],
-        temperature: 0.8,
-        max_tokens: MAX_TOKENS,
+        temperature: opts.temperature ?? 0.8,
+        max_tokens: opts.maxTokens ?? MAX_TOKENS,
       }),
       signal: ctrl.signal,
     });

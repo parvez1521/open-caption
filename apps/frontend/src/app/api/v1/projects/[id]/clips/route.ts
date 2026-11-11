@@ -4,7 +4,10 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { PROJECT_COLUMNS, toApiProject } from "@/lib/api/projects";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { MAX_CROP_ZOOM, reframedClipSettings } from "@/features/clipper/reframe";
+import { cropPathClipSettings } from "@/features/clipper/cropPath";
+import { MAX_CROP_ZOOM, reframedClipSettingsAspect, type ClipAspectId } from "@/features/clipper/reframe";
+
+const AspectEnum = z.enum(["9:16", "1:1", "16:9"]);
 
 const CreateClipBody = z.object({
   title: z.string().trim().min(1).max(120),
@@ -22,6 +25,47 @@ const CreateClipBody = z.object({
       x: z.number().min(0).max(1),
       y: z.number().min(0).max(1),
       zoom: z.number().min(1).max(MAX_CROP_ZOOM),
+    })
+    .optional(),
+  /**
+   * AI Clipping Studio: the target canvas aspect for this clip. Absent = the
+   * pre-Studio behaviour exactly (9:16 window semantics, no canvas change
+   * without a window). With `cropPath` it selects the path's target shape;
+   * with `reframe` the window's shape; on its own it is a canvas-only change
+   * (the renderer letterboxes — the "contain" case).
+   */
+  aspect: AspectEnum.optional(),
+  /**
+   * AI Clipping Studio (reframe v2): a per-scene crop PATH — each scene's base
+   * window + offset keyframes, planned on-device from face tracks. Only the
+   * plan travels; the stored segments are re-derived here from the video
+   * row's real dimensions, exactly like the single-window path.
+   */
+  cropPath: z
+    .object({
+      scenes: z
+        .array(
+          z.object({
+            startMs: z.number().int().min(0),
+            endMs: z.number().int().min(1),
+            window: z.object({
+              x: z.number().min(0).max(1),
+              y: z.number().min(0).max(1),
+              zoom: z.number().min(1).max(MAX_CROP_ZOOM),
+            }),
+            keyframes: z
+              .array(
+                z.object({
+                  atMs: z.number().int().min(0),
+                  property: z.enum(["offsetX", "offsetY"]),
+                  value: z.number().min(-1).max(1),
+                }),
+              )
+              .max(48),
+          }),
+        )
+        .min(1)
+        .max(24),
     })
     .optional(),
 }).refine((b) => b.endMs > b.startMs, { message: "endMs must be after startMs", path: ["endMs"] });
@@ -68,17 +112,37 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     overlays: [],
   });
 
-  const reframed = body.reframe
-    ? reframedClipSettings({
+  const aspect: ClipAspectId = body.aspect ?? "9:16";
+  // Framing resolution, in order: a crop PATH (v2) beats a single window; a
+  // window beats a canvas-only aspect; nothing requested = today's shape.
+  const pathed = body.cropPath
+    ? cropPathClipSettings({
         settings: baseSettings,
-        window: body.reframe,
+        scenes: body.cropPath.scenes,
+        aspect,
         sourceWidth: video?.width,
         sourceHeight: video?.height,
-        startMs: body.startMs,
-        endMs: body.endMs,
       })
     : null;
-  const settings = reframed?.settings ?? baseSettings;
+  const reframed =
+    pathed ??
+    (body.reframe
+      ? reframedClipSettingsAspect({
+          settings: baseSettings,
+          window: body.reframe,
+          aspect,
+          sourceWidth: video?.width,
+          sourceHeight: video?.height,
+          startMs: body.startMs,
+          endMs: body.endMs,
+        })
+      : null);
+  const canvasOnly = !reframed && body.aspect !== undefined;
+  const settings = reframed?.settings ??
+    (canvasOnly
+      ? { ...baseSettings, canvas: { aspect, background: baseSettings.canvas?.background ?? "blur" } }
+      : baseSettings);
+  const aspectApplied = reframed !== null || canvasOnly;
 
   const { data: copy, error } = await user.db
     .from("projects")
@@ -87,8 +151,9 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
       settings_json: settings,
       owner_id: user.id,
       title: body.title,
-      // a reframed clip IS a 9:16 project: its canvas says so (settings) and its row agrees
-      ...(reframed ? { aspect_ratio: "9:16" as const, composition_json: reframed.composition } : {}),
+      // a framed clip IS a project of its target aspect: its canvas says so (settings) and its row agrees
+      ...(aspectApplied ? { aspect_ratio: aspect } : {}),
+      ...(reframed ? { composition_json: reframed.composition } : {}),
     })
     .select(PROJECT_COLUMNS).single();
   if (error || !copy) throw new ApiFailure("INTERNAL", "Could not create the clip project", error?.message);

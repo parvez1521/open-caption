@@ -182,3 +182,106 @@ describe("POST /projects/:id/clips — reframing (5.4)", () => {
     expect(state.inserts).toEqual([]);
   });
 });
+
+describe("POST /projects/:id/clips — AI Clipping Studio (aspect + cropPath)", () => {
+  const pathBody = {
+    title: "Clip",
+    startMs: 10_000,
+    endMs: 50_000,
+    doc: DOC,
+    aspect: "9:16" as const,
+    cropPath: {
+      scenes: [
+        { startMs: 10_000, endMs: 30_000, window: { x: 0.5, y: 0.5, zoom: 1 }, keyframes: [] },
+        {
+          startMs: 30_000,
+          endMs: 50_000,
+          window: { x: 0.8, y: 0.5, zoom: 1 },
+          keyframes: [
+            { atMs: 0, property: "offsetX" as const, value: 0 },
+            { atMs: 5000, property: "offsetX" as const, value: -0.12 },
+          ],
+        },
+      ],
+    },
+  };
+
+  it("a crop path stores per-scene segments re-derived from the video's real dimensions, dual-written", async () => {
+    const res = await post(pathBody);
+    expect(res.status).toBe(201);
+    const row = projectInsert();
+    expect(row.aspect_ratio).toBe("9:16");
+    const settings = row.settings_json as {
+      canvas: { aspect: string };
+      composition: {
+        videoSegments: Array<{
+          sourceInMs: number;
+          sourceOutMs: number;
+          transform: { cropLeft: number };
+          keyframes: Array<{ property: string; value: number; atMs: number }>;
+        }>;
+      };
+    };
+    expect(settings.canvas.aspect).toBe("9:16");
+    const segs = settings.composition.videoSegments;
+    expect(segs).toHaveLength(2);
+    expect(segs[0]).toMatchObject({ sourceInMs: 10_000, sourceOutMs: 30_000 });
+    expect(segs[1]).toMatchObject({ sourceInMs: 30_000, sourceOutMs: 50_000 });
+    // scene 2's window sits right: its cropLeft is larger than the centred scene 1's
+    expect(segs[1]!.transform.cropLeft).toBeGreaterThan(segs[0]!.transform.cropLeft);
+    // the path's keyframes survive the round trip (the mapping they encode is compositions-pinned)
+    expect(segs[1]!.keyframes).toHaveLength(2);
+    expect(segs[1]!.keyframes[1]).toMatchObject({ property: "offsetX", value: -0.12, atMs: 5000 });
+    expect(row.composition_json).toEqual(settings.composition);
+  });
+
+  it("aspect + a single window reframes for that aspect (1:1 geometry)", async () => {
+    const res = await post({ title: "Clip", startMs: 0, endMs: 30_000, doc: DOC, aspect: "1:1", reframe: { x: 0.5, y: 0.5, zoom: 1 } });
+    expect(res.status).toBe(201);
+    const row = projectInsert();
+    expect(row.aspect_ratio).toBe("1:1");
+    const settings = row.settings_json as {
+      canvas: { aspect: string };
+      composition: { videoSegments: Array<{ transform: { cropLeft: number; cropRight: number } }> };
+    };
+    expect(settings.canvas.aspect).toBe("1:1");
+    const t = settings.composition.videoSegments[0]!.transform;
+    // 1:1 window on a 16:9 source: fw = 9/16, centred → cropLeft = (1 − 9/16) / 2
+    expect(t.cropLeft).toBeCloseTo(0.21875, 9);
+    expect(t.cropLeft).toBeCloseTo(t.cropRight, 9);
+  });
+
+  it("aspect alone is a canvas-only change (contain): no segments, no composition column", async () => {
+    const res = await post({ title: "Clip", startMs: 0, endMs: 30_000, doc: DOC, aspect: "1:1" });
+    expect(res.status).toBe(201);
+    const row = projectInsert();
+    expect(row.aspect_ratio).toBe("1:1");
+    expect(row).not.toHaveProperty("composition_json");
+    const settings = row.settings_json as { canvas: { aspect: string }; composition: { videoSegments: unknown[] } };
+    expect(settings.canvas.aspect).toBe("1:1");
+    expect(settings.composition.videoSegments).toEqual([]);
+  });
+
+  it("a crop path on a portrait source falls back to the canvas-only change", async () => {
+    state.video = videoRow(1080, 1920);
+    const res = await post(pathBody);
+    expect(res.status).toBe(201);
+    const row = projectInsert();
+    expect(row).not.toHaveProperty("composition_json");
+    const settings = row.settings_json as { canvas: { aspect: string }; composition: { videoSegments: unknown[] } };
+    expect(settings.canvas.aspect).toBe("9:16");
+    expect(settings.composition.videoSegments).toEqual([]);
+  });
+
+  it("an over-long crop path (25 scenes) is rejected by validation", async () => {
+    const scenes = Array.from({ length: 25 }, (_, i) => ({
+      startMs: i * 1000,
+      endMs: i * 1000 + 500,
+      window: { x: 0.5, y: 0.5, zoom: 1 },
+      keyframes: [],
+    }));
+    const res = await post({ title: "Clip", startMs: 0, endMs: 30_000, doc: DOC, aspect: "9:16", cropPath: { scenes } });
+    expect(res.status).toBe(422);
+    expect(state.inserts).toEqual([]);
+  });
+});
