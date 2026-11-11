@@ -46,25 +46,33 @@ const plural = (n: number, singular: string, pluralForm = `${singular}s`): strin
 export interface SourceMix {
   manual: number;
   csv: number;
+  youtube: number;
+  instagram: number;
 }
 
 export function sourceMixOf(posts: ReadonlyArray<GrowthPost>): SourceMix {
   return {
     manual: posts.filter((p) => p.source === "manual").length,
     csv: posts.filter((p) => p.source === "csv").length,
+    youtube: posts.filter((p) => p.source === "youtube").length,
+    instagram: posts.filter((p) => p.source === "instagram").length,
   };
 }
 
 /**
  * The footnote every visual carries, e.g.
  * "Based on 14 posts you entered: 9 by hand, 5 via CSV import".
+ * Connected sources append only when present, so a manual/CSV-only dataset
+ * keeps the exact wording it has always had.
  */
 export function sourceFootnote(posts: ReadonlyArray<GrowthPost>): string {
   const mix = sourceMixOf(posts);
-  return (
+  let note =
     `Based on ${posts.length} ${plural(posts.length, "post")} you entered: ` +
-    `${mix.manual} by hand, ${mix.csv} via CSV import`
-  );
+    `${mix.manual} by hand, ${mix.csv} via CSV import`;
+  if (mix.youtube > 0) note += `, ${mix.youtube} synced from YouTube`;
+  if (mix.instagram > 0) note += `, ${mix.instagram} synced from Instagram`;
+  return note;
 }
 
 // ---------------------------------------------------------------------------

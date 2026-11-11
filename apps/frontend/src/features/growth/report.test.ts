@@ -79,7 +79,7 @@ describe("overview", () => {
     const o = computeOverview(posts, NOW);
     expect(o.status).toBe("ok");
     expect(o.postsInWindow).toBe(3);
-    expect(o.sourceMix).toEqual({ manual: 1, csv: 2 });
+    expect(o.sourceMix).toEqual({ manual: 1, csv: 2, youtube: 0, instagram: 0 });
     expect(o.metrics.views).toEqual({ total: 350, reportedCount: 2 });
     expect(o.metrics.likes).toEqual({ total: 15, reportedCount: 2 });
     expect(o.metrics.reach).toEqual({ total: 0, reportedCount: 0 });

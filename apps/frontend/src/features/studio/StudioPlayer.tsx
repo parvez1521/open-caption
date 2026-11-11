@@ -21,6 +21,10 @@ interface Props {
   /** phones: the Player's own controls would cover the captions, so a compact transport sits under the video
    *  instead, and the position grip moves to the frame edge (vertical drag) so it never covers the words */
   compact?: boolean;
+  /** overlay editing layer (OverlayStageLayer) rendered over the picture inside the
+   *  frame box — drag/resize/rotate for placed overlays (P4, 2026-11-11). Preview
+   *  chrome only: it is a sibling of the Player, never part of the composition. */
+  stageOverlay?: React.ReactNode;
   /** the project's platform preset for the safe-zone guide; falls back to the input's settings, then "custom" */
   platform?: Platform;
 }
@@ -28,7 +32,7 @@ interface Props {
 const clamp = (v: number) => Math.min(0.95, Math.max(0.05, v));
 
 /** The same CaptionedVideo composition that renders the export, plus a drag handle to place the captions. */
-export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, onTime, onPlayingChange, compact = false, platform }, ref) {
+export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
   const innerRef = useRef<PlayerRef | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -129,6 +133,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
             </div>
           )}
         />
+        {stageOverlay}
         {dragging ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-st-em/50" /> : null}
         {showSafeZone ? (
           <div data-safe-zone-guide="true" className="pointer-events-none absolute inset-0 z-10" aria-hidden>

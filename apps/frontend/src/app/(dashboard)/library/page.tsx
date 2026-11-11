@@ -9,7 +9,6 @@ import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
 import StudioShell from "@/components/studio/StudioShell";
 import { describeAssetLicence, formatBytes } from "@/features/studio/mediaAssets";
-import { StockAudioSection } from "@/features/studio/panels/StockAudioSection";
 import { clearAssetPreviews, deleteAsset, listAllAssets, type MediaAssetRecord } from "@/features/studio/mediaStore";
 import {
   DERIVED_KIND_LABELS,
@@ -65,7 +64,6 @@ export default function LibraryPage() {
   >(null);
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [cleanupNotice, setCleanupNotice] = useState<string | null>(null);
-  const [stockProjectId, setStockProjectId] = useState<string>("");
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -250,38 +248,9 @@ export default function LibraryPage() {
           ) : null}
         </div>
 
-        {signedIn && (
-          <section aria-label="Stock audio" className="mt-8 rounded-xl border border-sand-200 bg-white px-5 py-4">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 className="font-sora text-[14px] font-bold text-ink">Stock audio</h2>
-              <p className="text-[12px] text-sand-600">Bundled CC0 sound effects + browse-and-import from Pixabay</p>
-            </div>
-            <p className="mt-1.5 max-w-[72ch] text-[12px] leading-relaxed text-sand-700">
-              Added to the chosen project&apos;s media bin on this device, with its licence record attached.
-            </p>
-            <label className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-sand-800">
-              <span className="font-semibold">Add to project:</span>
-              <select
-                value={stockProjectId}
-                onChange={(e) => setStockProjectId(e.target.value)}
-                aria-label="Project to add stock audio to"
-                className="rounded-lg border border-sand-300 bg-white px-3 py-2 text-[13px] text-ink outline-none"
-              >
-                <option value="">Choose a project…</option>
-                {(projectsData?.projects ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
-              </select>
-            </label>
-            <div className="mt-4">
-              <StockAudioSection
-                projectId={stockProjectId || null}
-                tone="library"
-                onAdded={() => { void listAllAssets().then(setAssets); }}
-              />
-            </div>
-          </section>
-        )}
+        {/* Stock audio used to live here too; it moved out (owner order 2026-11-11):
+            the Library is footage/media only — sound effects live in the editor's
+            Sound Effects panel, which is where they are added to a project. */}
 
         {assets === null ? (
           <p role="status" className="pt-8 text-[14px] text-sand-700">Loading the media on this device…</p>

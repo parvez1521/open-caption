@@ -83,7 +83,7 @@ describe("computeTotals", () => {
     const totals = computeTotals(posts);
     expect(totals.status).toBe("ok");
     expect(totals.totalPosts).toBe(3);
-    expect(totals.sourceMix).toEqual({ manual: 1, csv: 2 });
+    expect(totals.sourceMix).toEqual({ manual: 1, csv: 2, youtube: 0, instagram: 0 });
     expect(totals.metrics.views).toMatchObject({ total: 350, reportedCount: 2, missingCount: 1 });
     expect(totals.metrics.likes).toMatchObject({ total: 15, reportedCount: 2, missingCount: 1 });
     expect(totals.metrics.reach).toMatchObject({ total: 50, reportedCount: 1, missingCount: 2 });
@@ -228,7 +228,7 @@ describe("computeCreatorAnalytics", () => {
     ];
     const analytics = computeCreatorAnalytics(posts);
     expect(analytics.totalPosts).toBe(2);
-    expect(analytics.sourceMix).toEqual({ manual: 1, csv: 1 });
+    expect(analytics.sourceMix).toEqual({ manual: 1, csv: 1, youtube: 0, instagram: 0 });
     expect(analytics.sourceFootnote).toBe("Based on 2 posts you entered: 1 by hand, 1 via CSV import");
     expect(analytics.totals.basis).toContain(analytics.sourceFootnote);
     expect(analytics.engagementRate.ratePct).toBe(10);

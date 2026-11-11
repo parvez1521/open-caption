@@ -31,7 +31,15 @@ describe("StockAudioSection", () => {
     const adds = screen.getAllByRole("button", { name: "Add to media bin" });
     expect(adds.length).toBeGreaterThanOrEqual(8);
     expect(adds.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
-    expect(screen.getAllByText(/Kenney · CC0 1\.0/).length).toBe(adds.length);
+    // every row carries its own CC0 licence line — Kenney for the starter
+    // recordings, Open Caption for the synthesized meme sounds (2026-11-11)
+    const kenneyLines = screen.getAllByText(/Kenney · CC0 1\.0/).length;
+    const synthLines = screen.getAllByText(/Open Caption · CC0 1\.0/).length;
+    expect(kenneyLines).toBe(12);
+    expect(synthLines).toBe(9);
+    expect(kenneyLines + synthLines).toBe(adds.length);
+    expect(screen.getByText("Meme sounds")).toBeTruthy();
+    expect(screen.getByText(/Original synthesized versions of the classic meme sounds/)).toBeTruthy();
   });
 
   it("with a saved key: the search surface appears and the key itself is never rendered", () => {

@@ -28,13 +28,30 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 
-const sourceMixOf = (posts: ReadonlyArray<GrowthPost>): { manual: number; csv: number } => ({
+export interface SourceMix {
+  manual: number;
+  csv: number;
+  youtube: number;
+  instagram: number;
+}
+
+export const sourceMixOf = (posts: ReadonlyArray<GrowthPost>): SourceMix => ({
   manual: posts.filter((p) => p.source === "manual").length,
   csv: posts.filter((p) => p.source === "csv").length,
+  youtube: posts.filter((p) => p.source === "youtube").length,
+  instagram: posts.filter((p) => p.source === "instagram").length,
 });
 
-const mixLabel = (mix: { manual: number; csv: number }): string =>
-  `${mix.manual} manual, ${mix.csv} CSV`;
+/** "3 manual, 1 CSV" — connected sources append only when present, so a
+ *  manual/CSV-only dataset keeps the exact wording it has always had. */
+export const sourceMixLabel = (mix: SourceMix): string => {
+  let label = `${mix.manual} manual, ${mix.csv} CSV`;
+  if (mix.youtube > 0) label += `, ${mix.youtube} YouTube`;
+  if (mix.instagram > 0) label += `, ${mix.instagram} Instagram`;
+  return label;
+};
+
+const mixLabel = sourceMixLabel;
 
 type Window = "current" | "prior" | null;
 
@@ -71,7 +88,7 @@ export interface OverviewSection {
   postsInWindow: number;
   priorWindowPosts: number;
   metrics: Record<MetricKey, { total: number; reportedCount: number }>;
-  sourceMix: { manual: number; csv: number };
+  sourceMix: SourceMix;
 }
 
 export function computeOverview(

@@ -16,7 +16,7 @@
 import React from "react";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectSettingsSchema, type OverlayItem } from "@capseasy/shared";
 import { SOCIAL_META } from "@capseasy/compositions";
@@ -178,18 +178,18 @@ describe("OverlayEditor social asset assignment (Wave 2 §5c)", () => {
     startMs: 0, endMs: 4000, x: 0.5, y: 0.78, scale: 1, rotation: 0, color: "#34D399",
   };
 
-  it("picking a bin image sets assetId + assetName on the item; Clear removes them", () => {
+  it("picking a bin image sets assetId + assetName on the item; clearing removes them", () => {
     setup();
     const onChange = vi.fn();
     const view = render(<OverlayEditor item={socialItem} onChange={onChange} onDelete={vi.fn()} mediaAssets={[asset]} onImportMedia={vi.fn(async () => [])} />);
-    const pick = [...view.container.querySelectorAll("button")].find((b) => b.textContent?.includes("me.png"));
-    expect(pick).toBeTruthy();
-    fireEvent.click(pick!);
+    // since P4 the picker is the shared template form's image field: a select of bin
+    // images (the behaviour pinned here is unchanged — only the widget moved)
+    const select = screen.getByLabelText("Avatar image") as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toContain("me.png");
+    fireEvent.change(select, { target: { value: "asset-1" } });
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assetId: "asset-1", assetName: "me.png" }));
     view.rerender(<OverlayEditor item={{ ...socialItem, assetId: "asset-1", assetName: "me.png" }} onChange={onChange} onDelete={vi.fn()} mediaAssets={[asset]} onImportMedia={vi.fn(async () => [])} />);
-    const clear = [...view.container.querySelectorAll("button")].find((b) => b.textContent === "Clear image");
-    expect(clear).toBeTruthy();
-    fireEvent.click(clear!);
+    fireEvent.change(screen.getByLabelText("Avatar image"), { target: { value: "" } });
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ assetId: undefined, assetName: undefined }));
     view.unmount();
   });

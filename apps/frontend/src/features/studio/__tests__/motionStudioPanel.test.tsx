@@ -1,10 +1,14 @@
 /**
  * MotionStudioPanel (follow-up 2026-11-11): Motion Studio inside the editor's right column.
- * Pins: every registry template is offered (same registry as /motion), search + category
- * chips filter through the registry's own search, and adding a template goes through the
- * shared overlay path (makeSocialOverlay + patch + select) with the item length set to the
+ * Pins: every registry template is offered (same registry as /motion), search filters
+ * through the registry's own search, and adding a template goes through the shared
+ * overlay path (makeSocialOverlay + patch + select) with the item length set to the
  * template's registry default duration. Previews stay posters here (the shared live budget
  * is never granted visibility in this harness).
+ *
+ * 2026-11-11 (owner order): the panel carries NO category filter UI — the pills the owner
+ * screenshotted are gone; search + the full list only. The /motion discovery page keeps
+ * its filters (different surface, pinned by its own tests).
  */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -69,9 +73,20 @@ describe("MotionStudioPanel", () => {
     setup();
     const { view } = renderPanel();
     expect(addButtons(view.container)).toHaveLength(MOTION_TEMPLATES.length);
-    expect(screen.getByRole("button", { name: `All (${MOTION_TEMPLATES.length})` })).toBeTruthy();
     const link = view.container.querySelector('a[href="/motion"]');
     expect(link?.textContent).toContain("full Motion Studio");
+    view.unmount();
+  });
+
+  it("has NO category filter UI (owner order 2026-11-11 — the pills are gone)", () => {
+    setup();
+    const { view } = renderPanel();
+    expect(view.container.querySelector('[aria-label="Motion template categories"]')).toBeNull();
+    expect(screen.queryByRole("button", { name: /^All \(\d+\)$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Youtube \(\d+\)$/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Instagram \(\d+\)$/ })).toBeNull();
+    // and with no filter state at all, the full list is what shows
+    expect(addButtons(view.container)).toHaveLength(MOTION_TEMPLATES.length);
     view.unmount();
   });
 
@@ -82,14 +97,6 @@ describe("MotionStudioPanel", () => {
     const labels = addButtons(view.container).map((b) => b.getAttribute("aria-label")).sort();
     expect(labels).toEqual(["Add Cursor Click Button", "Add Cursor Follow", "Add Cursor Like", "Add Cursor Subscribe"]);
     expect(labels).toHaveLength(4);
-    view.unmount();
-  });
-
-  it("a category chip filters to that category with the registry count", () => {
-    setup();
-    const { view } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Youtube (6)" }));
-    expect(addButtons(view.container)).toHaveLength(6);
     view.unmount();
   });
 

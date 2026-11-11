@@ -213,6 +213,8 @@ export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: s
     top: `${item.y * 100}%`,
     transform: `translate(-50%, -50%) rotate(${item.rotation}deg) scale(${item.scale})`,
     pointerEvents: "none",
+    // whole-item opacity (absent = untouched, so existing items render identically)
+    ...(item.opacity !== undefined ? { opacity: item.opacity } : {}),
   };
   // Package 3 item I.5: entrance/exit animation wraps the content in one extra div, and
   // ONLY when the item carries an animation — items without one render exactly as before.

@@ -11,7 +11,7 @@
  * did not fill stay empty: no title is ever invented here.
  */
 import type { GeneratedItem, Source } from "@/features/create/model";
-import { METRIC_KEYS, type MetricKey } from "./model";
+import { METRIC_KEYS, sourceLabelOf, type MetricKey } from "./model";
 import type { WeeklyReport } from "./report";
 
 export interface PlanRecommendation {
@@ -42,7 +42,7 @@ export interface WeeklyPlanBody {
   days: PlanDay[];
   reportSnapshot: {
     postsAnalysed: number;
-    sourceMix: { manual: number; csv: number };
+    sourceMix: { manual: number; csv: number; youtube: number; instagram: number };
     bestHours: { hour: number; posts: number; avgEngagement: number }[];
   };
 }
@@ -240,7 +240,7 @@ export function assemblePlan(input: AssemblePlanInput): WeeklyPlanBody {
     const topPost = report.topBottom.top[0]!;
     const engagement =
       (topPost.likes ?? 0) + (topPost.comments ?? 0) + (topPost.shares ?? 0) + (topPost.saves ?? 0);
-    const sourceLabel = topPost.source === "csv" ? "CSV" : "Manual";
+    const sourceLabel = sourceLabelOf(topPost.source);
     recommendations.push({
       text: `Your best post this period was '${topPost.title}' — plan a follow-up in the same format`,
       basis: `${engagement} engagement · ${sourceLabel} entry`,
@@ -316,6 +316,10 @@ export function readWeeklyPlan(body: unknown): WeeklyPlanBody | null {
   if (typeof snap.postsAnalysed !== "number" || !Number.isFinite(snap.postsAnalysed)) return null;
   if (!isRecord(snap.sourceMix)) return null;
   if (typeof snap.sourceMix.manual !== "number" || typeof snap.sourceMix.csv !== "number") return null;
+  // snapshots written before connected sources existed carry no youtube /
+  // instagram keys — they read as 0, never as a malformed plan
+  const snapYoutube = typeof snap.sourceMix.youtube === "number" ? snap.sourceMix.youtube : 0;
+  const snapInstagram = typeof snap.sourceMix.instagram === "number" ? snap.sourceMix.instagram : 0;
   if (!Array.isArray(snap.bestHours)) return null;
   const bestHours: WeeklyPlanBody["reportSnapshot"]["bestHours"] = [];
   for (const h of snap.bestHours) {
@@ -335,7 +339,7 @@ export function readWeeklyPlan(body: unknown): WeeklyPlanBody | null {
     days,
     reportSnapshot: {
       postsAnalysed: snap.postsAnalysed,
-      sourceMix: { manual: snap.sourceMix.manual, csv: snap.sourceMix.csv },
+      sourceMix: { manual: snap.sourceMix.manual, csv: snap.sourceMix.csv, youtube: snapYoutube, instagram: snapInstagram },
       bestHours,
     },
   };

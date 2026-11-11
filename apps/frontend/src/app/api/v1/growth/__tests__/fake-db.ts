@@ -35,12 +35,14 @@ const missingError = (table: string) => ({
 const TS = "2026-11-10T06:00:00.000Z";
 
 class FakeBuilder {
-  private mode: "select" | "insert" | "update" | "delete" = "select";
+  private mode: "select" | "insert" | "update" | "delete" | "upsert" = "select";
   private filters: Array<[string, unknown]> = [];
+  private inFilters: Array<[string, unknown[]]> = [];
   private orderSpec: { col: string; ascending: boolean } | null = null;
   private limitN: number | null = null;
   private inserted: Row | null = null;
   private updateRow: Row | null = null;
+  private upsertSpec: { row: Row; onConflict: string } | null = null;
   private executed: Row[] | null = null;
 
   constructor(
@@ -80,8 +82,19 @@ class FakeBuilder {
     return this;
   }
 
+  upsert(row: Row, opts?: { onConflict?: string }) {
+    this.mode = "upsert";
+    this.upsertSpec = { row, onConflict: opts?.onConflict ?? "" };
+    return this;
+  }
+
   eq(col: string, val: unknown) {
     this.filters.push([col, val]);
+    return this;
+  }
+
+  in(col: string, vals: unknown[]) {
+    this.inFilters.push([col, vals]);
     return this;
   }
 
@@ -99,11 +112,31 @@ class FakeBuilder {
     return this;
   }
 
-  private matches = (row: Row) => this.filters.every(([c, v]) => row[c] === v);
+  private matches = (row: Row) =>
+    this.filters.every(([c, v]) => row[c] === v) && this.inFilters.every(([c, vals]) => vals.includes(row[c]));
 
   private runWrite(): Row[] {
     if (this.executed) return this.executed;
-    const rows = this.state.tables[this.table]!;
+    const rows = (this.state.tables[this.table] ??= []);
+    if (this.mode === "upsert" && this.upsertSpec) {
+      const keys = this.upsertSpec.onConflict.split(",").map((k) => k.trim()).filter(Boolean);
+      const hit = rows.find((r) => keys.every((k) => r[k] === this.upsertSpec!.row[k]));
+      if (hit) {
+        Object.assign(hit, this.upsertSpec.row);
+        this.executed = [hit];
+      } else {
+        const full: Row = {
+          id: `00000000-0000-4000-8000-${String(++this.state.seq).padStart(12, "0")}`,
+          created_at: TS,
+          updated_at: TS,
+          ...this.upsertSpec.row,
+        };
+        rows.push(full);
+        this.state.inserts.push({ table: this.table, row: this.upsertSpec.row });
+        this.executed = [full];
+      }
+      return this.executed;
+    }
     if (this.mode === "update") {
       this.state.updates.push({ table: this.table, row: this.updateRow ?? {} });
       const hit = rows.filter(this.matches);
@@ -161,7 +194,7 @@ class FakeBuilder {
   then(onOk: (v: { data: unknown; error: unknown }) => unknown, onErr?: (e: unknown) => unknown) {
     if (this.state.missing) return Promise.resolve({ data: null, error: missingError(this.table) }).then(onOk, onErr);
     if (this.mode === "insert") return Promise.resolve({ data: null, error: null }).then(onOk, onErr);
-    if (this.mode === "update" || this.mode === "delete") {
+    if (this.mode === "update" || this.mode === "delete" || this.mode === "upsert") {
       this.runWrite();
       return Promise.resolve({ data: null, error: null }).then(onOk, onErr);
     }

@@ -16,7 +16,7 @@ export type MediaAssetKind = "video" | "audio" | "image";
  * the standing "check the track page" note, never claim the track is clear).
  */
 export interface AssetLicenceRecord {
-  source: "kenney" | "freesound" | "pixabay";
+  source: "kenney" | "freesound" | "pixabay" | "synth";
   /** the work's title at the source (for a pack item: pack name + original file name) */
   title: string;
   author: string | null;
@@ -33,7 +33,7 @@ export interface AssetLicenceRecord {
 
 /** One-line licence summary for an asset row: "Kenney · CC0 1.0" / "Pixabay Content License". */
 export function describeAssetLicence(l: AssetLicenceRecord): string {
-  const who = l.author ?? (l.source === "pixabay" ? "Pixabay" : l.source === "kenney" ? "Kenney" : "Freesound");
+  const who = l.author ?? (l.source === "pixabay" ? "Pixabay" : l.source === "kenney" ? "Kenney" : l.source === "synth" ? "Open Caption" : "Freesound");
   return `${who} · ${l.licence}`;
 }
 

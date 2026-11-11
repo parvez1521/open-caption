@@ -7,5 +7,5 @@ export type { CanvasSettings, RenderVideoSegment, SegmentEffectsResult, SegmentT
 export { KEYFRAME_EASING_FNS, sampleChannel, sampleSegmentAnimation } from "./keyframes";
 export type { SampledSegmentAnimation } from "./keyframes";
 export { BlurPresentation, blurPresentation, ZoomPresentation, zoomPresentation } from "./transitions";
-export { OVERLAY_ENTER_ANIMS, OVERLAY_EXIT_ANIMS, OVERLAY_SHAPE_META, OverlayShapeSvg, OverlayView, SHAPE_BASE_PX, TEXT_DEFAULT_FONT_PX, overlayAnimStyle } from "./overlays";
+export { IMAGE_BASE_PX, OVERLAY_ENTER_ANIMS, OVERLAY_EXIT_ANIMS, OVERLAY_SHAPE_META, OverlayShapeSvg, OverlayView, SHAPE_BASE_PX, TEXT_DEFAULT_FONT_PX, overlayAnimStyle } from "./overlays";
 export { SOCIAL_META, SocialOverlayView, overlayPhase, easeOutQuint, easeInOutCubic, springOut, cursorChoreoAt, shareFlightAt, chatTicksAt, countdownAt, bellRingDeg, counterAt, chatStackAt, orbitAngle, searchBarAt, socialSeededUnit, shade, typingAt, kineticTitleAt, glitchAt, neonFlickerAt, particleBurstAt, liveViewersAt, upvoteAt, formCardAt, audioBarsAt, postCardAt, repostAt, voiceCardAt } from "./social";

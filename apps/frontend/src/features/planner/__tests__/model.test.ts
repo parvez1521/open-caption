@@ -167,7 +167,7 @@ const weeklyPlanFixture: WeeklyPlanBody = {
     { date: "2026-11-21", items: [] },
     { date: "2026-11-22", items: [] },
   ],
-  reportSnapshot: { postsAnalysed: 3, sourceMix: { manual: 3, csv: 0 }, bestHours: [] },
+  reportSnapshot: { postsAnalysed: 3, sourceMix: { manual: 3, csv: 0, youtube: 0, instagram: 0 }, bestHours: [] },
 };
 
 describe("importWeeklyPlan", () => {

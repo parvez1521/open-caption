@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { OverlayItem } from "@capseasy/shared";
 import { OverlayView } from "@capseasy/compositions";
+import { placeholderAvatarForTemplate } from "@capseasy/motion";
 import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot } from "@/features/studio/panels/livePreviewBudget";
 import { socialStageFor } from "@/features/studio/panels/socialStage";
 
@@ -122,9 +123,14 @@ export const MotionPreview: React.FC<MotionPreviewProps> = ({ item, assetSrc, ti
 
   const scale = boxW > 0 ? boxW / stage.width : 0;
   const shownMs = controlled ? Math.min(Math.max(0, timeMs), durationMs) : loopMs;
+  // Preview-only placeholder: when the caller has no real asset to show, an
+  // avatar-bearing template previews with the generated placeholder face so the
+  // avatar area never reads blank. A caller's real asset always wins, and this
+  // component is never used for project renders or exports.
+  const effectiveAssetSrc = assetSrc ?? (variant ? (placeholderAvatarForTemplate(variant) ?? undefined) : undefined);
   const stageDiv = (it: OverlayItem, ms: number) => (
     <div style={{ width: stage.width, height: stage.height, transform: `scale(${scale})`, transformOrigin: "top left", position: "relative" }}>
-      <OverlayView item={it} sc={PREVIEW_SC} localMs={ms} assetSrc={assetSrc} />
+      <OverlayView item={it} sc={PREVIEW_SC} localMs={ms} assetSrc={effectiveAssetSrc} />
     </div>
   );
 

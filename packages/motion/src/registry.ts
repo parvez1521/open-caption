@@ -24,6 +24,11 @@ export interface MotionField {
   label: string;
   /** text fields only: how many "\n"-separated lines the variant consumes */
   maxLines?: number;
+  /** image fields only: what the image slot depicts — a person's avatar, or the
+   *  user's own QR code. Preview surfaces use this to pick an honest placeholder:
+   *  avatar slots get a generated placeholder face (avatars.ts); the QR slot never
+   *  gets a fake code. */
+  role?: "avatar" | "qr";
   defaultValue: string;
 }
 
@@ -53,7 +58,7 @@ function entry(s: EntrySpec): MotionTemplate {
     { key: "text", kind: "text", label: "Text lines", maxLines: s.maxLines, defaultValue: s.defaultText },
     { key: "color", kind: "color", label: "Accent colour", defaultValue: s.defaultColor },
   ];
-  if (s.image) fields.push({ key: "image", kind: "image", label: s.variant === "qr-frame" ? "QR image" : "Avatar image", defaultValue: "" });
+  if (s.image) fields.push({ key: "image", kind: "image", label: s.variant === "qr-frame" ? "QR image" : "Avatar image", role: s.variant === "qr-frame" ? "qr" : "avatar", defaultValue: "" });
   return {
     id: s.variant, variant: s.variant, title: s.title, category: s.category, description: s.description,
     fields, defaultText: s.defaultText, defaultColor: s.defaultColor,

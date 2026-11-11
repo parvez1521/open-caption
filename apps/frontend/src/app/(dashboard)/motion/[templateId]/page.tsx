@@ -19,7 +19,7 @@ import { deleteAsset, listProjectAssets, type MediaAssetRecord } from "@/feature
 import { MotionPreview } from "@/features/motion/MotionPreview";
 import { MotionExportSection } from "@/features/motion/MotionExportSection";
 import { MOTION_STAGING_PROJECT_ID, addMotionToProject, buildMotionOverlayItem } from "@/features/motion/addToProject";
-import { clampTextLines, lineLabelsFor } from "@/features/motion/lineLabels";
+import { MotionTemplateFields } from "@/features/motion/MotionTemplateFields";
 import { deleteMotionPreset, listMotionPresets, saveMotionPreset, type MotionPreset } from "@/features/motion/presets";
 import { motionCategoryLabel } from "@/features/motion/categoryLabel";
 import { projectsService } from "@/services/projects";
@@ -86,7 +86,6 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
   // image field: uploads are staged in the device media bin under the Motion Studio staging
   // project; "Add to project" copies the record into the target project's bin (addToProject.ts)
   const staging = useMediaAssets(MOTION_STAGING_PROJECT_ID);
-  const fileRef = useRef<HTMLInputElement>(null);
   const [asset, setAsset] = useState<MediaAssetRecord | null>(null);
   const [assetError, setAssetError] = useState<string | null>(null);
   const assetSrc = useMemo(() => (asset ? URL.createObjectURL(asset.blob) : undefined), [asset]);
@@ -215,7 +214,6 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
     setAsset(null);
   };
 
-  const lineLabels = lineLabelsFor(template.id);
   const backdropStyle = BACKDROPS.find((b) => b.id === backdrop)!.style;
 
   return (
@@ -279,92 +277,25 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
           {/* controls (secondary, right column) */}
           <div className="space-y-8 lg:col-span-5">
             <section aria-label="Customise" className="space-y-4">
-              {template.fields.map((field) => {
-                if (field.kind === "text") {
-                  return (
-                    <label key={field.key} className="block text-[13px] font-medium text-sand-800">
-                      <span className="mb-1.5 block">{field.label}</span>
-                      <textarea
-                        value={text}
-                        rows={Math.min(field.maxLines ?? 3, 6)}
-                        onChange={(e) => setText(clampTextLines(e.target.value, field.maxLines))}
-                        aria-label={field.label}
-                        className="w-full rounded-lg border border-sand-200 bg-sand-50 px-3 py-2 text-[14px] text-ink outline-none focus:border-sand-400"
-                      />
-                      <span className="mt-1 block text-[12px] font-normal text-sand-600">
-                        {lineLabels ? `Lines: ${lineLabels.join(" / ")}.` : "One line per part."} Up to {field.maxLines ?? 1} {(field.maxLines ?? 1) === 1 ? "line" : "lines"}.
-                      </span>
-                    </label>
-                  );
-                }
-                if (field.kind === "color") {
-                  return (
-                    <div key={field.key} className="rounded-lg border border-sand-200 bg-sand-50 px-3 py-2">
-                      <ColorField label={field.label} value={color} onChange={setColor} />
-                    </div>
-                  );
-                }
-                return (
-                  <div key={field.key} className="text-[13px] font-medium text-sand-800">
-                    <span className="mb-1.5 block">{field.label}</span>
-                    {asset ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="min-w-0 flex-1 truncate rounded-lg border border-sand-200 bg-sand-50 px-3 py-2 text-[13px] text-ink">{asset.name}</span>
-                        <button type="button" onClick={() => fileRef.current?.click()} className="rounded-full border border-sand-200 bg-sand-50 px-3.5 py-1.5 text-[12px] font-semibold text-ink transition hover:border-sand-300">Replace</button>
-                        <button type="button" onClick={onRemoveImage} className="rounded-full border border-sand-200 bg-sand-50 px-3.5 py-1.5 text-[12px] font-semibold text-orange-accent transition hover:border-sand-300">Remove</button>
-                      </div>
-                    ) : (
-                      <button type="button" onClick={() => fileRef.current?.click()} disabled={staging.importing} className="rounded-full border border-sand-200 bg-sand-50 px-4 py-2 text-[13px] font-semibold text-ink transition hover:border-sand-300 disabled:opacity-50">
-                        {staging.importing ? "Adding…" : `Upload ${field.label.toLowerCase()}`}
-                      </button>
-                    )}
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      aria-label={`Upload ${field.label}`}
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = "";
-                        if (f) void onUploadImage(f);
-                      }}
-                    />
-                    {assetError ? <p role="alert" className="mt-1.5 text-[12px] font-normal text-orange-accent">{assetError}</p> : null}
-                    <span className="mt-1 block text-[12px] font-normal text-sand-600">Kept in this browser. When you add the graphic to a project, the image is copied into that project&apos;s media bin.</span>
-                  </div>
-                );
-              })}
-
-              <div className="text-[13px] font-medium text-sand-800">
-                <span className="mb-1.5 block">Duration</span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={DURATION_MIN}
-                    max={DURATION_MAX}
-                    step={100}
-                    value={durationMs}
-                    onChange={(e) => setDurationMs(clampDuration(Number(e.target.value)))}
-                    aria-label="Duration in milliseconds"
-                    className="flex-1 accent-[#34D399]"
-                  />
-                  <span className="flex items-center gap-1.5">
-                    <input
-                      type="number"
-                      min={DURATION_MIN}
-                      max={DURATION_MAX}
-                      step={100}
-                      value={durationMs}
-                      onChange={(e) => setDurationMs(clampDuration(Number(e.target.value)))}
-                      aria-label="Duration value in milliseconds"
-                      className="w-24 rounded-lg border border-sand-200 bg-sand-50 px-2.5 py-1.5 text-[13px] tabular-nums text-ink outline-none focus:border-sand-400"
-                    />
-                    <span className="text-[12px] text-sand-600">ms</span>
-                  </span>
-                </div>
-                <span className="mt-1 block text-[12px] font-normal text-sand-600">Between {DURATION_MIN} ms and {DURATION_MAX} ms — the same bounds the graphic itself accepts.</span>
-              </div>
+              {/* The form is the SHARED MotionTemplateFields — the Studio inspector's
+                  "Edit template" block renders the same component (P4, 2026-11-11). */}
+              <MotionTemplateFields
+                template={template}
+                text={text}
+                color={color}
+                onTextChange={setText}
+                onColorChange={setColor}
+                image={{
+                  assetName: asset?.name ?? null,
+                  onSelect: (next) => { if (next === null) onRemoveImage(); },
+                  onUpload: (f) => void onUploadImage(f),
+                  busy: staging.importing,
+                  error: assetError,
+                }}
+                durationMs={durationMs}
+                onDurationChange={setDurationMs}
+                tone="page"
+              />
               {!configValid ? <p role="alert" className="text-[12px] text-orange-accent">Check the colour (it needs a #rrggbb hex value) — the graphic can&apos;t be added until it is valid.</p> : null}
             </section>
 
