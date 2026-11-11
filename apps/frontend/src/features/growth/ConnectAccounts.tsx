@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiClient } from "@/services/api-client";
 
 /**
  * "Connect your accounts" (Growth Studio P1, 2026-11-11).
@@ -12,7 +13,8 @@ import { useCallback, useEffect, useState } from "react";
  *    otherwise — just the plain fact.
  *  - setup pending: credentials exist but the database update
  *    (APPLY-GROWTH-CONNECT.sql) has not been applied.
- *  - connect: a real link into the server OAuth flow.
+ *  - connect: a button that fetches the server OAuth URL (authed) and
+ *    navigates to the provider.
  *  - connected: account name, last sync, Sync now, Disconnect (two-step,
  *    with the "synced posts stay" fact stated before confirming).
  * Instagram carries one extra plain line: views/reach/shares/saves arrive
@@ -45,16 +47,15 @@ const primaryBtn =
 const ghostBtn =
   "inline-flex items-center justify-center rounded-full border border-sand-300 bg-sand-50 px-4 py-2 font-sora text-[12.5px] font-semibold text-obsidian transition hover:bg-sand-100 disabled:opacity-50";
 
-async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
-  const body = (await res.json().catch(() => null)) as
-    | { success: true; data: T }
-    | { success: false; error: { message: string } }
-    | null;
-  if (!body || body.success !== true) {
-    throw new Error(body && body.success === false ? body.error.message : "Something went wrong — try again.");
-  }
-  return body.data;
+/**
+ * Every call goes through the shared apiClient, which attaches the session's
+ * Bearer token — the API's only auth channel. (Bugfix 2026-11-11: this panel
+ * originally used raw fetch with no token, so the status route answered 401
+ * and the section could only ever render its "couldn't load" state in a real
+ * browser; the fetch-stubbed panel tests never modelled auth, so it shipped.)
+ */
+async function api<T>(path: string, init?: { method?: string }): Promise<T> {
+  return init?.method === "POST" ? apiClient.post<T>(path) : apiClient.get<T>(path);
 }
 
 const platformName = (value: string | null): string =>
@@ -71,7 +72,7 @@ export function ConnectAccounts({ onSynced }: { onSynced: () => void }) {
 
   const load = useCallback(async () => {
     try {
-      setStatus(await api<StatusResponse>("/api/v1/growth/connections"));
+      setStatus(await api<StatusResponse>("/growth/connections"));
       setLoadFailed(false);
     } catch {
       setLoadFailed(true);
@@ -112,11 +113,28 @@ export function ConnectAccounts({ onSynced }: { onSynced: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * The start route answers JSON { url } to an authed call (a bare browser
+   * navigation could never carry the Bearer token — see the route), so the
+   * button fetches the provider URL through the apiClient and navigates.
+   */
+  const startConnect = async (platform: Platform) => {
+    setBusyKey(`${platform}:connect`);
+    setRowError((m) => ({ ...m, [platform]: undefined }));
+    try {
+      const { url } = await api<{ url: string }>(`/growth/connect/${platform}/start`);
+      window.location.href = url;
+    } catch (err) {
+      setRowError((m) => ({ ...m, [platform]: err instanceof Error ? err.message : "Connect didn't open — try again." }));
+      setBusyKey(null);
+    }
+  };
+
   const syncNow = async (platform: Platform) => {
     setBusyKey(`${platform}:sync`);
     setRowError((m) => ({ ...m, [platform]: undefined }));
     try {
-      const result = await api<{ synced: number }>(`/api/v1/growth/connect/${platform}/sync`, { method: "POST" });
+      const result = await api<{ synced: number }>(`/growth/connect/${platform}/sync`, { method: "POST" });
       setRowNote((m) => ({ ...m, [platform]: `Synced ${result.synced} posts just now.` }));
       onSynced();
       await load();
@@ -131,7 +149,7 @@ export function ConnectAccounts({ onSynced }: { onSynced: () => void }) {
     setBusyKey(`${platform}:disconnect`);
     setRowError((m) => ({ ...m, [platform]: undefined }));
     try {
-      await api(`/api/v1/growth/connect/${platform}/disconnect`, { method: "POST" });
+      await api(`/growth/connect/${platform}/disconnect`, { method: "POST" });
       setConfirming(null);
       setRowNote((m) => ({ ...m, [platform]: "Disconnected. Posts already synced stay in your list." }));
       await load();
@@ -212,9 +230,9 @@ export function ConnectAccounts({ onSynced }: { onSynced: () => void }) {
           </p>
         ) : (
           <div className="mt-3">
-            <a className={primaryBtn} href={`/api/v1/growth/connect/${row.platform}/start`}>
-              Connect {meta.name}
-            </a>
+            <button type="button" className={primaryBtn} disabled={busyKey !== null} onClick={() => void startConnect(row.platform)}>
+              {busyKey === `${row.platform}:connect` ? "Opening…" : `Connect ${meta.name}`}
+            </button>
             {row.platform === "instagram" ? (
               <p className="mt-2 text-[12px] leading-relaxed text-sand-600">
                 Views, reach, shares and saves arrive once Meta approves the app&apos;s insights permission — until
