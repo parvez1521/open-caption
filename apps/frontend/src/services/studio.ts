@@ -157,7 +157,7 @@ export const studioService = {
    * the project + video row and stores the (already segment-shifted) caption doc; it returns the
    * NEW video id so the caller can copy the on-device video bytes to it (see features/clipper).
    */
-  async createClip(projectId: string, body: { title: string; startMs: number; endMs: number; doc: CaptionDoc; reframe?: { x: number; y: number; zoom: number } }): Promise<{ project: { id: string; title: string }; videoId: string | null }> {
+  async createClip(projectId: string, body: { title: string; startMs: number; endMs: number; doc: CaptionDoc; reframe?: { x: number; y: number; zoom: number }; aspect?: "9:16" | "1:1" | "16:9"; cropPath?: { scenes: { startMs: number; endMs: number; window: { x: number; y: number; zoom: number }; keyframes: { atMs: number; property: "offsetX" | "offsetY"; value: number }[] }[] } }): Promise<{ project: { id: string; title: string }; videoId: string | null }> {
     return apiClient.post(`/projects/${projectId}/clips`, { json: body });
   },
 

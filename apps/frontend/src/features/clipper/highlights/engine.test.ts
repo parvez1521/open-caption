@@ -34,7 +34,7 @@ function fillerSentences(n: number): string[] {
   return Array.from({ length: n }, (_, i) => `Filler sentence number ${i} about ordinary things that happened today.`);
 }
 
-const NO_ANALYSIS: ClipAnalysisInput = { silences: [], sceneCuts: null };
+const NO_ANALYSIS: ClipAnalysisInput = { silences: [] };
 const REQ: HighlightRequest = { contentType: "podcast", clipCount: 3, minSec: 15, maxSec: 90, aspect: "9:16" };
 
 const clipJson = (clips: unknown[]): string => JSON.stringify({ clips });

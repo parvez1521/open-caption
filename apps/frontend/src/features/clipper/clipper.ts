@@ -20,7 +20,8 @@ import {
 } from "./analysis";
 import { studioService } from "@/services/studio";
 import { getLocalVideo, saveLocalVideo } from "@/features/upload/localVideos";
-import { clampCropWindow, type CropWindow } from "./reframe";
+import { clampCropWindow, type ClipAspectId, type CropWindow } from "./reframe";
+import type { CropSceneWire } from "./cropPath";
 import { ProjectSettingsSchema, newId, type OverlayItem } from "@capseasy/shared";
 import { validateMediaFile, type AssetLicenceRecord } from "@/features/studio/mediaAssets";
 import { probeMediaFile } from "@/features/studio/mediaProbe";
@@ -105,6 +106,14 @@ export async function createClipProject(input: {
    */
   reframeWindow?: CropWindow;
   /**
+   * AI Clipping Studio: the target aspect for this clip (9:16 default semantics
+   * when absent) and, when a per-scene crop PATH was planned on-device, the
+   * path wire — sent instead of `reframeWindow`; the clips API re-derives the
+   * stored segments from the video row's own dimensions either way.
+   */
+  aspect?: ClipAspectId;
+  cropPath?: { scenes: CropSceneWire[] };
+  /**
    * Package 3 item I.3: element overlays the user TICKED from the suggestion strip
    * (clip-relative times, built by suggestions.ts). Only ticked elements ever arrive
    * here — with none ticked this is absent/empty and nothing is placed. They are
@@ -126,6 +135,8 @@ export async function createClipProject(input: {
     endMs: input.endMs,
     doc,
     ...(input.reframeWindow ? { reframe: clampCropWindow(input.reframeWindow) } : {}),
+    ...(input.aspect ? { aspect: input.aspect } : {}),
+    ...(input.cropPath ? { cropPath: input.cropPath } : {}),
   });
   let videoCopied = false;
   if (created.videoId && input.sourceVideoId && created.videoId !== input.sourceVideoId) {
