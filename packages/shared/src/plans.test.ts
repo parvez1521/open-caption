@@ -28,6 +28,14 @@ describe("plans config", () => {
     }
   });
 
+  it("display names are Free/Starter/Plus/Pro while ids stay free/starter/growth/pro", () => {
+    // The ₹499 tier's DISPLAY name is "Plus" (renamed from "Growth" to end the
+    // clash with the Growth Studio product); its id deliberately stays
+    // "growth" — that string is the billing identity on profiles/payments.
+    expect(PLAN_PRICING.map((p) => p.name)).toEqual(["Free", "Starter", "Plus", "Pro"]);
+    expect(pricingFor("growth").name).toBe("Plus");
+  });
+
   it("paid tiers only ever RAISE the scale limits, monotonically", () => {
     const order = ["free", "starter", "growth", "pro"] as const;
     for (const key of ["maxProjects", "maxDurationSec", "maxUploadBytes", "exportRetentionDays"] as const) {

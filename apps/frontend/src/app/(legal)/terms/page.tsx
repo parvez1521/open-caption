@@ -31,7 +31,7 @@ export default function TermsPage() {
 
       <Sec id="plans" title="3. Free service and limits">
         <p>The <strong>Free</strong> plan currently includes videos up to {Math.round(free.maxDurationSec / 60)} minutes and {Math.round(free.maxUploadBytes / (1024 * 1024))} MB, up to {free.maxProjects} projects, with exports kept for {free.exportRetentionDays} days. Transcription runs in your browser and is unlimited.</p>
-        <p>Paid plans (Starter, Growth and Pro) raise those limits for 30 days at a time. They are sold as one-time 30-day passes at the prices published on the <Link href="/pricing">Pricing page</Link>, with payment processed by Cashfree. A pass never renews or charges you automatically: when its 30 days end, your account returns to Free limits and your projects are untouched. Nothing is ever charged unless you explicitly buy a pass.</p>
+        <p>Paid plans (Starter, Plus and Pro) raise those limits for 30 days at a time. They are sold as one-time 30-day passes at the prices published on the <Link href="/pricing">Pricing page</Link>, with payment processed by Cashfree. A pass never renews or charges you automatically: when its 30 days end, your account returns to Free limits and your projects are untouched. Nothing is ever charged unless you explicitly buy a pass.</p>
       </Sec>
 
       <Sec id="content" title="4. Your content">

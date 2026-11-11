@@ -103,8 +103,11 @@ export const PLAN_PRICING: PlanPricing[] = [
     ],
   },
   {
+    // Display name renamed Growth → Plus (owner, 2026-11-11) to end the clash
+    // with the Growth Studio product. The id stays "growth" on purpose: it is
+    // the billing/webhook identity stored on profiles and payments.
     id: "growth",
-    name: "Growth",
+    name: "Plus",
     tagline: "For creators publishing every day.",
     priceInr: 499,
     priceUsd: 6,
