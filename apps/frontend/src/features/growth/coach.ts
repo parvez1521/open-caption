@@ -143,6 +143,27 @@ export function buildGrowthContext(
   return lines.join("\n");
 }
 
+/**
+ * The VERIFIED UI map: where things actually are in Growth Studio, with the
+ * exact on-screen labels. Read off app/(dashboard)/growth/page.tsx and
+ * features/growth/ConnectAccounts.tsx on 2026-11-11, after the coach sent
+ * the owner to places that do not exist ("Settings → Platforms", a "Data
+ * section", an "Import CSV" button — none of which the product has: there
+ * is no Settings surface for growth data and the CSV button carries the
+ * row count, not the words "Import CSV"). coach.test.ts pins every label
+ * below against the real components, so a future rename breaks the test
+ * instead of silently making the coach lie again.
+ */
+export const COACH_UI_MAP = [
+  "Growth Studio is ONE page — everything below is on that page, in this order. Growth data has no separate settings or data page; never send the user to one.",
+  '- "Connect your accounts" (top of the page): a YouTube card and an Instagram card. An account that is not connected shows a "Connect YouTube" or "Connect Instagram" button; a connected account shows "Sync now" and "Disconnect" buttons.',
+  '- "Growth Coach": this chat, directly under "Connect your accounts".',
+  '- "Your posts": the "Add a post" form (fields: Platform, Posted at, Title, Post URL, Views, Reach, Likes, Comments, Shares, Saves) with an "Add post" button. Each listed post has "Edit" and "Delete" buttons; while editing, the form\'s button reads "Save changes".',
+  '- "Import from CSV": a "Download the template" button and a "Choose a CSV file" picker; after a file is chosen, an import button labelled with the row count (for example "Import 12 posts").',
+  '- "Competitors": an "Add a competitor" form with an "Add competitor" button.',
+  '- "Weekly report" and "Weekly plan": read-only report cards, plus a "Draft next week\'s plan" button in the plan section.',
+].join("\n");
+
 /** The no-invention contract, pinned by tests. */
 export const COACH_SYSTEM_PROMPT = [
   "You are the Growth Coach inside Open Caption's Growth Studio, answering questions about the signed-in creator's OWN post performance.",
@@ -152,6 +173,7 @@ export const COACH_SYSTEM_PROMPT = [
   "- A figure described as 'not entered' was never recorded: treat it as missing, never as zero.",
   "- If the dataset does not contain what a question needs, say so plainly and name what the user can add (more posts, a CSV import) or connect (their YouTube or Instagram account) to answer it.",
   "- Do not quote generic social-media statistics, benchmarks, or other creators' numbers — only this user's data.",
+  "- When you tell the user where to do something in the product, cite ONLY the sections and labels in the UI MAP included below the dataset, exactly as written there. If the map does not cover what they need, describe what they are trying to do WITHOUT naming a place — never invent a section, page, or button.",
   "- Be brief and concrete: lead with the answer, then cite the posts or figures it rests on.",
 ].join("\n");
 
@@ -172,6 +194,7 @@ export function buildCoachPrompt(
   const user = [
     "DATASET:",
     context,
+    `\nUI MAP (the only places and labels you may cite):\n${COACH_UI_MAP}`,
     turns ? `\nEarlier in this conversation:\n${turns}` : "",
     `\nQuestion: ${question}`,
   ]

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { GrowthPost } from "../model";
 import {
@@ -8,6 +10,7 @@ import {
 } from "../report";
 import {
   COACH_SYSTEM_PROMPT,
+  COACH_UI_MAP,
   buildCoachPrompt,
   buildGrowthContext,
   starterQuestions,
@@ -102,6 +105,65 @@ describe("the no-invention contract", () => {
     expect(prompt.user).toContain("Question: Why did reach drop?");
     expect(prompt.user).toContain("User: Earlier question");
     expect(prompt.user).toContain("Coach: Earlier answer");
+  });
+});
+
+describe("the verified UI map", () => {
+  it("reaches the model: the map rides with the dataset and the system prompt restricts citations to it", () => {
+    const prompt = buildCoachPrompt("How do I bring in past posts?", "DATASET-TEXT");
+    expect(prompt.user).toContain("UI MAP");
+    expect(prompt.user).toContain(COACH_UI_MAP);
+    expect(prompt.system).toContain("cite ONLY the sections and labels in the UI MAP");
+    expect(prompt.system).toContain("never invent a section, page, or button");
+  });
+
+  it("does not resurrect the places the coach once invented", () => {
+    expect(COACH_UI_MAP).not.toContain("Settings → Platforms");
+    expect(COACH_UI_MAP).not.toContain("Data section");
+    // The CSV button is never described with the invented bare label.
+    expect(COACH_UI_MAP).not.toContain('"Import CSV" button');
+  });
+
+  it("every label the map cites exists in the real components (a rename breaks this test, on purpose)", () => {
+    // Resolved from the frontend package root (vitest's cwd); import.meta.url
+    // is not a file URL under the jsdom environment.
+    const page = readFileSync(resolve(process.cwd(), "src/app/(dashboard)/growth/page.tsx"), "utf8");
+    const connect = readFileSync(resolve(process.cwd(), "src/features/growth/ConnectAccounts.tsx"), "utf8");
+
+    // Sections and controls on the Growth Studio page itself.
+    for (const label of [
+      "Your posts",
+      "Add a post",
+      "Add post",
+      "Save changes",
+      "Import from CSV",
+      "Download the template",
+      "Choose a CSV file",
+      "Competitors",
+      "Add a competitor",
+      "Add competitor",
+      "Weekly report",
+      "Weekly plan",
+      "Draft next week's plan",
+    ]) {
+      expect(COACH_UI_MAP, `map should cite "${label}"`).toContain(label);
+      expect(page, `page should render "${label}"`).toContain(label);
+    }
+    // The CSV import button is labelled with the row count, e.g. "Import 12 posts".
+    expect(page).toContain("Import ${csvRows.length}");
+    expect(COACH_UI_MAP).toContain("Import 12 posts");
+
+    // The connect section and its controls.
+    for (const label of ["Connect your accounts", "Sync now", "Disconnect"]) {
+      expect(COACH_UI_MAP, `map should cite "${label}"`).toContain(label);
+      expect(connect, `connect panel should render "${label}"`).toContain(label);
+    }
+    // The Connect buttons are composed as `Connect ${name}` from the platform names.
+    expect(connect).toContain("Connect ${meta.name}");
+    expect(connect).toContain('name: "YouTube"');
+    expect(connect).toContain('name: "Instagram"');
+    expect(COACH_UI_MAP).toContain("Connect YouTube");
+    expect(COACH_UI_MAP).toContain("Connect Instagram");
   });
 });
 

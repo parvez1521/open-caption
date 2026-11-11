@@ -171,6 +171,30 @@ describe("GrowthCoach", () => {
     expectEveryCallAuthed();
   });
 
+  it("markdown answers render formatted (no raw markers); the user's own message stays literal", async () => {
+    stubFetch((url, init) => {
+      if (init?.method === "POST") {
+        return envelope({
+          configured: true,
+          answer:
+            "You have no posts tracked yet.\n\n**How to bring in past posts**\n\n- Import a CSV from the section below\n- Or add each post by hand",
+        });
+      }
+      return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
+    });
+    render(<GrowthCoach starters={[]} />);
+    const input = await screen.findByLabelText("Ask about your analytics");
+    fireEvent.change(input, { target: { value: "why did **reach** drop?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+    const heading = await screen.findByText("How to bring in past posts");
+    expect(heading.tagName).toBe("STRONG");
+    expect(screen.getByText("Import a CSV from the section below")).toBeTruthy();
+    expect(document.body.textContent).not.toContain("**How to bring");
+    // The user's own words are theirs: asterisks they typed stay literal.
+    expect(screen.getByText("why did **reach** drop?")).toBeTruthy();
+    expectEveryCallAuthed();
+  });
+
   it("configured: provider badge (honest label), starter chips, and an answer round-trip", async () => {
     stubFetch((url, init) => {
       if (init?.method === "POST") return envelope({ configured: true, answer: "Reach fell because your top post aged out." });

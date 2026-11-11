@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiClient } from "@/services/api-client";
+import { MarkdownText } from "./markdown";
 
 /**
  * Growth Coach panel (P2, 2026-11-11): ask questions about your OWN numbers.
@@ -19,6 +20,13 @@ import { apiClient } from "@/services/api-client";
  * Calls go through the shared apiClient (Bearer token attached): the API
  * accepts no other auth, and raw fetch here is what left this panel stuck
  * on its "couldn't load" state in real browsers (bugfix 2026-11-11).
+ *
+ * Rendering: assistant replies go through the markdown-subset renderer in
+ * ./markdown (the model answers in markdown; rendered as plain text the
+ * markers showed raw — bugfix 2026-11-11). The renderer builds React
+ * nodes only, so model output can never become live markup. The user's
+ * own messages stay plain text — they are short typed questions, and
+ * markdown would mangle things like "2 * 3".
  */
 
 interface ChatStatus {
@@ -134,7 +142,11 @@ export function GrowthCoach({ starters }: { starters: string[] }) {
                         : "w-fit max-w-[92%] rounded-2xl rounded-bl-md border border-sand-200 bg-white/70 px-4 py-2.5 text-[13.5px] leading-relaxed text-obsidian"
                     }
                   >
-                    <p className="whitespace-pre-wrap">{turn.content}</p>
+                    {turn.role === "user" ? (
+                      <p className="whitespace-pre-wrap">{turn.content}</p>
+                    ) : (
+                      <MarkdownText text={turn.content} />
+                    )}
                   </div>
                 ))}
                 {sending ? <p className="text-[12.5px] text-sand-600">Thinking over your numbers…</p> : null}
