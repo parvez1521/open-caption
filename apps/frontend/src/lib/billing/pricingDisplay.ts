@@ -12,3 +12,20 @@ export function priceLabel(entry: PlanPricing, currency: DisplayCurrency): strin
   if (currency === "INR") return entry.priceInr === 0 ? "₹0" : `₹${entry.priceInr.toLocaleString("en-IN")}`;
   return entry.priceUsd === 0 ? "$0" : `$${entry.priceUsd}`;
 }
+
+/**
+ * Upload-limit display in the SAME units the plan feature bullets use
+ * (binary: the limits are 50/200/500 × 1024² and 2 × 1024³). Deep-audit B5:
+ * the pricing summary line divided by 1,000,000 and showed different numbers
+ * (52/210/524/2147 MB) from the bullets on the very same card.
+ */
+export function uploadLimitLabel(maxUploadBytes: number): string {
+  const mib = maxUploadBytes / (1024 * 1024);
+  if (mib >= 1024) return `${Math.round(mib / 1024)} GB`;
+  return `${Math.round(mib)} MB`;
+}
+
+/** Project-count display with thousands separators (1,000 — not 1000). */
+export function projectCountLabel(maxProjects: number): string {
+  return maxProjects.toLocaleString("en-US");
+}

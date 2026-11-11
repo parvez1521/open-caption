@@ -73,6 +73,22 @@ describe("securityHeaders", () => {
     expect(buildContentSecurityPolicy(true)).toContain("'unsafe-eval'");
   });
 
+  it("allows the Pixabay stock imports (deep-audit B2: search API + CDN media)", () => {
+    const connect = directive("connect-src");
+    expect(connect).toContain("https://api.pixabay.com");
+    expect(connect).toContain("https://cdn.pixabay.com");
+    expect(directive("img-src")).toContain("https://cdn.pixabay.com");
+    expect(directive("media-src")).toContain("https://cdn.pixabay.com");
+  });
+
+  it("lets the Teleprompter recorder use this origin's camera/mic (deep-audit B1)", () => {
+    const pp = securityHeaders.find((h) => h.key === "Permissions-Policy")?.value ?? "";
+    expect(pp).toContain("camera=(self)");
+    expect(pp).toContain("microphone=(self)");
+    expect(pp).toContain("geolocation=()");
+    expect(pp).toContain("payment=()");
+  });
+
   it("the deliberate-error Sentry debug route no longer exists in the app", () => {
     const routeFile = fileURLToPath(new URL("../../app/api/cron/sentry-test/route.ts", import.meta.url));
     expect(existsSync(routeFile)).toBe(false);

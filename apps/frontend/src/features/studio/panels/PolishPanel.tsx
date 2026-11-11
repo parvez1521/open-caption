@@ -113,7 +113,7 @@ export const PolishPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
     <div className="h-full overflow-y-auto">
       <Section
         title="One-click Polish"
-        more="The pass is built from the editor's own tools: filler and long-pause cuts, punch-in zooms, a caption look, a title card and music ducking. Every step can be unchecked, applying is one undo step, and each applied step can be reverted on its own. Steps marked AI-suggested had a choice made by the badged source; everything else is a deterministic automatic step. Where a choice exists — the caption look, the zoom intensity, the title — the free AI or on-device model may suggest it when available; otherwise the plan uses its stated defaults and labels those steps automatic."
+        more="Built from the editor's own tools: filler and pause cuts, punch-in zooms, a caption look, a title and music ducking. Steps can be unchecked; applying is one undo step, and each step reverts on its own. AI-suggested steps had a choice made by the badged source; the rest run automatically on the stated defaults."
       >
         {!plan && !record ? (
           <div className="space-y-2">

@@ -18,6 +18,11 @@ import { metadata as loginMetadata } from "../../app/login/layout";
 import { metadata as startMetadata } from "../../app/start/layout";
 import { metadata as dashboardMetadata } from "../../app/(dashboard)/dashboard/layout";
 import { metadata as motionMetadata } from "../../app/(dashboard)/motion/layout";
+import { metadata as analyticsMetadata } from "../../app/(dashboard)/analytics/layout";
+import { metadata as analyzerMetadata } from "../../app/(dashboard)/analyzer/layout";
+import { metadata as growthMetadata } from "../../app/(dashboard)/growth/layout";
+import { metadata as plannerMetadata } from "../../app/(dashboard)/planner/layout";
+import { metadata as prompterMetadata } from "../../app/(dashboard)/prompter/layout";
 import { metadata as privacyMetadata } from "../../app/(legal)/privacy/page";
 import { metadata as termsMetadata } from "../../app/(legal)/terms/page";
 
@@ -54,11 +59,22 @@ describe("sitemap", () => {
     expect(urls.some((u) => u.includes("/api/"))).toBe(false);
   });
 
+  it("lists every URL exactly once (deep-audit B4: /credits was duplicated via LEGAL_PAGES + a manual append)", () => {
+    expect(new Set(urls).size).toBe(urls.length);
+    expect(new Set(INDEXABLE_PATHS).size).toBe(INDEXABLE_PATHS.length);
+  });
+
+  it("keeps the JSON-LD feature list in step with the site's own copy (150 looks)", () => {
+    const ld = softwareApplicationJsonLd();
+    expect(ld.featureList).toContain("150 animated caption looks");
+    expect(ld.featureList.join(" ")).not.toContain("20+ animated");
+  });
+
   it("does not list /motion or any /motion/<template> detail URL (Wave-4 audit decision)", () => {
     // Motion Studio is an app route behind sign-in, like every other dashboard
     // section: sitemap.ts lists exactly INDEXABLE_PATHS, the customize pages are
     // per-template views of that one noindex route, so neither /motion nor the
-    // 30 template URLs belong in the sitemap. Crawl protection for them is the
+    // 46 template URLs belong in the sitemap. Crawl protection for them is the
     // noindex metadata (motion/layout.tsx) + the robots disallow below.
     expect(APP_PATHS).toContain("/motion");
     expect(urls).not.toContain(`${SITE_URL}/motion`);
@@ -188,6 +204,24 @@ describe("per-route metadata (shipped modules)", () => {
     expect(motionMetadata.title).toBe("Motion Studio");
     expect(motionMetadata.alternates).toBeUndefined();
     expect(motionMetadata.description).toContain("motion graphics");
+  });
+
+  it("the Phase 6/7 routes carry the same noindex metadata as their siblings (deep-audit B7: they had none)", () => {
+    // Titles are the surfaces' own names — nav label and page H1 agree on each.
+    const expected: Array<[typeof analyticsMetadata, string]> = [
+      [analyticsMetadata, "Creator Analytics"],
+      [analyzerMetadata, "Reel Analyzer"],
+      [growthMetadata, "Growth Studio"],
+      [plannerMetadata, "Content Planner"],
+      [prompterMetadata, "Teleprompter"],
+    ];
+    for (const [meta, title] of expected) {
+      expect(meta.robots).toEqual({ index: false, follow: false });
+      expect(meta.title).toBe(title);
+      expect(meta.alternates).toBeUndefined();
+    }
+    const titles = expected.map(([, t]) => t);
+    expect(new Set(titles).size).toBe(titles.length);
   });
 
   it("legal pages carry unique titles and canonicals", () => {
