@@ -18,6 +18,7 @@
  */
 import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, exitStyle, showAt } from "../motion";
 import { containerCss, famCss, fillCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps, TemplateCapabilities } from "../types";
@@ -103,7 +104,7 @@ export const px = (n: number) => `${n.toFixed(2)}px`;
 
 /** the style's shadows (scaled by `mul`) and glow as text-shadow layers */
 export function styleShadows(style: CaptionStyleV2, sc: number, mul = 1): string[] {
-  const out = style.shadows.map((s) => `${px(s.x * sc * mul)} ${px(s.y * sc * mul)} ${px(s.blur * sc * mul)} ${s.color}`);
+  const out = style.shadows.map((s) => `${px(s.x * sc * mul)} ${px(s.y * sc * mul)} ${px(s.blur * sc * mul)} ${shadowColorOf(s)}`);
   if (style.glow.enabled) {
     const r = style.glow.radius * sc;
     out.push(`0 0 ${px(r)} ${withAlpha(style.glow.color, style.glow.intensity)}`, `0 0 ${px(r * 2)} ${withAlpha(style.glow.color, style.glow.intensity * 0.6)}`);

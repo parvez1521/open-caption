@@ -19,13 +19,14 @@
  * (null — the check threw, or was never run) is treated exactly like a NO. A capability
  * that cannot be proven is reported as unavailable, never as available.
  *
- * STATUS IN THIS APP: the probe is real and runs against the live browser, but the
- * transparent export option is NOT shipped. The mux layer is proven (Mediabunny's WebM
- * muxer writes AlphaMode + BlockAdditions and its demuxer reads the alpha bytes back —
- * verified in Node with synthetic VP9 packets), but the ENCODE side cannot be proven in
- * the build/test environment (no VideoEncoder/VideoFrame exists there), so per the
- * honesty gate the UI shows the solid-background line and points at the Companion app.
- * Nothing in this file is wired to an export format until every link is proven.
+ * STATUS IN THIS APP: SHIPPED behind this probe (follow-up pass, 2026-11-11). The
+ * "WebM — transparent background" format in the Motion Studio standalone export renders
+ * ONLY when this probe reports available with codec VP9 AND the web renderer's own
+ * canRenderMediaOnWeb({ container: "webm", videoCodec: "vp9", transparent: true }) check
+ * passes at the chosen size. After encoding, the file must ALSO pass the post-encode
+ * alpha read-back (alphaVerify.ts) or nothing is downloaded. The encode link itself can
+ * only be exercised in a real browser (no VideoEncoder exists in the build/test
+ * sandbox), which is exactly why all three gates fail closed.
  */
 
 export type AlphaCodec = "vp9" | "vp8";

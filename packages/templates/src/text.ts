@@ -1,5 +1,6 @@
 import type React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { applyCasing, withAlpha } from "@motion-ai/caption-engine/core";
 import type { Canvas } from "./types";
 import { fontStack } from "./fontCatalog";
@@ -41,7 +42,7 @@ export function strokeCss(stroke: { enabled: boolean; width: number; color: stri
 }
 
 export function shadowCss(style: CaptionStyleV2, sc: number, extra: string[] = []): string | undefined {
-  const layers = style.shadows.map((s) => `${s.x * sc}px ${s.y * sc}px ${s.blur * sc}px ${s.color}`);
+  const layers = style.shadows.map((s) => `${s.x * sc}px ${s.y * sc}px ${s.blur * sc}px ${shadowColorOf(s)}`);
   if (style.glow.enabled) {
     const r = style.glow.radius * sc;
     layers.push(`0 0 ${r}px ${withAlpha(style.glow.color, style.glow.intensity)}`);

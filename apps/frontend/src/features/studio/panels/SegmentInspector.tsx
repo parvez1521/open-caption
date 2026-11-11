@@ -141,7 +141,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
   const transitionType = segment.transitionIn?.type ?? "none";
   return (
     <div className="h-full overflow-y-auto" aria-label={`Segment ${segment.index + 1} inspector`}>
-      <Section title={`Segment ${segment.index + 1}`} hint={segment.still ? "A freeze-frame still. Its length is its on-screen duration; trim it like any other segment." : "The selected piece of video on the timeline. Every change here is one undo step."}>
+      <Section title={`Segment ${segment.index + 1}`} hint={segment.still ? "A freeze-frame still — its length is its on-screen duration." : undefined}>
         <div className="flex flex-wrap gap-1.5">
           <Button onClick={onDuplicate} disabled={busy}>Duplicate</Button>
           <Button tone="danger" onClick={onRippleDelete} disabled={busy}>Ripple delete</Button>
@@ -163,7 +163,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
       </Section>
 
       {!segment.still ? (
-        <Section title="Speed" hint="Faster or slower playback for this segment only. The segment's length on the timeline changes with it.">
+        <Section title="Speed">
           <Slider label="Playback speed" value={segment.playbackRate} min={0.25} max={4} step={0.25} onChange={onPlaybackRate} format={(v) => formatPlaybackRate(v)} />
           <label className="flex items-center justify-between gap-3 text-sm text-st-text/90">
             <span>Speed (×)</span>
@@ -185,7 +185,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
       ) : null}
 
       {segment.index >= 1 ? (
-        <Section title="Transition in" hint="How this segment arrives from the one before it. The two overlap for the transition's length.">
+        <Section title="Transition in">
           <Select
             label="Type"
             value={transitionType}
@@ -202,7 +202,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
       ) : null}
 
       {!segment.still ? (
-        <Section title="Reverse & freeze" hint="Freeze and reverse clips are stored on this device, like your other media." more="Browser exports include them when you export on this device; a render on another device can't see them.">
+        <Section title="Reverse & freeze" hint="Freeze and reverse clips are stored on this device." more="Browser exports include them when you export on this device; a render on another device can't see them.">
           <div className="flex flex-wrap gap-1.5">
             <Button onClick={onReverse} disabled={busy}>{production.kind === "working" && production.action === "reverse" ? "Reversing…" : "Reverse"}</Button>
             <Button onClick={onFreeze} disabled={busy || !playheadInside}>Freeze frame</Button>
@@ -220,7 +220,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
       ) : null}
 
       {!segment.still ? (
-        <Section title="Keyframes" hint="A keyframe sets a value at a moment inside this segment." more="The picture eases between keyframes and holds the nearest value outside them.">
+        <Section title="Keyframes" hint="A keyframe pins a value at one moment in this segment." more="The picture eases between keyframes and holds the nearest value outside them.">
           <Select label="Property" value={kfProperty} options={KEYFRAME_PROPERTY_OPTIONS} onChange={(v) => setKfProperty(v as SegmentKeyframeProperty)} />
           <Button
             onClick={() => onAddKeyframe(kfProperty, playheadMs - segment.startMs, baseKeyframeValue(kfProperty))}
@@ -285,7 +285,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
         </Section>
       ) : null}
 
-      <Section title="Effects" hint="Applied in order, top to bottom — the same list is applied in the export.">
+      <Section title="Effects" hint="Applied in order, top to bottom.">
         {effects.length === 0 ? <p className="text-xs text-st-faint">No effects yet.</p> : null}
         {effects.map((e, i) => (
           <div key={e.id} className="space-y-2 rounded-lg border border-st-line bg-st-panel p-2.5">

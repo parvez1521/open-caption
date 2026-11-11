@@ -127,7 +127,7 @@ export const EditAssistantPanel: React.FC<Props> = ({ state, peaks, hopMs, onCom
     <div className="h-full overflow-y-auto">
       <Section
         title="Edit Assistant"
-        hint="Type an edit in plain words. The site's free AI (or the on-device model) reads it into one edit from the fixed list below — nothing else is possible — and shows you the exact plan before anything is applied. Applying is one undo step. It cannot generate media, voices or B-roll."
+        hint="Type an edit in plain words; you approve the plan first."
       >
         <div className="space-y-2">
           <label className="block text-sm text-st-text/90">
@@ -201,7 +201,7 @@ export const EditAssistantPanel: React.FC<Props> = ({ state, peaks, hopMs, onCom
         ) : null}
       </Section>
 
-      <Section title="What I can do" hint="The full list — the assistant can only ever propose these edits. Anything else gets an honest refusal and the manual path.">
+      <Section title="What I can do">
         <ul className="space-y-2">
           {ASSISTANT_INTENTS.map((def) => (
             <li key={def.id} className="text-sm">

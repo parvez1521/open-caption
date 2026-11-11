@@ -30,7 +30,7 @@ export const CreateVideoBody = z.object({
   local: z.boolean().optional(),
 });
 
-export const CompleteVideoBody = z.object({ needsProxy: z.boolean().optional() }).default({});
+export const CompleteVideoBody = z.object({ needsProxy: z.boolean().optional(), editorMode: z.boolean().optional() }).default({});
 
 export const SaveDocumentBody = z.object({
   expectedRevision: z.number().int().nonnegative(),

@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { MotionConfigSchema, type MotionConfig } from "@capseasy/motion";
 import { canExportVideoInBrowser, exportVideoInBrowser, saveBlob } from "@/features/studio/browserExport";
 import { fmtBytes } from "@/features/studio/controls";
+import { probeAlphaCapability, type AlphaCapability } from "./alphaCapability";
+import { verifyAlphaExport } from "./alphaVerify";
 import type { MotionAssetRef } from "./addToProject";
 import {
   MOTION_EXPORT_ASPECTS,
@@ -25,12 +27,15 @@ import {
 
 /**
  * "Export this animation" — the standalone overlay export on the Motion Studio customize
- * page (Wave 3 mount point). Renders the CURRENT config on its own over a solid background
- * and downloads it, entirely in this tab: no project is created, nothing is uploaded, and
- * no sign-in is needed (guest-safe — the render path touches no service, only WebCodecs).
+ * page (Wave 3 mount point). Renders the CURRENT config on its own over the chosen
+ * background and downloads it, entirely in this tab: no project is created, nothing is
+ * uploaded, and no sign-in is needed (guest-safe — the render path touches no service,
+ * only WebCodecs).
  *
- * Both formats are opaque files on the chosen solid background; transparency is the
- * Companion app's job, and the section says so in one line (TRANSPARENT_EXPORT_NOTE).
+ * MP4/WebM are opaque files on the chosen solid background. The transparent WebM format
+ * appears ONLY when the strict alpha probe (alphaCapability) and the renderer's own
+ * transparent check both pass in this browser, and every transparent render is verified
+ * for real alpha after encoding (alphaVerify) before it downloads — see exportConfig.
  * Cancellation mirrors the Studio export: an AbortController whose signal the renderer
  * checks between frames, so Cancel really stops the render and saves nothing.
  */
@@ -54,18 +59,53 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
   const dims = useMemo(() => motionExportDimensions(selection.aspect, selection.shortEdge), [selection.aspect, selection.shortEdge]);
   const backgroundColor = motionExportBackgroundColor(selection);
 
+  /* Transparent WebM gating: the option exists only when (1) the WebCodecs alpha probe
+     passes with VP9 and (2) the renderer itself confirms transparent WebM at the chosen
+     size. Both checks fail closed — pending or failed means the option is not shown. */
+  const [alphaCap, setAlphaCap] = useState<AlphaCapability | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void probeAlphaCapability().then((cap) => {
+      if (alive) setAlphaCap(cap);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const [alphaCheck, setAlphaCheck] = useState<{ key: string; ok: boolean } | null>(null);
+  useEffect(() => {
+    if (!(alphaCap?.available && alphaCap.codec === "vp9")) return;
+    let alive = true;
+    const key = `${dims.width}x${dims.height}`;
+    void canExportVideoInBrowser({ container: "webm", videoCodec: "vp9", width: dims.width, height: dims.height, transparent: true }).then((r) => {
+      if (alive) setAlphaCheck({ key, ok: r.ok });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [alphaCap, dims.width, dims.height]);
+  const alphaReady = alphaCap?.available === true && alphaCap.codec === "vp9" && alphaCheck?.key === `${dims.width}x${dims.height}` && alphaCheck.ok;
+  const visibleFormats = MOTION_EXPORT_FORMATS.filter((f) => !f.transparent || alphaReady);
+  // if the transparent format was selected and its checks stop passing (e.g. the size
+  // changed), fall back to plain WebM rather than rendering something unproven
+  useEffect(() => {
+    if (format.transparent && alphaCap !== null && alphaCheck !== null && !alphaReady) {
+      setSelection((s) => (s.format === "webm-alpha" ? { ...s, format: "webm" } : s));
+    }
+  }, [format.transparent, alphaCap, alphaCheck, alphaReady]);
+
   // encoder support is checked at the chosen format + output size, like the Studio export
   const [capability, setCapability] = useState<{ ok: boolean; reason?: string } | null>(null);
   useEffect(() => {
     let alive = true;
     setCapability(null);
-    void canExportVideoInBrowser({ container: format.container, videoCodec: format.videoCodec, width: dims.width, height: dims.height }).then((r) => {
+    void canExportVideoInBrowser({ container: format.container, videoCodec: format.videoCodec, width: dims.width, height: dims.height, transparent: format.transparent }).then((r) => {
       if (alive) setCapability(r);
     });
     return () => {
       alive = false;
     };
-  }, [format.container, format.videoCodec, dims.width, dims.height]);
+  }, [format.container, format.videoCodec, format.transparent, dims.width, dims.height]);
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const rendering = state.status === "rendering";
@@ -78,7 +118,7 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
     if (rendering || !configValid) return;
     let cap = capability;
     if (!cap) {
-      cap = await canExportVideoInBrowser({ container: format.container, videoCodec: format.videoCodec, width: dims.width, height: dims.height });
+      cap = await canExportVideoInBrowser({ container: format.container, videoCodec: format.videoCodec, width: dims.width, height: dims.height, transparent: format.transparent });
       setCapability(cap);
     }
     if (!cap.ok) {
@@ -92,7 +132,7 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
       const built = buildMotionExport(config, selection, asset, assetSrc);
       const outcome = await runStandaloneExport({
         built,
-        deps: { render: exportVideoInBrowser, save: saveBlob },
+        deps: { render: exportVideoInBrowser, save: saveBlob, verify: verifyAlphaExport },
         signal: ctrl.signal,
         onProgress: (fraction) => dispatch({ type: "progress", fraction }),
       });
@@ -112,10 +152,16 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
     <section aria-label="Export this animation" className="border-t border-sand-200 pt-6">
       <h2 className="font-sora text-[13px] font-bold uppercase tracking-wider text-sand-600">Export this animation</h2>
       <p className="mt-1.5 text-[12px] text-sand-600">
-        Make a video of just this animation on a solid background, ready to drop into any editor. It is rendered in this browser — no project is created.
+        Make a video of just this animation on the background you choose below, ready to drop into any editor. It is rendered in this browser — no project is created.
       </p>
 
       <div className="mt-4 space-y-4">
+        {format.transparent ? (
+          <div>
+            <span className="mb-1.5 block text-[13px] font-medium text-sand-800">Background</span>
+            <p className="text-[12px] text-sand-600">Transparent — the file contains only the animation, with an alpha channel. Pick a solid format below to bake a background in instead.</p>
+          </div>
+        ) : (
         <div>
           <span className="mb-1.5 block text-[13px] font-medium text-sand-800" id="motion-export-background-label">Background</span>
           <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="motion-export-background-label">
@@ -139,6 +185,7 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
             </div>
           ) : null}
         </div>
+        )}
 
         <div className="flex flex-wrap gap-x-6 gap-y-4">
           <div>
@@ -179,14 +226,20 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
         <div>
           <span className="mb-1.5 block text-[13px] font-medium text-sand-800" id="motion-export-format-label">Format</span>
           <div className="flex gap-1.5" role="group" aria-labelledby="motion-export-format-label">
-            {MOTION_EXPORT_FORMATS.map((f) => (
+            {visibleFormats.map((f) => (
               <button key={f.id} type="button" aria-pressed={selection.format === f.id} onClick={() => pick({ format: f.id })} className={pill(selection.format === f.id)}>
                 {f.label}
               </button>
             ))}
           </div>
-          <p className="mt-1.5 text-[12px] text-sand-600">{SOLID_BACKGROUND_FORMAT_NOTE} — the background above is baked into every frame.</p>
-          <p className="mt-1 text-[12px] text-sand-600">{TRANSPARENT_EXPORT_NOTE}</p>
+          {format.transparent ? (
+            <p className="mt-1.5 text-[12px] text-sand-600">This file has a transparent background — after rendering, the file is checked for real transparency before it downloads.</p>
+          ) : (
+            <>
+              <p className="mt-1.5 text-[12px] text-sand-600">{SOLID_BACKGROUND_FORMAT_NOTE} — the background above is baked into every frame.</p>
+              <p className="mt-1 text-[12px] text-sand-600">{TRANSPARENT_EXPORT_NOTE}</p>
+            </>
+          )}
         </div>
 
         {capability && !capability.ok ? (
@@ -230,7 +283,7 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
         ) : null}
         {state.status === "done" ? (
           <p role="status" className="text-[12px] text-sand-600">
-            Downloaded {state.filename} · {fmtBytes(state.sizeBytes)} · background {backgroundColor.toUpperCase()}
+            Downloaded {state.filename} · {fmtBytes(state.sizeBytes)} · background {format.transparent ? "transparent" : backgroundColor.toUpperCase()}
           </p>
         ) : null}
       </div>

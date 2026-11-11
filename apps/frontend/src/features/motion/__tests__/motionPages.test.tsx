@@ -99,10 +99,10 @@ describe("Motion Studio discovery page", () => {
 
   it("category chips filter by registry category, with counts from the registry", () => {
     const view = render(<MotionDiscoveryPage />);
-    const chip = screen.getByRole("button", { name: "Youtube (3)" });
+    const chip = screen.getByRole("button", { name: "Youtube (6)" });
     fireEvent.click(chip);
     const hrefs = cardLinks(view.container).map((a) => a.getAttribute("href")).sort();
-    expect(hrefs).toEqual(["/motion/notification-pop", "/motion/subscribe-banner", "/motion/subscribe-pill"]);
+    expect(hrefs).toEqual(["/motion/bell-reminder", "/motion/cursor-subscribe", "/motion/notification-pop", "/motion/subscribe-banner", "/motion/subscribe-pill", "/motion/watch-next"]);
     view.unmount();
   });
 

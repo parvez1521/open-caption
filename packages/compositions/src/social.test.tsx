@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { OverlayView } from "./overlays";
-import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, chatStackAt, counterAt, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, postCardAt, repostAt, searchBarAt, socialSeededUnit, typingAt, upvoteAt, voiceCardAt } from "./social";
+import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, chatStackAt, chatTicksAt, countdownAt, counterAt, cursorChoreoAt, easeInOutCubic, easeOutQuint, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, postCardAt, repostAt, searchBarAt, shareFlightAt, socialSeededUnit, springOut, typingAt, upvoteAt, voiceCardAt } from "./social";
 
 /**
  * Animated Social Media overlays: phases are pure functions of the item's own window, so the same
@@ -44,6 +44,86 @@ describe("bellRingDeg", () => {
     expect(early).toBeGreaterThan(10);
     expect(Math.abs(bellRingDeg(2400))).toBeLessThan(0.5);
     expect(bellRingDeg(140)).toBe(bellRingDeg(140));
+  });
+});
+
+describe("shared easing (smoothness pass, follow-up 2026-11-11)", () => {
+  it("springOut overshoots past 1 mid-way but lands exactly on 1 (no end pop)", () => {
+    expect(springOut(0)).toBe(0);
+    expect(springOut(1)).toBe(1);
+    expect(springOut(0.5)).toBeGreaterThan(1);
+    expect(springOut(-0.5)).toBe(0);
+    expect(springOut(2)).toBe(1);
+  });
+  it("easeOutQuint / easeInOutCubic endpoints and symmetry", () => {
+    expect(easeOutQuint(0)).toBe(0);
+    expect(easeOutQuint(1)).toBe(1);
+    expect(easeInOutCubic(0.5)).toBeCloseTo(0.5, 6);
+    expect(easeInOutCubic(0.25)).toBeLessThan(0.25);
+    expect(easeInOutCubic(0.75)).toBeGreaterThan(0.75);
+  });
+  it("the shared enter/exit are eased, not linear: exit midpoint is smooth (0.5) and the enter is fast-then-settle", () => {
+    // exit window = last 15% of a 4000 ms item (600 ms): at its midpoint the eased exit is 0.5
+    expect(overlayPhase(3700, 4000).exit).toBeCloseTo(0.5, 3);
+    // enter (400 ms window): easeOutQuint is ahead of linear mid-way, easing to the stop
+    expect(overlayPhase(200, 4000).enter).toBeGreaterThan(0.9);
+    expect(overlayPhase(200, 4000).enter).toBeLessThan(1);
+  });
+});
+
+describe("cursorChoreoAt (cursor move → click → react)", () => {
+  const from = { x: 600, y: 300 };
+  const to = { x: 420, y: 150 };
+  it("starts at `from`, ends exactly at `to`, and stays there after arrival", () => {
+    const start = cursorChoreoAt(0, 4500, from, to);
+    expect(start.x).toBeCloseTo(from.x, 3);
+    expect(start.y).toBeCloseTo(from.y, 3);
+    const mid = cursorChoreoAt(990, 4500, from, to); // 6%..38% window midpoint
+    expect(mid.x).toBeLessThan(from.x);
+    expect(mid.x).toBeGreaterThan(to.x);
+    const end = cursorChoreoAt(1710, 4500, from, to);
+    expect(end.x).toBeCloseTo(to.x, 3);
+    expect(end.y).toBeCloseTo(to.y, 3);
+    expect(end.arrived).toBe(true);
+  });
+  it("the travel arc lifts above the straight line (control point is raised)", () => {
+    const mid = cursorChoreoAt(990, 4500, from, to);
+    const straightMidY = (from.y + to.y) / 2;
+    expect(mid.y).toBeLessThan(straightMidY);
+  });
+  it("press peaks at the click moment and the ripple grows then fades after it", () => {
+    const clickAt = 4500 * 0.44;
+    expect(cursorChoreoAt(clickAt, 4500, from, to).press).toBeCloseTo(1, 3);
+    expect(cursorChoreoAt(clickAt, 4500, from, to).clicked).toBe(true);
+    expect(cursorChoreoAt(clickAt - 400, 4500, from, to).press).toBeLessThan(0.5);
+    const r1 = cursorChoreoAt(clickAt + 300, 4500, from, to);
+    const r2 = cursorChoreoAt(clickAt + 900, 4500, from, to);
+    expect(r2.rippleP).toBeGreaterThan(r1.rippleP);
+    expect(r2.rippleOpacity).toBeLessThan(r1.rippleOpacity);
+    expect(cursorChoreoAt(4500, 4500, from, to).rippleP).toBe(1);
+  });
+});
+
+describe("follow-up helpers (chatTicksAt / countdownAt / shareFlightAt)", () => {
+  it("chat ticks stage sent → delivered → read with time", () => {
+    expect(chatTicksAt(0, 4000).stage).toBe(0);
+    expect(chatTicksAt(1600, 4000).stage).toBe(1);
+    expect(chatTicksAt(3000, 4000).stage).toBe(2);
+  });
+  it("countdown steps 3 → 2 → 1 → word, springing in each step", () => {
+    expect(countdownAt(100, 4000).label).toBe("3");
+    expect(countdownAt(1100, 4000).label).toBe("2");
+    expect(countdownAt(2050, 4000).label).toBe("1");
+    expect(countdownAt(3000, 4000).label).toBeNull();
+    expect(countdownAt(3000, 4000).step).toBe(3);
+    expect(countdownAt(1100, 4000).p).toBeGreaterThan(countdownAt(970, 4000).p);
+  });
+  it("share flight leaves after the beat and the count ticks up", () => {
+    expect(shareFlightAt(600, 4000, 100).p).toBe(0);
+    const late = shareFlightAt(3400, 4000, 100);
+    expect(late.p).toBeGreaterThan(0.9);
+    expect(late.count).toBeGreaterThan(100);
+    expect(late.opacity).toBeLessThan(0.2);
   });
 });
 
@@ -210,9 +290,9 @@ describe("SocialOverlayView (static markup — the same tree every render path d
       expect(late, `${meta.id} does not animate between 350ms and 2650ms`).not.toBe(early);
     }
   });
-  it("SOCIAL_META covers 30 variants with unique ids", () => {
-    expect(SOCIAL_META).toHaveLength(30);
-    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(30);
+  it("SOCIAL_META covers 46 variants with unique ids", () => {
+    expect(SOCIAL_META).toHaveLength(46);
+    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(46);
     for (const m of SOCIAL_META) { expect(m.label.length).toBeGreaterThan(0); expect(m.hint.length).toBeGreaterThan(0); expect(m.defaultColor).toMatch(/^#[0-9A-Fa-f]{6}$/); }
   });
   it("new helpers are pure, seeded and deterministic", () => {

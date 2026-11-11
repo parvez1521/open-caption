@@ -119,16 +119,6 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
       <div>
         <p className={`text-sm font-medium ${txt}`}>Starter sound effects pack</p>
         <p className={`mt-1 text-xs ${faint}`}>CC0 — free for any use, no credit needed.</p>
-        <details className="mt-1.5">
-          <summary className="cursor-pointer text-xs font-medium text-st-muted">About this pack &amp; its licences</summary>
-          <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
-            Bundled with Open Caption — every sound is CC0 (public domain), so it can be used in any
-            project, commercial or not, with no attribution required. These are Kenney&apos;s sounds,
-            not ours; each one&apos;s source and licence are listed with it, on the{" "}
-            <a href="/credits" className="underline underline-offset-2">Credits page</a>, and in
-            the licence record the copy in your bin carries.
-          </p>
-        </details>
         {!projectId ? (
           <p className={`mt-2 text-xs ${mut}`}>Pick a project above first — added sounds land in that project&apos;s media bin on this device.</p>
         ) : null}
@@ -159,17 +149,10 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
         <p className={`text-sm font-medium ${txt}`}>Stock music &amp; sounds (Pixabay)</p>
         {!apiKey ? (
           <>
-            <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
-              Pixabay search needs your own free Pixabay API key — get one on{" "}
-              <a href={PIXABAY_API_PAGE} target="_blank" rel="noreferrer" className="underline underline-offset-2">Pixabay&apos;s API page</a>{" "}
-              after creating an account.
-            </p>
+            <p className={`mt-1 text-xs ${faint}`}>Needs your own free Pixabay API key — get one on{" "}<a href={PIXABAY_API_PAGE} target="_blank" rel="noreferrer" className="underline underline-offset-2">Pixabay&apos;s API page</a>.</p>
             <details className="mt-1.5">
               <summary className="cursor-pointer text-xs font-medium text-st-muted">Where the key is kept</summary>
-              <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
-                The key is saved in this browser on this device only. It is sent only to
-                api.pixabay.com when you search — never to us.
-              </p>
+              <p className={`mt-1 text-xs ${faint}`}>Saved in this browser only; sent only to api.pixabay.com when you search.</p>
             </details>
             <div className="mt-2 flex gap-1.5">
               <input
@@ -196,10 +179,7 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
             <p className={`mt-1 text-xs ${faint}`}>Searching Pixabay with your own key, from this browser.</p>
             <details className="mt-1.5">
               <summary className="cursor-pointer text-xs font-medium text-st-muted">Licence details</summary>
-              <p className={`mt-1 text-xs leading-relaxed ${faint}`}>
-                Tracks are under the {PIXABAY_LICENCE_NAME}: free to use inside your projects, no
-                attribution required. {PIXABAY_USE_NOTE}
-              </p>
+              <p className={`mt-1 text-xs ${faint}`}>Under the {PIXABAY_LICENCE_NAME}: free inside projects; no standalone redistribution.</p>
             </details>
             <div className="mt-2 flex gap-1.5">
               <input

@@ -44,6 +44,8 @@ interface Props {
   onAddWord: (atMs: number) => string | null;
   onSplit: () => void;
   onJoin: () => void;
+  /** Package 2 item B: the mirror of onJoin — merge the selected word's line with the FOLLOWING one (optional: older mounts omit it and simply don't show the button) */
+  onJoinNext?: () => void;
   /** Stage-A composition view: the video / captions / text rows render from these tracks */
   composition?: Composition | null;
   selectedOverlayId: string | null;
@@ -131,7 +133,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -619,6 +621,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
         {btn("Split: start a new line at the selected word", <Scissors className={icon} />, onSplit, { disabled: noSel || tracks.captions.locked })}
         {btn("Split caption at playhead (S)", <Scissors className={icon} />, onSplitAtPlayhead, { disabled: tracks.captions.locked || !canSplitAtPlayhead(pages, timeMs) })}
         {btn("Join: merge the selected word's line with the previous one", <FoldHorizontal className={icon} />, onJoin, { disabled: noSel || tracks.captions.locked })}
+        {onJoinNext ? btn("Join next: merge the selected word's line with the following one", <FoldHorizontal className={`${icon} -scale-x-100`} />, onJoinNext, { disabled: noSel || tracks.captions.locked }) : null}
         {extraTools}
         {sep}
         {btn(snap ? "Snapping on" : "Snapping off", <Magnet className={icon} />, () => { setSnap(!snap); save("ce_tl_snap", snap ? "0" : "1"); }, { active: snap })}

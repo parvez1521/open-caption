@@ -1,8 +1,9 @@
 /**
- * Standalone motion export (Wave 3): the option model, the composition builder, the run
- * helper and the state machine. The honesty pins matter most: every in-browser format is
- * opaque, the chroma label and the transparency line are the exact approved wording, and
- * a cancelled render saves nothing.
+ * Standalone motion export (Wave 3 + transparent follow-up): the option model, the
+ * composition builder, the run helper and the state machine. The honesty pins matter
+ * most: exactly ONE transparent format (webm-alpha, strictly gated), the chroma label
+ * and the transparency line are the exact approved wording, a transparent run without a
+ * passing post-encode verification saves NOTHING, and a cancelled render saves nothing.
  */
 import { describe, expect, it, vi } from "vitest";
 import { MOTION_TEMPLATES, defaultMotionConfig } from "@capseasy/motion";
@@ -16,6 +17,7 @@ import {
   MOTION_EXPORT_SHORT_EDGES,
   SOLID_BACKGROUND_FORMAT_NOTE,
   TRANSPARENT_EXPORT_NOTE,
+  TRANSPARENT_VERIFY_FAILED_MESSAGE,
   buildMotionExport,
   fitScaleForCanvas,
   initialMotionExportState,
@@ -50,18 +52,21 @@ describe("option model + honest copy pins", () => {
   it("the format note and the transparency line are the exact approved wording", () => {
     expect(SOLID_BACKGROUND_FORMAT_NOTE).toBe("These files have a solid background");
     expect(TRANSPARENT_EXPORT_NOTE).toBe(
-      "Transparent export: available via the desktop Companion app (MOV/WebM with alpha). In-browser exports use a solid background.",
+      "Transparent export: available in this browser as WebM when the alpha checks pass (the option then appears above), and via the desktop Companion app (MOV/WebM with alpha).",
     );
   });
 
-  it("no in-browser format is transparent, alpha or described as transparent anywhere in the model", () => {
-    expect(MOTION_EXPORT_FORMATS.map((f) => f.id)).toEqual(["mp4", "webm"]);
-    for (const f of MOTION_EXPORT_FORMATS) {
+  it("exactly one in-browser format is transparent: webm-alpha (WebM/VP9), and the solid formats stay opaque", () => {
+    expect(MOTION_EXPORT_FORMATS.map((f) => f.id)).toEqual(["mp4", "webm", "webm-alpha"]);
+    const alpha = MOTION_EXPORT_FORMATS.find((f) => f.id === "webm-alpha")!;
+    expect(alpha.transparent).toBe(true);
+    expect(alpha.container).toBe("webm");
+    expect(alpha.videoCodec).toBe("vp9");
+    expect(alpha.ext).toBe("webm");
+    for (const f of MOTION_EXPORT_FORMATS.filter((x) => x.id !== "webm-alpha")) {
       expect(f.transparent).toBe(false);
-      expect(`${f.id} ${f.label} ${f.ext} ${f.container} ${f.videoCodec}`).not.toMatch(/alpha|transparent/i);
+      expect(`${f.id} ${f.label}`).not.toMatch(/alpha|transparent/i);
     }
-    // the only place the word "transparent" appears in this module's copy is the honest
-    // line that sends users to the Companion app
     for (const b of MOTION_EXPORT_BACKGROUNDS) expect(b.label).not.toMatch(/transparent/i);
   });
 
@@ -182,6 +187,17 @@ describe("buildMotionExport (composition from config)", () => {
     expect(noAsset.item.assetId).toBeUndefined();
     expect(noAsset.input.overlayAssets).toBeUndefined();
   });
+
+  it("webm-alpha builds with NO backdrop (nothing painted behind the overlay) and flags itself transparent", () => {
+    const built = buildMotionExport(config, sel({ format: "webm-alpha" }));
+    expect(built.transparent).toBe(true);
+    expect(built.input.backdrop).toBeNull();
+    expect(built.backgroundColor).toBe("transparent");
+    expect(built.container).toBe("webm");
+    expect(built.videoCodec).toBe("vp9");
+    expect(built.filename).toBe("subscribe-pill-1080x1920.webm");
+    expect(built.input.overlays).toEqual([built.item]);
+  });
 });
 
 describe("motionExportReducer (cancel / error / progress handling)", () => {
@@ -273,6 +289,63 @@ describe("runStandaloneExport", () => {
     });
     const save = vi.fn();
     await expect(runStandaloneExport({ built, deps: { render, save }, signal: ctrl.signal })).resolves.toEqual({ cancelled: true });
+    expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe("runStandaloneExport — transparent guard (no-alpha-no-delivery)", () => {
+  const solidBuilt = buildMotionExport(defaultMotionConfig("subscribe-pill"), sel());
+  const alphaBuilt = buildMotionExport(defaultMotionConfig("subscribe-pill"), sel({ format: "webm-alpha" }));
+  const blob = new Blob(["webm-bytes"], { type: "video/webm" });
+  const renderOk = () => vi.fn(async () => blob);
+
+  it("the render job carries transparent: true for the alpha format (and false for solid formats)", async () => {
+    const render = renderOk();
+    await runStandaloneExport({ built: alphaBuilt, deps: { render: render as never, save: vi.fn(), verify: async () => true }, signal: new AbortController().signal });
+    expect(((render.mock.calls[0] as unknown as [Record<string, unknown>])[0]).transparent).toBe(true);
+    const solidRender = renderOk();
+    await runStandaloneExport({ built: solidBuilt, deps: { render: solidRender as never, save: vi.fn() }, signal: new AbortController().signal });
+    expect(((solidRender.mock.calls[0] as unknown as [Record<string, unknown>])[0]).transparent).toBe(false);
+  });
+
+  it("a passing verification saves the file", async () => {
+    const save = vi.fn();
+    const out = await runStandaloneExport({ built: alphaBuilt, deps: { render: renderOk() as never, save, verify: async () => true }, signal: new AbortController().signal });
+    expect(out).toEqual({ cancelled: false, filename: "subscribe-pill-1080x1920.webm", sizeBytes: blob.size });
+    expect(save).toHaveBeenCalledWith(blob, "subscribe-pill-1080x1920.webm");
+  });
+
+  it("a FAILED verification throws the honest message and saves nothing", async () => {
+    const save = vi.fn();
+    await expect(
+      runStandaloneExport({ built: alphaBuilt, deps: { render: renderOk() as never, save, verify: async () => false }, signal: new AbortController().signal }),
+    ).rejects.toThrow(TRANSPARENT_VERIFY_FAILED_MESSAGE);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("a MISSING verify dep fails closed: throws and saves nothing", async () => {
+    const save = vi.fn();
+    await expect(
+      runStandaloneExport({ built: alphaBuilt, deps: { render: renderOk() as never, save }, signal: new AbortController().signal }),
+    ).rejects.toThrow(TRANSPARENT_VERIFY_FAILED_MESSAGE);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("a verify dep that THROWS also fails closed", async () => {
+    const save = vi.fn();
+    await expect(
+      runStandaloneExport({
+        built: alphaBuilt,
+        deps: {
+          render: renderOk() as never,
+          save,
+          verify: async () => {
+            throw new Error("demuxer unavailable");
+          },
+        },
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow(TRANSPARENT_VERIFY_FAILED_MESSAGE);
     expect(save).not.toHaveBeenCalled();
   });
 });

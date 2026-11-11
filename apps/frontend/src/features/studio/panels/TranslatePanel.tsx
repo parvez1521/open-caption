@@ -66,7 +66,7 @@ export const TranslatePanel: React.FC<{
     <div className="h-full overflow-y-auto">
       <Section
         title="Translate"
-        hint="On-device machine translation (OPUS-MT) — it runs entirely in your browser and nothing is uploaded."
+        hint="Runs entirely in your browser — nothing is uploaded."
       >
         <label className="block text-sm text-st-text/90">
           <span className="mb-1.5 block text-xs font-medium text-st-muted">Translate captions from English into</span>
@@ -79,7 +79,7 @@ export const TranslatePanel: React.FC<{
             <option value="">Choose a language…</option>
             {TRANSLATION_MODELS.map((m) => (
               <option key={m.targetLang} value={m.targetLang}>
-                {m.targetLabel} (model download ~{m.approxDownloadMb} MB)
+                {m.targetLabel}
               </option>
             ))}
           </select>
@@ -93,7 +93,7 @@ export const TranslatePanel: React.FC<{
         ) : null}
         <details className="text-xs text-st-faint">
           <summary className="cursor-pointer font-medium text-st-muted">How the translated timings work</summary>
-          <p className="mt-1">In the translated track, word timings are spread across each caption card; they are not measured from speech.</p>
+          <p className="mt-1">First use of a language downloads its model once (~110 MB); after that it works on this device.</p>
         </details>
 
         <Button tone="primary" onClick={run} disabled={!target || busy || !supported || cardCount === 0} className="w-full">

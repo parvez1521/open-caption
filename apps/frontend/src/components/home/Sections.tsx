@@ -173,6 +173,12 @@ export function Hero() {
             See how it works
           </a>
         </div>
+        <p data-hero="editor-door" className="mt-3 text-sm text-[#FFFFEB]/60">
+          Just want to edit?{" "}
+          <Link href="/start?mode=editor" className="font-semibold text-[#FFFFEB]/85 underline decoration-[#FFA946] decoration-2 underline-offset-4 hover:text-[#FFFFEB]">
+            Open the plain editor — no captions
+          </Link>
+        </p>
 
 
       </div>
@@ -181,11 +187,6 @@ export function Hero() {
       <div data-hero="stream" className="relative z-0 mt-4 pt-2 sm:mt-auto">
         <HeroCylinder />
         <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#141412]" />
-      </div>
-      <div className="mx-auto flex w-full max-w-6xl justify-end px-5 pb-3">
-        <a href="/credits" className="inline-flex min-h-8 items-center text-[11px] text-[#FFFFEB]/60 hover:text-[#FFFFEB]">
-          Clips: Wikimedia Commons, CC BY / BY-SA
-        </a>
       </div>
     </section>
   );
@@ -740,6 +741,7 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
+                      {...(link.href === "/clipper" ? { target: "_blank", rel: "noopener" } : {})}
                       className="inline-flex min-h-10 items-center transition-colors hover:text-[#34D399] hover:underline underline-offset-4 lg:min-h-0"
                     >
                       {link.label}

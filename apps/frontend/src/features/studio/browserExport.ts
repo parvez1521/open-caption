@@ -8,10 +8,11 @@ import { framesForDurationMs } from "@capseasy/shared";
  * Video export without the Companion: the SAME composition the preview shows, rendered frame by frame in this tab
  * (@remotion/web-renderer: WebCodecs + Mediabunny), then downloaded. Nothing is uploaded.
  *
- * Two containers are offered, both OPAQUE (the renderer is always called without `transparent`):
- * MP4/H.264 (the original path) and WebM/VP9 (added for Motion Studio standalone exports).
- * Transparent WebM would need the renderer's alpha path, which this app does not use — see
- * features/motion/alphaCapability.ts for the capability probe and why it stays off.
+ * Two containers are offered: MP4/H.264 (the original path) and WebM/VP9 (added for Motion
+ * Studio standalone exports). Project exports are always OPAQUE; `transparent: true` exists
+ * only for Motion Studio's standalone WebM-alpha format, which gates it behind the strict
+ * probe in features/motion/alphaCapability.ts and verifies the encoded file's alpha
+ * (features/motion/alphaVerify.ts) before anything is downloaded.
  */
 
 export interface BrowserExportJob {
@@ -34,6 +35,8 @@ export type BrowserExportVideoCodec = "h264" | "vp9";
 export interface BrowserVideoExportJob extends BrowserExportJob {
   container: BrowserExportContainer;
   videoCodec: BrowserExportVideoCodec;
+  /** render with an alpha channel (WebM/VP9 only; Motion Studio standalone export) */
+  transparent?: boolean;
 }
 
 const LICENSE = process.env.NEXT_PUBLIC_REMOTION_LICENSE_KEY || "free-license";
@@ -45,11 +48,12 @@ export async function canExportVideoInBrowser(opts: {
   videoCodec: BrowserExportVideoCodec;
   width: number;
   height: number;
+  transparent?: boolean;
 }): Promise<{ ok: boolean; reason?: string }> {
   if (typeof window === "undefined" || typeof VideoEncoder === "undefined") return { ok: false, reason: "This browser can't encode video. Use Chrome, Edge or Safari." };
   try {
     const { canRenderMediaOnWeb } = await import("@remotion/web-renderer");
-    const r = await canRenderMediaOnWeb({ container: opts.container, videoCodec: opts.videoCodec, width: opts.width, height: opts.height });
+    const r = await canRenderMediaOnWeb({ container: opts.container, videoCodec: opts.videoCodec, width: opts.width, height: opts.height, transparent: opts.transparent ?? false });
     return r.canRender ? { ok: true } : { ok: false, reason: r.issues.map((i) => i.message).join(" ") || "Not supported in this browser." };
   } catch {
     return { ok: true }; // the render itself reports real problems
@@ -81,6 +85,7 @@ export async function exportVideoInBrowser(job: BrowserVideoExportJob): Promise<
     inputProps: { ...job.input, videoEngine: "media" } as Record<string, unknown>,
     container: job.container,
     videoCodec: job.videoCodec,
+    transparent: job.transparent ?? false,
     videoBitrate: QUALITY[job.quality],
     frameRange: job.range ? [frame(job.range.startMs), frame(job.range.endMs)] : null,
     signal: job.signal ?? null,

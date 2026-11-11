@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import type { OverlayItem } from "@capseasy/shared";
-import { SOCIAL_META } from "@capseasy/compositions";
+import { OVERLAY_ENTER_ANIMS, OVERLAY_EXIT_ANIMS, SOCIAL_META } from "@capseasy/compositions";
 import { getMotionTemplate } from "@capseasy/motion";
 import type { MediaAssetRecord } from "../mediaStore";
 import { validateImageFile } from "../mediaAssets";
@@ -48,10 +48,10 @@ export const OverlayEditor: React.FC<{
   return (
     <Section title={item.kind === "text" ? "Selected text" : item.kind === "image" ? "Selected image" : item.kind === "social" ? `Selected: ${SOCIAL_META.find((m) => m.id === item.variant)?.label ?? "Social"}` : "Selected element"}>
       {item.kind === "image" ? (
-        <p className="text-sm text-st-text/90">{item.assetName ?? "Image"}<span className="block text-xs text-st-faint">From the media bin (this device). It renders in the preview and the in-browser MP4 export.</span></p>
+        <p className="text-sm text-st-text/90">{item.assetName ?? "Image"}<span className="block text-xs text-st-faint">From the media bin (this device).</span></p>
       ) : null}
       {item.kind === "social" ? (
-        <p className="text-xs text-st-faint">{SOCIAL_META.find((m) => m.id === item.variant)?.hint} It animates from its own start/end times, in the preview, the in-browser MP4 export and server renders. Colour below is its accent (button / heart / digits).</p>
+        <p className="text-xs text-st-faint">{SOCIAL_META.find((m) => m.id === item.variant)?.hint.split(".")[0]}.</p>
       ) : null}
       {item.kind === "text" || item.kind === "social" ? (
         <label className="block text-sm text-st-text/90">
@@ -128,7 +128,7 @@ export const OverlayEditor: React.FC<{
             ) : null}
           </div>
           {importNote ? <p role="status" className="mt-1.5 text-xs text-st-muted">{importNote}</p> : null}
-          <p className="mt-1.5 text-xs text-st-faint">Kept in this browser&apos;s media bin for this project — it renders in the preview and the in-browser MP4 export.</p>
+          <p className="mt-1.5 text-xs text-st-faint">Kept in this project&apos;s media bin, on this device.</p>
         </div>
       ) : null}
       <div className="flex items-end gap-2">
@@ -167,6 +167,41 @@ export const OverlayEditor: React.FC<{
       <Slider label="Rotation" value={item.rotation} min={-45} max={45} step={1} unit="°" onChange={(v) => set({ rotation: v })} />
       {item.kind === "text" ? <Slider label="Size" value={item.fontSize ?? 64} min={24} max={140} onChange={(v) => set({ fontSize: v })} /> : null}
       {item.kind !== "image" ? <ColorField label="Colour" value={item.color} onChange={(v) => set({ color: v })} /> : null}
+      {/* Package 3 item I.5: entrance/exit animation for EVERY overlay kind — the same
+          In/Out preset system as the captions (Package 2 item D), box-applicable subset */}
+      <div className="space-y-2 border-t border-st-line pt-3">
+        <span className="block text-sm font-medium text-st-text/90">Animation</span>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="block text-sm text-st-text/90">
+            <span className="mb-1 block text-xs text-st-muted">Entrance</span>
+            <select
+              aria-label="Entrance animation"
+              value={item.enterAnim ?? "none"}
+              onChange={(e) => set({ enterAnim: e.target.value === "none" ? undefined : (e.target.value as OverlayItem["enterAnim"]) })}
+              className="w-full rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm text-st-text outline-none focus:border-st-lav"
+            >
+              {OVERLAY_ENTER_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+          </label>
+          <label className="block text-sm text-st-text/90">
+            <span className="mb-1 block text-xs text-st-muted">Exit</span>
+            <select
+              aria-label="Exit animation"
+              value={item.exitAnim ?? "none"}
+              onChange={(e) => set({ exitAnim: e.target.value === "none" ? undefined : (e.target.value as OverlayItem["exitAnim"]) })}
+              className="w-full rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm text-st-text outline-none focus:border-st-lav"
+            >
+              {OVERLAY_EXIT_ANIMS.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
+            </select>
+          </label>
+        </div>
+        {item.enterAnim && item.enterAnim !== "none" ? (
+          <Slider label="Entrance speed" value={item.enterSpeed ?? 1} min={0.5} max={2} step={0.25} unit="×" onChange={(v) => set({ enterSpeed: v })} />
+        ) : null}
+        {item.exitAnim && item.exitAnim !== "none" ? (
+          <Slider label="Exit speed" value={item.exitSpeed ?? 1} min={0.5} max={2} step={0.25} unit="×" onChange={(v) => set({ exitSpeed: v })} />
+        ) : null}
+      </div>
       <Button tone="danger" onClick={onDelete} className="w-full">Delete</Button>
     </Section>
   );

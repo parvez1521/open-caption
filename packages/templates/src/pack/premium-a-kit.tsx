@@ -6,6 +6,7 @@
  */
 import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, exitStyle } from "../motion";
 import { containerCss, famCss, fillCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps, TemplateCapabilities } from "../types";
@@ -150,7 +151,7 @@ export function glyphsOf(text: string, face: Face, measure: MeasureFn): { glyphs
  * A drop-shadow group is precomposited once by the exporter and looks the same everywhere.
  */
 export function decorFilters(style: CaptionStyleV2, sc: number, ratio = 1): string[] {
-  const out = style.shadows.map((s) => `drop-shadow(${px(s.x * sc * ratio)} ${px(s.y * sc * ratio)} ${px(s.blur * sc * ratio)} ${s.color})`);
+  const out = style.shadows.map((s) => `drop-shadow(${px(s.x * sc * ratio)} ${px(s.y * sc * ratio)} ${px(s.blur * sc * ratio)} ${shadowColorOf(s)})`);
   if (style.glow.enabled) out.push(`drop-shadow(0 0 ${px(style.glow.radius * sc * 0.6)} ${withAlpha(style.glow.color, style.glow.intensity)})`);
   return out;
 }

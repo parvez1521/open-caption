@@ -57,7 +57,7 @@ function renderPanel(overrides: Partial<AudioPanelProps> = {}) {
 describe("AudioPanel — Bleep profanity review", () => {
   it("lists matches with word + timestamp, states the limits, and approves nothing by default", () => {
     const props = renderPanel();
-    expect(screen.getByText(/can miss slang or mis-transcribed words/i)).toBeTruthy();
+    expect(screen.getByText(/can miss slang or mis-hearings/i)).toBeTruthy();
     expect(screen.getByText("fuck")).toBeTruthy();
     expect(screen.getByText("चूतिया")).toBeTruthy();
     expect(screen.getByText("0:01.0")).toBeTruthy();

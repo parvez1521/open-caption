@@ -20,6 +20,7 @@
  * The drawing is one pure function of the spec below, shared by both paths.
  */
 import React, { useContext, useLayoutEffect, useRef } from "react";
+import { shadowColorOf } from "@capseasy/shared";
 import { useDelayRender, useRemotionEnvironment } from "remotion";
 import { exitStyle, showAt } from "../motion";
 import { displayText, famCss } from "../text";
@@ -227,7 +228,7 @@ export function buildDiffSpec(p: PageRenderProps): DiffSpec {
   const life = settled ? 0 : clamp01((timeMs - page.startMs) / Math.max(1, cardMs));
   const push = 1 + 0.03 * Math.min(1.5, k) * AE.sine(life);
   const ex = exitStyle(style, page.endMs - timeMs, settled, size);
-  const shadows = style.shadows.map((s) => ({ x: s.x * sc, y: s.y * sc, blur: s.blur * sc, color: s.color }));
+  const shadows = style.shadows.map((s) => ({ x: s.x * sc, y: s.y * sc, blur: s.blur * sc, color: shadowColorOf(s) }));
   const glow = style.glow.enabled ? { r: style.glow.radius * sc, color: withAlpha(style.glow.color, style.glow.intensity) } : null;
   const stroke = style.stroke.enabled && style.stroke.width > 0 ? { w: style.stroke.width * sc, color: style.stroke.color } : null;
   const fill: DFill | null = style.fill.type === "gradient" ? { type: "gradient", stops: style.fill.stops, angle: style.fill.angle } : null;

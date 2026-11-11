@@ -4,6 +4,7 @@
  */
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { showAt } from "../motion";
 import type { PageRenderProps } from "../types";
 import {
@@ -605,7 +606,7 @@ export const BubbleLayout: React.FC<PageRenderProps> = (p) => {
   const base = s.fontSize * sc;
   const r = s.stroke.enabled ? s.stroke.width * sc : 0;
   const ring = r > 0 ? ringShadow(r, s.stroke.color, 16) : [];
-  const drop = s.shadows.flatMap((x) => [...(r > 0 ? ringShadow(r, x.color, 16, x.x * sc, x.y * sc) : []), `${(x.x * sc).toFixed(2)}px ${(x.y * sc).toFixed(2)}px ${(x.blur * sc).toFixed(2)}px ${x.color}`]);
+  const drop = s.shadows.flatMap((x) => [...(r > 0 ? ringShadow(r, shadowColorOf(x), 16, x.x * sc, x.y * sc) : []), `${(x.x * sc).toFixed(2)}px ${(x.y * sc).toFixed(2)}px ${(x.blur * sc).toFixed(2)}px ${shadowColorOf(x)}`]);
   const paint = (): Paint => {
     const b = fillBody(s);
     return { ...b, textShadow: joinS(...ring, ...drop), filter: userGlow(s, sc) };

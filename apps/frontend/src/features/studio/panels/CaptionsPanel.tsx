@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { CaptionDoc, Page } from "@capseasy/shared";
-import { deleteWordsByIds, findMatches, findReplace, importSubtitles, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
+import { deleteWordsByIds, findMatches, findReplace, importSubtitles, mergeWithNext, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Button, fmtTime } from "../controls";
 import { EmphasisSuggestions } from "./EmphasisSuggestions";
 import { PANEL_PX_PER_MS, formatDelta, isPastThreshold, pxToMs, rangeSelection } from "../dragSelect";
@@ -26,6 +26,16 @@ interface Props {
   selectedWordIds: Set<string>;
   onWordSelectionChange: (ids: Set<string>) => void;
   /**
+   * Package 2 item G — "Generate captions" for a project that started through the Normal
+   * Editor door (empty doc, no transcription run). Provided only when generating is
+   * possible; the panel shows the action in its empty state. `generateBusy`/`generateProgress`
+   * mirror the in-tab transcription session while it runs.
+   */
+  onGenerateCaptions?: () => void;
+  generateBusy?: boolean;
+  generateProgress?: number;
+  generateNote?: string | null;
+  /**
    * Slice 5.5 (a): the captions track's lock (Timeline track controls). When true, EVERY
    * caption edit in this panel is blocked — word text, find/replace, shift-all, group
    * shift/delete, split/join/hide, subtitle import and drag-retime — while selecting and
@@ -47,7 +57,7 @@ type Gesture =
   | { kind: "select"; anchorId: string; startX: number; startY: number; active: boolean }
   | { kind: "retime"; ids: string[]; startX: number; startY: number; active: boolean; dx: number };
 
-export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, heroSupported, selectedWordIds, onWordSelectionChange, locked = false }) => {
+export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, heroSupported, selectedWordIds, onWordSelectionChange, locked = false, onGenerateCaptions, generateBusy = false, generateProgress = 0, generateNote = null }) => {
   // The lock guard lives at this ONE chokepoint: every edit this panel makes (its own
   // controls and the EmphasisSuggestions child) goes through `edit`, so wrapping it here
   // blocks them all at once — no call site can forget the check.
@@ -200,8 +210,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         {doc.words.length > 0 ? (
           <details className="space-y-1.5">
             <summary className="cursor-pointer text-xs font-semibold text-st-text">
-              Shift all captions{" "}
-              <span className="font-normal text-st-faint">— if every caption sits a little early or late</span>
+              Shift all captions
             </summary>
             <div className="flex flex-wrap gap-1.5 pt-1">
               {[-1000, -500, -100, 100, 500, 1000].map((ms) => (
@@ -232,7 +241,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
 
       {pages.length > 0 ? (
         <p className="shrink-0 border-b border-st-line px-3 py-2 text-xs text-st-muted">
-          Drag across words to select them, then drag the selection left or right to retime it.
+          Drag across words to select; drag the selection to retime.
         </p>
       ) : null}
 
@@ -244,8 +253,26 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         onPointerCancel={endGesture}
       >
         {pages.length === 0 ? <div className="p-6 text-center text-sm text-st-muted">
-            <p className="font-semibold text-st-text">No spoken words found</p>
-            <p className="mt-1">This video has no speech we could hear. Add captions with <b>Import SRT / VTT</b> above, or double-click the captions track in the timeline to type a word at the playhead.</p>
+            {onGenerateCaptions ? (
+              <>
+                <p className="font-semibold text-st-text">No captions yet</p>
+                {generateBusy ? (
+                  <p className="mt-1">Writing your captions… {Math.round(generateProgress * 100)}%</p>
+                ) : (
+                  <>
+                    <p className="mt-1">This project started in the Normal Editor, without captioning.</p>
+                    <Button tone="primary" className="mt-3" onClick={onGenerateCaptions}>Generate captions</Button>
+                    <p className="mt-2 text-xs">Written on this device from the video&apos;s audio.</p>
+                    {generateNote ? <p role="alert" className="mt-2 text-xs text-st-text">{generateNote}</p> : null}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-st-text">No spoken words found</p>
+                <p className="mt-1">This video has no speech we could hear. Add captions with <b>Import SRT / VTT</b> above, or double-click the captions track in the timeline to type a word at the playhead.</p>
+              </>
+            )}
           </div> : null}
         {pages.map((page) => (
           <div key={page.id} data-page={page.id} className={`border-b border-l-4 border-b-st-line/60 px-3 py-2.5 ${page.id === currentPageId ? "border-l-st-or bg-st-lav/35" : "border-l-transparent"}`}>
@@ -338,6 +365,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
             ) : null}
             <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => splitCardAt(d, selected.id))}>Split card here</Button>
             <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithPrevious(d, selected.id))}>Join previous</Button>
+            <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithNext(d, selected.id))}>Join next</Button>
             <Button tone="danger" disabled={locked} className="!py-1 text-xs" onClick={() => { edit((d) => setHidden(d, selected.id, true)); onSelect(null); }}>Hide word</Button>
           </div>
         </div>

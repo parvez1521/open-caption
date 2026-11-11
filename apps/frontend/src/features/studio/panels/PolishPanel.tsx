@@ -113,7 +113,6 @@ export const PolishPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
     <div className="h-full overflow-y-auto">
       <Section
         title="One-click Polish"
-        hint="An automated edit pass over this project — the plan is shown before anything is applied."
         more="The pass is built from the editor's own tools: filler and long-pause cuts, punch-in zooms, a caption look, a title card and music ducking. Every step can be unchecked, applying is one undo step, and each applied step can be reverted on its own. Steps marked AI-suggested had a choice made by the badged source; everything else is a deterministic automatic step. Where a choice exists — the caption look, the zoom intensity, the title — the free AI or on-device model may suggest it when available; otherwise the plan uses its stated defaults and labels those steps automatic."
       >
         {!plan && !record ? (
@@ -200,10 +199,7 @@ export const PolishPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
             </Button>
             <details>
               <summary className="cursor-pointer text-xs font-medium text-st-muted">How reverting works</summary>
-              <p className="mt-1 text-xs leading-relaxed text-st-faint">
-                Each revert is its own undo step and restores exactly what that step changed. Reverting newest first
-                is exact; the two cut steps share their scope, so reverting either restores both cuts.
-              </p>
+              <p className="mt-1 text-xs leading-relaxed text-st-faint">Each revert restores exactly what its step changed.</p>
             </details>
             <Button disabled={busy} onClick={() => void buildPlan()} className="w-full">
               Build a new plan

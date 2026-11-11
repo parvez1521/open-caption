@@ -7,7 +7,6 @@ import { trackOf } from "../composition";
 import { describeAssetLicence, describeAssetMeta } from "../mediaAssets";
 import type { MediaAssetRecord } from "../mediaStore";
 import type { ImportError } from "../useMediaAssets";
-import { StockAudioSection } from "./StockAudioSection";
 
 export interface MediaInfo {
   filename: string | null;
@@ -29,9 +28,6 @@ export interface MediaPanelProps {
   onImport: (files: File[]) => Promise<ImportError[]>;
   onDeleteAsset: (id: string) => Promise<void>;
   onPlaceImage?: (asset: MediaAssetRecord) => void;
-  /** stock audio (A10): the project id stock imports land in, and a bin refresh for when one lands */
-  stockProjectId?: string | null;
-  onStockAdded?: () => void;
 }
 
 /**
@@ -41,7 +37,7 @@ export interface MediaPanelProps {
  * same attach path as re-link; an imported image can be placed as a timed overlay; an imported
  * audio file can be dragged onto the timeline or placed from the Audio panel.
  */
-export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRelink, assets, importing, onImport, onDeleteAsset, onPlaceImage, stockProjectId, onStockAdded }) => {
+export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRelink, assets, importing, onImport, onDeleteAsset, onPlaceImage }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const binRef = useRef<HTMLInputElement>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -82,7 +78,6 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
       </Section>
       <Section
         title="Media bin"
-        hint="This project's files, kept in this browser only — not uploaded."
         more="Another browser shows an empty bin. Audio can be dragged onto the timeline or placed from the Audio panel."
       >
         <Button disabled={importing} onClick={() => binRef.current?.click()} className="w-full">{importing ? "Importing…" : "Import media"}</Button>
@@ -125,15 +120,7 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
         )}
       </Section>
       <Section
-        title="Stock audio"
-        hint="A bundled CC0 pack of sound effects, plus Pixabay music and sounds with your own free Pixabay key."
-        more="Imports land in the media bin with their licence record attached."
-      >
-        <StockAudioSection projectId={stockProjectId ?? null} onAdded={onStockAdded} tone="studio" />
-      </Section>
-      <Section
         title="Where the video lives"
-        hint="Your video stays on this device."
         more="Only the captions and settings are saved to your account, so opening this project on another device asks you to pick the video file again. Re-linking replaces the copy stored here; your captions and timing do not change."
       >
         <Button disabled={busy} onClick={() => inputRef.current?.click()}>{busy ? "Linking…" : "Re-link video file"}</Button>

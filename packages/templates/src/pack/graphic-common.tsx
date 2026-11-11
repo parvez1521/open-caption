@@ -1,7 +1,7 @@
 /** Shared bits for the paper / sticker / overlay pack layouts (graphic*.tsx). */
 import type React from "react";
 import type { CaptionStyleV2, Page } from "@capseasy/shared";
-import { ACTIVE_EFFECTS } from "@capseasy/shared";
+import { ACTIVE_EFFECTS, shadowColorOf } from "@capseasy/shared";
 import { famCss, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps, TemplateCapabilities } from "../types";
 import { withAlpha } from "./kit";
@@ -21,11 +21,11 @@ export function glowLayers(style: CaptionStyleV2, sc: number): string[] {
   const r = style.glow.radius * sc;
   return [`0 0 ${px(r)} ${withAlpha(style.glow.color, style.glow.intensity)}`, `0 0 ${px(r * 2)} ${withAlpha(style.glow.color, style.glow.intensity * 0.6)}`];
 }
-export const shadowLayers = (style: CaptionStyleV2, sc: number) => style.shadows.map((s) => `${px(s.x * sc)} ${px(s.y * sc)} ${px(s.blur * sc)} ${s.color}`);
+export const shadowLayers = (style: CaptionStyleV2, sc: number) => style.shadows.map((s) => `${px(s.x * sc)} ${px(s.y * sc)} ${px(s.blur * sc)} ${shadowColorOf(s)}`);
 
 /** the style's shadows and glow as a CSS filter (for shapes, clipped tiles and gradient text, where text-shadow can't be used) */
 export function dropFilter(style: CaptionStyleV2, sc: number, extra: string[] = []): string | undefined {
-  const parts = [...extra, ...style.shadows.map((s) => `drop-shadow(${px(s.x * sc)} ${px(s.y * sc)} ${px(s.blur * sc)} ${s.color})`)];
+  const parts = [...extra, ...style.shadows.map((s) => `drop-shadow(${px(s.x * sc)} ${px(s.y * sc)} ${px(s.blur * sc)} ${shadowColorOf(s)})`)];
   if (style.glow.enabled) parts.push(`drop-shadow(0 0 ${px(style.glow.radius * sc * 0.6)} ${withAlpha(style.glow.color, style.glow.intensity)})`);
   return parts.length ? parts.join(" ") : undefined;
 }

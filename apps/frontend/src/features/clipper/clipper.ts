@@ -21,9 +21,25 @@ import {
 import { studioService } from "@/services/studio";
 import { getLocalVideo, saveLocalVideo } from "@/features/upload/localVideos";
 import { clampCropWindow, type CropWindow } from "./reframe";
+import { ProjectSettingsSchema, newId, type OverlayItem } from "@capseasy/shared";
+import { validateMediaFile, type AssetLicenceRecord } from "@/features/studio/mediaAssets";
+import { probeMediaFile } from "@/features/studio/mediaProbe";
+import { saveAsset } from "@/features/studio/mediaStore";
 
 /** The shortest clip a user can dial in by hand (proposals themselves target 15–60s). */
 export const CLIP_MIN_MS = 3000;
+
+/**
+ * Package 3 item I.2 — how many clips to SUGGEST for a video: roughly one per six
+ * minutes of source, at least 3, at most 8 — and never more than the detection
+ * actually produced (`available`): a quiet video with two real segments gets two
+ * suggestions, never padded ones.
+ */
+export function clipTargetCount(durationMs: number, available: number): number {
+  const byDuration = Math.round(Math.max(0, durationMs) / 360_000);
+  const target = Math.max(3, Math.min(8, byDuration));
+  return Math.max(0, Math.min(available, target));
+}
 
 /** m:ss for a millisecond instant (0:32, 1:05, 12:40). */
 export function fmtClipTime(ms: number): string {
@@ -88,7 +104,20 @@ export async function createClipProject(input: {
    * window and the video row's own dimensions; when absent, no reframing is stored.
    */
   reframeWindow?: CropWindow;
-}): Promise<{ projectId: string; videoCopied: boolean }> {
+  /**
+   * Package 3 item I.3: element overlays the user TICKED from the suggestion strip
+   * (clip-relative times, built by suggestions.ts). Only ticked elements ever arrive
+   * here — with none ticked this is absent/empty and nothing is placed. They are
+   * written into the new project's settings after creation, like a panel placement.
+   */
+  elements?: OverlayItem[];
+  /**
+   * Package 3 item I.4: B-roll files the user selected from the suggestions (already
+   * downloaded by the caller), with their licence records. Each is probed and saved
+   * into the new project's media bin, exactly like a manual bin import.
+   */
+  broll?: { file: File; licence: AssetLicenceRecord }[];
+}): Promise<{ projectId: string; videoCopied: boolean; warnings: string[] }> {
   const doc = clipDocForSegment(input.doc, { startMs: input.startMs, endMs: input.endMs });
   const chosenTitle = input.title?.trim().slice(0, 120).trim();
   const created = await studioService.createClip(input.sourceProjectId, {
@@ -106,7 +135,47 @@ export async function createClipProject(input: {
       videoCopied = true;
     }
   }
-  return { projectId: created.project.id, videoCopied };
+  // Post-creation additions (Package 3 items I.3/I.4): each step is independent and
+  // fault-tolerant — a failure is reported as a warning, never hidden, and never
+  // un-creates the clip.
+  const warnings: string[] = [];
+  if (input.elements && input.elements.length > 0) {
+    try {
+      const st = await studioService.getStudio(created.project.id);
+      const settings = ProjectSettingsSchema.parse((st.project as { settings_json?: unknown }).settings_json ?? {});
+      await studioService.savePatch(created.project.id, {
+        settings_json: { ...settings, overlays: [...settings.overlays, ...input.elements] },
+      });
+    } catch {
+      warnings.push("the ticked elements couldn't be added — the clip itself was created without them");
+    }
+  }
+  for (const b of input.broll ?? []) {
+    try {
+      const v = validateMediaFile(b.file);
+      if (!v.ok) throw new Error(v.error);
+      const probed = await probeMediaFile(b.file, v.kind);
+      await saveAsset({
+        id: newId(),
+        projectId: created.project.id,
+        kind: v.kind,
+        name: b.file.name,
+        mime: b.file.type,
+        size: b.file.size,
+        durationMs: probed.durationMs,
+        width: probed.width,
+        height: probed.height,
+        blob: b.file,
+        thumb: probed.thumb,
+        peaks: probed.peaks,
+        createdAt: Date.now(),
+        licence: b.licence,
+      });
+    } catch {
+      warnings.push(`B-roll "${b.file.name}" couldn't be added to the clip's media bin`);
+    }
+  }
+  return { projectId: created.project.id, videoCopied, warnings };
 }
 
 /* ------------------------------------------------------------------ *

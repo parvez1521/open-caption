@@ -10,6 +10,7 @@
  * The drawing is a pure function of the props (the spec below), redrawn whenever the spec changes.
  */
 import React, { useLayoutEffect, useRef } from "react";
+import { shadowColorOf } from "@capseasy/shared";
 import { continueRender, delayRender } from "remotion";
 import { effectiveIntensity, exitStyle } from "../motion";
 import { displayText, famCss, layoutBox, scaleOf } from "../text";
@@ -132,7 +133,7 @@ export const CookLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, can
   };
   // shadows and glow fall from the black frame INTO the letters (an inner shadow on the video)
   const filters = [
-    ...style.shadows.map((s) => `drop-shadow(${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc).toFixed(2)}px ${s.color})`),
+    ...style.shadows.map((s) => `drop-shadow(${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc).toFixed(2)}px ${shadowColorOf(s)})`),
     ...(style.glow.enabled ? [`drop-shadow(0 0 ${(style.glow.radius * sc).toFixed(2)}px ${withAlpha(style.glow.color, style.glow.intensity)})`] : []),
   ];
   return (

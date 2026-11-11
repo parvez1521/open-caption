@@ -70,3 +70,17 @@ export async function openSilentVideo(o: { projectId: string; ownerId: string; v
   await admin.from("caption_documents").upsert({ project_id: o.projectId, owner_id: o.ownerId, doc }, { onConflict: "project_id", ignoreDuplicates: true });
   await setProjectStatus(o.projectId, "ready");
 }
+
+/**
+ * Package 2 item G — "Normal Editor" door: the owner chose to edit WITHOUT captioning.
+ * Same empty-document opening as a silent video (the editor, timeline and export all work
+ * with zero words — the silent-video path proves it), but the video's audio facts are left
+ * untouched: it HAS audio, and "Generate captions" in the Captions panel can transcribe it
+ * later. ignoreDuplicates means this can never clobber real captions.
+ */
+export async function openWithoutCaptions(o: { projectId: string; ownerId: string }) {
+  const admin = getAdmin();
+  const doc = CaptionDocSchema.parse({ version: 2, language: "en", words: [], meta: { userEdited: false } });
+  await admin.from("caption_documents").upsert({ project_id: o.projectId, owner_id: o.ownerId, doc }, { onConflict: "project_id", ignoreDuplicates: true });
+  await setProjectStatus(o.projectId, "ready");
+}

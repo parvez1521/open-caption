@@ -1,6 +1,7 @@
 import React from "react";
 import { random } from "remotion";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { applyCasing, withAlpha } from "@motion-ai/caption-engine/core";
 import { combineMotion, easeFn, effectiveIntensity, exitStyle, progress, showAt } from "../motion";
 import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
@@ -63,7 +64,7 @@ function rowWidth(texts: string[], style: CaptionStyleV2, script: boolean, size:
 }
 
 const shadowOf = (style: CaptionStyleV2, sc: number) =>
-  style.shadows.length ? style.shadows.map((s) => `${s.x * sc}px ${s.y * sc}px ${s.blur * sc}px ${s.color}`).join(", ") : undefined;
+  style.shadows.length ? style.shadows.map((s) => `${s.x * sc}px ${s.y * sc}px ${s.blur * sc}px ${shadowColorOf(s)}`).join(", ") : undefined;
 
 const ABS: React.CSSProperties = { position: "absolute", left: 0, top: 0, whiteSpace: "pre", pointerEvents: "none" };
 const blurF = (px: number) => (px > 0.15 ? `blur(${px.toFixed(2)}px)` : undefined);

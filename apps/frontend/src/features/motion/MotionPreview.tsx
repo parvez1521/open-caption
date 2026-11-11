@@ -18,7 +18,9 @@ import { socialStageFor } from "@/features/studio/panels/socialStage";
  *  - the live layer mounts only near the viewport (IntersectionObserver, 240px margin) and
  *    only while it holds one of the shared live-preview slots (livePreviewBudget, max 6
  *    across the whole app);
- *  - the clock steps in authored 30 fps frames and loops over the item's own window.
+ *  - the clock is continuous and loops over the item's own window (smoothness pass
+ *    2026-11-11: OverlayView is a pure function of localMs, so every display refresh draws
+ *    a true in-between instant instead of juddering in 30 fps quanta).
  *
  * Controlled mode (`timeMs` given): no loop, no slot — the caller owns the clock (the
  * customize page's play/pause/scrub controls) and each render draws exactly that instant.
@@ -33,7 +35,6 @@ export interface MotionPreviewProps {
   transparent?: boolean;
 }
 
-const PREVIEW_FPS = 30;
 const PREVIEW_SC = 1;
 
 const reducedMotion = () =>
@@ -105,14 +106,13 @@ export const MotionPreview: React.FC<MotionPreviewProps> = ({ item, assetSrc, ti
   useEffect(() => {
     if (!live) return;
     let raf = 0;
-    const frameMs = 1000 / PREVIEW_FPS;
     const t0 = performance.now();
-    let lastStep = -1;
+    let lastMs = -1;
     const tick = (now: number) => {
-      const step = Math.floor((now - t0) / frameMs);
-      if (step !== lastStep) {
-        lastStep = step;
-        setLoopMs((step * frameMs) % durationMs);
+      const ms = Math.floor(now - t0) % durationMs;
+      if (ms !== lastMs) {
+        lastMs = ms;
+        setLoopMs(ms);
       }
       raf = requestAnimationFrame(tick);
     };

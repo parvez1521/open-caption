@@ -6,6 +6,7 @@
  */
 import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, exitStyle, showAt } from "../motion";
 import { containerCss } from "../text";
 import type { PageRenderProps, TemplateCapabilities } from "../types";
@@ -156,7 +157,7 @@ export function wiggle(tSec: number, freqHz: number, amp: number, seed: number):
 
 /** the style's drop shadows as text-shadow layers, scaled with the fitted text (`ratio` = rendered / reference size) */
 export const shadowsAt = (style: CaptionStyleV2, sc: number, ratio = 1) =>
-  style.shadows.map((s) => `${(s.x * sc * ratio).toFixed(2)}px ${(s.y * sc * ratio).toFixed(2)}px ${(s.blur * sc * ratio).toFixed(2)}px ${s.color}`);
+  style.shadows.map((s) => `${(s.x * sc * ratio).toFixed(2)}px ${(s.y * sc * ratio).toFixed(2)}px ${(s.blur * sc * ratio).toFixed(2)}px ${shadowColorOf(s)}`);
 
 /** the standard two-layer glow */
 export function glowAt(style: CaptionStyleV2, sc: number): string[] {

@@ -16,7 +16,7 @@ export type ControlId =
   | "positionY" | "positionX" | "maxWidth" | "rotation"
   | "emoji" | "emojiSize" | "emojiAnimation"
   | "fillType" | "gradientColor2" | "gradientAngle"
-  | "shadowColor" | "shadowBlur" | "shadowDistance" | "glowColor" | "glowSize"
+  | "shadowColor" | "shadowBlur" | "shadowDistance" | "shadowOpacity" | "glowColor" | "glowSize"
   | "backgroundPadding" | "backgroundRadius" | "backgroundBlur" | "dimUnspoken"
   | "entrance" | "entranceSpeed" | "stagger" | "easing" | "exit" | "exitSpeed" | "motionIntensity" | "emotionReactivity" | "reveal";
 
@@ -25,8 +25,27 @@ export const BACKGROUND_TYPES = ["none", "pill", "box"] as const;
 
 const STAGGER_LAYOUTS = new Set(["sentence", "karaoke", "bar"]);
 export const effectsFor = (t: TemplateDefinition) => ACTIVE_EFFECTS.filter((e) => t.capabilities.activeEffects.includes(e));
+/**
+ * Entrances the SHARED renderer guarantees for EVERY template at card level (PageView applies
+ * entranceStyle around the layout — Package 2 item D, 2026-11-11): the types entranceStyle
+ * implements completely on the whole card, needing no layout-drawn companions. Templates whose
+ * layouts declare no entrance of their own (capabilities.entrances = ["none"] — most pack
+ * layouts, whose words animate in their own fixed way) previously exposed NO Entrance control
+ * in the Motion section at all, only Exit; they now offer exactly this set, applied by the
+ * shared PageView wrapper so preview ≡ export. Types that need per-letter/per-word drawing
+ * inside a layout (flicker, scramble, block-reveal, roll, write-on, split-flap, panels-reveal,
+ * letter animators) stay capability-gated to the layouts that draw them.
+ */
+export const CARD_ENTRANCES = [
+  "none", "fade", "rise", "drop", "pop", "zoom", "slide-left", "slide-right", "blur-in",
+  "flip", "elastic", "mask-reveal", "glitch", "glitch-slice", "typewriter", "jelly", "wave",
+] as const;
+/** true when the layout declares no entrance of its own, so PageView owes the card-level one */
+export const usesCardEntrance = (t: TemplateDefinition) => t.capabilities.entrances.length <= 1;
 /** "wave" and the letter animators move letters one by one, so they are only offered where words are laid out individually */
-export const entrancesFor = (t: TemplateDefinition) => ENTRANCES.filter((e) => t.capabilities.entrances.includes(e) && ((e !== "wave" && !isLetterAnimator(e)) || STAGGER_LAYOUTS.has(t.layout)));
+export const entrancesFor = (t: TemplateDefinition) => usesCardEntrance(t)
+  ? [...CARD_ENTRANCES]
+  : ENTRANCES.filter((e) => t.capabilities.entrances.includes(e) && ((e !== "wave" && !isLetterAnimator(e)) || STAGGER_LAYOUTS.has(t.layout)));
 
 /** letter exits need words drawn letter by letter (the same layouts as letter entrances) */
 export const exitsFor = (t: TemplateDefinition) => EXIT_TYPES.filter((e) => !isLetterAnimator(e) || STAGGER_LAYOUTS.has(t.layout));
@@ -66,7 +85,7 @@ export function controlVisible(id: ControlId, t: TemplateDefinition, s: CaptionS
     case "stagger": return STAGGER_LAYOUTS.has(t.layout) && entrancesFor(t).length > 1 && s.entrance.type !== "none" && s.entrance.type !== "wave" && !isLetterAnimator(s.entrance.type);
     case "fillType": return c.color;
     case "gradientColor2": case "gradientAngle": return c.color && s.fill.type === "gradient";
-    case "shadowColor": case "shadowBlur": case "shadowDistance": return s.shadows.length > 0;
+    case "shadowColor": case "shadowBlur": case "shadowDistance": case "shadowOpacity": return s.shadows.length > 0;
     case "glowColor": case "glowSize": return s.glow.enabled;
     case "backgroundPadding": return c.background && s.background.type !== "none";
     case "backgroundRadius": return c.background && s.background.type !== "none" && s.background.type !== "pill";
@@ -154,6 +173,7 @@ export const STYLE_CONTROLS: ControlCase[] = [
   { id: "shadowColor", variants: (b) => [{ from: withShadow(b), to: (s) => ({ ...s, shadows: s.shadows.map((x) => ({ ...x, color: "#AB12CD" })) }) }] },
   { id: "shadowBlur", variants: (b) => [{ from: withShadow(b), to: (s) => ({ ...s, shadows: s.shadows.map((x) => ({ ...x, blur: x.blur + 10 })) }) }] },
   { id: "shadowDistance", variants: (b) => [{ from: withShadow(b), to: (s) => ({ ...s, shadows: s.shadows.map((x) => ({ ...x, y: x.y + 8 })) }) }] },
+  { id: "shadowOpacity", variants: (b) => [{ from: withShadow(b), to: (s) => ({ ...s, shadows: s.shadows.map((x) => ({ ...x, opacity: 0.25 })) }) }] },
   { id: "glowColor", variants: (b) => [{ from: { ...b, glow: { ...b.glow, enabled: true } }, to: (s) => ({ ...s, glow: { ...s.glow, color: "#AB12CD" } }) }] },
   { id: "glowSize", variants: (b) => [{ from: { ...b, glow: { ...b.glow, enabled: true } }, to: (s) => ({ ...s, glow: { ...s.glow, radius: s.glow.radius + 12 } }) }] },
   { id: "backgroundPadding", variants: () => one((s) => ({ ...s, background: { ...s.background, padding: s.background.padding + 12 } })) },

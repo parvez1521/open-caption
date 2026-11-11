@@ -1,5 +1,6 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { applyCasing, darken, lighten, withAlpha } from "@motion-ai/caption-engine/core";
 import { combineMotion, effectiveIntensity, exitStyle, progress, showAt, SPRINGS, springMs } from "../motion";
 import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
@@ -104,7 +105,7 @@ export function bodyLook(style: CaptionStyleV2, sc: number): GlowLook {
     depth: typeof style.templateOptions.depth === "number" ? (style.templateOptions.depth as number) : 0.35,
     glow: style.glow,
     stroke: style.stroke,
-    shadow: style.shadows.length ? style.shadows.map((s) => `${s.x * sc}px ${s.y * sc}px ${s.blur * sc}px ${s.color}`).join(", ") : undefined,
+    shadow: style.shadows.length ? style.shadows.map((s) => `${s.x * sc}px ${s.y * sc}px ${s.blur * sc}px ${shadowColorOf(s)}`).join(", ") : undefined,
     glare: typeof style.templateOptions.glare === "number" ? (style.templateOptions.glare as number) : 0.35,
   };
 }

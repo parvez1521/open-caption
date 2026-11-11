@@ -20,6 +20,9 @@ export interface NavItem {
   group: NavGroupId;
   /** Path prefixes that mark this item active (segment-aware: "/projects" matches "/projects/abc"). */
   activeMatch: string[];
+  /** Package 3 item I.1: the entry opens its surface in a NEW browser tab (the Clipper
+   *  is a standalone workspace — leaving the current page would lose editor state). */
+  newTab?: boolean;
 }
 
 export interface NavGroup {
@@ -40,7 +43,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "analytics", label: "Creator Analytics", href: "/analytics", group: "primary", activeMatch: ["/analytics"] },
   { id: "library", label: "Media Library", href: "/library", group: "supporting", activeMatch: ["/library"] },
   { id: "brand", label: "Brand Kit", href: "/brand", group: "supporting", activeMatch: ["/brand"] },
-  { id: "clipper", label: "Clipper", href: "/clipper", group: "supporting", activeMatch: ["/clipper"] },
+  { id: "clipper", label: "Clipper", href: "/clipper", group: "supporting", activeMatch: ["/clipper"], newTab: true },
   { id: "analyzer", label: "Reel Analyzer", href: "/analyzer", group: "supporting", activeMatch: ["/analyzer"] },
   { id: "teleprompter", label: "Teleprompter", href: "/prompter", group: "supporting", activeMatch: ["/prompter"] },
   { id: "exports", label: "Export History", href: "/exports", group: "supporting", activeMatch: ["/exports"] },

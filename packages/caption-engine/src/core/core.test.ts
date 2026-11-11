@@ -3,7 +3,7 @@ import { CaptionDocSchema, defaultSettings, defaultStyle, ProjectSettingsSchema,
 import {
   autoEmoji, clearAutoEmoji, emojiFor,
   applyFillerFilter, applyProfanity, breakLines, contrastRatio, derivePages, detectEmotion, findReplace, fromWhisperVerboseJson,
-  fromWhisperCaptions, importSubtitles, insertWordAfter, legacyStyleToV2, legacyTranscriptToDoc, mergeWithPrevious, normalizeTokens,
+  fromWhisperCaptions, importSubtitles, insertWordAfter, legacyStyleToV2, legacyTranscriptToDoc, mergeWithNext, mergeWithPrevious, normalizeTokens,
   pageAt, pickHeroIndex, readMs, retimeWord, setHidden, setWordText, shiftAllWords, shiftWordsByIds, deleteWordsByIds, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
 } from "./index";
 
@@ -290,6 +290,39 @@ describe("doc ops", () => {
     expect(m.manualBreaks).toEqual([]);
     expect(m.noBreakAfter).toEqual(["a"]);
     expect(splitCardAt(m, "b").noBreakAfter).toEqual([]);
+  });
+  it("mergeWithNext mirrors mergeWithPrevious: the word's card continues into the following card", () => {
+    // start from an explicit break before c: a b | c
+    const s = splitCardAt(base, "c");
+    expect(s.manualBreaks).toEqual(["c"]);
+    const m = mergeWithNext(s, "b");
+    expect(m.manualBreaks).toEqual([]);
+    expect(m.noBreakAfter).toEqual(["b"]);
+    expect(m.meta.userEdited).toBe(true);
+    expect(base.manualBreaks).toEqual([]); // immutable
+    // splitting at c again undoes the join-next bookkeeping exactly
+    expect(splitCardAt(m, "c").noBreakAfter).toEqual([]);
+    expect(splitCardAt(m, "c").manualBreaks).toEqual(["c"]);
+  });
+  it("mergeWithNext actually merges the derived pages (and mergeWithPrevious still does)", () => {
+    const twoCards = settings({ maxWordsPerCard: 2 });
+    const before = derivePages(base, twoCards);
+    expect(before.length).toBe(2); // [a b] [c]
+    // noBreakAfter wins over the 2-word cap: the joined card holds all three words
+    const joined = derivePages(mergeWithNext(base, "b"), twoCards);
+    expect(joined.length).toBe(1);
+    expect(joined[0]!.words.map((w) => w.id)).toEqual(["a", "b", "c"]);
+    // parity under the engine's hard cap (a user merge beats breaks only up to 2x the word
+    // limit — derive.ts): with a 1-word cap BOTH directions stop at the same 2 pages
+    const cap = settings({ maxWordsPerCard: 1 });
+    expect(derivePages(mergeWithNext(base, "b"), cap).length).toBe(2);
+    expect(derivePages(mergeWithPrevious(base, "c"), cap).length).toBe(2);
+    expect(derivePages(mergeWithPrevious(base, "c"), twoCards).length).toBe(1);
+  });
+  it("mergeWithNext is a no-op (same reference) on the last word and for unknown ids", () => {
+    expect(mergeWithNext(base, "c")).toBe(base);
+    expect(mergeWithNext(base, "nope")).toBe(base);
+    expect(mergeWithPrevious(base, "a")).toBe(base);
   });
   it("retime clamps to neighbours with a minimum duration", () => {
     const r = retimeWord(base, "b", 100, 500);

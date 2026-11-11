@@ -83,7 +83,11 @@ export const CaptionStyleSchema = z.object({
     .default({}),
   stroke: Stroke.default({}),
   shadows: z
-    .array(z.object({ x: z.number(), y: z.number(), blur: z.number().min(0), color: Color }))
+    .array(z.object({
+      x: z.number(), y: z.number(), blur: z.number().min(0), color: Color,
+      /** layer opacity 0..1 (Package 2 item C); absent = fully opaque (1) — older styles have no field */
+      opacity: z.number().min(0).max(1).optional(),
+    }))
     .max(12)
     .default([]),
   glow: z
@@ -137,3 +141,36 @@ export const CaptionStyleSchema = z.object({
 });
 export type CaptionStyleV2 = z.infer<typeof CaptionStyleSchema>;
 export const defaultStyle = (over: Partial<CaptionStyleV2> = {}): CaptionStyleV2 => CaptionStyleSchema.parse(over);
+
+/**
+ * The CSS colour of ONE caption shadow layer with the layer's opacity multiplied into the
+ * colour's own alpha (Package 2 item C — the Style panel's "Shadow transparency" slider).
+ * Opacity absent or >= 1 returns the colour VERBATIM, so every existing style renders
+ * byte-identically; only an explicitly lowered opacity rewrites the colour as rgba().
+ * Unparseable colours pass through unchanged. Every shadow-string builder in the caption
+ * renderer goes through here — that is what makes preview ≡ export for this field.
+ */
+export function shadowColorOf(shadow: { color: string; opacity?: number }): string {
+  const o = shadow.opacity;
+  if (o === undefined || o >= 1) return shadow.color;
+  const clamped = Math.max(0, o);
+  const c = shadow.color.trim();
+  const rgba = (r: number, g: number, b: number, a: number) =>
+    `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${parseFloat((Math.max(0, Math.min(1, a))).toFixed(3))})`;
+  const hex = /^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(c);
+  if (hex) {
+    const h = hex[1]!;
+    const full = h.length <= 4 ? h.split("").map((ch) => ch + ch).join("") : h;
+    const r = parseInt(full.slice(0, 2), 16);
+    const g = parseInt(full.slice(2, 4), 16);
+    const b = parseInt(full.slice(4, 6), 16);
+    const base = full.length === 8 ? parseInt(full.slice(6, 8), 16) / 255 : 1;
+    return rgba(r, g, b, base * clamped);
+  }
+  const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i.exec(c);
+  if (rgb) {
+    const base = rgb[4] !== undefined ? parseFloat(rgb[4]) : 1;
+    return rgba(parseFloat(rgb[1]!), parseFloat(rgb[2]!), parseFloat(rgb[3]!), base * clamped);
+  }
+  return shadow.color;
+}

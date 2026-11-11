@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
+import { modeFromSearch } from "@/features/studio/projectMode";
 import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, startGuestSession, takeAfterSignIn } from "@/services/auth/guest";
 import type { Project } from "@/services/types";
 import { LogoWave } from "@/components/brand/LogoWave";
@@ -88,8 +89,12 @@ export default function StartPage() {
         const projects = await projectsService.getProjects();
         const live = projects.filter((p) => !p.archived_at && !p.deleted_at).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
         // a guest continues where they left off
-        const project = live[0] ?? (await projectsService.createProject(nextUntitled(projects)));
-        router.replace(`/projects/${project.id}`);
+        const existing = live[0];
+        const project = existing ?? (await projectsService.createProject(nextUntitled(projects)));
+        // Package 2 item G: the homepage's second door (/start?mode=editor) — the mode is a
+        // STARTING choice, so it is forwarded only for a project created by this visit.
+        const doorMode = !existing ? modeFromSearch(window.location.search) : null;
+        router.replace(doorMode ? `/projects/${project.id}?mode=${doorMode}` : `/projects/${project.id}`);
       } catch {
         setFailed(true);
       }

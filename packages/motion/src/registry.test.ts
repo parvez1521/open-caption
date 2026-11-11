@@ -44,7 +44,7 @@ describe("motion registry integrity", () => {
     }
   });
   it("Wave 1.5 fills the facebook / x / discord parity categories with one entry each", () => {
-    expect(MOTION_TEMPLATES).toHaveLength(30);
+    expect(MOTION_TEMPLATES).toHaveLength(46);
     const cats = listMotionCategories();
     expect(cats.find((c) => c.category === "facebook")).toEqual({ category: "facebook", count: 1 });
     expect(cats.find((c) => c.category === "x")).toEqual({ category: "x", count: 1 });
