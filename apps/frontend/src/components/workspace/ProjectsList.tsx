@@ -186,7 +186,7 @@ export default function ProjectsList() {
             </button>
           ))}
         </div>
-        <button onClick={() => setCreateOpen(true)} className="ml-auto rounded-full bg-ink px-6 py-3 font-sora text-[13px] font-semibold text-dune-white hover:bg-sand-800 active:scale-[0.98] transition-all cursor-pointer">
+        <button onClick={() => setCreateOpen(true)} className="ml-auto rounded-full bg-ink px-6 py-3 font-sora text-[13px] font-semibold text-dune-white hover:bg-sand-800 transition-colors cursor-pointer">
           + New project
         </button>
       </div>

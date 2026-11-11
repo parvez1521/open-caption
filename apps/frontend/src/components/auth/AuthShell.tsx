@@ -113,7 +113,7 @@ export function SubmitButton({
       type="submit"
       disabled={loading || props.disabled}
       {...props}
-      className="w-full rounded-xl bg-[#FFFFEB] py-3.5 font-medium text-[14px] text-[#141412] transition-all duration-150 hover:bg-[#E4E4D6] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+      className="w-full rounded-xl bg-[#FFFFEB] py-3.5 font-medium text-[14px] text-[#141412] transition-colors hover:bg-[#E4E4D6] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
     >
       {loading && (
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#141412]/30 border-t-[#141412]" />
