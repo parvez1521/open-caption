@@ -126,18 +126,46 @@ describe("the verified UI map", () => {
   it("does not resurrect the places the coach once invented", () => {
     expect(COACH_UI_MAP).not.toContain("Settings → Platforms");
     expect(COACH_UI_MAP).not.toContain("Data section");
-    // The CSV button is never described with the invented bare label.
     expect(COACH_UI_MAP).not.toContain('"Import CSV" button');
+  });
+
+  it("states the sync-only truth: posts arrive by connecting an account and pressing Sync now", () => {
+    expect(COACH_UI_MAP).toContain("Posts arrive ONLY by sync");
+    expect(COACH_UI_MAP).toContain("never cite them as places");
+    // The removed surfaces may be named ONLY as forbiddances, never as destinations.
+    expect(COACH_UI_MAP).toContain("NO manual add-post form, NO CSV import, NO competitors section, NO weekly report and NO weekly plan");
   });
 
   it("every label the map cites exists in the real components (a rename breaks this test, on purpose)", () => {
     // Resolved from the frontend package root (vitest's cwd); import.meta.url
     // is not a file URL under the jsdom environment.
     const page = readFileSync(resolve(process.cwd(), "src/app/(dashboard)/growth/page.tsx"), "utf8");
-    const connect = readFileSync(resolve(process.cwd(), "src/features/growth/ConnectAccounts.tsx"), "utf8");
+    const bar = readFileSync(resolve(process.cwd(), "src/features/growth/AccountsBar.tsx"), "utf8");
+    const coach = readFileSync(resolve(process.cwd(), "src/features/growth/GrowthCoach.tsx"), "utf8");
 
-    // Sections and controls on the Growth Studio page itself.
-    for (const label of [
+    // The accounts bar and its controls.
+    for (const label of ["Sync now", "Disconnect"]) {
+      expect(COACH_UI_MAP, `map should cite "${label}"`).toContain(label);
+      expect(bar, `accounts bar should render "${label}"`).toContain(label);
+    }
+    // The Connect buttons are composed as `Connect ${name}` from the platform names.
+    expect(bar).toContain("Connect ${meta.name}");
+    expect(bar).toContain('name: "YouTube"');
+    expect(bar).toContain('name: "Instagram"');
+    expect(COACH_UI_MAP).toContain("Connect YouTube");
+    expect(COACH_UI_MAP).toContain("Connect Instagram");
+
+    // The coach surface the map describes.
+    expect(COACH_UI_MAP).toContain("Ask about your channel.");
+    expect(coach).toContain("Ask about your");
+    expect(coach).toContain("channel.");
+    expect(COACH_UI_MAP).toContain("Ask about your posts…");
+    expect(coach).toContain('placeholder="Ask about your posts…"');
+
+    // The removed sections are gone from the page — and from every surface
+    // the map's reader can reach. If one comes back, this test (not the
+    // coach's honesty) is what should break.
+    for (const gone of [
       "Your posts",
       "Missing a post? Add it manually",
       "Add a post",
@@ -153,24 +181,10 @@ describe("the verified UI map", () => {
       "Weekly plan",
       "Draft next week's plan",
     ]) {
-      expect(COACH_UI_MAP, `map should cite "${label}"`).toContain(label);
-      expect(page, `page should render "${label}"`).toContain(label);
+      expect(page, `page must not render "${gone}"`).not.toContain(gone);
     }
-    // The CSV import button is labelled with the row count, e.g. "Import 12 posts".
-    expect(page).toContain("Import ${csvRows.length}");
-    expect(COACH_UI_MAP).toContain("Import 12 posts");
-
-    // The connect section and its controls.
-    for (const label of ["Connect your accounts", "Sync now", "Disconnect"]) {
-      expect(COACH_UI_MAP, `map should cite "${label}"`).toContain(label);
-      expect(connect, `connect panel should render "${label}"`).toContain(label);
-    }
-    // The Connect buttons are composed as `Connect ${name}` from the platform names.
-    expect(connect).toContain("Connect ${meta.name}");
-    expect(connect).toContain('name: "YouTube"');
-    expect(connect).toContain('name: "Instagram"');
-    expect(COACH_UI_MAP).toContain("Connect YouTube");
-    expect(COACH_UI_MAP).toContain("Connect Instagram");
+    expect(bar).not.toContain("CSV");
+    expect(coach).not.toContain("CSV");
   });
 });
 
