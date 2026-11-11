@@ -4,7 +4,7 @@ import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { CaptionedVideo, type CaptionedVideoInput } from "@capseasy/compositions";
 import type { Platform } from "@capseasy/shared";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play } from "@/components/ui/icons";
 import { fmtTime } from "./controls";
 import { safeZoneFor, safeZoneStyle } from "./safeZone";
 

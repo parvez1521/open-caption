@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Loader2, Search } from "lucide-react";
+import { Check, ChevronDown, Search } from "@/components/ui/icons";
+import Spinner from "@/components/ui/Spinner";
 import { FONT_CATEGORIES, GOOGLE_FONTS, POPULAR_FONTS, fontStack, loadFontFamily, loadFontPreview, type FontCategory } from "@capseasy/templates";
 
 /** Draws a font's name in that font. Google previews fetch only the letters of the name (a few KB). */
@@ -97,7 +98,7 @@ export const FontPicker: React.FC<Props> = ({ label, value, placeholder, onChang
         <FontName family={family} root={listRef} className="block truncate text-[17px] leading-tight text-st-text" />
         {note ? <span className="block truncate text-[11px] text-st-faint">{note}</span> : null}
       </span>
-      {busy === family ? <Loader2 className="h-4 w-4 shrink-0 animate-spin text-st-muted" /> : family === value ? <Check className="h-4 w-4 shrink-0 text-st-text" /> : null}
+      {busy === family ? <Spinner className="h-4 w-4 shrink-0 text-st-muted" /> : family === value ? <Check className="h-4 w-4 shrink-0 text-st-text" /> : null}
     </button>
   );
 

@@ -834,7 +834,7 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
           </div>
           <p className="mt-0.5 text-xs text-st-faint">
             {sourceWidth && sourceHeight ? `${sourceWidth}×${sourceHeight} · ` : ""}
-            {Math.round(mediaDurationMs / 1000)}s of video. Only transcript text is sent to the free AI — the video never leaves this device.
+            {Math.round(mediaDurationMs / 1000)}s of video. Only transcript text is sent to the free AI — the video file never leaves this device.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <label className="block">

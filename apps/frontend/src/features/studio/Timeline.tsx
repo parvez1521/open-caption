@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, FoldHorizontal, Link2, Lock, LockOpen, Magnet, Maximize2, Plus, Scissors, SlidersHorizontal, Volume2, VolumeX, ZoomIn, ZoomOut } from "lucide-react";
+import { Eye, EyeOff, FoldHorizontal, Link2, Lock, LockOpen, Magnet, Maximize2, Plus, Scissors, SlidersHorizontal, Volume2, VolumeX, ZoomIn, ZoomOut } from "@/components/ui/icons";
 import type { AudioClip, AudioTrack, CompositionTrackKind, Page, TrackState, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
-import { formatDelta, pxToMs, toggleIds } from "./dragSelect";
 import { formatTimecode, parseTimecode, stepFrameMs } from "./timecode";
+import { formatDelta, pxToMs, toggleIds } from "./dragSelect";
 import { overlayClipsOf, trackOf, type Composition, type OverlayClip } from "./composition";
 import { snapMove, snapValue } from "./snap";
 import { canSplitAtPlayhead } from "./playheadSplit";

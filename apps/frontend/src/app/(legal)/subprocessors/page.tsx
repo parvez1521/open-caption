@@ -10,6 +10,9 @@ const ROWS: [string, string, string, string][] = [
   ["Vercel", "Website and API hosting", "Requests to the site and API, request logs", "United States (global edge)"],
   ["Google", "Sign in with Google (optional); caption fonts", "Sign-in identity; font requests from your browser", "Global"],
   ["Google (AdSense)", "Advertising on this website, only when advertising is enabled", "Ad requests; advertising cookies for ad serving and personalisation (never your videos, transcripts or projects)", "Global"],
+  ["Groq", "AI features: Growth Coach, the Create tools and Clipper highlights", "Only the text you send to those features — your question and the last few turns of that chat, your post titles and their views, reach, likes, comments, shares and saves, competitor names, handles and notes, the prompt text you write, and transcript text. Never audio or video.", "United States"],
+  ["Hugging Face", "Speech and translation model downloads to your browser", "Your browser contacts Hugging Face to download the model files (about 90 MB per speech model). No audio, video or transcript is sent to Hugging Face.", "Global"],
+  ["Sentry", "Error reporting", "Error reports when something goes wrong: the error message, where it happened, browser and device details, and, for a video that could not be read, its format, size and duration. Never the video itself, your audio or your captions. A session that hits an error may also include a screen recording, with video and images blocked.", "United States"],
   ["Cashfree", "Payment processing for paid plans", "Payment details you enter on Cashfree's checkout, order status (card data is handled by Cashfree, never by us)", "India"],
 ];
 

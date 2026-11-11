@@ -260,6 +260,7 @@ html.lenis, html.lenis body {
 
 @media (prefers-reduced-motion: reduce) {
   .st-rise, .animate-fade-in-up, .animate-subtle-float, .animate-caption-pop, .animate-marquee-slow, .animate-marquee-fast, .gradient-text-sweep, .conic-glow-pill::before { animation: none !important; }
+  .animate-pulse, .animate-spin, .animate-bounce { animation: none !important; }
 }
 
 /* ── hero entrance ──────────────────────────────────────────────
@@ -308,6 +309,28 @@ html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused 
 @media (prefers-reduced-motion: reduce) {
   .ce-wave > span { animation: none; transform: scaleY(0.7); }
   .skel, .ce-veil, .ce-veil-card { animation: none; }
+}
+
+/* ── skip link (Persona QA, 2026-11-12) ────────────────────────────
+ * First focusable element on every page (see layout.tsx): visually hidden
+ * until focused, so keyboard users can jump past the nav straight to the
+ * main landmark instead of tabbing through it on every page load. */
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -100%;
+  z-index: 100;
+  border-radius: 999px;
+  background: var(--color-emerald-accent);
+  color: #141412;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.skip-link:focus-visible {
+  top: 1rem;
+  outline: 2px solid #FFFFEB;
+  outline-offset: 2px;
 }
 
 /* ── keyboard focus visibility (Persona QA, 2026-11-10) ─────────────

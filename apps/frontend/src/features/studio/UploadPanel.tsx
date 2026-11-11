@@ -12,7 +12,7 @@ import { PrepareError, prepareVideo, type PrepareStage, type PreparedVideo } fro
 import { START_DOORS, type ProjectStartMode } from "./projectMode";
 import { transcribePreflightWarning } from "./preflight";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
-import { Check, Film, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { BadgeCheck, Check, Film, ShieldCheck, Upload } from "@/components/ui/icons";
 import { Button } from "./controls";
 
 interface Props {
@@ -29,7 +29,7 @@ interface Props {
 
 const DEFAULT_LIMITS = { maxBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60 };
 
-/** Drag & drop / pick a video: checked and saved on this device (never uploaded), then captions start — or, through the Normal Editor door, the editor opens directly with no transcription. */
+/** Drag & drop / pick a video: checked and saved on this device — the file itself is never uploaded, only its name, size, length and format are registered with the project — then captions start, or, through the Normal Editor door, the editor opens directly with no transcription. */
 export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null, mode = "captions", onModeChange }) => {
   const editorMode = mode === "editor";
   // get the speech model ready while they pick a video, so captions start the moment it's in.
@@ -205,9 +205,9 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
               </Button>
             )}
             <ul className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-st-muted">
-              <li className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Stays on your device</li>
-              <li className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" aria-hidden /> No watermark</li>
-              <li className="flex items-center gap-1.5"><Film className="h-3.5 w-3.5" aria-hidden /> MP4, MOV or WebM · up to {Math.round(limits.maxDurationSec / 60)} min · {uploadLimitLabel(limits.maxBytes)} max</li>
+              <li className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Video file stays on your device</li>
+              <li className="flex items-center gap-1.5"><BadgeCheck className="h-3.5 w-3.5" aria-hidden /> No watermark</li>
+              <li className="flex items-center gap-1.5"><Film className="h-3.5 w-3.5" aria-hidden /> MP4, MOV or WebM · up to {Math.round(limits.maxDurationSec / 60)} min · {uploadLimitLabel(limits.maxBytes)} max on this device</li>
             </ul>
             <input ref={inputRef} type="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.webm,.mkv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) pick(f); e.target.value = ""; }} />
           </>

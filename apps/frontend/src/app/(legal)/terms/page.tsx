@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { PLANS } from "@capseasy/shared";
+import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
@@ -17,7 +18,7 @@ export default function TermsPage() {
     >
       <Sec id="service" title="1. The service">
         <p>{LEGAL.product} turns your videos into captioned videos and subtitle files. You upload a video, captions are transcribed, you style and edit them in the studio, and you export the result.</p>
-        <p>Transcription and MP4 export run <strong>in your browser</strong>, on your own device. Transparent overlay exports use the optional free desktop Companion app on your computer. Your projects and exports are stored with our hosting providers (see the <Link href="/subprocessors">subprocessors</Link>); your videos stay on your device, except one you send to a Companion export.</p>
+        <p>Transcription and MP4 export run <strong>in your browser</strong>, on your own device. Transparent overlay exports use the optional free desktop Companion app on your computer. Your projects and exports are stored with our hosting providers (see the <Link href="/subprocessors">subprocessors</Link>); your video files stay on your device — only their file name, size, length and format are stored with your project — except one you send to a Companion export.</p>
         <p>We improve the service continuously, so features may change. We will tell you in advance before removing a core feature.</p>
       </Sec>
 
@@ -30,7 +31,7 @@ export default function TermsPage() {
       </Sec>
 
       <Sec id="plans" title="3. Free service and limits">
-        <p>The <strong>Free</strong> plan currently includes videos up to {Math.round(free.maxDurationSec / 60)} minutes and {Math.round(free.maxUploadBytes / (1024 * 1024))} MB, up to {free.maxProjects} projects, with exports kept for {free.exportRetentionDays} days. Transcription runs in your browser and is unlimited.</p>
+        <p>The <strong>Free</strong> plan currently includes videos up to {Math.round(free.maxDurationSec / 60)} minutes, kept on your device up to {uploadLimitLabel(free.maxLocalBytes)}, up to {free.maxProjects} projects, with exports kept for {free.exportRetentionDays} days. Files sent to our storage — for example a video sent to a Companion export — are limited to {uploadLimitLabel(free.maxUploadBytes)}. Transcription runs in your browser and is unlimited.</p>
         <p>Paid plans (Starter, Plus and Pro) raise those limits for 30 days at a time. They are sold as one-time 30-day passes at the prices published on the <Link href="/pricing">Pricing page</Link>, with payment processed by Cashfree. A pass never renews or charges you automatically: when its 30 days end, your account returns to Free limits and your projects are untouched. Nothing is ever charged unless you explicitly buy a pass.</p>
       </Sec>
 
@@ -46,7 +47,7 @@ export default function TermsPage() {
 
       <Sec id="companion" title="6. The Companion app">
         <p>The Companion is software you install on your computer. We grant you a personal, non-exclusive, non-transferable licence to use it with your account. It downloads the components it needs (for example a speech-recognition model and a headless browser for rendering), uses your computer&rsquo;s processor, memory and disk while it works, and connects only to our service and the storage links we issue. You can uninstall it at any time.</p>
-        <p>Open-source components included in the Companion and the website remain under their own licences.</p>
+        <p>Third-party components included in the Companion and the website remain under their own licences.</p>
       </Sec>
 
       <Sec id="ai" title="7. Automatic transcription">

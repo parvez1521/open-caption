@@ -102,7 +102,7 @@ export default function LandingPage() {
   }, [ready]);
 
   return (
-    <main ref={root} className="relative min-h-screen overflow-x-clip bg-[#141412] font-sans text-[#FFFFEB]">
+    <main id="main-content" ref={root} className="relative min-h-screen overflow-x-clip bg-[#141412] font-sans text-[#FFFFEB]">
       <Loader onDone={onLoaderDone} />
       <Nav />
       <Hero />

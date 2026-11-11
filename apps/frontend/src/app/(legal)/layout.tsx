@@ -14,7 +14,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
       </header>
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 lg:grid-cols-[220px_minmax(0,1fr)] lg:py-16">
         <LegalNav />
-        <main className="min-w-0">{children}</main>
+        <main id="main-content" className="min-w-0">{children}</main>
       </div>
       <Footer />
     </div>

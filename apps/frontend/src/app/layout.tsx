@@ -83,6 +83,7 @@ export default function RootLayout({
         className="h-full bg-major text-obsidian font-sans selection:bg-emerald-accent selection:text-[#141412]"
         suppressHydrationWarning
       >
+        <a href="#main-content" className="skip-link">Skip to main content</a>
         <QueryProvider>{children}</QueryProvider>
         <Analytics />
         <SpeedInsights />

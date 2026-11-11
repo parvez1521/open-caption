@@ -28,7 +28,7 @@ export default async function PricingPage() {
   return (
     <div className="min-h-screen bg-[#141412] text-[#FFFFEB]">
       <Nav />
-      <main className="mx-auto max-w-6xl px-5 pb-24 pt-16 sm:pt-20">
+      <main id="main-content" className="mx-auto max-w-6xl px-5 pb-24 pt-16 sm:pt-20">
         <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#34D399]">Pricing</p>
         <h1 className="mt-3 max-w-2xl font-serif text-4xl font-semibold leading-[1.08] tracking-[-0.015em] sm:text-5xl">
           Free while you learn it. Paid when you outgrow it.
@@ -67,8 +67,8 @@ export default async function PricingPage() {
                   ))}
                 </ul>
                 <p className="mt-6 border-t border-white/10 pt-4 text-[12px] leading-relaxed text-[#FFFFEB]/55">
-                  Up to {projectCountLabel(limits.maxProjects)} projects · uploads to {uploadLimitLabel(limits.maxUploadBytes)}{" "}
-                  · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
+                  Up to {projectCountLabel(limits.maxProjects)} projects · videos up to {uploadLimitLabel(limits.maxLocalBytes)}{" "}
+                  on this device · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
                   days
                 </p>
                 <Link

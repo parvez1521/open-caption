@@ -40,18 +40,9 @@ const MotionPreview = dynamic(() => import("@/features/motion/MotionPreview").th
 const AiEditDemo = dynamic(() => import("./AiEditDemo").then((m) => m.AiEditDemo), { ssr: false, loading: () => <div className="aspect-[4/3] w-full animate-pulse rounded-[2rem] bg-[#1C1C1A]" /> });
 
 const INK = "#FFFFEB";
-export const GITHUB_URL = "https://github.com/parvez1521/open-caption";
 /** Product Hunt badge: set NEXT_PUBLIC_PRODUCT_HUNT_POST_ID (and _SLUG) on Vercel once the launch is scheduled; hidden until then. */
 const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID || "";
 const PH_SLUG = process.env.NEXT_PUBLIC_PRODUCT_HUNT_SLUG || "";
-
-function GitHubMark({ className = "h-4 w-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden className={className} fill="currentColor">
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z" />
-    </svg>
-  );
-}
 
 /** Start fetching the speech model the moment someone shows interest in "Start free". */
 const warmModel = () => void import("@/features/transcribe/runtime").then((m) => m.prefetchWhenIdle());
@@ -100,9 +91,6 @@ export function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
-          <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer" aria-label="Open Caption on GitHub (open source)" title="Open source on GitHub" className="flex h-10 items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#FFFFEB]/15 px-2.5 text-sm font-semibold text-[#FFFFEB]/80 transition hover:border-[#FFFFEB]/40 hover:text-[#FFFFEB]">
-            <GitHubMark /><span className="hidden xl:inline">Star</span>
-          </a>
           <Link href={signedIn ? "/dashboard" : "/login"} className="hidden whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-[#FFFFEB]/80 transition hover:text-[#FFFFEB] sm:block">{signedIn ? "Dashboard" : "Sign in"}</Link>
           {/* phones: this moves into the menu */}
           <div className="conic-glow-pill hidden rounded-full p-[1px] sm:block">
@@ -493,7 +481,7 @@ export function AiEditSection() {
 function BrowserCard() {
   const rows = [
     ["Speech recognition", "runs on your device"],
-    ["Your video", "never leaves it"],
+    ["Your video file", "stays on your device"],
     ["MP4 export", "made in this tab"],
     ["Install", "nothing, ever"],
   ];
@@ -739,7 +727,6 @@ const FOOTER_COLUMNS = [
   {
     title: "RESOURCES",
     links: [
-      { label: "Open source on GitHub", href: GITHUB_URL },
       { label: "Frequently asked questions", href: "/#faq" },
       { label: "Project studio", href: "/dashboard" },
     ],

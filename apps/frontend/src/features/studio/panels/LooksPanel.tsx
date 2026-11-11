@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Save, Search } from "lucide-react";
+import { Save, Search } from "@/components/ui/icons";
 import type { CaptionStyleV2, ProjectSettings } from "@capseasy/shared";
 import { withAlpha } from "@motion-ai/caption-engine/core";
 import { LOOKS, LOOK_SECTIONS, fontStack, loadFontFamily, resolveStyle, type LookDefinition } from "@capseasy/templates";

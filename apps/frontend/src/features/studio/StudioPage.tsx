@@ -10,7 +10,7 @@ import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type Captio
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
 import { defaultVoiceMemberAvatars } from "@capseasy/motion";
 import { deleteWordsByIds, insertWordAfter, mergeWithNext, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
-import { Copy, EyeOff, Keyboard, Redo2, Scissors, Star, Trash2, Undo2 } from "lucide-react";
+import { Copy, EyeOff, Keyboard, Redo2, Scissors, Star, Trash2, Undo2 } from "@/components/ui/icons";
 import { Logo } from "@/components/brand/Logo";
 import { StudioSkeleton } from "@/components/brand/Skeletons";
 import { useBrandNav } from "@/components/brand/BrandNav";
