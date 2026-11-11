@@ -10,17 +10,52 @@ import { GrowthCoach } from "../GrowthCoach";
  * affordance at all; a connected platform shows name + sync + a two-step
  * disconnect that states synced posts stay. The coach shows its
  * not-switched-on state (and no input) when the free AI is unconfigured.
+ *
+ * REGRESSION (2026-11-11 production bug): these panels originally called
+ * the API with raw fetch and NO Authorization header — the API accepts no
+ * other auth, so in a real browser both panels could only ever render
+ * their "couldn't load" state while every apiClient-backed section worked.
+ * The fetch-stubbed tests of the day never modelled auth, so it shipped.
+ * These tests therefore run the REAL apiClient with a mocked token source
+ * and pin the wire contract: every request carries the session's Bearer
+ * token. Remove the header (or bypass the client) and this file fails.
  */
+
+vi.mock("@/services/auth", () => ({
+  authService: { getToken: vi.fn(async () => "test-token") },
+}));
 
 const envelope = (data: unknown) => ({ success: true, data });
 
+interface RecordedCall {
+  url: string;
+  init?: RequestInit;
+  authorization: string | null;
+}
+
+const recorded: RecordedCall[] = [];
+
 function stubFetch(handler: (url: string, init?: RequestInit) => unknown) {
+  recorded.length = 0;
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string, init?: RequestInit) => ({
-      json: async () => handler(String(url), init),
-    })),
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      recorded.push({ url: String(url), init, authorization: headers.Authorization ?? null });
+      return {
+        ok: true,
+        status: 200,
+        json: async () => handler(String(url), init),
+      };
+    }),
   );
+}
+
+function expectEveryCallAuthed() {
+  expect(recorded.length).toBeGreaterThan(0);
+  for (const call of recorded) {
+    expect(call.authorization, `request to ${call.url} carried no Bearer token`).toBe("Bearer test-token");
+  }
 }
 
 afterEach(() => {
@@ -43,24 +78,50 @@ describe("ConnectAccounts", () => {
     expect(screen.getAllByText(/isn't switched on for Open Caption yet/)).toHaveLength(2);
     expect(screen.queryByRole("link", { name: /Connect/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Connect/ })).toBeNull();
+    expectEveryCallAuthed();
   });
 
-  it("configured + not connected: a real connect link into the OAuth start route", async () => {
-    stubFetch(() =>
-      envelope({
+  it("configured + not connected: Connect buttons that fetch the OAuth URL (authed) and navigate to it", async () => {
+    stubFetch((url) => {
+      if (url.includes("/growth/connect/youtube/start")) {
+        return envelope({ url: "https://accounts.google.com/o/oauth2/v2/auth?client_id=x" });
+      }
+      return envelope({
         setupPending: false,
         platforms: [
           { platform: "youtube", configured: true, connected: false, accountName: null, lastSyncAt: null },
           { platform: "instagram", configured: true, connected: false, accountName: null, lastSyncAt: null },
         ],
-      }),
-    );
-    render(<ConnectAccounts onSynced={() => {}} />);
-    const yt = await screen.findByRole("link", { name: "Connect YouTube" });
-    expect(yt.getAttribute("href")).toBe("/api/v1/growth/connect/youtube/start");
-    const ig = screen.getByRole("link", { name: "Connect Instagram" });
-    expect(ig.getAttribute("href")).toBe("/api/v1/growth/connect/instagram/start");
-    expect(screen.getByText(/once Meta approves the app's insights permission/)).toBeTruthy();
+      });
+    });
+
+    let navigatedTo = "";
+    const realLocation = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        search: "",
+        get href() {
+          return navigatedTo;
+        },
+        set href(v: string) {
+          navigatedTo = v;
+        },
+      },
+    });
+    try {
+      render(<ConnectAccounts onSynced={() => {}} />);
+      const yt = await screen.findByRole("button", { name: "Connect YouTube" });
+      expect(screen.getByRole("button", { name: "Connect Instagram" })).toBeTruthy();
+      expect(screen.getByText(/once Meta approves the app's insights permission/)).toBeTruthy();
+      fireEvent.click(yt);
+      await waitFor(() => expect(navigatedTo).toBe("https://accounts.google.com/o/oauth2/v2/auth?client_id=x"));
+      const startCall = recorded.find((c) => c.url.includes("/growth/connect/youtube/start"));
+      expect(startCall).toBeTruthy();
+      expectEveryCallAuthed();
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: realLocation });
+    }
   });
 
   it("connected: name + last sync + Sync now; disconnect is two-step and says posts stay", async () => {
@@ -80,6 +141,7 @@ describe("ConnectAccounts", () => {
     fireEvent.click(screen.getByRole("button", { name: "Disconnect" }));
     expect(await screen.findByText(/Synced posts stay in your list/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Yes, disconnect" })).toBeTruthy();
+    expectEveryCallAuthed();
   });
 
   it("setup pending: configured but the database update has not landed", async () => {
@@ -94,7 +156,8 @@ describe("ConnectAccounts", () => {
     );
     render(<ConnectAccounts onSynced={() => {}} />);
     expect(await screen.findByText(/One server setup step is still pending/)).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Connect YouTube" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Connect YouTube" })).toBeNull();
+    expectEveryCallAuthed();
   });
 });
 
@@ -105,6 +168,7 @@ describe("GrowthCoach", () => {
     expect(await screen.findByText(/the coach is off/)).toBeTruthy();
     expect(screen.queryByLabelText("Ask about your analytics")).toBeNull();
     expect(screen.queryByRole("button", { name: "Why did reach drop last week?" })).toBeNull();
+    expectEveryCallAuthed();
   });
 
   it("configured: provider badge (honest label), starter chips, and an answer round-trip", async () => {
@@ -117,5 +181,6 @@ describe("GrowthCoach", () => {
     fireEvent.click(screen.getByRole("button", { name: "Why did reach drop last week?" }));
     await waitFor(() => expect(screen.getByText("Reach fell because your top post aged out.")).toBeTruthy());
     expect(screen.getByText("Why did reach drop last week?")).toBeTruthy();
+    expectEveryCallAuthed();
   });
 });

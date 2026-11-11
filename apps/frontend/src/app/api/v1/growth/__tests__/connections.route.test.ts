@@ -145,16 +145,19 @@ describe("GET /growth/connections", () => {
 });
 
 describe("GET /growth/connect/[platform]/start", () => {
-  it("bounces back to /growth when the platform is not switched on", async () => {
+  it("answers the /growth bounce URL as JSON when the platform is not switched on", async () => {
     const res = await START(get("http://localhost/api/v1/growth/connect/youtube/start"), ctx("youtube"));
-    expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/growth?connect=youtube-off");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { url: string } };
+    expect(body.data.url).toContain("/growth?connect=youtube-off");
   });
 
-  it("redirects to Google with a state that verifies for this user + platform", async () => {
+  it("answers the Google consent URL as JSON, with a state that verifies for this user + platform", async () => {
     enableYoutube();
     const res = await START(get("http://localhost/api/v1/growth/connect/youtube/start"), ctx("youtube"));
-    const location = res.headers.get("location") ?? "";
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { url: string } };
+    const location = body.data.url;
     expect(location.startsWith("https://accounts.google.com/o/oauth2/v2/auth")).toBe(true);
     const stateParam = new URL(location).searchParams.get("state") ?? "";
     expect(verifyOAuthState(stateParam, "youtube")).toEqual({ userId: "user-1" });

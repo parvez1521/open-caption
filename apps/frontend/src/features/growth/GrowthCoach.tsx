@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiClient } from "@/services/api-client";
 
 /**
  * Growth Coach panel (P2, 2026-11-11): ask questions about your OWN numbers.
@@ -14,6 +15,10 @@ import { useEffect, useState } from "react";
  *
  * When the free AI service is not switched on for the site, the panel says
  * so and offers no input — there are no canned answers behind it.
+ *
+ * Calls go through the shared apiClient (Bearer token attached): the API
+ * accepts no other auth, and raw fetch here is what left this panel stuck
+ * on its "couldn't load" state in real browsers (bugfix 2026-11-11).
  */
 
 interface ChatStatus {
@@ -45,11 +50,9 @@ export function GrowthCoach({ starters }: { starters: string[] }) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/v1/growth/chat");
-        const body = (await res.json().catch(() => null)) as { success: boolean; data?: ChatStatus } | null;
+        const data = await apiClient.get<ChatStatus>("/growth/chat");
         if (cancelled) return;
-        if (body?.success && body.data) setStatus(body.data);
-        else setStatusFailed(true);
+        setStatus(data);
       } catch {
         if (!cancelled) setStatusFailed(true);
       }
@@ -68,23 +71,14 @@ export function GrowthCoach({ starters }: { starters: string[] }) {
     const history = turns.slice(-6);
     setTurns((prev) => [...prev, { role: "user", content: question }]);
     try {
-      const res = await fetch("/api/v1/growth/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, history }),
+      const data = await apiClient.post<{ configured: boolean; answer?: string }>("/growth/chat", {
+        json: { question, history },
       });
-      const body = (await res.json().catch(() => null)) as
-        | { success: true; data: { configured: boolean; answer?: string } }
-        | { success: false; error: { message: string } }
-        | null;
-      if (!body || body.success !== true) {
-        throw new Error(body && body.success === false ? body.error.message : "The coach didn't answer — try again.");
-      }
-      if (!body.data.configured) {
+      if (!data.configured) {
         setStatus((s) => (s ? { ...s, configured: false } : s));
         return;
       }
-      setTurns((prev) => [...prev, { role: "assistant", content: body.data.answer ?? "" }]);
+      setTurns((prev) => [...prev, { role: "assistant", content: data.answer ?? "" }]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The coach didn't answer — try again.");
     } finally {
