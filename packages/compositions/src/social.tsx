@@ -586,7 +586,7 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
               <span key={i} style={{ display: "inline-block", height: "1em", overflow: "hidden" }}>
                 <span style={{ display: "flex", flexDirection: "column", transform: `translateY(${(-col.offset).toFixed(3)}em)` }}>
                   {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => (
-                    <span key={d} style={{ height: "1em", color: i === c.columns.length - 1 || col.settle >= 1 ? accent : CARD_FG }}>{d}</span>
+                    <span key={d} style={{ height: "1em", lineHeight: 1, color: i === c.columns.length - 1 || col.settle >= 1 ? accent : CARD_FG }}>{d}</span>
                   ))}
                 </span>
               </span>

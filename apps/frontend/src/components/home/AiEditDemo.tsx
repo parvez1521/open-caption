@@ -244,13 +244,13 @@ export function AiEditDemo() {
                 <span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded bg-[#34D399] text-[10px] font-bold text-[#141412]">✓</span>
                 <span className="min-w-0">
                   <span className="block text-[13px] font-semibold text-[#FFFFEB]">{step.label}</span>
-                  <span className="block truncate text-xs text-[#FFFFEB]/60">{step.detail}</span>
+                  <span className="block text-xs text-[#FFFFEB]/60">{step.detail}</span>
                 </span>
               </li>
             ))}
           </ul>
           <p className="mt-3 text-xs leading-relaxed text-[#FFFFEB]/55" aria-live="polite">
-            {pass === "after" ? "The same clip with the plan applied, playing from the top." : "AI Edit reads the transcript and drafts the plan — you approve every step."}
+            {pass === "after" ? "The same clip with the plan applied." : "AI Edit reads the transcript and drafts the plan — you approve every step."}
           </p>
         </div>
       </div>

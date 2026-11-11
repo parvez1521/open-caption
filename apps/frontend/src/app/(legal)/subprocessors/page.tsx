@@ -6,7 +6,7 @@ import { LEGAL } from "@/lib/legal";
 export const metadata: Metadata = pageMetadata({ title: "Subprocessors", description: "The service providers that process data for Open Caption.", path: "/subprocessors" });
 
 const ROWS: [string, string, string, string][] = [
-  ["Supabase", "Database, file storage, sign-in", "Account, projects, captions, uploaded videos and exports", "South Korea (Seoul)"],
+  ["Supabase", "Database, file storage, sign-in", "Account, projects, captions, exports, and videos sent to Companion exports", "India (Mumbai)"],
   ["Vercel", "Website and API hosting", "Requests to the site and API, request logs", "United States (global edge)"],
   ["Google", "Sign in with Google (optional); caption fonts", "Sign-in identity; font requests from your browser", "Global"],
   ["Google (AdSense)", "Advertising on this website, only when advertising is enabled", "Ad requests; advertising cookies for ad serving and personalisation (never your videos, transcripts or projects)", "Global"],
@@ -40,7 +40,7 @@ export default function SubprocessorsPage() {
       </Sec>
 
       <Sec id="local" title="Processed on your own device">
-        <p>Speech recognition and MP4 export run in your browser, and transparent overlay exports run in the optional desktop helper on your own computer, so no third party processes that audio for transcription. The speech model itself is downloaded once from Hugging Face; no audio is sent to it.</p>
+        <p>Speech recognition and MP4 export run in your browser, and transparent overlay exports run in the optional desktop Companion app on your own computer, so no third party processes that audio for transcription. The speech model itself is downloaded once from Hugging Face; no audio is sent to it.</p>
       </Sec>
     </LegalDoc>
   );

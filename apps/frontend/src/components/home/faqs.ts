@@ -2,7 +2,7 @@
 export const FAQS = [
   {
     q: "Is Open Caption really free?",
-    a: "Yes. Captions, every look, the full editor and MP4 and SRT exports are free, with no watermark. Free videos can be up to 5 minutes long. A Pro plan for longer videos is on the way.",
+    a: "Yes. Captions, every look, the full editor and MP4 and SRT exports are free, with no watermark. Free videos can be up to 5 minutes long. Paid 30-day passes raise the limits — see Pricing.",
   },
   {
     q: "Is my video uploaded anywhere?",
@@ -26,10 +26,10 @@ export const FAQS = [
   },
   {
     q: "Does it support Hindi and Hinglish?",
-    a: "Yes, in both scripts. Pick Hindi / Hinglish when you add your video and the captions come out in Roman script, the way most creators type — it uses a Whisper speech model fine-tuned for Hindi-English speech. Or pick Hindi (देवनागरी) and the captions come out in Devanagari script, using the multilingual Whisper model. English is the third language; those three are the languages supported today.",
+    a: "Yes, in both scripts. Pick Hindi / Hinglish when you add your video and the captions come out in Roman script, the way most creators type — it uses a Whisper speech model fine-tuned for Hindi-English speech. Or pick Hindi (देवनागरी) and the captions come out in Devanagari script, using the multilingual Whisper model. Together with English, those are the three language choices today.",
   },
   {
     q: "What export formats are supported?",
-    a: "An MP4 with the captions burned in, ready to post on Reels, Shorts and TikTok; transparent overlay videos (MOV and WebM) rendered by the free desktop Companion; and caption files — SRT, VTT, ASS, plain text and JSON — for YouTube, LinkedIn, Premiere, CapCut and other editors.",
+    a: "An MP4 with the captions burned in, ready to post on Reels, Shorts and TikTok; transparent overlay videos (MOV and WebM) rendered by the free desktop Companion app; and caption files — SRT, VTT, ASS, plain text and JSON — for YouTube, LinkedIn, Premiere, CapCut and other editors.",
   },
 ];

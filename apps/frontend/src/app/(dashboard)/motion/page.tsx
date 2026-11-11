@@ -59,6 +59,8 @@ export default function MotionDiscoveryPage() {
           <p className="mt-2 max-w-2xl text-[14px] text-sand-800">
             Animated graphics for your videos — subscribe pills, follow cards, counters, titles and more.
             Pick one, make it yours, and add it to a project. Every preview below is the real graphic, playing.
+            All {MOTION_TEMPLATES.length} templates are included in every plan, Free included — motion
+            templates are separate from the 150 caption looks, and both are included.
           </p>
         </div>
 

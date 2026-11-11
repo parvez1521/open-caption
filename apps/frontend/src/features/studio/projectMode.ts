@@ -16,9 +16,9 @@ export type ProjectStartMode = "captions" | "editor" | "ai-edit";
 
 /** The three doors, one source for the /start chooser and the upload-panel toggle. */
 export const START_DOORS: readonly { mode: ProjectStartMode; label: string; sub: string }[] = [
-  { mode: "captions", label: "Captions", sub: "Transcribe & caption" },
-  { mode: "editor", label: "Normal Editor", sub: "Edit only — captions later" },
-  { mode: "ai-edit", label: "AI Edit", sub: "Captions, then an AI edit plan" },
+  { mode: "captions", label: "Captions", sub: "We transcribe it and style the captions" },
+  { mode: "editor", label: "Normal Editor", sub: "Just the editor — captions later, if wanted" },
+  { mode: "ai-edit", label: "AI Edit", sub: "Captions plus a ready-made edit plan you approve" },
 ];
 
 const KEY = (projectId: string) => `oc:project-mode:${projectId}`;

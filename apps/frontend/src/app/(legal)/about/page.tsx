@@ -35,8 +35,9 @@ export default function AboutPage() {
             transitions, speed changes and an audio studio — and what you preview is what the export renders.
           </li>
           <li>
-            <strong>Clipper:</strong> find the moments worth posting from a longer video using silence and scene
-            changes measured on the device, then reframe them for vertical formats.
+            <strong>Clipper:</strong> find the moments worth posting from a longer video — suggestions measured
+            on the device from silence and scene changes, plus an AI Clipping Studio that ranks moments from
+            the transcript with an editorial estimate — then reframe them for vertical formats.
           </li>
           <li>
             <strong>Creator Studio:</strong> hook ideas, scripts, captions and hashtags, a reel analyzer, a content
@@ -45,7 +46,7 @@ export default function AboutPage() {
           </li>
           <li>
             <strong>Exports:</strong> MP4 video plus SRT, VTT, ASS, plain-text and JSON caption files, and
-            transparent overlays for other editors.
+            transparent overlays for other editors (rendered by the free desktop Companion app).
           </li>
         </ul>
       </Sec>

@@ -9,7 +9,7 @@ import { useBrandNav } from "@/components/brand/BrandNav";
 import { LogoWave } from "@/components/brand/LogoWave";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { studioService } from "@/services/studio";
-import { setProjectMode, type ProjectStartMode } from "@/features/studio/projectMode";
+import { setProjectMode, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
 
 const STATUS_CHIP: Record<ProjectStatus, { label: string; cls: string; pulse?: boolean }> = {
@@ -298,19 +298,16 @@ export default function ProjectsList() {
             {createError && <div className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{createError}</div>}
             <form onSubmit={handleCreate} className="mt-5 space-y-5">
               <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Podcast ep. 12 — hook cut" autoFocus required disabled={creating} className="w-full rounded-lg border border-sand-300 bg-white px-4 py-3 text-[14px] text-ink placeholder:text-sand-500 outline-none transition-colors focus:border-sand-600 focus:ring-2 focus:ring-sand-200" />
-              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="How this project starts">
-                {([
-                  { m: "captions" as ProjectStartMode, label: "Captions", sub: "Transcribe & caption the video" },
-                  { m: "editor" as ProjectStartMode, label: "Normal Editor", sub: "Just edit — captions later, if wanted" },
-                ]).map((o) => (
+              <div className="grid grid-cols-1 gap-2" role="radiogroup" aria-label="How this project starts">
+                {START_DOORS.map((o) => (
                   <button
-                    key={o.m}
+                    key={o.mode}
                     type="button"
                     role="radio"
-                    aria-checked={createMode === o.m}
+                    aria-checked={createMode === o.mode}
                     disabled={creating}
-                    onClick={() => setCreateMode(o.m)}
-                    className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${createMode === o.m ? "border-ink bg-sand-100" : "border-sand-300 bg-white hover:border-sand-600"}`}
+                    onClick={() => setCreateMode(o.mode)}
+                    className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${createMode === o.mode ? "border-ink bg-sand-100" : "border-sand-300 bg-white hover:border-sand-600"}`}
                   >
                     <span className="block text-[13px] font-semibold text-ink">{o.label}</span>
                     <span className="block text-[11px] leading-tight text-sand-700">{o.sub}</span>

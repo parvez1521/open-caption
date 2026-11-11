@@ -19,7 +19,11 @@ const projectRef = getProjectRef(supabaseUrl);
 const STORAGE_KEY = projectRef ? `sb-${projectRef}-auth-token` : "sb-auth-token";
 
 function mapSupabaseUser(sbUser: SupabaseUser): User {
-  const name = sbUser.user_metadata?.name || sbUser.email?.split("@")[0] || "User";
+  // Anonymous (guest) sessions have no name and no email: call them what they
+  // are — "Guest" — never the generic "User", which reads as a signed-in name.
+  const name = sbUser.is_anonymous
+    ? "Guest"
+    : sbUser.user_metadata?.name || sbUser.email?.split("@")[0] || "User";
   return {
     id: sbUser.id,
     email: sbUser.email || "",

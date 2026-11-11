@@ -67,7 +67,7 @@ export default async function PricingPage() {
                   ))}
                 </ul>
                 <p className="mt-6 border-t border-white/10 pt-4 text-[12px] leading-relaxed text-[#FFFFEB]/55">
-                  Up to {projectCountLabel(limits.maxProjects)} projects · uploads to {uploadLimitLabel(limits.maxUploadBytes)}
+                  Up to {projectCountLabel(limits.maxProjects)} projects · uploads to {uploadLimitLabel(limits.maxUploadBytes)}{" "}
                   · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
                   days
                 </p>
@@ -95,7 +95,7 @@ export default async function PricingPage() {
             different plan starts a fresh 30 days on the new plan.
           </p>
           <p>
-            Prices are shown in {currency === "INR" ? "Indian rupees" : "US dollars"} based on where you&rsquo;re
+            Prices are shown in {currency === "INR" ? "Indian rupees" : "US dollars"}{" "}based on where you&rsquo;re
             visiting from. Payments are processed by Cashfree over UPI, cards and netbanking in India, and cards
             internationally.
           </p>

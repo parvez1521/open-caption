@@ -17,7 +17,7 @@ export default function TermsPage() {
     >
       <Sec id="service" title="1. The service">
         <p>{LEGAL.product} turns your videos into captioned videos and subtitle files. You upload a video, captions are transcribed, you style and edit them in the studio, and you export the result.</p>
-        <p>Transcription and MP4 export run <strong>in your browser</strong>, on your own device. Transparent overlay exports use the optional free desktop helper app on your computer. Your uploaded videos, projects and exports are stored with our hosting providers (see the <Link href="/subprocessors">subprocessors</Link>).</p>
+        <p>Transcription and MP4 export run <strong>in your browser</strong>, on your own device. Transparent overlay exports use the optional free desktop Companion app on your computer. Your projects and exports are stored with our hosting providers (see the <Link href="/subprocessors">subprocessors</Link>); your videos stay on your device, except one you send to a Companion export.</p>
         <p>We improve the service continuously, so features may change. We will tell you in advance before removing a core feature.</p>
       </Sec>
 

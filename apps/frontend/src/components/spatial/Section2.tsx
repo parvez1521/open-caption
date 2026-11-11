@@ -29,7 +29,7 @@ export function Section2() {
       eyebrow="Looks"
       accent={LAVENDER}
       wash="radial-gradient(70% 110% at 82% 45%, rgba(240,215,255,0.14) 0%, rgba(240,215,255,0.05) 45%, transparent 78%)"
-      title="20+ looks,"
+      title="150 looks,"
       titleAccent="one click."
       body="Viral boxes, karaoke fills, glowing neon, three-line stacks. Every look is a complete, tuned style: font, colour, motion and the spoken-word effect. Your words and timing never change."
       points={[
