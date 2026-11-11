@@ -1066,6 +1066,28 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [showShortcuts]);
 
+  // OC-001: these two hooks MUST live above the loading/401/not-found early
+  // returns below. They used to sit ~150 lines past the `isLoading` gate, so
+  // a fresh project's first render (loading → skeleton) ran two fewer hooks
+  // than the render after the query resolved — React error #310 ("Rendered
+  // more hooks than during the previous render") on every cold first load,
+  // both doors. No hook may ever be added below that gate.
+  // Package 2 item G — "Generate captions" for a Normal-Editor project: run the same
+  // in-browser transcription the upload flow uses, from the video file on this device.
+  // The session's own machinery takes it from there (progress in the panel's empty state,
+  // the saved document replaces the empty one via the phase-change refetch above).
+  const [genCapNote, setGenCapNote] = useState<string | null>(null);
+  const generateCaptions = useCallback(async () => {
+    if (!video) return;
+    const blob = await getLocalVideo(video.id);
+    if (!blob) {
+      setGenCapNote("The video isn't on this device — captions are written here, from the file on this device. Open this project on the device you uploaded from.");
+      return;
+    }
+    setGenCapNote(null);
+    startSession({ projectId, videoId: video.id, file: blob, language: data?.project.language ?? null });
+  }, [video, projectId, data?.project.language]);
+
   if (s.query.isLoading) return <StudioSkeleton />;
   if (s.query.error instanceof ApiError && s.query.error.status === 401) {
     router.replace(`/login?redirect=${encodeURIComponent(`/projects/${projectId}`)}`);
@@ -1211,21 +1233,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   ));
 
   const heroSupported = style ? getTemplate(style.templateId).layout !== "typewriter" : true;
-  // Package 2 item G — "Generate captions" for a Normal-Editor project: run the same
-  // in-browser transcription the upload flow uses, from the video file on this device.
-  // The session's own machinery takes it from there (progress in the panel's empty state,
-  // the saved document replaces the empty one via the phase-change refetch above).
-  const [genCapNote, setGenCapNote] = useState<string | null>(null);
-  const generateCaptions = useCallback(async () => {
-    if (!video) return;
-    const blob = await getLocalVideo(video.id);
-    if (!blob) {
-      setGenCapNote("The video isn't on this device — captions are written here, from the file on this device. Open this project on the device you uploaded from.");
-      return;
-    }
-    setGenCapNote(null);
-    startSession({ projectId, videoId: video.id, file: blob, language: data?.project.language ?? null });
-  }, [video, projectId, data?.project.language]);
   const generatingEmpty = writing && !!s.doc && s.doc.words.length === 0;
   const captions = doc && style ? (
     <div data-tour="captions" className="flex h-full min-h-0 flex-col">
