@@ -60,6 +60,103 @@ describe("MarkdownText", () => {
     expect(strong?.textContent).toBe('<img src=x onerror="alert(1)">');
   });
 
+  it("renders a pipe table as a real table — the owner's screenshot shape, bold inside cells", () => {
+    // The exact shape the owner screenshotted (2026-11-11): the model
+    // answered with pipe tables and the old renderer printed the pipes.
+    const text = [
+      "Viral-AI topics that have already worked for you",
+      "",
+      "| Post (date) | Title theme | Engagement |",
+      "|---------------|---------------|---------------|",
+      "| 2024-11-05 | **ethical Hacking AI tool** – AI for cybersecurity/pentest | 8 834 |",
+      "| 2025-04-29 | **Canva coder** – AI-assisted design & code generation | 907 |",
+      "| 2025-05-17 | **Python developer humor** – funny AI-coding shorts | 702 |",
+    ].join("\n");
+    const { container } = render(<MarkdownText text={text} />);
+    const table = container.querySelector("table");
+    expect(table).not.toBeNull();
+    const headers = [...table!.querySelectorAll("th")].map((th) => th.textContent);
+    expect(headers).toEqual(["Post (date)", "Title theme", "Engagement"]);
+    const rows = table!.querySelectorAll("tbody tr");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]?.querySelector("strong")?.textContent).toBe("ethical Hacking AI tool");
+    expect(rows[0]?.textContent).toContain("8 834");
+    expect(container.textContent).not.toContain("|");
+    expect(container.textContent).not.toContain("---");
+    // The intro line stays a paragraph before the table.
+    expect(container.querySelector("p")?.textContent).toBe("Viral-AI topics that have already worked for you");
+    // Wide tables scroll inside their wrapper instead of stretching the chat.
+    expect(table!.closest("div")?.className).toContain("overflow-x-auto");
+  });
+
+  it("renders the suggestions table shape (two columns, quoted text in cells)", () => {
+    const text = [
+      "| Suggested angle | Why it fits your data |",
+      "|---|---|",
+      '| "AI-driven Pen-Test Toolkit" – demo an AI that writes exploits or scans code. | Mirrors the top-performing "ethical Hacking AI tool" post. |',
+      '| "AI Coding Bloopers / Funny Shorts" – short clips of AI mis-writes. | Builds on the 702-engagement "python developer" short. |',
+    ].join("\n");
+    const { container } = render(<MarkdownText text={text} />);
+    const table = container.querySelector("table");
+    expect(table).not.toBeNull();
+    expect([...table!.querySelectorAll("th")].map((th) => th.textContent)).toEqual([
+      "Suggested angle",
+      "Why it fits your data",
+    ]);
+    expect(table!.querySelectorAll("tbody tr")).toHaveLength(2);
+    expect(table!.textContent).toContain("AI-driven Pen-Test Toolkit");
+  });
+
+  it("honours separator alignment (:--- left, ---: right, :-: center)", () => {
+    const text = ["| Post | Views | Note |", "|:---|---:|:-:|", "| Launch | 900 | ok |"].join("\n");
+    const { container } = render(<MarkdownText text={text} />);
+    const ths = container.querySelectorAll("th");
+    expect(ths[0]?.className).toContain("text-left");
+    expect(ths[1]?.className).toContain("text-right");
+    expect(ths[2]?.className).toContain("text-center");
+    const tds = container.querySelectorAll("td");
+    expect(tds[1]?.className).toContain("text-right");
+  });
+
+  it("a header with NO separator row is not a table — plain text fallback, pipes and all", () => {
+    const text = "| Post | Views |\n| Launch | 900 |";
+    const { container } = render(<MarkdownText text={text} />);
+    expect(container.querySelector("table")).toBeNull();
+    expect(container.textContent).toContain("| Post | Views |");
+    expect(container.textContent).toContain("| Launch | 900 |");
+  });
+
+  it("a separator with a different cell count than the header is not a table either", () => {
+    const text = "| Post | Views | Likes |\n|---|---|\n| Launch | 900 | 12 |";
+    const { container } = render(<MarkdownText text={text} />);
+    expect(container.querySelector("table")).toBeNull();
+    expect(container.textContent).toContain("Launch");
+  });
+
+  it("skips a stray all-empty row inside a table (the model emits lone | lines)", () => {
+    const text = ["| Angle | Why |", "|---|---|", "| One | First |", "|", "| Two | Second |"].join("\n");
+    const { container } = render(<MarkdownText text={text} />);
+    const rows = container.querySelectorAll("tbody tr");
+    expect(rows).toHaveLength(2);
+    expect(rows[1]?.textContent).toContain("Two");
+  });
+
+  it("XSS inside table cells stays inert; a javascript: link in a cell degrades to its label", () => {
+    const text = [
+      "| Post | Note |",
+      "|---|---|",
+      '| <script>alert("xss")</script> | [click](javascript:alert(1)) and <img src=x onerror="alert(2)"> |',
+    ].join("\n");
+    const { container } = render(<MarkdownText text={text} />);
+    expect(container.querySelector("table")).not.toBeNull();
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.querySelectorAll("a")).toHaveLength(0);
+    expect(container.textContent).toContain('<script>alert("xss")</script>');
+    expect(container.textContent).toContain("click");
+    expect(container.innerHTML).not.toContain("javascript:");
+  });
+
   it("links: http(s) becomes an anchor, other schemes degrade to the label", () => {
     const { container } = render(
       <MarkdownText text={"See [the guide](https://example.com/guide) and [this](javascript:alert(1))."} />,

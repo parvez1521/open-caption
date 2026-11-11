@@ -95,6 +95,12 @@ describe("the no-invention contract", () => {
     expect(COACH_SYSTEM_PROMPT).toContain("connect (their YouTube or Instagram account)");
   });
 
+  it("the system prompt also pins the answer SHAPE: short lead, tables only for comparisons, takeaways last", () => {
+    expect(COACH_SYSTEM_PROMPT).toContain("table ONLY when comparing several posts side by side");
+    expect(COACH_SYSTEM_PROMPT).toContain("2–3 short takeaway lines");
+    expect(COACH_SYSTEM_PROMPT).toContain("No long walls of text");
+  });
+
   it("the prompt embeds the dataset and the question, with recent turns labelled", () => {
     const prompt = buildCoachPrompt("Why did reach drop?", "DATASET-TEXT", [
       { role: "user", content: "Earlier question" },
