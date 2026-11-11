@@ -4,7 +4,7 @@ import Link from "next/link";
 import { PLAN_PRICING, PLANS } from "@capseasy/shared";
 import { Footer, Nav } from "@/components/home/Sections";
 import { currencyForCountry } from "@/lib/billing/cashfree";
-import { priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
+import { priceLabel, projectCountLabel, uploadLimitLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -67,7 +67,7 @@ export default async function PricingPage() {
                   ))}
                 </ul>
                 <p className="mt-6 border-t border-white/10 pt-4 text-[12px] leading-relaxed text-[#FFFFEB]/55">
-                  Up to {limits.maxProjects} projects · uploads to {Math.round(limits.maxUploadBytes / 1_000_000)} MB
+                  Up to {projectCountLabel(limits.maxProjects)} projects · uploads to {uploadLimitLabel(limits.maxUploadBytes)}
                   · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
                   days
                 </p>

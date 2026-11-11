@@ -22,7 +22,7 @@ export const ClipExplanation: React.FC<{ signals: ClipSignals; explanation: stri
         : "no question, number or claim detected",
     ],
     ["Word rate", `${Math.round(signals.wordRateWpm)} words/min`],
-    ["Pause density", `${fmt1(signals.pausesPerMinute)} pauses/min (${signals.pauseCount} pauses)`],
+    ["Pause density", `${fmt1(signals.pausesPerMinute)} pauses/min (${signals.pauseCount} ${signals.pauseCount === 1 ? "pause" : "pauses"})`],
     ["Scene changes inside", String(signals.sceneChangeCount)],
     ["Caption density", `${fmt1(signals.wordsPerSecond)} words/sec`],
     ["Measured silence inside", `${fmt1(signals.silenceMsInside / 1000)} s`],

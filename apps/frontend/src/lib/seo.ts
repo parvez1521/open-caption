@@ -21,7 +21,9 @@ export const PRODUCTION_URL = "https://open-caption-ten.vercel.app";
 export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).replace(/\/$/, "");
 
 /** Routes search engines may index: public marketing, auth and legal only. */
-export const INDEXABLE_PATHS = ["/", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string), "/credits"] as const;
+// /credits comes in via LEGAL_PAGES — do not append it again (deep-audit B4:
+// the sitemap listed it twice).
+export const INDEXABLE_PATHS = ["/", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
 
 /** App routes behind sign-in: never indexed (metadata noindex + robots disallow).
  *  Covers every (dashboard) route in the shell nav, plus the auth-flow helpers —
@@ -122,7 +124,7 @@ export function softwareApplicationJsonLd() {
     offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
     featureList: [
       "Automatic word-timed captions",
-      "20+ animated caption styles",
+      "150 animated caption looks",
       "Motion Studio animated graphics (subscribe pills, follow cards, counters, titles)",
       "English and Hindi / Hinglish speech recognition",
       "MP4 export with burned-in captions",

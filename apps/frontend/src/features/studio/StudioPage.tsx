@@ -17,6 +17,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth";
 import { ApiError } from "@/services/api-client";
 import { Button } from "./controls";
+import { anyModalOpen } from "./modalGuard";
 // The export dialog pulls in the whole in-browser renderer (Remotion web-renderer + Mediabunny). Load it
 // only when the creator actually opens Export — the studio's first paint (especially on a phone) should
 // not carry or evaluate that machinery.
@@ -934,7 +935,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   // While any dialog is open (export, sign-up nudge, shortcuts help, a save conflict), the
   // editor's keys must not act on the project behind it. A ref, because the key handler's
-  // closure does not re-bind on those state changes.
+  // closure does not re-bind on those state changes. The ref alone missed dialogs that
+  // live outside this component's state (Motion picker, tutorial tour, "video ready") —
+  // deep-audit B3 — so the handler ALSO consults `anyModalOpen`, which sees every
+  // conditionally-mounted role="dialog"/"alertdialog" surface.
   const dialogOpenRef = useRef(false);
   dialogOpenRef.current = showExport || showSignup || showShortcuts || Boolean(s.conflict);
 
@@ -944,7 +948,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // (Shift+←/→ = 10 ms fine adjust). While typing in a field, Delete/Backspace stay native.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (dialogOpenRef.current) return;
+      if (dialogOpenRef.current || anyModalOpen()) return;
       const t = e.target as HTMLElement;
       const typing = t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable;
       const mod = e.ctrlKey || e.metaKey;

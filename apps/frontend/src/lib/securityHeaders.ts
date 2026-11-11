@@ -15,6 +15,13 @@
  *   vitals.vercel-insights.com (and same-origin /_vercel/*, covered by 'self').
  * - Images: DiceBear fallback avatars, Unsplash carousel photos, the Product Hunt badge,
  *   and OAuth provider avatars (Google / GitHub).
+ * - Pixabay (user's-own-key stock audio + Clipper B-roll, Phase 8 / Package 3): searches go
+ *   to api.pixabay.com and the media files themselves are served from cdn.pixabay.com —
+ *   both must be in connect-src, and the CDN in img-src/media-src, or the features are
+ *   blocked by this policy in production (deep-audit finding B2, 2026-11-11).
+ * - Camera/microphone: the Teleprompter recorder (A13) uses getUserMedia on this origin,
+ *   so Permissions-Policy must allow (self) — camera=()/microphone=() silently disables
+ *   recording site-wide (deep-audit finding B1, 2026-11-11).
  *
  * Known trade-off, deliberate: `script-src` keeps `'unsafe-inline'` because the Next.js App Router
  * emits inline bootstrap scripts and the root layout ships two small constant inline scripts;
@@ -50,10 +57,12 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         "https://api.producthunt.com",
         "https://lh3.googleusercontent.com",
         "https://avatars.githubusercontent.com",
+        // Pixabay stock thumbnails/posters (user's-own-key imports).
+        "https://cdn.pixabay.com",
       ],
     ],
     ["font-src", ["'self'", "data:"]],
-    ["media-src", ["'self'", "blob:", "data:", "https://*.supabase.co"]],
+    ["media-src", ["'self'", "blob:", "data:", "https://*.supabase.co", "https://cdn.pixabay.com"]],
     [
       "connect-src",
       [
@@ -72,6 +81,10 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         "https://api.cashfree.com",
         "https://sandbox-api.cashfree.com",
         "https://sdk.cashfree.com",
+        // Pixabay: the search APIs (audio + video) and the media downloads
+        // (files are fetched to be stored in the project's on-device bin).
+        "https://api.pixabay.com",
+        "https://cdn.pixabay.com",
       ],
     ],
     ["worker-src", ["'self'", "blob:"]],
@@ -97,5 +110,8 @@ export const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
+  // camera/microphone are (self), not (): the Teleprompter recorder (A13) records on this
+  // origin via getUserMedia. geolocation is never used; payment stays off (Cashfree's modal
+  // is a plain iframe, not the Payment Request API).
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=()" },
 ];
