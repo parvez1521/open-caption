@@ -155,9 +155,102 @@ describe("YouTube fetch flow (stubbed fetch)", () => {
       }
       throw new Error(`unexpected ${url}`);
     }) as unknown as typeof fetch;
-    const posts = await fetchYoutubeUploads("tok", "UU1", fetchImpl);
-    expect(posts.map((p) => p.externalId)).toEqual(["vid-1", "vid-2"]);
-    expect(posts[1]?.views).toBe(20);
+    const result = await fetchYoutubeUploads("tok", "UU1", fetchImpl);
+    expect(result.posts.map((p) => p.externalId)).toEqual(["vid-1", "vid-2"]);
+    expect(result.posts[1]?.views).toBe(20);
+    expect(result.walkedIds).toBe(2);
+    expect(result.totalResults).toBeNull(); // this stub reports no pageInfo
+  });
+});
+
+describe("YouTube full-channel walk (pagination)", () => {
+  const TOTAL = 137; // 50 + 50 + 37 — the channel is bigger than one page
+  const idAt = (i: number) => `vid-${i + 1}`;
+
+  /** A 3-page uploads playlist; page sizes 50/50/37; one upload is a Short (id 100). */
+  function pagedFetch(opts: { failOnPage?: number } = {}) {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      calls.push(url);
+      if (url.includes("playlistItems")) {
+        const token = new URL(url).searchParams.get("pageToken");
+        const page = token === null ? 1 : token === "tok-2" ? 2 : token === "tok-3" ? 3 : 0;
+        if (page === 0) throw new Error(`unexpected pageToken ${token}`);
+        if (opts.failOnPage === page) throw new Error("provider blew up mid-walk");
+        const start = (page - 1) * 50;
+        const count = Math.min(50, TOTAL - start);
+        return json({
+          pageInfo: { totalResults: TOTAL, resultsPerPage: 50 },
+          ...(page < 3 ? { nextPageToken: `tok-${page + 1}` } : {}),
+          items: Array.from({ length: count }, (_, k) => ({ contentDetails: { videoId: idAt(start + k) } })),
+        });
+      }
+      if (url.includes("/videos?")) {
+        const ids = (new URL(url).searchParams.get("id") ?? "").split(",");
+        return json({
+          items: ids.map((id) => {
+            const n = Number(id.replace("vid-", ""));
+            return {
+              id,
+              snippet: {
+                title: n === 100 ? "Quick tip #shorts" : `Video ${n}`,
+                publishedAt: "2026-11-01T09:00:00Z",
+              },
+              statistics: { viewCount: String(n * 10), likeCount: "3", commentCount: "1" },
+            };
+          }),
+        });
+      }
+      throw new Error(`unexpected ${url}`);
+    }) as unknown as typeof fetch;
+    return { fetchImpl, calls };
+  }
+
+  it("walks EVERY page: 50 + 50 + 37 uploads come back in order, statistics merged, Shorts included", async () => {
+    const { fetchImpl, calls } = pagedFetch();
+    const pages: number[] = [];
+    const result = await fetchYoutubeUploads("tok", "UU1", fetchImpl, (pagePosts) => {
+      pages.push(pagePosts.length);
+    });
+    expect(result.posts).toHaveLength(TOTAL);
+    expect(result.posts.map((p) => p.externalId)).toEqual(Array.from({ length: TOTAL }, (_, i) => idAt(i)));
+    expect(result.posts[99]).toMatchObject({ externalId: "vid-100", title: "Quick tip #shorts", views: 1000 });
+    expect(result.posts[136]?.views).toBe(1370);
+    expect(result.totalResults).toBe(TOTAL);
+    expect(result.walkedIds).toBe(TOTAL);
+    expect(pages).toEqual([50, 50, 37]); // onPosts streamed per page
+    expect(calls.filter((u) => u.includes("playlistItems"))).toHaveLength(3);
+    expect(calls.filter((u) => u.includes("/videos?"))).toHaveLength(3); // one batch of ≤50 per page
+  });
+
+  it("a page-2 failure throws — and page 1 was already handed to onPosts (progress is kept by the caller)", async () => {
+    const { fetchImpl } = pagedFetch({ failOnPage: 2 });
+    const handed: string[] = [];
+    await expect(
+      fetchYoutubeUploads("tok", "UU1", fetchImpl, (pagePosts) => {
+        handed.push(...pagePosts.map((p) => p.externalId));
+      }),
+    ).rejects.toThrow("provider blew up mid-walk");
+    expect(handed).toEqual(Array.from({ length: 50 }, (_, i) => idAt(i)));
+  });
+
+  it("a repeated nextPageToken stops the walk instead of paging forever", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes("playlistItems")) {
+        return json({
+          nextPageToken: "same-token",
+          items: [{ contentDetails: { videoId: "vid-1" } }],
+        });
+      }
+      if (url.includes("/videos?")) {
+        return json({
+          items: [{ id: "vid-1", snippet: { title: "One", publishedAt: "2026-11-01T09:00:00Z" }, statistics: { viewCount: "1" } }],
+        });
+      }
+      throw new Error(`unexpected ${url}`);
+    }) as unknown as typeof fetch;
+    const result = await fetchYoutubeUploads("tok", "UU1", fetchImpl);
+    expect(result.walkedIds).toBe(2); // first page + the one repeat, then the guard stops it
   });
 });
 

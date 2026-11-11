@@ -116,9 +116,29 @@ describe("GET /growth/connections", () => {
     const body = (await res.json()) as { data: { setupPending: boolean; platforms: Array<Record<string, unknown>> } };
     expect(body.data.setupPending).toBe(false);
     expect(body.data.platforms).toEqual([
-      { platform: "youtube", configured: false, connected: false, accountName: null, lastSyncAt: null },
-      { platform: "instagram", configured: false, connected: false, accountName: null, lastSyncAt: null },
+      { platform: "youtube", configured: false, connected: false, accountName: null, lastSyncAt: null, postCount: 0 },
+      { platform: "instagram", configured: false, connected: false, accountName: null, lastSyncAt: null, postCount: 0 },
     ]);
+  });
+
+  it("reports how many stored posts each connection's syncs have brought in", async () => {
+    enableYoutube();
+    state.current = makeState({
+      growth_connections: [connectionRow()],
+      growth_posts: [
+        { id: "gp-1", owner_id: "user-1", source: "youtube", external_id: "vid-1" },
+        { id: "gp-2", owner_id: "user-1", source: "youtube", external_id: "vid-2" },
+        { id: "gp-3", owner_id: "user-1", source: "youtube", external_id: "vid-3" },
+        { id: "gp-4", owner_id: "user-1", source: "manual", external_id: null },
+        { id: "gp-5", owner_id: "someone-else", source: "youtube", external_id: "vid-9" },
+      ],
+    });
+    const res = await STATUS(get("http://localhost/api/v1/growth/connections"));
+    const body = (await res.json()) as { data: { platforms: Array<Record<string, unknown>> } };
+    const youtube = body.data.platforms.find((p) => p.platform === "youtube");
+    const instagram = body.data.platforms.find((p) => p.platform === "instagram");
+    expect(youtube?.postCount).toBe(3); // only this user's youtube-sourced rows
+    expect(instagram?.postCount).toBe(0);
   });
 
   it("before the APPLY file runs, answers setupPending instead of erroring", async () => {
@@ -227,8 +247,11 @@ describe("POST /growth/connect/[platform]/sync", () => {
     providerStats.viewCount = "250";
     const res = await SYNC(post("http://localhost/api/v1/growth/connect/youtube/sync"), ctx("youtube"));
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { data: { synced: number } };
+    const body = (await res.json()) as { data: { synced: number; fetched: number; stored: number; channelTotal: number | null } };
     expect(body.data.synced).toBe(1);
+    expect(body.data.fetched).toBe(1);
+    expect(body.data.stored).toBe(1);
+    expect(body.data.channelTotal).toBeNull(); // the single-video stub reports no pageInfo
     const rows = (state.current.tables.growth_posts ?? []).filter((p) => p.external_id === "vid-1");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ id: "gp-1", views: 250 });
@@ -242,6 +265,111 @@ describe("POST /growth/connect/[platform]/sync", () => {
     const res = await SYNC(post("http://localhost/api/v1/growth/connect/youtube/sync"), ctx("youtube"));
     const body = (await res.json()) as { error: { message: string } };
     expect(body.error.message).toContain("database update is pending");
+  });
+});
+
+describe("POST /growth/connect/[platform]/sync — full-channel pagination", () => {
+  const TOTAL = 137; // 50 + 50 + 37 uploads: more than one playlistItems page
+  const idAt = (i: number) => `vid-${i + 1}`;
+
+  function stubPagedProvider(opts: { failOnPage?: number } = {}) {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = String(url);
+        if (u.includes("/youtube/v3/channels")) {
+          return json({ items: [{ id: "chan-1", snippet: { title: "My Channel" }, contentDetails: { relatedPlaylists: { uploads: "UU1" } } }] });
+        }
+        if (u.includes("/youtube/v3/playlistItems")) {
+          const token = new URL(u).searchParams.get("pageToken");
+          const page = token === null ? 1 : token === "tok-2" ? 2 : token === "tok-3" ? 3 : 0;
+          if (page === 0) throw new Error(`unexpected pageToken ${token}`);
+          if (opts.failOnPage === page) throw new Error("provider blew up mid-walk");
+          const start = (page - 1) * 50;
+          const count = Math.min(50, TOTAL - start);
+          return json({
+            pageInfo: { totalResults: TOTAL, resultsPerPage: 50 },
+            ...(page < 3 ? { nextPageToken: `tok-${page + 1}` } : {}),
+            items: Array.from({ length: count }, (_, k) => ({ contentDetails: { videoId: idAt(start + k) } })),
+          });
+        }
+        if (u.includes("/youtube/v3/videos")) {
+          const ids = (new URL(u).searchParams.get("id") ?? "").split(",");
+          return json({
+            items: ids.map((id) => ({
+              id,
+              snippet: { title: `Video ${id}`, publishedAt: "2026-11-01T10:00:00Z" },
+              statistics: { viewCount: "10", likeCount: "1", commentCount: "0" },
+            })),
+          });
+        }
+        throw new Error(`unexpected fetch ${u}`);
+      }),
+    );
+  }
+
+  const seedPost = (i: number): Row => ({
+    id: `gp-${i + 1}`,
+    owner_id: "user-1",
+    platform: "youtube",
+    title: `Video ${idAt(i)}`,
+    post_url: `https://www.youtube.com/watch?v=${idAt(i)}`,
+    posted_at: "2026-11-01T10:00:00.000Z",
+    views: 10,
+    reach: null,
+    likes: 1,
+    comments: 0,
+    shares: null,
+    saves: null,
+    source: "youtube",
+    external_id: idAt(i),
+    created_at: "2026-11-10T00:00:00.000Z",
+    updated_at: "2026-11-10T00:00:00.000Z",
+  });
+
+  it("syncs the WHOLE channel: 137 uploads land, and the result reports fetched/stored/channel totals", async () => {
+    enableYoutube();
+    stubPagedProvider();
+    state.current = makeState({ growth_connections: [connectionRow()] });
+    const res = await SYNC(post("http://localhost/api/v1/growth/connect/youtube/sync"), ctx("youtube"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { synced: number; fetched: number; stored: number; channelTotal: number | null } };
+    expect(body.data).toMatchObject({ synced: TOTAL, fetched: TOTAL, stored: TOTAL, channelTotal: TOTAL });
+    const rows = (state.current.tables.growth_posts ?? []).filter((p) => p.source === "youtube");
+    expect(rows).toHaveLength(TOTAL);
+    expect(new Set(rows.map((r) => r.external_id)).size).toBe(TOTAL); // no duplicates across pages
+  });
+
+  it("a re-sync over the full channel updates figures in place — still 137 rows, no duplicates", async () => {
+    enableYoutube();
+    stubPagedProvider();
+    state.current = makeState({
+      growth_connections: [connectionRow()],
+      growth_posts: Array.from({ length: TOTAL }, (_, i) => seedPost(i)),
+    });
+    const res = await SYNC(post("http://localhost/api/v1/growth/connect/youtube/sync"), ctx("youtube"));
+    expect(res.status).toBe(200);
+    const rows = (state.current.tables.growth_posts ?? []).filter((p) => p.source === "youtube");
+    expect(rows).toHaveLength(TOTAL);
+    expect(state.current.inserts.filter((i) => i.table === "growth_posts")).toHaveLength(0);
+    expect(state.current.updates.filter((u) => u.table === "growth_posts").length).toBeGreaterThan(0);
+  });
+
+  it("page 2 failing leaves page 1's already-synced rows intact and surfaces an error (sync never deletes)", async () => {
+    enableYoutube();
+    stubPagedProvider({ failOnPage: 2 });
+    state.current = makeState({
+      growth_connections: [connectionRow()],
+      growth_posts: Array.from({ length: 50 }, (_, i) => seedPost(i)),
+    });
+    const res = await SYNC(post("http://localhost/api/v1/growth/connect/youtube/sync"), ctx("youtube"));
+    expect(res.status).not.toBe(200);
+    const body = (await res.json()) as { error: { message: string } };
+    expect(body.error.message).toContain("YouTube could not be reached");
+    const rows = (state.current.tables.growth_posts ?? []).filter((p) => p.source === "youtube");
+    expect(rows).toHaveLength(50);
+    expect(rows.map((r) => r.external_id)).toEqual(Array.from({ length: 50 }, (_, i) => idAt(i)));
+    expect(state.current.deletes.filter((d) => d.table === "growth_posts")).toHaveLength(0);
   });
 });
 

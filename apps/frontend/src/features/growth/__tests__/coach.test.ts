@@ -133,6 +133,7 @@ describe("the verified UI map", () => {
     // Sections and controls on the Growth Studio page itself.
     for (const label of [
       "Your posts",
+      "Missing a post? Add it manually",
       "Add a post",
       "Add post",
       "Save changes",

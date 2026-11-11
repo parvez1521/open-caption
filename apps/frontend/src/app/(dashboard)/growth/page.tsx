@@ -125,7 +125,9 @@ export default function GrowthPage() {
   const [libraryReady, setLibraryReady] = useState(true);
   const [planItems, setPlanItems] = useState<ContentItem[]>([]);
 
-  // Post form
+  // Post form — manual entry is the fallback for posts a sync can't bring,
+  // so the form rests collapsed behind its toggle; editing a post opens it.
+  const [postFormOpen, setPostFormOpen] = useState(false);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
   const [postPlatform, setPostPlatform] = useState("");
   const [postTitle, setPostTitle] = useState("");
@@ -245,6 +247,7 @@ export default function GrowthPage() {
   };
 
   const startEditPost = (post: GrowthPost) => {
+    setPostFormOpen(true);
     setEditingPostId(post.id);
     setPostPlatform(post.platform);
     setPostTitle(post.title);
@@ -285,6 +288,7 @@ export default function GrowthPage() {
         setPosts((cur) => [created, ...cur]);
       }
       resetPostForm();
+      setPostFormOpen(false);
     } catch (e) {
       setPostError(errText(e, "Couldn't save the post. Try again."));
     } finally {
@@ -493,13 +497,26 @@ export default function GrowthPage() {
             {/* -------------------------------------------------- Posts */}
             <section className="pt-10" aria-label="Your posts">
               <h2 className={sectionTitleCls}>Your posts</h2>
+              {postFormOpen || editingPostId ? (
               <form
                 className={`${cardCls} mt-4 space-y-4`}
                 onSubmit={(e) => { e.preventDefault(); void submitPost(); }}
               >
-                <p className="font-sora text-[13px] font-semibold text-ink">
-                  {editingPostId ? "Edit post" : "Add a post"}
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-sora text-[13px] font-semibold text-ink">
+                    {editingPostId ? "Edit post" : "Add a post"}
+                  </p>
+                  {!editingPostId ? (
+                    <button
+                      type="button"
+                      className="font-sora text-[12px] font-semibold text-sand-600 underline decoration-sand-300 underline-offset-2 hover:text-ink"
+                      aria-expanded={true}
+                      onClick={() => setPostFormOpen(false)}
+                    >
+                      Hide
+                    </button>
+                  ) : null}
+                </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className={labelCls}>
                     Platform
@@ -574,17 +591,40 @@ export default function GrowthPage() {
                     {postBusy ? "Saving…" : editingPostId ? "Save changes" : "Add post"}
                   </button>
                   {editingPostId ? (
-                    <button type="button" className={ghostBtn} onClick={resetPostForm}>Cancel edit</button>
+                    <button
+                      type="button"
+                      className={ghostBtn}
+                      onClick={() => { resetPostForm(); setPostFormOpen(false); }}
+                    >
+                      Cancel edit
+                    </button>
                   ) : null}
                 </div>
               </form>
+              ) : (
+                <div className={`${cardCls} mt-4`}>
+                  <button
+                    type="button"
+                    className={ghostBtn}
+                    aria-expanded={false}
+                    onClick={() => setPostFormOpen(true)}
+                  >
+                    Missing a post? Add it manually
+                  </button>
+                  <p className="mt-3 max-w-[68ch] text-[12.5px] leading-relaxed text-sand-600">
+                    Manual entry is only for a post a sync can&apos;t bring — another platform, or Instagram
+                    before it&apos;s connected. A connected account&apos;s posts arrive in this list on their own.
+                  </p>
+                </div>
+              )}
 
               {posts.length === 0 ? (
                 <div className="mt-6 rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-12 text-center">
                   <p className="font-serif text-2xl font-semibold text-ink">No posts <em className="italic text-sand-600">yet.</em></p>
                   <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">
-                    Add your first post above, or import a spreadsheet below. The weekly report
-                    starts from your posts — there is nothing to show until some exist.
+                    Connect an account above and its posts arrive here on their own. You can also
+                    add a post by hand above, or import a spreadsheet below — the weekly report
+                    starts from your posts, and there is nothing to show until some exist.
                   </p>
                 </div>
               ) : (
