@@ -1124,7 +1124,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const headerBar = (
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-st-line bg-st-panel px-3 sm:px-4">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-        <Link href="/dashboard" onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); nav.go("/dashboard", "Back to your projects"); }} aria-label="Back to projects" className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-st-muted transition hover:bg-st-raised hover:text-st-text">←</Link>
+        <Link href="/dashboard" onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); nav.go("/dashboard", "Back to your projects"); }} aria-label="Back to projects" className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-st-muted transition before:absolute before:-inset-1 before:content-[''] hover:bg-st-raised hover:text-st-text">←</Link>
         <Link href="/dashboard" aria-label="Open Caption projects" className="hidden sm:block"><Logo height={22} /></Link>
         <span className="hidden h-5 w-px bg-st-line sm:block" />
         {editingTitle ? (
@@ -1148,14 +1148,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       <div className="flex items-center gap-1.5 sm:gap-2">
         {hasEditor ? (
           <>
-            <Button onClick={s.undo} disabled={!s.canUndo} title="Undo (Ctrl+Z)" aria-label="Undo" className="!px-2.5">↶</Button>
-            <Button onClick={s.redo} disabled={!s.canRedo} title="Redo (Ctrl+Shift+Z)" aria-label="Redo" className="!px-2.5">↷</Button>
+            {/* 32 px on screen; the invisible before: expander takes the tap target to 44 px (Phase 2B touch targets) */}
+            <Button onClick={s.undo} disabled={!s.canUndo} title="Undo (Ctrl+Z)" aria-label="Undo" className="relative !px-2.5 before:absolute before:-inset-2 before:content-['']">↶</Button>
+            <Button onClick={s.redo} disabled={!s.canRedo} title="Redo (Ctrl+Shift+Z)" aria-label="Redo" className="relative !px-2.5 before:absolute before:-inset-2 before:content-['']">↷</Button>
           </>
         ) : null}
         <Button
           aria-label="Delete project"
           title="Delete project"
-          className="!px-2.5"
+          className="relative !px-2.5 before:absolute before:-inset-2 before:content-['']"
           onClick={async () => {
             if (!window.confirm("Delete this project? Its captions and video are removed for good.")) return;
             // leave right away: the dashboard no longer lists it, and the server finishes in the background
@@ -1170,7 +1171,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         >
           🗑 Delete
         </Button>
-        <Button data-tour="export" tone="primary" disabled={!hasEditor || live} title={live ? "Available when the captions are finished" : undefined} onClick={() => void openExport()} className="!rounded-full !px-4">Export</Button>
+        <Button data-tour="export" tone="primary" disabled={!hasEditor || live} title={live ? "Available when the captions are finished" : undefined} onClick={() => void openExport()} className="relative !rounded-full !px-4 before:absolute before:-inset-2 before:content-['']">Export</Button>
       </div>
     </header>
   );
@@ -1407,7 +1408,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       title={label}
       aria-label={label}
       aria-pressed={opts.active}
-      className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-30 ${opts.active ? "bg-st-lav text-st-ink" : "text-st-text/85 hover:bg-st-hover"}`}
+      className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg transition before:absolute before:-inset-1.5 before:content-[''] disabled:cursor-not-allowed disabled:opacity-30 ${opts.active ? "bg-st-lav text-st-ink" : "text-st-text/85 hover:bg-st-hover"}`}
     >
       {icon}
     </button>
@@ -1467,6 +1468,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       words={doc.words}
       durationMs={durationMs}
       timeMs={timeMs}
+      fps={fps}
       getTimeMs={getPlayerMs}
       playing={playing}
       selectedId={selectedId}
@@ -1631,7 +1633,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                 type="button"
                 aria-label="Expand right panel"
                 onClick={() => setRightCollapsed(false)}
-                className="rounded-lg px-2 py-1.5 text-st-muted hover:bg-st-hover hover:text-st-text"
+                className="relative rounded-lg px-2 py-1.5 text-st-muted before:absolute before:-inset-2 before:content-[''] hover:bg-st-hover hover:text-st-text"
               >
                 ‹
               </button>
@@ -1639,7 +1641,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                 type="button"
                 aria-label="Open Motion Studio panel"
                 onClick={() => { setRightTab("motion"); setRightCollapsed(false); }}
-                className="rounded-lg px-1 py-2 text-[11px] font-semibold text-st-muted [writing-mode:vertical-rl] hover:bg-st-hover hover:text-st-text"
+                className="relative rounded-lg px-1 py-2 text-[11px] font-semibold text-st-muted before:absolute before:-inset-2 before:content-[''] [writing-mode:vertical-rl] hover:bg-st-hover hover:text-st-text"
               >
                 Motion
               </button>
@@ -1652,7 +1654,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                   role="tab"
                   aria-selected={rightTab === "motion"}
                   onClick={() => setRightTab("motion")}
-                  className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  className={`relative rounded-lg px-2.5 py-1.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
                 >
                   Motion
                 </button>
@@ -1662,7 +1664,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                     role="tab"
                     aria-selected={rightTab === "inspector"}
                     onClick={() => setRightTab("inspector")}
-                    className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                    className={`relative rounded-lg px-2.5 py-1.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
                   >
                     Inspector
                   </button>
@@ -1671,7 +1673,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                   type="button"
                   aria-label="Collapse right panel"
                   onClick={() => setRightCollapsed(true)}
-                  className="ml-auto rounded-lg px-2 py-1.5 text-st-muted hover:bg-st-hover hover:text-st-text"
+                  className="relative ml-auto rounded-lg px-2 py-1.5 text-st-muted before:absolute before:-inset-2 before:content-[''] hover:bg-st-hover hover:text-st-text"
                 >
                   ›
                 </button>
@@ -1707,7 +1709,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             data-tour={sec.tour}
             onClick={() => { setSection(sec.id); setMobileTimeline(false); }}
             aria-pressed={!mobileTimeline && section === sec.id}
-            className={`flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 ${!mobileTimeline && section === sec.id ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
+            className={`relative flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 before:absolute before:-inset-2 before:content-[''] ${!mobileTimeline && section === sec.id ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
           >
             {sec.icon}
             <span className="text-[11px] font-medium leading-none">{sec.label}</span>
@@ -1716,7 +1718,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         <button
           onClick={() => setMobileTimeline(true)}
           aria-pressed={mobileTimeline}
-          className={`flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 ${mobileTimeline ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
+          className={`relative flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 before:absolute before:-inset-2 before:content-[''] ${mobileTimeline ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
         >
           {railIcon(<><path d="M3 9h18M3 15h18" /><path d="M8 5v14M15 5v14" /></>)}
           <span className="text-[11px] font-medium leading-none">Timeline</span>
