@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
+import { MOTION_TEMPLATES } from "@capseasy/motion";
 
 /**
  * Motion Studio smoke (Wave-4): the three surfaces Waves 1–3 shipped, exercised
@@ -85,12 +86,12 @@ test("home loads and the Motion Studio section is visible", async ({ page }) => 
   await expect(section.locator('a[aria-label^="Customise "]')).toHaveCount(4);
 });
 
-test("/motion renders one card per registry template (30)", async ({ page }) => {
+test(`/motion renders one card per registry template (${MOTION_TEMPLATES.length})`, async ({ page }) => {
   await seedSession(page);
   await page.goto("/motion");
   await expect(page.getByRole("heading", { name: /Motion/ }).first()).toBeVisible();
-  await expect(page.locator('a[aria-label^="Customise "]')).toHaveCount(30);
-  await expect(page.getByText(/Showing 30 of 30 templates/)).toBeVisible();
+  await expect(page.locator('a[aria-label^="Customise "]')).toHaveCount(MOTION_TEMPLATES.length);
+  await expect(page.getByText(new RegExp(`Showing ${MOTION_TEMPLATES.length} of ${MOTION_TEMPLATES.length} templates`))).toBeVisible();
 });
 
 test("/motion/subscribe-pill customize page shows the live preview and controls", async ({ page }) => {

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { MotionConfigSchema, type MotionConfig } from "@capseasy/motion";
 import { canExportVideoInBrowser, exportVideoInBrowser, saveBlob } from "@/features/studio/browserExport";
 import { fmtBytes } from "@/features/studio/controls";
-import { probeAlphaCapability, type AlphaCapability } from "./alphaCapability";
+import { alphaUnavailableLine, probeAlphaCapability, type AlphaCapability } from "./alphaCapability";
 import { verifyAlphaExport } from "./alphaVerify";
 import type { MotionAssetRef } from "./addToProject";
 import {
@@ -33,9 +33,10 @@ import {
  * only WebCodecs).
  *
  * MP4/WebM are opaque files on the chosen solid background. The transparent WebM format
- * appears ONLY when the strict alpha probe (alphaCapability) and the renderer's own
- * transparent check both pass in this browser, and every transparent render is verified
- * for real alpha after encoding (alphaVerify) before it downloads — see exportConfig.
+ * appears when the alpha probe (alphaCapability, probe v2) proves this browser can encode
+ * VP9 with alpha at the chosen size; when it cannot, the section's note names the gate
+ * stage that withheld it. Every transparent render is verified for real alpha after
+ * encoding (alphaVerify) before it downloads — see exportConfig.
  * Cancellation mirrors the Studio export: an AbortController whose signal the renderer
  * checks between frames, so Cancel really stops the render and saves nothing.
  */
@@ -59,40 +60,37 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
   const dims = useMemo(() => motionExportDimensions(selection.aspect, selection.shortEdge), [selection.aspect, selection.shortEdge]);
   const backgroundColor = motionExportBackgroundColor(selection);
 
-  /* Transparent WebM gating: the option exists only when (1) the WebCodecs alpha probe
-     passes with VP9 and (2) the renderer itself confirms transparent WebM at the chosen
-     size. Both checks fail closed — pending or failed means the option is not shown. */
+  /* Transparent WebM gating (probe v2): the option exists when the probe proves this
+     browser can encode VP9 with alpha AT the chosen size (VideoEncoder present + the
+     at-size isConfigSupported check). The renderer's own transparent check rides along
+     as a probe diagnostic only — the encode attempt and the post-encode alpha guard
+     decide the truth, so a diagnostic failure never hides the option. The probe re-runs
+     when the size changes, because the gate is asked at the chosen size. */
   const [alphaCap, setAlphaCap] = useState<AlphaCapability | null>(null);
   useEffect(() => {
     let alive = true;
-    void probeAlphaCapability().then((cap) => {
+    void probeAlphaCapability(
+      {
+        renderCheck: (width, height) =>
+          canExportVideoInBrowser({ container: "webm", videoCodec: "vp9", width, height, transparent: true }).then((r) => r.ok),
+      },
+      { width: dims.width, height: dims.height },
+    ).then((cap) => {
       if (alive) setAlphaCap(cap);
     });
     return () => {
       alive = false;
     };
-  }, []);
-  const [alphaCheck, setAlphaCheck] = useState<{ key: string; ok: boolean } | null>(null);
-  useEffect(() => {
-    if (!(alphaCap?.available && alphaCap.codec === "vp9")) return;
-    let alive = true;
-    const key = `${dims.width}x${dims.height}`;
-    void canExportVideoInBrowser({ container: "webm", videoCodec: "vp9", width: dims.width, height: dims.height, transparent: true }).then((r) => {
-      if (alive) setAlphaCheck({ key, ok: r.ok });
-    });
-    return () => {
-      alive = false;
-    };
-  }, [alphaCap, dims.width, dims.height]);
-  const alphaReady = alphaCap?.available === true && alphaCap.codec === "vp9" && alphaCheck?.key === `${dims.width}x${dims.height}` && alphaCheck.ok;
+  }, [dims.width, dims.height]);
+  const alphaReady = alphaCap?.available === true;
   const visibleFormats = MOTION_EXPORT_FORMATS.filter((f) => !f.transparent || alphaReady);
-  // if the transparent format was selected and its checks stop passing (e.g. the size
+  // if the transparent format was selected and the gate stops passing (e.g. the size
   // changed), fall back to plain WebM rather than rendering something unproven
   useEffect(() => {
-    if (format.transparent && alphaCap !== null && alphaCheck !== null && !alphaReady) {
+    if (format.transparent && alphaCap !== null && !alphaReady) {
       setSelection((s) => (s.format === "webm-alpha" ? { ...s, format: "webm" } : s));
     }
-  }, [format.transparent, alphaCap, alphaCheck, alphaReady]);
+  }, [format.transparent, alphaCap, alphaReady]);
 
   // encoder support is checked at the chosen format + output size, like the Studio export
   const [capability, setCapability] = useState<{ ok: boolean; reason?: string } | null>(null);
@@ -237,7 +235,11 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
           ) : (
             <>
               <p className="mt-1.5 text-[12px] text-sand-600">{SOLID_BACKGROUND_FORMAT_NOTE} — the background above is baked into every frame.</p>
-              <p className="mt-1 text-[12px] text-sand-600">{TRANSPARENT_EXPORT_NOTE}</p>
+              {alphaCap && !alphaCap.available && alphaCap.blockedBy ? (
+                <p className="mt-1 text-[12px] text-sand-600">{alphaUnavailableLine(alphaCap.blockedBy)}</p>
+              ) : (
+                <p className="mt-1 text-[12px] text-sand-600">{TRANSPARENT_EXPORT_NOTE}</p>
+              )}
             </>
           )}
         </div>
