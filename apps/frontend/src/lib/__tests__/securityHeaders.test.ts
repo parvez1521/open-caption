@@ -81,6 +81,19 @@ describe("securityHeaders", () => {
     expect(directive("media-src")).toContain("https://cdn.pixabay.com");
   });
 
+  it("allows the runtime caption/template font origins (OC-003) and keeps jsDelivr out", () => {
+    // @remotion/google-fonts fetches the css2 stylesheet (connect-src) and
+    // woff2 from gstatic (font-src); Fontsource-hosted families load woff2
+    // from cdn.jsdelivr.net (font-src only — no script/connect, because the
+    // ONNX WASM is self-hosted via onnxWasm.ts, never the jsDelivr default).
+    expect(directive("connect-src")).toContain("https://fonts.googleapis.com");
+    expect(directive("font-src")).toContain("https://fonts.gstatic.com");
+    expect(directive("font-src")).toContain("https://cdn.jsdelivr.net");
+    expect(csp).not.toContain("cdn.jsdelivr.net/npm/onnxruntime-web");
+    expect(directive("script-src")).not.toContain("jsdelivr");
+    expect(directive("connect-src")).not.toContain("jsdelivr");
+  });
+
   it("lets the Teleprompter recorder use this origin's camera/mic (deep-audit B1)", () => {
     const pp = securityHeaders.find((h) => h.key === "Permissions-Policy")?.value ?? "";
     expect(pp).toContain("camera=(self)");

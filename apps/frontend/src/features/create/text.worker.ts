@@ -12,8 +12,12 @@
 import { pipeline, env, type TextGenerationPipeline } from "@huggingface/transformers";
 import { LOCAL_MODEL } from "./model";
 import { isConstrainedDevice, webgpuF16 } from "../transcribe/runtime";
+import { useBundledOnnxWasm } from "../transcribe/onnxWasm";
 
 env.allowLocalModels = false;
+// OC-003: self-hosted ONNX WASM (bundled assets) instead of the jsDelivr CDN
+// default — must run before the first pipeline() call.
+useBundledOnnxWasm();
 
 export type TextIn =
   | { type: "load" }
