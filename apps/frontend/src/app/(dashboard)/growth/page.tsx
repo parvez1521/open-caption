@@ -9,6 +9,7 @@ import {
   METRIC_KEYS,
   PLATFORM_SUGGESTIONS,
   engagementOf,
+  sourceLabelOf,
   validatePostRow,
   type CompetitorProfile,
   type GrowthPost,
@@ -42,6 +43,9 @@ import {
   type WeeklyPlanBody,
 } from "@/features/growth/plan";
 import { usePlanDeps } from "@/features/growth/usePlanDeps";
+import { ConnectAccounts } from "@/features/growth/ConnectAccounts";
+import { GrowthCoach } from "@/features/growth/GrowthCoach";
+import { starterQuestions } from "@/features/growth/coach";
 import { createContentItem, fetchContentItems, type ContentItem } from "@/features/create/library";
 import { runChatTurn } from "@/features/create/chat";
 import { SourceBadge } from "@/features/create/SourceBadge";
@@ -59,7 +63,8 @@ const cardCls = "rounded-xl border border-sand-200 bg-white p-5";
 /**
  * A section's basis ("how this figure was worked out") — kept on the page, one tap away,
  * instead of a paragraph under every card. The data-source labels themselves (Manual/CSV,
- * source mix) stay visible as before; this only moves the arithmetic.
+ * YouTube/Instagram for connected syncs, source mix) stay visible as before; this only
+ * moves the arithmetic.
  */
 function BasisLine({ basis }: { basis: string }) {
   return (
@@ -208,6 +213,9 @@ export default function GrowthPage() {
     () => computeWeeklyReport(posts, Date.now(), { competitors, analyses }),
     [posts, competitors, analyses],
   );
+
+  /** Coach starter chips: computed from data presence (features/growth/coach.ts). */
+  const coachStarters = useMemo(() => starterQuestions(posts, report), [posts, report]);
 
   const savedPlans: ParsedPlan[] = useMemo(
     () =>
@@ -449,8 +457,8 @@ export default function GrowthPage() {
             next week built from those numbers only.
           </p>
           <p className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            Every figure here is yours — typed in (Manual) or imported (CSV). Nothing is scraped,
-            synced or estimated.
+            Every figure here is yours — typed in (Manual), imported (CSV), or synced from an
+            account you connected yourself (YouTube / Instagram). Nothing is scraped or estimated.
           </p>
         </div>
 
@@ -477,6 +485,10 @@ export default function GrowthPage() {
                 until then; your posts and competitors are unaffected.
               </p>
             ) : null}
+
+            {/* --------------------------------------- Connect + Coach */}
+            <ConnectAccounts onSynced={() => void loadAll()} />
+            <GrowthCoach starters={coachStarters} />
 
             {/* -------------------------------------------------- Posts */}
             <section className="pt-10" aria-label="Your posts">
@@ -605,7 +617,7 @@ export default function GrowthPage() {
                           </p>
                         </div>
                         <span className="rounded-full border border-sand-300 bg-sand-100 px-2.5 py-1 font-sora text-[11px] font-semibold text-sand-800">
-                          {post.source === "csv" ? "CSV" : "Manual"}
+                          {sourceLabelOf(post.source)}
                         </span>
                         <div className="flex gap-2">
                           <button type="button" className={ghostBtn} disabled={!growthReady} onClick={() => startEditPost(post)}>Edit</button>
@@ -805,6 +817,8 @@ export default function GrowthPage() {
                   <BasisLine basis={report.overview.basis} />
                   <p className="mt-1 text-[12px] text-sand-600">
                     Source mix: {report.overview.sourceMix.manual} Manual, {report.overview.sourceMix.csv} CSV
+                    {report.overview.sourceMix.youtube ? `, ${report.overview.sourceMix.youtube} YouTube` : ""}
+                    {report.overview.sourceMix.instagram ? `, ${report.overview.sourceMix.instagram} Instagram` : ""}
                     {" · "}Prior 7 days: {report.overview.priorWindowPosts} posts
                   </p>
                   {report.overview.status === "insufficient" ? (
@@ -861,7 +875,7 @@ export default function GrowthPage() {
                         <p className="font-sora text-[12px] font-semibold text-sand-600">Top</p>
                         <ul className="mt-1 space-y-1 text-[13px] text-sand-800">
                           {report.topBottom.top.map((p) => (
-                            <li key={p.id}>{p.title || "(untitled post)"} — {engagementOf(p)} engagement ({p.source === "csv" ? "CSV" : "Manual"})</li>
+                            <li key={p.id}>{p.title || "(untitled post)"} — {engagementOf(p)} engagement ({sourceLabelOf(p.source)})</li>
                           ))}
                         </ul>
                       </div>
@@ -870,7 +884,7 @@ export default function GrowthPage() {
                         {report.topBottom.bottom.length ? (
                           <ul className="mt-1 space-y-1 text-[13px] text-sand-800">
                             {report.topBottom.bottom.map((p) => (
-                              <li key={p.id}>{p.title || "(untitled post)"} — {engagementOf(p)} engagement ({p.source === "csv" ? "CSV" : "Manual"})</li>
+                              <li key={p.id}>{p.title || "(untitled post)"} — {engagementOf(p)} engagement ({sourceLabelOf(p.source)})</li>
                             ))}
                           </ul>
                         ) : (
@@ -984,7 +998,9 @@ export default function GrowthPage() {
                       ) : null}
                       <p className="mt-1 text-[12px] text-sand-600">
                         Based on {plan.reportSnapshot.postsAnalysed} posts
-                        {" ("}{plan.reportSnapshot.sourceMix.manual} Manual, {plan.reportSnapshot.sourceMix.csv} CSV{")"}.
+                        {" ("}{plan.reportSnapshot.sourceMix.manual} Manual, {plan.reportSnapshot.sourceMix.csv} CSV
+                        {plan.reportSnapshot.sourceMix.youtube ? `, ${plan.reportSnapshot.sourceMix.youtube} YouTube` : ""}
+                        {plan.reportSnapshot.sourceMix.instagram ? `, ${plan.reportSnapshot.sourceMix.instagram} Instagram` : ""}{")"}.
                       </p>
                       {plan.recommendations.length ? (
                         <div className="mt-4">

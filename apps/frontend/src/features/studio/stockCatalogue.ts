@@ -8,14 +8,26 @@ import manifest from "../../../public/stock-sfx/manifest.json";
  * `public/stock-sfx/manifest.json` (the same data the /credits page renders),
  * and this module is the typed view of that manifest.
  *
- * Ingestion record (2026-11-10): every file came from a Kenney (kenney.nl)
- * audio pack whose page states "License: Creative Commons CC0" and whose
- * downloaded zip contains a License.txt reading "License: (Creative Commons
- * Zero, CC0)" — both checked per pack before any file was copied in. The
- * files are the packs' original OGG Vorbis files, renamed only. Freesound
- * was the first-choice source and its CC0 items were verified on their pages,
- * but the sandbox could not download Freesound audio (CDN 403), so NO
- * Freesound file ships — Kenney is the substitute source the A10 spec names.
+ * Ingestion record (2026-11-10): every STARTER file came from a Kenney
+ * (kenney.nl) audio pack whose page states "License: Creative Commons CC0"
+ * and whose downloaded zip contains a License.txt reading "License:
+ * (Creative Commons Zero, CC0)" — both checked per pack before any file was
+ * copied in. The files are the packs' original OGG Vorbis files, renamed
+ * only. Freesound was the first-choice source and its CC0 items were verified
+ * on their pages, but the sandbox could not download Freesound audio
+ * (CDN 403), so NO Freesound file ships — Kenney is the substitute source
+ * the A10 spec names.
+ *
+ * Meme group (2026-11-11): original SYNTHESIZED effects generated in code
+ * (Python DSP — oscillators, filtered noise, envelopes), in the style of the
+ * classic meme sounds. The famous meme recordings themselves are other
+ * people's uploads (myinstants-style libraries) and were never touched.
+ * CC0-verified Freesound recordings of these classes were located via
+ * Openverse (licence cc0 in the API record), but the Freesound CDN still
+ * refuses downloads from this sandbox (HTTP 403), so synthesized originals
+ * ship instead, each labelled "original synthesis" in its title, format and
+ * UI copy, and dedicated CC0 by Open Caption as author. The validator below
+ * pins that labelling so a synth item can never pose as a found recording.
  */
 
 export interface StockSfxItem {
@@ -25,7 +37,7 @@ export interface StockSfxItem {
   use: string;
   /** file name inside public/stock-sfx/ */
   file: string;
-  /** the file's name in its source pack */
+  /** the file's name in its source pack (for synth items: how it was generated) */
   originalFile: string;
   title: string;
   author: string;
@@ -34,6 +46,10 @@ export interface StockSfxItem {
   retrievedAt: string;
   format: string;
   durationMs: number;
+  /** which bundled group the item renders under */
+  group: "starter" | "meme";
+  /** where the file came from: a Kenney CC0 pack, or our own synthesis (2026-11-11) */
+  licenceSource: "kenney" | "synth";
 }
 
 export const STOCK_SFX_PACK_NOTE: string = (manifest as { pack: { note: string } }).pack.note;
@@ -50,7 +66,7 @@ export function stockItemUrl(item: Pick<StockSfxItem, "file">): string {
 /** The licence record an "Add to media bin" copy of this item carries into the bin. */
 export function licenceRecordForStockItem(item: StockSfxItem): AssetLicenceRecord {
   return {
-    source: "kenney",
+    source: item.licenceSource,
     title: item.title,
     author: item.author,
     sourceUrl: item.sourceUrl,
@@ -84,7 +100,19 @@ export function validateStockManifest(items: readonly StockSfxItem[]): string[] 
     if (it.licence !== "CC0 1.0") problems.push(`${tag}: licence is "${it.licence}", not CC0 1.0 — only CC0 ships bundled`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(it.retrievedAt ?? "")) problems.push(`${tag}: retrieval date missing or not an ISO date`);
     if (!(it.durationMs > 0 && it.durationMs <= 30_000)) problems.push(`${tag}: duration ${it.durationMs}ms is not a sane SFX length`);
+    if (it.group !== "starter" && it.group !== "meme") problems.push(`${tag}: group "${it.group}" is not a bundled group`);
+    // A synthesized item must SAY so — it can never pose as a found recording:
+    // author is Open Caption and the title carries the synthesis label.
+    if (it.licenceSource === "synth") {
+      if (it.author !== "Open Caption") problems.push(`${tag}: a synth item's author must be Open Caption`);
+      if (!/synthesis/i.test(it.title ?? "")) problems.push(`${tag}: a synth item's title must say "original synthesis"`);
+      if (!/synthes/i.test(it.format ?? "")) problems.push(`${tag}: a synth item's format must say it was synthesized`);
+    }
+    if (it.licenceSource !== "kenney" && it.licenceSource !== "synth") problems.push(`${tag}: licence source "${it.licenceSource}" is not a bundled source`);
   }
-  if (items.length < 8 || items.length > 15) problems.push(`pack has ${items.length} items — the starter pack is meant to stay small (8–15)`);
+  const starter = items.filter((i) => i.group === "starter").length;
+  const meme = items.filter((i) => i.group === "meme").length;
+  if (starter < 8 || starter > 15) problems.push(`pack has ${starter} starter items — the starter pack is meant to stay small (8–15)`);
+  if (meme > 12) problems.push(`pack has ${meme} meme items — the meme group is meant to stay small (≤12)`);
   return problems;
 }

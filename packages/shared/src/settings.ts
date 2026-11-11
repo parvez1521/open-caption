@@ -87,6 +87,9 @@ export const OverlayItemSchema = z
     y: z.number().min(0).max(1).default(0.5),
     scale: z.number().min(0.25).max(4).default(1),
     rotation: z.number().min(-45).max(45).default(0),
+    /** whole-item opacity (P4, 2026-11-11): absent = fully opaque, exactly the
+     *  pre-existing behaviour; the renderer multiplies it into the item's frame. */
+    opacity: z.number().min(0).max(1).optional(),
     color: z
       .string()
       .regex(/^#[0-9a-fA-F]{6}$/, "colour must be a #rrggbb hex value")

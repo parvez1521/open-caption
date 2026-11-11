@@ -2,11 +2,10 @@
 
 import React, { useMemo, useState } from "react";
 import Link from "next/link";
-import { MOTION_CATEGORIES, MOTION_TEMPLATES, searchMotionTemplates, type MotionCategory, type MotionTemplate } from "@capseasy/motion";
+import { searchMotionTemplates, type MotionTemplate } from "@capseasy/motion";
 import { SOCIAL_META } from "@capseasy/compositions";
 import { Section } from "../controls";
 import { overlayItemsOf } from "../composition";
-import { motionCategoryLabel } from "@/features/motion/categoryLabel";
 import { AnimatedSocialPreview } from "./AnimatedSocialPreview";
 import { OverlayEditor, OverlayRow } from "./OverlayEditor";
 import { makeSocialOverlay } from "./overlayItems";
@@ -21,11 +20,12 @@ import type { OverlayPanelProps } from "./TextPanel";
  */
 export const MotionStudioPanel: React.FC<OverlayPanelProps> = ({ settings, patch, selectedId, onSelect, getTimeMs, durationMs, composition, mediaAssets, onImportMedia }) => {
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<MotionCategory | "all">("all");
 
+  // No category filter UI in this panel (owner order 2026-11-11): search + the full
+  // list only. The /motion discovery page keeps its category filters — different surface.
   const results = useMemo(
-    () => searchMotionTemplates({ query: query.trim() || undefined, category: category === "all" ? undefined : category }, "category"),
-    [query, category],
+    () => searchMotionTemplates({ query: query.trim() || undefined }, "category"),
+    [query],
   );
 
   const socials = composition ? overlayItemsOf(composition, "social") : settings.overlays.filter((o) => o.kind === "social");
@@ -45,6 +45,18 @@ export const MotionStudioPanel: React.FC<OverlayPanelProps> = ({ settings, patch
   return (
     <div className="flex h-full flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* The selected graphic's editor sits at the TOP of the panel (owner fix
+            2026-11-11): it used to render below the whole template grid, so a graphic
+            the user had just added looked uneditable. */}
+        {selected ? (
+          <OverlayEditor
+            item={selected}
+            onChange={(next) => patch({ overlays: settings.overlays.map((o) => (o.id === next.id ? next : o)) })}
+            onDelete={() => { patch({ overlays: settings.overlays.filter((o) => o.id !== selected.id) }); onSelect(null); }}
+            mediaAssets={mediaAssets}
+            onImportMedia={onImportMedia}
+          />
+        ) : null}
         <Section title="Motion templates">
           <input
             type="search"
@@ -54,31 +66,6 @@ export const MotionStudioPanel: React.FC<OverlayPanelProps> = ({ settings, patch
             aria-label="Search motion templates"
             className="w-full rounded-lg border border-st-line bg-st-raised px-3 py-2 text-[13px] text-st-text placeholder:text-st-faint"
           />
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Motion template categories">
-            <button
-              type="button"
-              aria-pressed={category === "all"}
-              onClick={() => setCategory("all")}
-              className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${category === "all" ? "border-st-text bg-st-lav text-st-ink" : "border-st-line text-st-muted hover:bg-st-hover"}`}
-            >
-              All ({MOTION_TEMPLATES.length})
-            </button>
-            {MOTION_CATEGORIES.map((c) => {
-              const count = MOTION_TEMPLATES.filter((t) => t.category === c).length;
-              if (count === 0) return null;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  aria-pressed={category === c}
-                  onClick={() => setCategory(c)}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${category === c ? "border-st-text bg-st-lav text-st-ink" : "border-st-line text-st-muted hover:bg-st-hover"}`}
-                >
-                  {motionCategoryLabel(c)} ({count})
-                </button>
-              );
-            })}
-          </div>
           {results.length === 0 ? (
             <p className="text-[12px] text-st-faint">No templates match that search.</p>
           ) : (
@@ -115,15 +102,6 @@ export const MotionStudioPanel: React.FC<OverlayPanelProps> = ({ settings, patch
               ))}
             </div>
           </Section>
-        ) : null}
-        {selected ? (
-          <OverlayEditor
-            item={selected}
-            onChange={(next) => patch({ overlays: settings.overlays.map((o) => (o.id === next.id ? next : o)) })}
-            onDelete={() => { patch({ overlays: settings.overlays.filter((o) => o.id !== selected.id) }); onSelect(null); }}
-            mediaAssets={mediaAssets}
-            onImportMedia={onImportMedia}
-          />
         ) : null}
       </div>
     </div>

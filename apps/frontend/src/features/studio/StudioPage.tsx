@@ -41,6 +41,7 @@ import { polishCommitSettings, type PolishProjectState } from "./polish";
 import { removeRangesFromVideo, trimRangeEffects, type TrimRange } from "./trim";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
+import { OverlayStageLayer } from "./OverlayStageLayer";
 import { Timeline } from "./Timeline";
 import { UploadPanel } from "./UploadPanel";
 import { SignupGate } from "./SignupGate";
@@ -1087,6 +1088,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onPlayingChange={setPlaying}
       compact={!desktop}
       platform={settings.platform}
+      stageOverlay={settings.overlays.length ? (
+        <OverlayStageLayer
+          overlays={settings.overlays}
+          timeMs={timeMs}
+          selectedId={selectedOverlayId}
+          onSelect={selectOverlay}
+          onPatch={(item) => s.patchSettings({ overlays: settings.overlays.map((o) => (o.id === item.id ? item : o)) })}
+        />
+      ) : null}
     />
   ) : null;
 

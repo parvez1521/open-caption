@@ -19,9 +19,10 @@ import {
 } from "../pixabay";
 
 /**
- * Stock audio (Phase 8, A10): the bundled CC0 starter SFX pack plus Pixabay
- * browse-import, rendered inside the Media panel (per-project bin) and on the
- * Media Library page (with a project picker there). Adding/importing goes
+ * Stock audio (Phase 8, A10): the bundled CC0 SFX packs (starter + meme) plus
+ * Pixabay browse-import, rendered by the editor's Sound Effects panel. (It
+ * used to also render on the Media Library page; that section was removed
+ * 2026-11-11 — the Library is footage/media only.) Adding/importing goes
  * through stockImport's validate → probe → saveAsset handoff, so a stock
  * track lands in the bin as a normal asset — the Audio panel and exports
  * treat it exactly like an upload — carrying its licence record with it.
@@ -113,6 +114,28 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
     }
   };
 
+  const renderPackItem = (item: (typeof items)[number]) => (
+    <div key={item.id} className={`rounded-lg px-2.5 py-2 ${rowBg}`}>
+      <div className="flex items-center gap-2">
+        <p className={`min-w-0 flex-1 truncate text-sm font-medium ${txt}`} title={item.displayName}>{item.displayName}</p>
+        <span className={`text-xs tabular-nums ${faint}`}>{Math.round(item.durationMs / 100) / 10}s</span>
+        <button type="button" className={btn} disabled={!projectId || busyId !== null || addedIds.has(item.id)} onClick={() => void addPackItem(item.id)}>
+          {addedIds.has(item.id) ? "In your bin" : busyId === item.id ? "Adding…" : "Add to media bin"}
+        </button>
+      </div>
+      <p className={`mt-0.5 text-xs leading-relaxed ${faint}`}>{item.use}</p>
+      <p className={`mt-0.5 truncate text-xs ${faint}`} title={`${describeAssetLicence(licenceRecordForStockItem(item))} · ${item.format} — full record travels with the copy in your bin`}>
+        {describeAssetLicence(licenceRecordForStockItem(item))} ·{" "}
+        <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">source</a>
+        {" · "}{item.format.replace(/\s*\([^)]*\)\s*$/, "")}
+      </p>
+      <audio controls preload="none" src={stockItemUrl(item)} className="mt-1.5 h-8 w-full" aria-label={`Preview ${item.displayName}`} />
+    </div>
+  );
+
+  const starterItems = items.filter((i) => i.group === "starter");
+  const memeItems = items.filter((i) => i.group === "meme");
+
   return (
     <div className="space-y-5">
       {/* ------------------------------------------------ bundled pack */}
@@ -122,27 +145,20 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
         {!projectId ? (
           <p className={`mt-2 text-xs ${mut}`}>Pick a project above first — added sounds land in that project&apos;s media bin on this device.</p>
         ) : null}
-        <div className="mt-2 space-y-1.5">
-          {items.map((item) => (
-            <div key={item.id} className={`rounded-lg px-2.5 py-2 ${rowBg}`}>
-              <div className="flex items-center gap-2">
-                <p className={`min-w-0 flex-1 truncate text-sm font-medium ${txt}`} title={item.displayName}>{item.displayName}</p>
-                <span className={`text-xs tabular-nums ${faint}`}>{Math.round(item.durationMs / 100) / 10}s</span>
-                <button type="button" className={btn} disabled={!projectId || busyId !== null || addedIds.has(item.id)} onClick={() => void addPackItem(item.id)}>
-                  {addedIds.has(item.id) ? "In your bin" : busyId === item.id ? "Adding…" : "Add to media bin"}
-                </button>
-              </div>
-              <p className={`mt-0.5 text-xs leading-relaxed ${faint}`}>{item.use}</p>
-              <p className={`mt-0.5 truncate text-xs ${faint}`} title={`${describeAssetLicence(licenceRecordForStockItem(item))} · ${item.format} — full record travels with the copy in your bin`}>
-                {describeAssetLicence(licenceRecordForStockItem(item))} ·{" "}
-                <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="underline underline-offset-2">source</a>
-                {" · "}{item.format.replace(/\s*\([^)]*\)\s*$/, "")}
-              </p>
-              <audio controls preload="none" src={stockItemUrl(item)} className="mt-1.5 h-8 w-full" aria-label={`Preview ${item.displayName}`} />
-            </div>
-          ))}
-        </div>
+        <div className="mt-2 space-y-1.5">{starterItems.map(renderPackItem)}</div>
       </div>
+
+      {/* ------------------------------------------------ meme sounds */}
+      {memeItems.length ? (
+        <div>
+          <p className={`text-sm font-medium ${txt}`}>Meme sounds</p>
+          <p className={`mt-1 text-xs ${faint}`}>
+            Original synthesized versions of the classic meme sounds — made by us, CC0. The famous
+            recordings are other people&apos;s uploads, so they are not in this pack.
+          </p>
+          <div className="mt-2 space-y-1.5">{memeItems.map(renderPackItem)}</div>
+        </div>
+      ) : null}
 
       {/* ------------------------------------------------ Pixabay */}
       <div>

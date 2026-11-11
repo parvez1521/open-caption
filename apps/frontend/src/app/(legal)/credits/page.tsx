@@ -27,12 +27,13 @@ export default function CreditsPage() {
           ))}
         </ul>
       </Sec>
-      <Sec id="stock-sfx" title="Starter sound effects pack">
+      <Sec id="stock-sfx" title="Bundled sound effects">
         <p>
-          The sound effects bundled with the editor&apos;s stock audio catalogue are not ours: every
-          file is a CC0 (public domain) work by the author below, recorded per file at ingestion.
-          CC0 needs no attribution — these credits are kept so the record stays checkable. The same
-          record travels with each copy added to a project&apos;s media bin.
+          The starter pack&apos;s files are CC0 (public domain) works by the authors below, recorded
+          per file at ingestion. The meme sounds are our own original synthesized effects — generated
+          in code in the style of the classic sounds, never copies of the famous recordings — and are
+          likewise dedicated CC0. CC0 needs no attribution — these credits are kept so the record
+          stays checkable. The same record travels with each copy added to a project&apos;s media bin.
         </p>
         <ul className="space-y-3">
           {(stockManifest.items as StockCredit[]).map((c) => (

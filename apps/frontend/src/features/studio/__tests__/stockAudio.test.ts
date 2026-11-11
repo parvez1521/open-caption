@@ -40,11 +40,33 @@ describe("bundled starter SFX pack manifest", () => {
     expect(validateStockManifest(items)).toEqual([]);
     for (const it of items) {
       expect(it.title).toBeTruthy();
-      expect(it.author).toBe("Kenney");
-      expect(it.sourceUrl).toMatch(/^https:\/\/kenney\.nl\/assets\//);
       expect(it.licence).toBe("CC0 1.0");
       expect(it.retrievedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     }
+    // starter group: Kenney recordings, verified against the pack pages at ingestion
+    for (const it of items.filter((i) => i.group === "starter")) {
+      expect(it.author).toBe("Kenney");
+      expect(it.licenceSource).toBe("kenney");
+      expect(it.sourceUrl).toMatch(/^https:\/\/kenney\.nl\/assets\//);
+    }
+  });
+
+  it("the meme group ships ONLY labelled original syntheses (2026-11-11) — never a found recording", () => {
+    const meme = items.filter((i) => i.group === "meme");
+    expect(meme.map((i) => i.id).sort()).toEqual(
+      ["meme-airhorn", "meme-boom", "meme-buzzer", "meme-censor-beep", "meme-cha-ching", "meme-dramatic-sting", "meme-record-scratch", "meme-rimshot", "meme-sad-trombone"].sort(),
+    );
+    for (const it of meme) {
+      expect(it.licenceSource).toBe("synth");
+      expect(it.author).toBe("Open Caption");
+      expect(it.title).toMatch(/original synthesis/i);
+      expect(it.format).toMatch(/synthesis/i);
+      expect(it.sourceUrl).not.toMatch(/myinstants|freesound\.org\/people/);
+      expect(licenceRecordForStockItem(it).source).toBe("synth");
+    }
+    // and the gate refuses a synth item that drops its label
+    const unlabelled = [{ ...meme[0]!, title: "Meme sounds — Meme boom" }];
+    expect(validateStockManifest(unlabelled).join(" ")).toMatch(/synthesis/);
   });
 
   it("every manifest file exists in public/stock-sfx with a sane SFX size, and the pack stays small", () => {

@@ -11,14 +11,29 @@
  *   this metric" — missing data, never a silent zero. Aggregates that need
  *   a total (summariseMetric) report how many posts actually reported the
  *   metric next to the sum, so a total is never mistaken for complete data.
- * - `source` records how a row arrived ('manual' | 'csv'). It is stamped by
- *   the routes, never accepted from the client, and deliberately NOT part of
- *   the validator: a row's origin is a server fact, not user input.
- * - No scraping and no platform sync exist anywhere in this feature; every
- *   number here is one the creator typed or imported themselves.
+ * - `source` records how a row arrived ('manual' | 'csv' | 'youtube' |
+ *   'instagram'). It is stamped by the routes, never accepted from the
+ *   client, and deliberately NOT part of the validator: a row's origin is
+ *   a server fact, not user input.
+ * - Nothing is scraped, ever. Since 2026-11-11 a creator can also CONNECT
+ *   their own YouTube / Instagram account (OAuth, read-only, their own
+ *   data — see lib/api/connections): rows that arrive that way are stamped
+ *   'youtube' / 'instagram' by the sync routes. Until a real account is
+ *   connected, every number here is still one the creator typed or
+ *   imported themselves.
  */
 
-export type PostSource = "manual" | "csv";
+export type PostSource = "manual" | "csv" | "youtube" | "instagram";
+
+/** Display label for a post's source, used by every surface that names one. */
+export const SOURCE_LABELS: Record<PostSource, string> = {
+  manual: "Manual",
+  csv: "CSV",
+  youtube: "YouTube",
+  instagram: "Instagram",
+};
+
+export const sourceLabelOf = (source: PostSource): string => SOURCE_LABELS[source];
 
 export type MetricKey = "views" | "reach" | "likes" | "comments" | "shares" | "saves";
 

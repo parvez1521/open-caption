@@ -10,9 +10,10 @@ import { ApiFailure } from "./http";
  *
  * Honesty rules carried from the brief (§11): Growth Studio is manual /
  * CSV-first — `source` on a post is stamped here by the routes ('manual'
- * from the posts route, 'csv' from the import route), never taken from the
- * client; metric columns are nullable because a metric the creator did not
- * enter is missing data, not zero.
+ * from the posts route, 'csv' from the import route, 'youtube'/'instagram'
+ * from the connected-account sync in lib/api/connections), never taken from
+ * the client; metric columns are nullable because a metric the creator did
+ * not enter (or the platform did not report) is missing data, not zero.
  *
  * Honest degradation: there is no Supabase CLI/token in the build pipeline,
  * so the schema lands when the owner pastes the APPLY file into the SQL
@@ -103,9 +104,13 @@ export const toApiGrowthPost = (row: GrowthPostRow) => ({
   comments: row.comments ?? null,
   shares: row.shares ?? null,
   saves: row.saves ?? null,
-  // The routes only ever stamp 'manual' | 'csv'; anything unexpected in the
+  // The routes only ever stamp 'manual' | 'csv' | 'youtube' | 'instagram'
+  // (the last two by the connected-account sync); anything unexpected in the
   // DB reads back as 'manual' rather than leaking a free-text source through.
-  source: row.source === "csv" ? ("csv" as const) : ("manual" as const),
+  source:
+    row.source === "csv" || row.source === "youtube" || row.source === "instagram"
+      ? (row.source as "csv" | "youtube" | "instagram")
+      : ("manual" as const),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
