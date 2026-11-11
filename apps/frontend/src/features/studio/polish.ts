@@ -2,8 +2,10 @@ import {
   ProjectSettingsSchema,
   type CaptionDoc,
   type CaptionStyleV2,
+  type OverlaySocialVariant,
   type ProjectSettings,
   type SegmentTransition,
+  type Word,
 } from "@capseasy/shared";
 import { applyLook, getLook, TRENDING_LOOKS } from "@capseasy/templates";
 import type { Source } from "../create/model";
@@ -23,7 +25,9 @@ import {
   type AutoZoomPlan,
 } from "./autoZooms";
 import { projectComposition, type EditorComposition } from "./compositionDoc";
+import { applyEmphasisSuggestions, type EmphasisSuggestion } from "./emphasis";
 import { appendTitleCardClip, makeTitleCardOverlay, type TitleCardResult } from "./titleCard";
+import { makeSocialOverlay, makeTextOverlay } from "./panels/overlayItems";
 import { applyTrimCuts, proposeTrimCuts, type TrimProposal, type TrimRange } from "./trim";
 
 /**
@@ -89,14 +93,28 @@ export type PolishStepKind =
    * plan builder does. */
   | "bleep-profanity"
   | "segment-speed"
-  | "segment-transition";
+  | "segment-transition"
+  /* AI Edit (2026-11-11): the plan-scale kinds built only by aiEdit.ts's
+   * builder from a grounded model intent — same plan system, same apply and
+   * revert machinery (the A8 precedent). buildPolishPlan never produces
+   * them. cut-ranges shares the trim revert scope; emphasis-words and the
+   * two overlay kinds revert SURGICALLY (recorded word slices / artefact
+   * ids), so a lone revert touches exactly what its step changed. */
+  | "cut-ranges"
+  | "emphasis-words"
+  | "hook-text"
+  | "place-elements";
 
 /** Display order of the plan (apply order is {@link POLISH_APPLY_ORDER}). */
 export const POLISH_STEP_ORDER: readonly PolishStepKind[] = [
   "trim-fillers",
   "tighten-silences",
+  "cut-ranges",
   "auto-zooms",
   "caption-look",
+  "emphasis-words",
+  "hook-text",
+  "place-elements",
   "title-card",
   "music-ducking",
   "bleep-profanity",
@@ -106,9 +124,13 @@ export const POLISH_STEP_ORDER: readonly PolishStepKind[] = [
 
 const POLISH_APPLY_ORDER: readonly PolishStepKind[] = [
   "caption-look",
+  "emphasis-words",
   "auto-zooms",
+  "hook-text",
+  "place-elements",
   "trim-fillers",
   "tighten-silences",
+  "cut-ranges",
   "title-card",
   "music-ducking",
   "segment-speed",
@@ -174,7 +196,15 @@ export type PolishStepPayload =
   /* A8 payloads: the same step envelope, for ops A2's own pass never plans */
   | { kind: "bleep-profanity"; ranges: { startMs: number; endMs: number; wordText: string }[]; matchCount: number }
   | { kind: "segment-speed"; clipId: string; segmentIndex: number; rate: number }
-  | { kind: "segment-transition"; clipId: string; segmentIndex: number; transition: SegmentTransition };
+  | { kind: "segment-transition"; clipId: string; segmentIndex: number; transition: SegmentTransition }
+  /* AI Edit payloads: cuts are pre-grounded TrimRanges (word-edge snapped,
+   * merged); emphasis carries A1-shaped suggestions grounded to doc words;
+   * overlays are SPECS — the items are minted at apply time (like the title
+   * card) and their ids recorded as artefacts for the surgical revert. */
+  | { kind: "cut-ranges"; ranges: TrimRange[]; reasons: string[] }
+  | { kind: "emphasis-words"; suggestions: EmphasisSuggestion[] }
+  | { kind: "hook-text"; text: string }
+  | { kind: "place-elements"; elements: { variant: OverlaySocialVariant; atSec: number; text?: string }[] };
 
 export interface PolishStep {
   /** == kind (one step per kind in a plan) — stable checkbox/revert key */
@@ -457,7 +487,23 @@ export interface PolishStepRecord {
   before: PolishProjectState;
   reverted: boolean;
   /** what the step actually created, for inspection (zoom keyframe ids, title overlay id) */
-  artefacts?: { zoomKeyframeIds?: string[]; titleOverlayId?: string };
+  artefacts?: {
+    zoomKeyframeIds?: string[];
+    titleOverlayId?: string;
+    /** AI Edit emphasis-words: the pre-step emphasis + source slice of every
+     *  word the step actually changed — the surgical revert restores exactly
+     *  these fields (setEmphasis writes both) and nothing else. */
+    emphasisUndo?: { wordId: string; emphasis: Word["emphasis"]; source: Word["source"] }[];
+    /** AI Edit emphasis-words: the doc's meta object before the step ran.
+     *  The caption ops flag `meta.userEdited` on any word edit; the surgical
+     *  revert restores the recorded meta so revert-all stays bit-for-bit
+     *  (in revert-all order every later doc edit has already been reverted
+     *  by the time this step's turn comes). */
+    docMetaBefore?: CaptionDoc["meta"];
+    /** AI Edit hook-text / place-elements: the overlay item ids the step
+     *  placed — the surgical revert removes exactly these clips. */
+    overlayIds?: string[];
+  };
 }
 
 export interface PolishAppliedRecord {
@@ -523,6 +569,55 @@ function applyPolishStep(
       const doc = applyDocEffect(state.doc, r.docEffect);
       return { state: { ...state, comp, doc } };
     }
+    case "cut-ranges": {
+      // the model's proposed ranges, grounded client-side into TrimRanges —
+      // from here they are an ordinary A3 cut, identical machinery to the
+      // two trim steps (and the same revert scope)
+      const { comp, doc } = applyTrimCuts(state.comp, state.doc, p.ranges);
+      return { state: { ...state, comp, doc } };
+    }
+    case "emphasis-words": {
+      // A1's apply path; the undo slice is captured from the words the step
+      // ACTUALLY changed (a suggestion whose word is gone, or already at the
+      // target, changes nothing and records nothing)
+      const next = applyEmphasisSuggestions(state.doc, p.suggestions);
+      if (next === state.doc) return { state };
+      const beforeById = new Map(state.doc.words.map((w) => [w.id, w]));
+      const emphasisUndo: NonNullable<PolishStepRecord["artefacts"]>["emphasisUndo"] = [];
+      for (const w of next.words) {
+        const prev = beforeById.get(w.id);
+        if (prev && prev.emphasis !== w.emphasis) {
+          emphasisUndo.push({ wordId: w.id, emphasis: prev.emphasis, source: prev.source });
+        }
+      }
+      return { state: { ...state, doc: next }, artefacts: { emphasisUndo, docMetaBefore: state.doc.meta } };
+    }
+    case "hook-text": {
+      // a normal text overlay at t=0 (the clipper hook treatment: raised
+      // position, ~2.6 s on screen), built by the Text panel's own factory
+      const base = makeTextOverlay(0, state.comp.durationMs);
+      const item = {
+        ...base,
+        text: p.text,
+        y: 0.3,
+        endMs: Math.min(base.endMs, base.startMs + 2600),
+      };
+      const comp = appendTitleCardClip(state.comp, item);
+      return { state: { ...state, comp }, artefacts: { overlayIds: [item.id] } };
+    }
+    case "place-elements": {
+      // registry social overlays through the Motion panel's own factory,
+      // placed at the grounded times; ids recorded for the surgical revert
+      let comp = state.comp;
+      const overlayIds: string[] = [];
+      for (const el of p.elements) {
+        const base = makeSocialOverlay(el.variant, Math.round(el.atSec * 1000), comp.durationMs);
+        const item = el.text ? { ...base, text: el.text } : base;
+        comp = appendTitleCardClip(comp, item);
+        overlayIds.push(item.id);
+      }
+      return { state: { ...state, comp }, artefacts: { overlayIds } };
+    }
   }
 }
 
@@ -559,6 +654,7 @@ function restoreStepScope(current: PolishProjectState, entry: PolishStepRecord):
   switch (entry.kind) {
     case "trim-fillers":
     case "tighten-silences":
+    case "cut-ranges":
     case "segment-speed":
     case "segment-transition":
       // the trim scope: caption doc + the composition fields range removal
@@ -602,6 +698,45 @@ function restoreStepScope(current: PolishProjectState, entry: PolishStepRecord):
       return { ...current, comp: { ...current.comp, audioTracks: before.comp.audioTracks } };
     case "bleep-profanity":
       return { ...current, comp: { ...current.comp, audioBleeps: before.comp.audioBleeps } };
+    case "emphasis-words": {
+      // SURGICAL: restore exactly the emphasis + source slice of the words
+      // this step changed — timings, hidden flags and every other word keep
+      // whatever later edits made of them
+      const undo = new Map((entry.artefacts?.emphasisUndo ?? []).map((u) => [u.wordId, u]));
+      if (undo.size === 0) return current;
+      return {
+        ...current,
+        doc: {
+          ...current.doc,
+          ...(entry.artefacts?.docMetaBefore ? { meta: entry.artefacts.docMetaBefore } : {}),
+          words: current.doc.words.map((w) => {
+            const u = undo.get(w.id);
+            if (!u) return w;
+            // restore the recorded slice EXACTLY: a field the word did not
+            // carry before the step is removed again, not set to undefined —
+            // that is what makes revert-all bit-for-bit, not just equal-ish
+            const next: Word = { ...w };
+            if (u.emphasis === undefined) delete next.emphasis;
+            else next.emphasis = u.emphasis;
+            if (u.source === undefined) delete next.source;
+            else next.source = u.source;
+            return next;
+          }),
+        },
+      };
+    }
+    case "hook-text":
+    case "place-elements": {
+      // SURGICAL: remove exactly the overlay clips this step placed (by
+      // their recorded ids); every other overlay — the user's own, other
+      // steps' — is untouched
+      const ids = new Set(entry.artefacts?.overlayIds ?? []);
+      if (ids.size === 0) return current;
+      return {
+        ...current,
+        comp: { ...current.comp, overlayClips: current.comp.overlayClips.filter((c) => !ids.has(c.id)) },
+      };
+    }
   }
 }
 

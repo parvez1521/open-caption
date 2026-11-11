@@ -115,3 +115,45 @@ export async function importPixabayTrackToBin(
     licence: pixabayLicenceRecord(track, retrievedAt),
   });
 }
+
+/**
+ * The video twin of {@link importAudioToBin} — the same validate → probe →
+ * save handoff on the same seam, for stock VIDEO (AI Edit's B-roll imports,
+ * D5). The probe runs as "video" (frame thumbnail instead of peaks) and the
+ * record carries its licence exactly like an audio import.
+ */
+export const realVideoStockImportDeps: StockImportDeps = {
+  probe: (file) => probeMediaFile(file, "video"),
+  save: saveAsset,
+  newId,
+  now: () => Date.now(),
+};
+
+export async function importVideoToBin(
+  deps: StockImportDeps,
+  input: StockImportInput,
+): Promise<MediaAssetRecord> {
+  const file = input.blob instanceof File ? input.blob : new File([input.blob], input.name, { type: input.blob.type });
+  const v = validateMediaFile({ name: input.name, size: file.size, type: file.type });
+  if (!v.ok) throw new Error(v.error);
+  if (v.kind !== "video") throw new Error("That stock file is not a video file.");
+  const probed = await deps.probe(file);
+  const rec: MediaAssetRecord = {
+    id: deps.newId(),
+    projectId: input.projectId,
+    kind: "video",
+    name: input.name,
+    mime: file.type,
+    size: file.size,
+    durationMs: probed.durationMs,
+    width: probed.width,
+    height: probed.height,
+    blob: file,
+    thumb: probed.thumb,
+    peaks: null,
+    licence: input.licence,
+    createdAt: deps.now(),
+  };
+  await deps.save(rec);
+  return rec;
+}

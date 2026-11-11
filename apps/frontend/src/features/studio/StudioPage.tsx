@@ -36,8 +36,11 @@ import { ClipperLaunchCard } from "./panels/ClipperLaunchCard";
 import { TranslatePanel } from "./panels/TranslatePanel";
 import { TrimPanel } from "./panels/TrimPanel";
 import { PolishPanel } from "./panels/PolishPanel";
+import { AiEditPanel } from "./panels/AiEditPanel";
 import { EditAssistantPanel } from "./panels/EditAssistantPanel";
 import { polishCommitSettings, type PolishProjectState } from "./polish";
+import { brollLicenceFor, downloadBrollFile, type BrollSuggestion } from "../clipper/broll";
+import { importVideoToBin, realVideoStockImportDeps } from "./stockImport";
 import { removeRangesFromVideo, trimRangeEffects, type TrimRange } from "./trim";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
@@ -99,7 +102,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "sfx" | "clipper" | "translate" | "trim" | "polish" | "assistant";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "sfx" | "clipper" | "translate" | "trim" | "polish" | "ai-edit" | "assistant";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -120,6 +123,7 @@ const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?:
   { id: "clipper", label: "Clipper", icon: railIcon(<><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" /></>) },
   { id: "trim", label: "Trim", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /><path d="M3 21l7-7" /></>) },
   { id: "polish", label: "Polish", icon: railIcon(<><path d="M4 20c2.5.5 5-.5 6-2.5L20.5 8a2.12 2.12 0 0 0-3-3L7 15.5C5 16.5 4 18 4 20z" /><path d="M13.5 6.5l3 3" /></>) },
+  { id: "ai-edit", label: "AI Edit", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5l5 2.5-5 2.5z" /><path d="M3 21l7-7" /></>) },
   { id: "assistant", label: "Assistant", icon: railIcon(<><path d="M20 4H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4v4l5.5-4H20a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z" /><path d="M7.5 9h9M7.5 12.5h5" /></>) },
 ];
 
@@ -1255,6 +1259,31 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             // ONE editAll for the whole pass (doc + projected settings + look),
             // so a single Ctrl+Z undoes an apply — and likewise a per-step revert.
             s.editAll({ doc: next.doc, settings: polishCommitSettings(next), style: next.style, lookId: next.lookId });
+          }}
+        />
+      ) : null)
+      : t === "ai-edit" ? (doc && style && editorComp ? (
+        <AiEditPanel
+          state={{ doc, comp: editorComp, settings, style, lookId: s.lookId }}
+          sourceTitle={data.project.title}
+          peaks={wave.peaks}
+          hopMs={1000 / PEAKS_PER_SECOND}
+          onCommit={(next: PolishProjectState) => {
+            // AI Edit: same commit path as Polish — ONE editAll for the whole
+            // plan, so a single Ctrl+Z undoes an apply or a per-step revert.
+            s.editAll({ doc: next.doc, settings: polishCommitSettings(next), style: next.style, lookId: next.lookId });
+          }}
+          onImportBroll={async (sug: BrollSuggestion) => {
+            // D5: a chosen B-roll suggestion downloads and lands in this
+            // project's media bin with its Pixabay licence record.
+            const file = await downloadBrollFile(sug);
+            await importVideoToBin(realVideoStockImportDeps, {
+              projectId,
+              blob: file,
+              name: file.name,
+              licence: brollLicenceFor(sug, new Date().toISOString().slice(0, 10)),
+            });
+            void mediaBin.refresh();
           }}
         />
       ) : null)
