@@ -5,7 +5,7 @@
  * and the transparency line are the exact approved wording, a transparent run without a
  * passing post-encode verification saves NOTHING, and a cancelled render saves nothing.
  */
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MOTION_TEMPLATES, defaultMotionConfig } from "@capseasy/motion";
 import { OverlayItemSchema } from "@capseasy/shared";
 import {
@@ -200,6 +200,45 @@ describe("buildMotionExport (composition from config)", () => {
   });
 });
 
+describe("buildMotionExport — default avatar photos reach the export (owner order 2026-11-12)", () => {
+  it("a template with no upload exports with its default photo through the overlayAssets path", () => {
+    const built = buildMotionExport(defaultMotionConfig("dm-popup"), sel());
+    expect(built.item.assetId).toBe("default-avatar-dm-popup");
+    expect(built.item.assetName).toBe("Default avatar photo");
+    expect(built.input.overlayAssets).toEqual({ "default-avatar-dm-popup": "/motion-avatars/alex.jpg" });
+    // the item in BOTH overlay slots carries the default asset id
+    expect(built.input.overlays).toEqual([built.item]);
+    expect(built.input.settings?.overlays?.[0]?.assetId).toBe("default-avatar-dm-popup");
+  });
+
+  it("every single-avatar template exports with its own default photo; the QR slot gets none", () => {
+    for (const variant of ["subscribe-banner", "story-ring", "post-card", "profile-card"] as const) {
+      const built = buildMotionExport(defaultMotionConfig(variant), sel());
+      expect(built.input.overlayAssets?.[`default-avatar-${variant}`], variant).toMatch(/^\/motion-avatars\/[a-z]+\.jpg$/);
+    }
+    const qr = buildMotionExport(defaultMotionConfig("qr-frame"), sel());
+    expect(qr.item.assetId).toBeUndefined();
+    expect(qr.input.overlayAssets).toBeUndefined();
+    const bell = buildMotionExport(defaultMotionConfig("notification-pop"), sel());
+    expect(bell.item.assetId).toBeUndefined();
+    expect(bell.input.overlayAssets).toBeUndefined();
+  });
+
+  it("a user upload wins over the default photo in the export", () => {
+    const built = buildMotionExport(defaultMotionConfig("dm-popup"), sel(), { id: "u1", name: "me.png" }, "blob:me");
+    expect(built.item.assetId).toBe("u1");
+    expect(built.input.overlayAssets).toEqual({ u1: "blob:me" });
+  });
+
+  it("voice-card exports with its three default member photos", () => {
+    const built = buildMotionExport(defaultMotionConfig("voice-card"), sel());
+    expect(built.item.assetId).toBeUndefined();
+    expect(built.input.overlayMemberAssets).toEqual({
+      [built.item.id]: ["/motion-avatars/alex.jpg", "/motion-avatars/priya.jpg", "/motion-avatars/sam.jpg"],
+    });
+  });
+});
+
 describe("motionExportReducer (cancel / error / progress handling)", () => {
   it("start -> progress (clamped) -> success", () => {
     let s = motionExportReducer(initialMotionExportState, { type: "start" });
@@ -290,6 +329,64 @@ describe("runStandaloneExport", () => {
     const save = vi.fn();
     await expect(runStandaloneExport({ built, deps: { render, save }, signal: ctrl.signal })).resolves.toEqual({ cancelled: true });
     expect(save).not.toHaveBeenCalled();
+  });
+});
+
+describe("runStandaloneExport — avatar preload (plain <img> is never delayRender-waited)", () => {
+  const OriginalImage = globalThis.Image;
+  // jsdom never loads images: stand in a loader that fires onload/onerror from the src.
+  const stubImage = (fail: (src: string) => boolean) => {
+    class StubImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(v: string) {
+        queueMicrotask(() => (fail(v) ? this.onerror?.() : this.onload?.()));
+      }
+    }
+    globalThis.Image = StubImage as unknown as typeof Image;
+  };
+  afterEach(() => {
+    globalThis.Image = OriginalImage;
+  });
+
+  it("a loadable default photo reaches the renderer intact", async () => {
+    stubImage(() => false);
+    const built = buildMotionExport(defaultMotionConfig("dm-popup"), sel());
+    const render = vi.fn(async () => new Blob(["video-bytes"], { type: "video/mp4" }));
+    const save = vi.fn();
+    const out = await runStandaloneExport({ built, deps: { render: render as never, save }, signal: new AbortController().signal });
+    expect(out).toEqual({ cancelled: false, filename: "dm-popup-1080x1920.mp4", sizeBytes: 11 });
+    const job = (render.mock.calls[0] as unknown[])[0] as { input: { overlayAssets?: Record<string, string> } };
+    expect(job.input.overlayAssets).toEqual({ "default-avatar-dm-popup": "/motion-avatars/alex.jpg" });
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("a photo that fails to load is dropped (with the item's asset id) instead of painting a broken image", async () => {
+    stubImage(() => true);
+    const built = buildMotionExport(defaultMotionConfig("dm-popup"), sel());
+    const render = vi.fn(async () => new Blob(["video-bytes"], { type: "video/mp4" }));
+    const save = vi.fn();
+    await runStandaloneExport({ built, deps: { render: render as never, save }, signal: new AbortController().signal });
+    const job = (render.mock.calls[0] as unknown[])[0] as {
+      input: { overlayAssets?: Record<string, string>; overlays?: { assetId?: string }[] };
+    };
+    expect(job.input.overlayAssets).toBeUndefined();
+    expect(job.input.overlays?.[0]?.assetId).toBeUndefined();
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it("voice-card member photos that fail to load are dropped per member", async () => {
+    stubImage((src) => src.includes("priya"));
+    const built = buildMotionExport(defaultMotionConfig("voice-card"), sel());
+    const render = vi.fn(async () => new Blob(["video-bytes"], { type: "video/mp4" }));
+    await runStandaloneExport({ built, deps: { render: render as never, save: vi.fn() }, signal: new AbortController().signal });
+    const job = (render.mock.calls[0] as unknown[])[0] as {
+      input: { overlayMemberAssets?: Record<string, string[]> };
+    };
+    expect(job.input.overlayMemberAssets?.[built.item.id]).toEqual([
+      "/motion-avatars/alex.jpg",
+      "/motion-avatars/sam.jpg",
+    ]);
   });
 });
 

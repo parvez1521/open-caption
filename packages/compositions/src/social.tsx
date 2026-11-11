@@ -442,7 +442,7 @@ const linesOf = (item: OverlayItem): string[] => (item.text ?? "").split("\n").m
 const line = (ls: string[], i: number, dflt: string) => (ls[i] && ls[i].length ? ls[i]! : dflt);
 
 /** One animated social overlay's inner graphic (positioning/scale come from OverlayView's wrapper). */
-export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localMs: number; assetSrc?: string }> = ({ item, sc, localMs, assetSrc }) => {
+export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localMs: number; assetSrc?: string; memberAssetSrcs?: string[] }> = ({ item, sc, localMs, assetSrc, memberAssetSrcs }) => {
   const dur = Math.max(1, item.endMs - item.startMs);
   const ph = overlayPhase(localMs, dur);
   const accent = item.color;
@@ -975,11 +975,17 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
           </span>
           {memberNames.map((name, i) => {
             const m = vc.members[i] ?? { speaking: false, ringScale: 1, ringOpacity: 0, level: 0 };
+            const memberSrc = memberAssetSrcs?.[i];
             return (
               <span key={i} style={{ display: "flex", alignItems: "center", gap: 14 * sc, marginBottom: i < memberNames.length - 1 ? 13 * sc : 0 }}>
                 <span style={{ position: "relative", width: 56 * sc, height: 56 * sc, flexShrink: 0, display: "block" }}>
                   <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `${3 * sc}px solid ${accent}`, opacity: m.ringOpacity.toFixed(2), transform: `scale(${m.ringScale.toFixed(3)})` }} />
-                  <span style={{ position: "absolute", left: 5 * sc, top: 5 * sc, display: "flex", alignItems: "center", justifyContent: "center", width: 46 * sc, height: 46 * sc, borderRadius: "50%", backgroundColor: shade(accent, [0.85, 0.62, 0.42][i] ?? 0.7), color: CARD_FG, fontWeight: 800, fontSize: 20 * sc }}>{name.trim().replace(/^@/, "").charAt(0).toUpperCase() || "?"}</span>
+                  {memberSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={memberSrc} alt="" style={{ position: "absolute", left: 5 * sc, top: 5 * sc, width: 46 * sc, height: 46 * sc, borderRadius: "50%", objectFit: "cover" }} />
+                  ) : (
+                    <span style={{ position: "absolute", left: 5 * sc, top: 5 * sc, display: "flex", alignItems: "center", justifyContent: "center", width: 46 * sc, height: 46 * sc, borderRadius: "50%", backgroundColor: shade(accent, [0.85, 0.62, 0.42][i] ?? 0.7), color: CARD_FG, fontWeight: 800, fontSize: 20 * sc }}>{name.trim().replace(/^@/, "").charAt(0).toUpperCase() || "?"}</span>
+                  )}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, fontWeight: m.speaking ? 800 : 600, fontSize: 27 * sc, color: m.speaking ? CARD_FG : "#FFFFEBBB", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</span>
                 <span style={{ display: "flex", alignItems: "flex-end", gap: 3 * sc, height: 22 * sc }}>

@@ -8,6 +8,7 @@ import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
 import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
+import { defaultVoiceMemberAvatars } from "@capseasy/motion";
 import { deleteWordsByIds, insertWordAfter, mergeWithNext, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Copy, EyeOff, Keyboard, Redo2, Scissors, Star, Trash2, Undo2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
@@ -792,6 +793,18 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     return () => Object.values(urls).forEach((u) => URL.revokeObjectURL(u));
   }, [settings.overlays, mediaBin.assets]);
 
+  // voice-card member photos for placed items (default avatars, 2026-11-12): the
+  // voice card has no image field, so its members never carry a media-bin asset —
+  // the bundled default photos (Alex / Priya / Sam) are threaded here instead, so
+  // the Studio preview and the project export show real photos, not initials.
+  const voiceMemberAssetsByItemId = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const o of settings.overlays) {
+      if (o.kind === "social" && o.variant === "voice-card") out[o.id] = defaultVoiceMemberAvatars();
+    }
+    return out;
+  }, [settings.overlays]);
+
   // resolved URLs for segment assets (reversed conforms + freeze stills referenced by a
   // segment's assetId), built exactly like overlayAssetUrls above: device-local bytes →
   // object URLs for this session, absent for assets that aren't on this device. Threaded
@@ -834,10 +847,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             videoAdjust: settings.videoAdjust,
             overlays: settings.overlays,
             overlayAssets: overlayAssetUrls,
+            // voice-card members: the bundled default member photos (Alex / Priya / Sam),
+            // so a placed voice card shows real photos, not initials — same defaults the
+            // template previews use. Single-avatar items carry their photo as a real
+            // media-bin asset (see addToProject), so they need nothing here.
+            overlayMemberAssets: voiceMemberAssetsByItemId,
             segmentAssets: segmentAssetUrls,
           }
         : null,
-    [doc, style, settings, video?.url, canvasSize.width, canvasSize.height, fps, durationMs, overlayAssetUrls, segmentAssetUrls, activeTranslatedDoc],
+    [doc, style, settings, video?.url, canvasSize.width, canvasSize.height, fps, durationMs, overlayAssetUrls, voiceMemberAssetsByItemId, segmentAssetUrls, activeTranslatedDoc],
   );
   // export reads frames: a video the decoder can't read uses the compatible copy instead
   const exportInput = useMemo(() => (input && compat.url ? { ...input, src: compat.url } : input), [input, compat.url]);
@@ -901,9 +919,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       videoAdjust: st.videoAdjust,
       overlays: st.overlays,
       overlayAssets: overlayAssetUrls,
+      overlayMemberAssets: voiceMemberAssetsByItemId,
       segmentAssets: segmentAssetUrls,
     };
-  }, [input, aiEditPreview, previewSettings, previewDurationMs, style, mixActive, overlayAssetUrls, segmentAssetUrls]);
+  }, [input, aiEditPreview, previewSettings, previewDurationMs, style, mixActive, overlayAssetUrls, voiceMemberAssetsByItemId, segmentAssetUrls]);
   useAudioPreview({ active: mixActive, comp: editorComp, playing, timeMs, getPlayerMs, getBlob: getAudioBlob });
   const audioMix = mixActive && editorComp
     ? {

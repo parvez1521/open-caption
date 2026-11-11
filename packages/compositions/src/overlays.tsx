@@ -206,7 +206,7 @@ export const TEXT_DEFAULT_FONT_PX = 64;
  * One overlay item, centre-anchored at (x, y) fractions of the canvas. `sc` is the composition's
  * scale factor (short edge / 1080), so sizes follow the same reference-px convention as captions.
  */
-export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: string; localMs?: number }> = ({ item, sc, assetSrc, localMs = 0 }) => {
+export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: string; memberAssetSrcs?: string[]; localMs?: number }> = ({ item, sc, assetSrc, memberAssetSrcs, localMs = 0 }) => {
   const wrap: React.CSSProperties = {
     position: "absolute",
     left: `${item.x * 100}%`,
@@ -227,7 +227,7 @@ export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: s
     // animated Social Media graphic: phases derive from the item's own window (localMs is the time
     // inside its Sequence, supplied by CaptionedVideo from the frame — never a wall clock)
     if (!item.variant) return null;
-    return frame(<SocialOverlayView item={item} sc={sc} localMs={localMs} assetSrc={assetSrc} />);
+    return frame(<SocialOverlayView item={item} sc={sc} localMs={localMs} assetSrc={assetSrc} memberAssetSrcs={memberAssetSrcs} />);
   }
   if (item.kind === "text") {
     return frame(

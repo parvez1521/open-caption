@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { OverlayView } from "@capseasy/compositions";
 import { makeSocialOverlay } from "./overlayItems";
-import { placeholderAvatarForTemplate } from "@capseasy/motion";
+import { defaultAvatarForTemplate, defaultVoiceMemberAvatars } from "@capseasy/motion";
 import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot } from "./livePreviewBudget";
 import { socialStageFor } from "./socialStage";
 
@@ -54,9 +54,11 @@ const POSTER_MS = 2600;
  *  get a taller window so the whole graphic fits instead of clipping at the flat 360 px. */
 const SocialStage: React.FC<{ item: OverlayItem; localMs: number; scale: number; width: number; height: number }> = ({ item, localMs, scale, width, height }) => (
   <div style={{ width, height, transform: `scale(${scale})`, transformOrigin: "top left", position: "relative" }}>
-    {/* Avatar-bearing variants are fed the generated placeholder avatar (previews only —
-        a placed project item shows the user's own image or the initial disc, never this). */}
-    <OverlayView item={item} sc={PREVIEW_SC} localMs={localMs} assetSrc={item.variant ? (placeholderAvatarForTemplate(item.variant) ?? undefined) : undefined} />
+    {/* Avatar-bearing variants are fed their bundled default photo (an
+        AI-generated fictional person — avatars.ts), so the avatar area shows
+        a real-looking photo immediately. A placed project item shows the
+        user's own image or the initial disc, never this default. */}
+    <OverlayView item={item} sc={PREVIEW_SC} localMs={localMs} assetSrc={item.variant ? (defaultAvatarForTemplate(item.variant) ?? undefined) : undefined} memberAssetSrcs={item.variant === "voice-card" ? defaultVoiceMemberAvatars() : undefined} />
   </div>
 );
 

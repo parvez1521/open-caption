@@ -25,9 +25,8 @@ export interface MotionField {
   /** text fields only: how many "\n"-separated lines the variant consumes */
   maxLines?: number;
   /** image fields only: what the image slot depicts — a person's avatar, or the
-   *  user's own QR code. Preview surfaces use this to pick an honest placeholder:
-   *  avatar slots get a generated placeholder face (avatars.ts); the QR slot never
-   *  gets a fake code. */
+   *  user's own QR code. Avatar slots show a bundled default photo until the
+   *  user uploads their own (avatars.ts); the QR slot never gets a fake code. */
   role?: "avatar" | "qr";
   defaultValue: string;
 }

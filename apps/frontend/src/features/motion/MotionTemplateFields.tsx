@@ -127,7 +127,7 @@ export const MotionTemplateFields: React.FC<MotionTemplateFieldsProps> = ({
                   aria-label={field.label}
                   className={selectCls}
                 >
-                  <option value="">No image</option>
+                  <option value="">{field.role === "avatar" ? "Default photo" : "No image"}</option>
                   {image.options.map((o) => (
                     <option key={o.id} value={o.id}>{o.name}</option>
                   ))}
@@ -164,7 +164,9 @@ export const MotionTemplateFields: React.FC<MotionTemplateFieldsProps> = ({
             />
             {image.error ? <p role="alert" className="mt-1.5 text-[12px] font-normal text-orange-accent">{image.error}</p> : null}
             <span className={hintCls}>
-              {image.note ?? "Kept in this browser. When you add the graphic to a project, the image is copied into that project's media bin."}
+              {image.note ?? (field.role === "avatar"
+                ? "Shows the default photo until you upload your own. When you add the graphic to a project, the image is copied into that project's media bin."
+                : "Kept in this browser. When you add the graphic to a project, the image is copied into that project's media bin.")}
             </span>
           </div>
         );
