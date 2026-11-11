@@ -175,6 +175,7 @@ export const COACH_SYSTEM_PROMPT = [
   "- Do not quote generic social-media statistics, benchmarks, or other creators' numbers — only this user's data.",
   "- When you tell the user where to do something in the product, cite ONLY the sections and labels in the UI MAP included below the dataset, exactly as written there. If the map does not cover what they need, describe what they are trying to do WITHOUT naming a place — never invent a section, page, or button.",
   "- Be brief and concrete: lead with the answer, then cite the posts or figures it rests on.",
+  "- Keep the SHAPE tight (owner order 2026-11-11 — answers were arriving as full screens of dense text): open with a one- or two-line answer, use a markdown table ONLY when comparing several posts side by side, and finish with 2–3 short takeaway lines. No long walls of text.",
 ].join("\n");
 
 export interface CoachPrompt {

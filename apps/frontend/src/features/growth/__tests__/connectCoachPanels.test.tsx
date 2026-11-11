@@ -216,6 +216,74 @@ describe("GrowthCoach", () => {
     expectEveryCallAuthed();
   });
 
+  it("header strip: connection chips come from the status route — connected name + synced count, Instagram not switched on", async () => {
+    stubFetch((url, init) => {
+      if (url.includes("/growth/connections")) {
+        return envelope({
+          setupPending: false,
+          platforms: [
+            { platform: "youtube", configured: true, connected: true, accountName: "Tech Hacks", lastSyncAt: "2026-11-11T10:00:00.000Z", postCount: 137 },
+            { platform: "instagram", configured: false, connected: false, accountName: null, lastSyncAt: null },
+          ],
+        });
+      }
+      if (init?.method === "POST") return envelope({ configured: true, answer: "Reach is steady." });
+      return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
+    });
+    render(<GrowthCoach starters={[]} />);
+    expect(await screen.findByText("YouTube · Connected · Tech Hacks · 137 posts synced")).toBeTruthy();
+    expect(screen.getByText("Instagram · Not switched on")).toBeTruthy();
+    expect(screen.getByText("Free AI · GPT-OSS 120B (Groq)")).toBeTruthy();
+    expectEveryCallAuthed();
+  });
+
+  it("header strip: an unusable connections payload degrades to a plain note, and the chat still works", async () => {
+    stubFetch((url, init) => {
+      if (init?.method === "POST") return envelope({ configured: true, answer: "All good." });
+      return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
+    });
+    render(<GrowthCoach starters={[]} />);
+    expect(await screen.findByText("Connection status couldn't load")).toBeTruthy();
+    const input = await screen.findByLabelText("Ask about your analytics");
+    fireEvent.change(input, { target: { value: "How am I doing?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+    expect(await screen.findByText("All good.")).toBeTruthy();
+    expectEveryCallAuthed();
+  });
+
+  it("a table in the coach's answer renders as a real table inside the chat thread", async () => {
+    stubFetch((url, init) => {
+      if (url.includes("/growth/connections")) {
+        return envelope({
+          setupPending: false,
+          platforms: [
+            { platform: "youtube", configured: true, connected: true, accountName: "Tech Hacks", lastSyncAt: null, postCount: 2 },
+            { platform: "instagram", configured: false, connected: false, accountName: null, lastSyncAt: null },
+          ],
+        });
+      }
+      if (init?.method === "POST") {
+        return envelope({
+          configured: true,
+          answer:
+            "Your top posts, side by side:\n\n| Post | Engagement |\n|---|---|\n| **Launch** | 900 |\n| Follow-up | 450 |\n\n**Takeaway:** launches land harder.",
+        });
+      }
+      return envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" });
+    });
+    const { container } = render(<GrowthCoach starters={[]} />);
+    const input = await screen.findByLabelText("Ask about your analytics");
+    fireEvent.change(input, { target: { value: "Compare my top posts" } });
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await waitFor(() => expect(container.querySelector("table")).not.toBeNull());
+    const table = container.querySelector("table")!;
+    expect([...table.querySelectorAll("th")].map((th) => th.textContent)).toEqual(["Post", "Engagement"]);
+    expect(table.querySelector("strong")?.textContent).toBe("Launch");
+    expect(document.body.textContent).not.toContain("| Post |");
+    expect(screen.getByText("Takeaway:")).toBeTruthy();
+    expectEveryCallAuthed();
+  });
+
   it("configured: provider badge (honest label), starter chips, and an answer round-trip", async () => {
     stubFetch((url, init) => {
       if (init?.method === "POST") return envelope({ configured: true, answer: "Reach fell because your top post aged out." });

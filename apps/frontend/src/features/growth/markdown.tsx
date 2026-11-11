@@ -21,9 +21,21 @@ import React from "react";
  * Supported subset (what the coach actually emits): paragraphs, ATX
  * headings (#–######), bold (**…** / __…__), italic (*…*), inline code
  * (`…`), bullet lists (-, *, +), numbered lists (1. / 1)), links
- * ([label](https://…)), horizontal rules, and `>` quote lines (rendered
- * as plain paragraphs). An unclosed marker is shown literally rather
- * than swallowed.
+ * ([label](https://…)), horizontal rules, GitHub-style pipe tables, and
+ * `>` quote lines (rendered as plain paragraphs). An unclosed marker is
+ * shown literally rather than swallowed.
+ *
+ * TABLES (owner order 2026-11-11): the model loves pipe tables, and
+ * before this they printed as a wall of raw `|` characters. A table is
+ * recognised strictly — a header line containing `|`, IMMEDIATELY
+ * followed by a separator row of dashes/colons with the same cell
+ * count. Anything looser (no separator, mismatched counts) is NOT a
+ * table and falls back to the ordinary paragraph path, pipes and all —
+ * malformed input degrades to readable text, never to garbage markup.
+ * Cells run through the same inline parser as every other block, so
+ * the safety contract above (React nodes only, whitelisted hrefs)
+ * holds inside tables too. Wide tables scroll horizontally inside
+ * their wrapper instead of stretching the chat.
  */
 
 let keySeq = 0;
@@ -120,7 +132,71 @@ const BULLET = /^\s*[-*+]\s+(.+)$/;
 const NUMBERED = /^\s*\d+[.)]\s+(.+)$/;
 const RULE = /^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/;
 
-/** Block structure: headings, lists, rules, paragraphs. */
+type Align = "left" | "center" | "right";
+
+/** Split one pipe-table line into trimmed cells, outer pipes optional. */
+function splitCells(line: string): string[] {
+  let s = line.trim();
+  if (s.startsWith("|")) s = s.slice(1);
+  if (s.endsWith("|")) s = s.slice(0, -1);
+  return s.split("|").map((cell) => cell.trim());
+}
+
+const SEPARATOR_CELL = /^:?-+:?$/;
+
+/**
+ * If `line` is a separator row (every cell dashes with optional
+ * alignment colons), return the per-column alignments; otherwise null.
+ */
+function separatorAlignments(line: string): Align[] | null {
+  if (!line.includes("|")) return null;
+  const cells = splitCells(line);
+  if (cells.length === 0 || cells.some((cell) => !SEPARATOR_CELL.test(cell))) return null;
+  return cells.map((cell) =>
+    cell.startsWith(":") && cell.endsWith(":") ? "center" : cell.endsWith(":") ? "right" : "left",
+  );
+}
+
+const alignCls = (align: Align): string =>
+  align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
+
+/** Render one recognised table as React nodes (cells via parseInline). */
+function renderTable(header: string[], alignments: Align[], rows: string[][]): React.ReactNode {
+  return (
+    <div key={key()} className="overflow-x-auto">
+      <table className="w-full border-collapse text-[13px] leading-relaxed">
+        <thead>
+          <tr>
+            {header.map((cell, i) => (
+              <th
+                key={key()}
+                className={`border border-sand-300 bg-sand-100 px-2.5 py-1.5 font-sora font-semibold text-obsidian ${alignCls(alignments[i] ?? "left")}`}
+              >
+                {parseInline(cell)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={key()}>
+              {header.map((_, i) => (
+                <td
+                  key={key()}
+                  className={`border border-sand-200 px-2.5 py-1.5 align-top ${alignCls(alignments[i] ?? "left")}`}
+                >
+                  {parseInline(row[i] ?? "")}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** Block structure: headings, lists, rules, tables, paragraphs. */
 function parseBlocks(text: string): React.ReactNode[] {
   const blocks: React.ReactNode[] = [];
   let paragraph: string[] = [];
@@ -152,12 +228,38 @@ function parseBlocks(text: string): React.ReactNode[] {
     list = null;
   };
 
-  for (const rawLine of text.split("\n")) {
-    const line = rawLine.replace(/^>\s?/, "");
+  const lines = text.split("\n");
+  for (let idx = 0; idx < lines.length; idx++) {
+    const line = lines[idx]!.replace(/^>\s?/, "");
     if (line.trim() === "") {
       flushParagraph();
       flushList();
       continue;
+    }
+    // Pipe table: this line is the header, the NEXT line the separator.
+    // Recognised before every other block type so a header row never
+    // leaks into a paragraph; a failed check leaves both lines to the
+    // ordinary paths below (plain-text fallback).
+    if (line.includes("|") && idx + 1 < lines.length) {
+      const alignments = separatorAlignments(lines[idx + 1]!.replace(/^>\s?/, ""));
+      const header = alignments ? splitCells(line) : null;
+      if (alignments && header && header.length === alignments.length) {
+        flushParagraph();
+        flushList();
+        const rows: string[][] = [];
+        let j = idx + 2;
+        for (; j < lines.length; j++) {
+          const rowLine = lines[j]!.replace(/^>\s?/, "");
+          if (rowLine.trim() === "" || !rowLine.includes("|")) break;
+          const cells = splitCells(rowLine);
+          // A stray "|" line (the model emits them) is an all-empty row: skip it.
+          if (cells.every((cell) => cell === "")) continue;
+          rows.push(cells.slice(0, header.length));
+        }
+        blocks.push(renderTable(header, alignments, rows));
+        idx = j - 1;
+        continue;
+      }
     }
     const heading = HEADING.exec(line);
     if (heading) {
