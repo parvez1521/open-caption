@@ -5,6 +5,7 @@
  */
 import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import type { ACTIVE_EFFECTS } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, entranceStyle, exitStyle } from "../motion";
 import { backgroundCss, containerCss, displayText, famCss, fillCss, firstColor, layoutBox, scaleOf, wordGapPx } from "../text";
@@ -75,11 +76,11 @@ export const restColor = (w: Word, style: CaptionStyleV2) => w.color ?? firstCol
 
 /** the style's drop shadows as text-shadow layers (alpha multiplied by `mul`) */
 export const shadowLayers = (style: CaptionStyleV2, sc: number, mul = 1) =>
-  style.shadows.map((s) => `${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc).toFixed(2)}px ${mul === 1 ? s.color : alphaMul(s.color, mul)}`);
+  style.shadows.map((s) => `${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc).toFixed(2)}px ${mul === 1 ? shadowColorOf(s) : alphaMul(shadowColorOf(s), mul)}`);
 
 /** the same shadows as filter drop-shadows (for gradient-clipped text, where a text-shadow would paint over the fill) */
 export const shadowFilters = (style: CaptionStyleV2, sc: number) =>
-  style.shadows.map((s) => `drop-shadow(${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc * 0.5).toFixed(2)}px ${s.color})`);
+  style.shadows.map((s) => `drop-shadow(${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc * 0.5).toFixed(2)}px ${shadowColorOf(s)})`);
 
 /** the standard two-layer glow (same as the core layouts) */
 export function stdGlow(style: CaptionStyleV2, sc: number): string[] {

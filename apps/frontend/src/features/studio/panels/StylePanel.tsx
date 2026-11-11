@@ -59,7 +59,7 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
 
   return (
     <div className="h-full overflow-y-auto">
-      <Section title="Brand kit" hint={colors.length ? "Click a colour to use it as the highlight, Shift+click for the text." : "Save your colours and font once, reuse them on every project."}>
+      <Section title="Brand kit" hint={colors.length ? undefined : "Save colours and a font once; reuse them everywhere."}>
         {colors.length ? (
           <div className="flex flex-wrap gap-1.5">
             {colors.map((c) => (
@@ -124,7 +124,7 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
       </Section>
 
       {show("heroScale") ? (
-        <Section title="Key word" hint="The most important word on each card. Click a word in Captions and choose ☆ Make key word.">
+        <Section title="Key word" hint="Click a word in Captions, then ☆ Make key word.">
           <Slider label="Key word size" value={style.hero.scale} min={1} max={3} step={0.05} unit="×" onChange={(v) => patch((s) => ({ ...s, hero: { ...s.hero, scale: v } }))} />
           {show("heroFont") ? <FontPicker label="Key word font" value={style.hero.fontId ?? style.fontId} onChange={(v) => patch((s) => ({ ...s, hero: { ...s.hero, fontId: v } }))} /> : null}
         </Section>
@@ -144,6 +144,7 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
             <ColorField label="Shadow color" value={style.shadows[0]!.color.startsWith("#") ? style.shadows[0]!.color : "#000000"} onChange={(v) => patch((s) => ({ ...s, shadows: s.shadows.map((x, i) => (i === 0 ? { ...x, color: v } : x)) }))} />
             <Slider label="Shadow softness" value={style.shadows[0]!.blur} min={0} max={40} onChange={(v) => patch((s) => ({ ...s, shadows: s.shadows.map((x, i) => (i === 0 ? { ...x, blur: v } : x)) }))} />
             <Slider label="Shadow distance" value={style.shadows[0]!.y} min={0} max={30} onChange={(v) => patch((s) => ({ ...s, shadows: s.shadows.map((x, i) => (i === 0 ? { ...x, y: v } : x)) }))} />
+            <Slider label="Shadow transparency" value={Math.round((1 - (style.shadows[0]!.opacity ?? 1)) * 100)} min={0} max={100} step={5} unit="%" onChange={(v) => patch((s) => ({ ...s, shadows: s.shadows.map((x, i) => (i === 0 ? { ...x, opacity: 1 - v / 100 } : x)) }))} />
           </>
         ) : null}
         <Toggle label="Glow" checked={style.glow.enabled} onChange={(v) => patch((s) => ({ ...s, glow: { ...s.glow, enabled: v, color: v && s.glow.color === "#FFFFFF" ? s.active.color : s.glow.color } }))} />
@@ -239,7 +240,7 @@ export const SettingsPanel: React.FC<SettingsProps> = ({ settings, patch, layout
   return (
     <div className="h-full overflow-y-auto">
       {layout !== "word" ? (
-        <Section title="Pacing" hint="Fast suits hooks and Shorts, slow suits podcasts and tutorials.">
+        <Section title="Pacing">
           <Segmented value={pace} options={[...PACING.map((p) => ({ value: p.id, label: p.label })), ...(pace === "custom" ? [{ value: "custom", label: "Custom" }] : [])]} onChange={(v) => { const p = PACING.find((x) => x.id === v); if (p) patch({ maxWordsPerCard: p.words, pauseMs: p.pauseMs }); }} />
         </Section>
       ) : null}

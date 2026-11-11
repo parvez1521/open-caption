@@ -36,12 +36,12 @@ import { socialStageFor } from "./socialStage";
  *    mounts when the card is in or near the viewport (IntersectionObserver, 240px margin),
  *  - live previews share the ONE studio-wide slot budget (livePreviewBudget.ts, FIFO, max 6) —
  *    leaving the viewport or unmounting releases the slot / cancels the wait,
- *  - the clock steps in authored 30 fps frames, like the Player and the export advance,
+ *  - the clock is CONTINUOUS (smoothness pass 2026-11-11): OverlayView is a pure function of
+ *    localMs, so the preview samples the same in-between instants a 60 fps export renders —
+ *    stepping in 30 fps quanta (the old behaviour) visibly juddered on 60/120 Hz displays,
  *  - prefers-reduced-motion keeps the poster, always.
  */
 
-/** The stage frame rate: the clock steps in authored 30 fps frames, like the Player + export. */
-const PREVIEW_FPS = 30;
 /** sc for the stage window: graphics are drawn at the 1080-reference scale (sc = 1), zoomed. */
 const PREVIEW_SC = 1;
 /** Poster instant: inside every variant's acted state (pill flipped, heart filled, count +1,
@@ -122,20 +122,19 @@ const AnimatedSocialPreviewInner: React.FC<{ variant: OverlaySocialVariant }> = 
     };
   }, [near]);
 
-  // The clock steps in authored frames (PREVIEW_FPS = 30) and loops over the item's own window,
-  // exactly like the template previews: stepping on every display refresh would double the React
-  // renders while producing frames the composition never actually shows.
+  // The clock is continuous: every animation frame draws the overlay at the true elapsed
+  // instant (looped over the item's own window). OverlayView derives every phase from
+  // localMs, so in-between instants are real frames — the same ones a 60 fps export shows.
   useEffect(() => {
     if (!live) return;
     let raf = 0;
-    const frameMs = 1000 / PREVIEW_FPS;
     const t0 = performance.now();
-    let lastStep = -1;
+    let lastMs = -1;
     const tick = (now: number) => {
-      const step = Math.floor((now - t0) / frameMs);
-      if (step !== lastStep) {
-        lastStep = step;
-        setTimeMs((step * frameMs) % loopMs);
+      const ms = Math.floor(now - t0) % loopMs;
+      if (ms !== lastMs) {
+        lastMs = ms;
+        setTimeMs(ms);
       }
       raf = requestAnimationFrame(tick);
     };

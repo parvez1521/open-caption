@@ -8,7 +8,7 @@ import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
 import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
-import { deleteWordsByIds, insertWordAfter, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
+import { deleteWordsByIds, insertWordAfter, mergeWithNext, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Copy, EyeOff, Keyboard, Redo2, Scissors, Star, Trash2, Undo2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { StudioSkeleton } from "@/components/brand/Skeletons";
@@ -25,11 +25,13 @@ import { CaptionsPanel } from "./panels/CaptionsPanel";
 import { LooksPanel } from "./panels/LooksPanel";
 import { SettingsPanel, StylePanel } from "./panels/StylePanel";
 import { MediaPanel } from "./panels/MediaPanel";
+import { SoundEffectsPanel } from "./panels/SoundEffectsPanel";
 import { TextPanel } from "./panels/TextPanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
+import { MotionStudioPanel } from "./panels/MotionStudioPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
 import { AudioPanel } from "./panels/AudioPanel";
-import { ClipperPanel } from "./panels/ClipperPanel";
+import { ClipperLaunchCard } from "./panels/ClipperLaunchCard";
 import { TranslatePanel } from "./panels/TranslatePanel";
 import { TrimPanel } from "./panels/TrimPanel";
 import { PolishPanel } from "./panels/PolishPanel";
@@ -46,11 +48,11 @@ import { studioService } from "@/services/studio";
 import { useDeviceVideo } from "@/features/upload/useDeviceVideo";
 import { useCompatCopy } from "@/features/upload/useCompatCopy";
 import { etaText } from "./ProcessingPanel";
-import { getSession, useSessionView } from "@/features/transcribe/session";
+import { getSession, startSession, useSessionView } from "@/features/transcribe/session";
+import { modeFromSearch, projectModeOf, setProjectMode, type ProjectStartMode } from "./projectMode";
 import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError } from "@/services/auth/guest";
 import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
 import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
-import { appendTitleCardClip, transcriptTextOf } from "./titleCard";
 import { toComposition } from "./composition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
@@ -80,6 +82,7 @@ import {
   updateAudioMaster, updateAudioTrack,
 } from "./audioOps";
 import { makeNoiseSuppressedWav, noiseSuppressedAssetRecord } from "./audio/denoise";
+import { extractAudioWav, extractedAudioAssetRecord, extractedAudioName } from "./audio/extract";
 import { buildMixPlan, mixIsActive } from "./audio/mixPlan";
 import { renderMixedAudio } from "./audio/mixdown";
 import { muxMixedAudioIntoMp4 } from "./audio/exportMix";
@@ -94,7 +97,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "clipper" | "translate" | "trim" | "polish" | "assistant";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "sfx" | "clipper" | "translate" | "trim" | "polish" | "assistant";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -110,6 +113,7 @@ const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?:
   { id: "elements", label: "Elements", icon: railIcon(<><circle cx="8" cy="8" r="3.5" /><rect x="13" y="13" width="8" height="8" rx="1" /><path d="M17.5 3.5l3 5h-6z" /></>) },
   { id: "adjust", label: "Adjust", icon: railIcon(<><path d="M4 8h9M19 8h1M4 16h3M13 16h7" /><circle cx="16" cy="8" r="2" /><circle cx="10" cy="16" r="2" /></>) },
   { id: "audio", label: "Audio", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /></>) },
+  { id: "sfx", label: "Sound FX", icon: railIcon(<><path d="M9 18.5V7l10-2v10.5" /><circle cx="6.5" cy="18.5" r="2.5" /><circle cx="16.5" cy="15.5" r="2.5" /></>) },
   { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
   { id: "clipper", label: "Clipper", icon: railIcon(<><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" /></>) },
   { id: "trim", label: "Trim", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /><path d="M3 21l7-7" /></>) },
@@ -176,6 +180,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const desktop = useIsDesktop();
 
   const [section, setSection] = useState<PanelId>("captions");
+  // Package 2 item G — the door this project started through (?mode= wins, then the
+  // device record, then the captions default). Persisted the moment it's known/chosen.
+  const [startMode, setStartMode] = useState<ProjectStartMode>(() => (typeof window !== "undefined" ? modeFromSearch(window.location.search) : null) ?? projectModeOf(projectId));
+  useEffect(() => { setProjectMode(projectId, startMode); }, [projectId, startMode]);
+  // right column (desktop): Motion Studio lives there permanently; the segment inspector
+  // shares the column as a second tab that takes focus when a segment is selected. The
+  // column collapses to a slim strip so the centre can reclaim the width on demand.
+  const [rightTab, setRightTab] = useState<"motion" | "inspector">("motion");
+  const [rightCollapsed, setRightCollapsed] = useState(false);
   const [mobileTimeline, setMobileTimeline] = useState(false);
   const [timeMs, setTimeMs] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -189,6 +202,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   /** Phase 5 (A12): noise-suppression production state (the derived-asset build is async) */
   const [noiseBusy, setNoiseBusy] = useState(false);
   const [noiseError, setNoiseError] = useState<string | null>(null);
+  // Package 4 item J1: extract-audio state (the produced WAV is held until the user
+  // adds it to the bin or downloads it — both are explicit outcomes, neither automatic)
+  const [extractBusy, setExtractBusy] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
+  const [extractResult, setExtractResult] = useState<{ blob: Blob; name: string; durationMs: number; inBin: boolean } | null>(null);
   const [showShortcuts, setShowShortcuts] = useState(false);
   // one selection kind at a time: picking a word / overlay / video segment / marker clears the
   // others, so Delete and the contextual timeline tools always act on what the user just picked
@@ -561,6 +579,43 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     }
   };
 
+  // Package 4 item J1 — extract the video's audio track to a WAV, on this device.
+  const runExtractAudio = async () => {
+    setExtractBusy(true);
+    setExtractError(null);
+    try {
+      const srcBlob = await getAudioBlob(null);
+      if (!srcBlob) throw new Error("This project's video isn't on this device, so its audio can't be extracted here.");
+      const out = await extractAudioWav(srcBlob);
+      if (!out) throw new Error("That video has no audio track to extract.");
+      setExtractResult({ blob: out.blob, name: extractedAudioName(data?.video?.filename ?? data?.project.title ?? ""), durationMs: out.durationMs, inBin: false });
+    } catch (e) {
+      setExtractError(e instanceof Error ? e.message : "Extraction failed on this device.");
+    } finally {
+      setExtractBusy(false);
+    }
+  };
+  const addExtractToBin = async () => {
+    if (!extractResult || extractResult.inBin) return;
+    try {
+      const rec = extractedAudioAssetRecord({ projectId, blob: extractResult.blob, durationMs: extractResult.durationMs, name: extractResult.name });
+      await saveAsset(rec);
+      await mediaBin.refresh();
+      setExtractResult({ ...extractResult, inBin: true });
+    } catch (e) {
+      setExtractError(e instanceof Error ? e.message : "Couldn't add the audio to the media bin.");
+    }
+  };
+  const downloadExtract = () => {
+    if (!extractResult) return;
+    const url = URL.createObjectURL(extractResult.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = extractResult.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  };
+
   const reverseSelectedSegment = async () => {
     if (!editorComp || !selSegmentView || videoLocked) return;
     const view = selSegmentView;
@@ -658,6 +713,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   ) : null;
   const splitVideoRef = useRef<() => void>(() => undefined);
   splitVideoRef.current = splitVideoAtPlayhead;
+  // selecting a timeline segment brings its inspector forward in the right column
+  const selSegId = selSegmentView?.id ?? null;
+  useEffect(() => {
+    if (selSegId) setRightTab("inspector");
+  }, [selSegId]);
   const addMarkerRef = useRef<() => void>(() => undefined);
   addMarkerRef.current = addMarkerAtPlayhead;
 
@@ -1031,6 +1091,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       projectId={projectId}
       limits={data.limits}
       language={data.project.language ?? null}
+      mode={startMode}
+      onModeChange={setStartMode}
       onUploaded={() => { setReplacing(false); s.resetDoc(); void s.refetch(); }}
       note={
         videoGone ? "This project's video isn't on this device anymore. Add a video and fresh captions will be written for it."
@@ -1043,10 +1105,26 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   ));
 
   const heroSupported = style ? getTemplate(style.templateId).layout !== "typewriter" : true;
+  // Package 2 item G — "Generate captions" for a Normal-Editor project: run the same
+  // in-browser transcription the upload flow uses, from the video file on this device.
+  // The session's own machinery takes it from there (progress in the panel's empty state,
+  // the saved document replaces the empty one via the phase-change refetch above).
+  const [genCapNote, setGenCapNote] = useState<string | null>(null);
+  const generateCaptions = useCallback(async () => {
+    if (!video) return;
+    const blob = await getLocalVideo(video.id);
+    if (!blob) {
+      setGenCapNote("The video isn't on this device — captions are written here, from the file on this device. Open this project on the device you uploaded from.");
+      return;
+    }
+    setGenCapNote(null);
+    startSession({ projectId, videoId: video.id, file: blob, language: data?.project.language ?? null });
+  }, [video, projectId, data?.project.language]);
+  const generatingEmpty = writing && !!s.doc && s.doc.words.length === 0;
   const captions = doc && style ? (
     <div data-tour="captions" className="flex h-full min-h-0 flex-col">
-      <div className={`min-h-0 flex-1 ${live ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
-        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWord} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} />
+      <div className={`min-h-0 flex-1 ${live || generatingEmpty ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
+        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWord} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} onGenerateCaptions={doc.words.length === 0 && video && !videoGone ? () => void generateCaptions() : undefined} generateBusy={generatingEmpty} generateProgress={liveView?.progress ?? 0} generateNote={genCapNote} />
       </div>
       {live && liveView ? (
         // the captions that haven't been written yet: shimmering placeholders with the time left
@@ -1106,17 +1184,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     : style ? (
       t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} />
       : t === "templates" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
-      : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} composition={composition} onRelink={device.attach} assets={mediaBin.assets} importing={mediaBin.importing} onImport={mediaBin.importFiles} onDeleteAsset={mediaBin.remove} onPlaceImage={placeImage} stockProjectId={projectId} onStockAdded={() => void mediaBin.refresh()} />
-      : t === "text" ? <TextPanel {...overlayPanelProps} titleCard={doc ? {
-          sourceTitle: data.project.title,
-          transcriptText: transcriptTextOf(doc),
-          // A5: place through the composition commit path — one undo step, and the
-          // item lands in settings.overlays via projectComposition like any overlay
-          onPlace: (item) => {
-            if (editorComp) commitComposition(appendTitleCardClip(editorComp, item));
-            else s.patchSettings({ overlays: [...settings.overlays, item] });
-          },
-        } : undefined} />
+      : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} composition={composition} onRelink={device.attach} assets={mediaBin.assets} importing={mediaBin.importing} onImport={mediaBin.importFiles} onDeleteAsset={mediaBin.remove} onPlaceImage={placeImage} />
+      : t === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
+      : t === "text" ? <TextPanel {...overlayPanelProps} />
       : t === "elements" ? <ElementsPanel {...overlayPanelProps} />
       : t === "adjust" ? <AdjustPanel settings={settings} patch={s.patchSettings} />
       : t === "audio" ? (editorComp ? (
@@ -1148,10 +1218,18 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             error: noiseError,
             onToggle: (enable) => { void toggleNoiseSuppression(enable); },
           }}
+          audioExtract={{
+            busy: extractBusy,
+            error: extractError,
+            result: extractResult ? { name: extractResult.name, durationMs: extractResult.durationMs, inBin: extractResult.inBin } : null,
+            onExtract: () => { void runExtractAudio(); },
+            onAddToBin: () => { void addExtractToBin(); },
+            onDownload: downloadExtract,
+          }}
         />
       ) : null)
       : t === "translate" ? (doc ? <TranslatePanel projectId={projectId} doc={doc} settings={settings} patch={s.patchSettings} translations={translations} onTranslated={(lang, tdoc) => setTranslations((prev) => ({ ...prev, [lang]: tdoc }))} /> : null)
-      : t === "clipper" ? (doc ? <ClipperPanel projectId={projectId} sourceTitle={data.project.title} sourceVideoId={data.video?.id ?? null} mediaDurationMs={settings.clipRange ? durationMs : (data.video?.durationMs ?? 0)} doc={doc} peaks={wave.peaks} videoUrl={video?.url ?? null} sourceWidth={data.video?.width ?? null} sourceHeight={data.video?.height ?? null} sourceUrl={video?.url ?? null} /> : null)
+      : t === "clipper" ? <ClipperLaunchCard projectId={projectId} />
       : t === "trim" ? (doc ? <TrimPanel doc={doc} peaks={wave.peaks} durationMs={durationMs} onSeek={seek} onApply={applyTrim} /> : null)
       : t === "polish" ? (doc && style && editorComp ? (
         <PolishPanel
@@ -1296,6 +1374,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       segmentAssetUrls={segmentAssetUrls}
       segmentAssetNames={segmentAssetNames}
       onJoin={() => selected && !captionsLockedRef.current && s.edit((d) => mergeWithPrevious(d, selected.id))}
+      onJoinNext={() => selected && !captionsLockedRef.current && s.edit((d) => mergeWithNext(d, selected.id))}
       onOpenSettings={() => { setSection("timing"); setMobileTimeline(false); }}
       extraTools={extraTools}
       fill={!desktop}
@@ -1399,11 +1478,62 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             <section data-tour="preview" aria-label="Preview" className="min-h-0 flex-1 bg-st-bg">{stage}</section>
             <section aria-label="Timeline section" className="h-[min(300px,34%)] min-h-[215px] shrink-0 border-t border-st-line">{timeline}</section>
           </div>
-          {segmentInspector ? (
-            <aside aria-label="Segment inspector" className="flex min-h-0 w-[264px] shrink-0 flex-col border-l border-st-line bg-st-panel 2xl:w-[300px]">
-              {segmentInspector}
+          {rightCollapsed ? (
+            <aside aria-label="Right panel" className="flex min-h-0 w-[44px] shrink-0 flex-col items-center gap-2 border-l border-st-line bg-st-panel py-2">
+              <button
+                type="button"
+                aria-label="Expand right panel"
+                onClick={() => setRightCollapsed(false)}
+                className="rounded-lg px-2 py-1.5 text-st-muted hover:bg-st-hover hover:text-st-text"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label="Open Motion Studio panel"
+                onClick={() => { setRightTab("motion"); setRightCollapsed(false); }}
+                className="rounded-lg px-1 py-2 text-[11px] font-semibold text-st-muted [writing-mode:vertical-rl] hover:bg-st-hover hover:text-st-text"
+              >
+                Motion
+              </button>
             </aside>
-          ) : null}
+          ) : (
+            <aside aria-label="Right panel" className="flex min-h-0 w-[264px] shrink-0 flex-col border-l border-st-line bg-st-panel 2xl:w-[300px]">
+              <div role="tablist" aria-label="Right panel tabs" className="flex shrink-0 items-center gap-1 border-b border-st-line px-2 py-1.5">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={rightTab === "motion"}
+                  onClick={() => setRightTab("motion")}
+                  className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                >
+                  Motion
+                </button>
+                {segmentInspector ? (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "inspector"}
+                    onClick={() => setRightTab("inspector")}
+                    className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  >
+                    Inspector
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  aria-label="Collapse right panel"
+                  onClick={() => setRightCollapsed(true)}
+                  className="ml-auto rounded-lg px-2 py-1.5 text-st-muted hover:bg-st-hover hover:text-st-text"
+                >
+                  ›
+                </button>
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col">
+                {rightTab === "inspector" && segmentInspector ? segmentInspector : <MotionStudioPanel {...overlayPanelProps} />}
+              </div>
+            </aside>
+          )}
         </div>
         {overlays}
       </div>

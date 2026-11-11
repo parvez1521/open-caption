@@ -53,6 +53,15 @@ export interface AudioPanelProps {
     error: string | null;
     onToggle: (enable: boolean) => void;
   };
+  /** Package 4 item J1: extract the video's audio as a WAV (StudioPage owns the work) */
+  audioExtract?: {
+    busy: boolean;
+    error: string | null;
+    result: { name: string; durationMs: number; inBin: boolean } | null;
+    onExtract: () => void;
+    onAddToBin: () => void;
+    onDownload: () => void;
+  };
 }
 
 const fmtTime = (ms: number): string => {
@@ -72,7 +81,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
   comp, assets, selectedClipId, playheadMs, onSelectClip,
   onAddTrack, onUpdateTrack, onSetDucking, onRemoveTrack, onPlaceClip,
   onMoveClip, onSplitClip, onDuplicateClip, onRemoveClip, onUpdateClip, onUpdateProcessors, onUpdateMaster,
-  words, onApplyBleeps, onRemoveBleep, onUpdateBleep, noiseSuppression,
+  words, onApplyBleeps, onRemoveBleep, onUpdateBleep, noiseSuppression, audioExtract,
 }) => {
   // Phase 5 (A6): profanity review state — which listed matches the user has ticked.
   // NOTHING is approved by default and nothing is altered until a button below
@@ -104,10 +113,10 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
 
   return (
     <div className="h-full overflow-y-auto">
-      <Section title="Sound" hint="The whole mix: the video's own sound, your audio clips, and the master level they are all mixed at.">
+      <Section title="Sound">
         <Slider label="Video sound" value={master.videoVolume} min={0} max={2} step={0.05} onChange={(v) => onUpdateMaster({ videoVolume: v })} format={(v) => `${Math.round(v * 100)}%`} />
         <Slider label="Master volume" value={master.volume} min={0} max={2} step={0.05} onChange={(v) => onUpdateMaster({ volume: v })} format={(v) => `${Math.round(v * 100)}%`} />
-        <Toggle label="Compressor" checked={compOn} onChange={(v) => onUpdateMaster({ compressor: { enabled: v } })} hint="Evens out loud and quiet parts of the finished mix." />
+        <Toggle label="Compressor" checked={compOn} onChange={(v) => onUpdateMaster({ compressor: { enabled: v } })} />
         {compOn ? (
           <>
             <Slider label="Threshold" value={master.compressor.thresholdDb} min={-60} max={0} step={1} unit=" dB" onChange={(v) => onUpdateMaster({ compressor: { thresholdDb: v } })} />
@@ -116,8 +125,8 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
         ) : null}
       </Section>
 
-      <Section title="Bleep profanity" hint="Words from the built-in list that appear in your transcript." more="A word is only silenced — with a tone over it — after you approve it here; the original audio is never edited, and removing a bleep restores it.">
-        <p className="text-xs text-st-faint">This matches listed words in the transcript; it can miss slang or mis-transcribed words.</p>
+      <Section title="Bleep profanity" more="A word is only silenced — with a tone over it — after you approve it here; the original audio is never edited, and removing a bleep restores it.">
+        <p className="text-xs text-st-faint">Matches listed words in the transcript; can miss slang or mis-hearings.</p>
         {matches.length === 0 ? (
           <p className="text-xs text-st-faint">No listed words found in the transcript.</p>
         ) : (
@@ -179,10 +188,8 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
       </Section>
 
       {noiseSuppression ? (
-        <Section title="Noise suppression" hint="Removes steady background noise (fans, hiss, hum) from the video's sound, on this device.">
-          <p className="text-xs text-st-faint">
-            It works on a cleaned copy — your original recording is untouched, and turning this off goes back to it. Best on steady noise; different from the per-clip basic cleanup.
-          </p>
+        <Section title="Noise suppression">
+          <p className="text-xs text-st-faint">Works on a cleaned copy — your original recording is untouched.</p>
           {noiseSuppression.active ? (
             <>
               <p className="text-xs text-st-text/85">Noise suppression is on for this project.</p>
@@ -197,7 +204,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
         </Section>
       ) : null}
 
-      <Section title="Tracks" hint="Each track is a lane on the timeline. Locking a track protects its clips from edits.">
+      <Section title="Tracks">
         {comp.audioTracks.length === 0 ? <p className="text-xs text-st-faint">No audio tracks yet. Add one below, then place audio from the media bin.</p> : null}
         {comp.audioTracks.map((track) => (
           <div key={track.id} className="space-y-3 rounded-xl border border-st-line bg-st-raised/40 p-3">
@@ -234,7 +241,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
         </div>
       </Section>
 
-      <Section title="Add audio" hint="Audio from this project's media bin, placed at the playhead.">
+      <Section title="Add audio">
         {audioAssets.length === 0 ? (
           <p className="text-xs text-st-faint">Import an audio file in the Media panel first.</p>
         ) : (
@@ -275,7 +282,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
             <>
               <Slider label="High-pass" value={selectedClip.processors.cleanup.highPassHz} min={20} max={400} step={5} unit=" Hz" onChange={(v) => onUpdateProcessors(selectedClip.id, { cleanup: { highPassHz: v } })} />
               <Slider label="Noise gate" value={selectedClip.processors.cleanup.gateDb} min={-80} max={-20} step={1} unit=" dB" onChange={(v) => onUpdateProcessors(selectedClip.id, { cleanup: { gateDb: v } })} />
-              <p className="text-xs text-st-faint">A high-pass filter and a noise gate. It tidies rumble and pauses; it does not remove noise from the recording.</p>
+              <p className="text-xs text-st-faint">High-pass filter + noise gate — tidies rumble; does not remove noise.</p>
             </>
           ) : null}
           <Slider label="Reverb" value={selectedClip.processors.reverb} min={0} max={1} step={0.01} onChange={(v) => onUpdateProcessors(selectedClip.id, { reverb: v })} format={(v) => `${Math.round(v * 100)}%`} />
@@ -288,8 +295,31 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
         </Section>
       ) : null}
 
+      {audioExtract ? (
+        <Section title="Extract audio">
+          {!audioExtract.result ? (
+            <Button tone="primary" disabled={audioExtract.busy} onClick={audioExtract.onExtract} className="w-full">
+              {audioExtract.busy ? "Extracting…" : "Extract audio as WAV"}
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-st-text/85">
+                {audioExtract.result.name} · {Math.round(audioExtract.result.durationMs / 100) / 10}s · WAV
+              </p>
+              <div className="flex gap-1.5">
+                <Button tone="primary" disabled={audioExtract.result.inBin} onClick={audioExtract.onAddToBin} className="flex-1">
+                  {audioExtract.result.inBin ? "In the media bin" : "Add to media bin"}
+                </Button>
+                <Button onClick={audioExtract.onDownload} className="flex-1">Download</Button>
+              </div>
+            </div>
+          )}
+          {audioExtract.error ? <p role="alert" className="mt-2 text-xs text-st-text">{audioExtract.error}</p> : null}
+        </Section>
+      ) : null}
+
       <div className="px-4 py-4">
-        <p className="text-xs text-st-faint">Audio files and this mix live on this device. The mix is included when you export an MP4 in this browser; a render made on another device includes only the video&apos;s own sound.</p>
+        <p className="text-xs text-st-faint">This mix lives on this device; only browser exports include it.</p>
       </div>
     </div>
   );

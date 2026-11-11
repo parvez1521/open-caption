@@ -24,7 +24,7 @@ export const AdjustPanel: React.FC<{
   const exposureStops = Math.log2(Math.max(0.25, a.exposure));
   return (
     <div className="h-full overflow-y-auto">
-      <Section title="Adjust" hint="Brightness, contrast, saturation, exposure, highlights and shadows are applied as one CSS filter; temperature and tint as a colour wash over the picture. The preview and every export use the same mapping, so what you see is what the file gets.">
+      <Section title="Adjust">
         <Slider label="Brightness" value={a.brightness} min={0.5} max={1.5} step={0.01} onChange={(v) => set({ brightness: v })} />
         <Slider label="Contrast" value={a.contrast} min={0.5} max={1.5} step={0.01} onChange={(v) => set({ contrast: v })} />
         <Slider label="Saturation" value={a.saturation} min={0.5} max={1.5} step={0.01} onChange={(v) => set({ saturation: v })} />

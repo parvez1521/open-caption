@@ -41,12 +41,30 @@ export const SOCIAL_META: { id: OverlaySocialVariant; label: string; hint: strin
   { id: "post-card", label: "Post Card", hint: "Post card with avatar, name and time lines and body text; the Like in its Like / Comment / Share row fills on the beat. Lines: name / time line / body text. Avatar uses the item image asset when set.", defaultText: "Creator Name\n2 hrs ago\nJust shared a new tutorial — hope it helps!", defaultColor: "#5B8DEF" },
   { id: "repost-card", label: "Repost Card", hint: "Compact post card; the repost icon flips colour and its count ticks +1 on the beat. Lines: name / handle / body text / starting repost count. Avatar uses the item image asset when set.", defaultText: "Creator Name\n@handle\nJust shipped a new tutorial — link in bio!\n248", defaultColor: "#34D399" },
   { id: "voice-card", label: "Voice Card", hint: "Voice-channel card with three member rows; speaking rings pulse around members in a seeded rotation. Lines: channel name / member 1 / member 2 / member 3.", defaultText: "voice-lounge\nAlex\nPriya\nSam", defaultColor: "#6C7CFF" },
+  { id: "cursor-click", label: "Cursor Click Button", hint: "A big button; the pointer travels across the frame to it, clicks with a ripple, and the button flips to its second label. Lines: button label / after-click label.", defaultText: "Get started\nDone — welcome in", defaultColor: "#FFA946" },
+  { id: "cursor-follow", label: "Cursor Follow", hint: "Profile row; the pointer travels in and clicks Follow, which flips to Following. Lines: name / handle / Follow label / Following label. Avatar uses the item image asset when set.", defaultText: "Creator Name\n@handle\nFollow\nFollowing", defaultColor: "#34D399" },
+  { id: "cursor-subscribe", label: "Cursor Subscribe", hint: "Subscribe pill; the pointer travels across and clicks it, flipping it to Subscribed. Lines: label / after-click label.", defaultText: "Subscribe\nSubscribed", defaultColor: "#FF4D2E" },
+  { id: "cursor-like", label: "Cursor Like", hint: "Heart with a count; the pointer travels in, clicks, the heart fills and the count ticks +1. Line: starting count.", defaultText: "128", defaultColor: "#FF4D6D" },
+  { id: "share-pop", label: "Share Pop", hint: "Share row whose paper plane flies out on the beat while the share count ticks up. Lines: name / starting share count.", defaultText: "Creator Name\n248", defaultColor: "#38BDF8" },
+  { id: "save-pop", label: "Save Pop", hint: "Bookmark that pops and fills on the beat, with a Saved caption sliding up under it. Line: caption under the bookmark.", defaultText: "Saved", defaultColor: "#FFA946" },
+  { id: "follow-plus", label: "Follow Plus", hint: "Avatar with a plus badge; on the beat the badge flips to a tick and a ring pulses out. Lines: name / handle. Avatar uses the item image asset when set.", defaultText: "Creator Name\n@handle", defaultColor: "#FF4D6D" },
+  { id: "gift-pop", label: "Gift Pop", hint: "Gift box whose lid pops off on the beat with a sparkle burst and a caption. Line: caption under the box.", defaultText: "Thanks for the gift!", defaultColor: "#FFA946" },
+  { id: "bell-reminder", label: "Bell Reminder", hint: "Reminder card: a big bell that rings on the beat beside a title and sub-line. Lines: title / sub-line.", defaultText: "Turn on notifications\nNever miss a new video", defaultColor: "#FFA946" },
+  { id: "watch-next", label: "Watch Next", hint: "Up-next card that slides in: drawn thumbnail with a play mark, title and channel lines, and a progress bar filling underneath. Lines: video title / channel line.", defaultText: "How to Edit Videos — full guide\nYour Channel", defaultColor: "#FF4D2E" },
+  { id: "chat-ticks", label: "Chat Read Ticks", hint: "Two outgoing chat bubbles; the ticks under the last one go one → two → read (accent) as time passes. Lines: message 1 / message 2.", defaultText: "New video is live!\nLink is in the comments", defaultColor: "#34D399" },
+  { id: "dm-typing", label: "DM Typing", hint: "Message card that shows typing dots first, then the message bubble pops in. Lines: name / message. Avatar uses the item image asset when set.", defaultText: "Alex\nThat edit is exactly what I needed!", defaultColor: "#38BDF8" },
+  { id: "lower-third-bar", label: "Lower Third Bar", hint: "Full-width bottom bar that sweeps in: name on the left, role on the right. Lines: name / role line.", defaultText: "Creator Name\nVideo Editor", defaultColor: "#34D399" },
+  { id: "logo-mark", label: "Logo Mark", hint: "Monogram reveal: a ring draws itself around the brand's first letter, then the brand line fades in under it. Line: brand text.", defaultText: "YOUR BRAND", defaultColor: "#34D399" },
+  { id: "type-title", label: "Type Title", hint: "Big title typed out character by character; an accent underline sweeps in when the typing lands. Line: title text.", defaultText: "WATCH THIS FIRST", defaultColor: "#FFFFEB" },
+  { id: "countdown-pop", label: "Countdown Pop", hint: "3 · 2 · 1 countdown — each number springs in inside a shrinking ring — then your final word lands. Line: final word.", defaultText: "GO!", defaultColor: "#FF4D2E" },
 ];
 
 export interface OverlayPhases {
-  /** 0..1 over the first ~18% (clamped 120–400 ms) */
+  /** 0..1 over the first ~18% (clamped 120–400 ms), eased with easeOutQuint */
   enter: number;
-  /** 0..1 over the last ~15% */
+  /** the RAW (uneased) enter fraction — spring/pop curves consume this, not the eased value */
+  enterT: number;
+  /** 0..1 over the last ~15%, eased with easeInOutCubic so the fade lands softly at both ends */
   exit: number;
   /** the "act" beat (tap / flip / ring): 0 before, 0..1 through, 1 after; centred near 42% */
   act: number;
@@ -59,6 +77,26 @@ export interface OverlayPhases {
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const easeOutExpo = (t: number) => (t >= 1 ? 1 : 1 - Math.pow(2, -10 * t));
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+/**
+ * Smoothness pass (2026-11-11): the shared curves every social overlay's motion is built from.
+ * - easeOutQuint replaces easeOutExpo for entrances: expo's initial velocity (≈6.9×) made cards
+ *   snap the first frames then crawl an invisible tail; quint's bounded start (5×) with a clean
+ *   settle reads as one smooth glide at both 30 and 60 fps.
+ * - easeInOutCubic replaces the old LINEAR exit ramp: a linear fade visibly pops at the ramp's
+ *   two corners; in-out cubic is tangent-flat at both ends, so overlays leave as softly as they came.
+ * - springOut is a gentle easeOutBack (overshoot constant 1.2, peak ≈ +3.5% past 1) for pop
+ *   scales: the element lands a hair past its resting size and settles — the "alive" micro-bounce
+ *   the flat easeOutCubic pops lacked. It consumes the RAW phase fraction (enterT).
+ */
+export const easeOutQuint = (t: number) => 1 - Math.pow(1 - t, 5);
+export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export const springOut = (t: number) => {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const c = 1.2;
+  const u = t - 1;
+  return 1 + (c + 1) * u * u * u + c * u * u;
+};
 
 /**
  * The shared phase helper for animated overlays: phases are fractions of the item's OWN duration
@@ -70,9 +108,11 @@ export function overlayPhase(localMs: number, durationMs: number): OverlayPhases
   const exitMs = Math.max(1, dur * 0.15);
   const actStart = dur * 0.3;
   const actDur = Math.max(120, dur * 0.24);
+  const enterT = clamp01(localMs / enterMs);
   return {
-    enter: easeOutExpo(clamp01(localMs / enterMs)),
-    exit: clamp01((localMs - (dur - exitMs)) / exitMs),
+    enter: easeOutQuint(enterT),
+    enterT,
+    exit: easeInOutCubic(clamp01((localMs - (dur - exitMs)) / exitMs)),
     act: easeOutCubic(clamp01((localMs - actStart) / actDur)),
     acted: localMs >= actStart + actDur * 0.55,
     t: clamp01(localMs / dur),
@@ -116,7 +156,7 @@ export function chatStackAt(localMs: number, durationMs: number, count: number) 
   const n = Math.max(0, Math.min(4, Math.floor(count)));
   const bubbles = Array.from({ length: n }, (_, i) => {
     const start = (i * (durationMs * 0.62)) / Math.max(1, n);
-    const p = easeOutCubic(clamp01((localMs - start) / 320));
+    const p = easeOutQuint(clamp01((localMs - start) / 320));
     return { index: i, p, opacity: p, scale: 0.7 + 0.3 * p, yPx: (1 - p) * 18 };
   });
   const typing = n >= 2 && localMs > ((n - 1) * (durationMs * 0.62)) / Math.max(1, n) - 600 && bubbles[n - 1]!.p < 1;
@@ -156,13 +196,15 @@ export function typingAt(localMs: number, durationMs: number, textLength: number
   return { chars: Math.min(len, Math.floor(p * len)), typed: p >= 1, caretOn: localMs % 1060 < 620, p };
 }
 
-/** Kinetic title: per-word entrance progress, staggered over the first ~65%. */
+/** Kinetic title: per-word entrance progress, staggered over the first ~65%.
+ *  Words POP on a spring curve (springOut): each lands a hair past full size and settles,
+ *  instead of the old cubic + hand-added sin bump that double-counted the overshoot. */
 export function kineticTitleAt(localMs: number, durationMs: number, wordCount: number) {
   const n = Math.max(0, Math.min(4, Math.floor(wordCount)));
   const words = Array.from({ length: n }, (_, i) => {
     const start = (i * durationMs * 0.65) / Math.max(1, n);
-    const p = easeOutCubic(clamp01((localMs - start) / 300));
-    return { index: i, p, scale: 0.6 + 0.4 * p + (p > 0 && p < 1 ? Math.sin(p * Math.PI) * 0.12 : 0), opacity: p };
+    const p = springOut(clamp01((localMs - start) / 340));
+    return { index: i, p, scale: 0.55 + 0.45 * p, opacity: clamp01(p) };
   });
   return { words };
 }
@@ -260,6 +302,77 @@ export function voiceCardAt(localMs: number, seed: number, memberCount = 3) {
     };
   });
   return { step, activeIndex, members };
+}
+
+/**
+ * Cursor move → click → react choreography (follow-up batch): the pointer TRAVELS from `from`
+ * to `to` along a shallow quadratic arc (easeInOutCubic, 6% → 38% of the item), presses at the
+ * act flip (~44%, a sin pulse centred there), and a ripple ring expands out of the click point
+ * (44% → 78%, easeOutCubic, fading). Coordinates are the drawing's own reference px; the point
+ * is the pointer's TIP. Pure in (localMs, durationMs, from, to) — preview ≡ export.
+ */
+export function cursorChoreoAt(
+  localMs: number,
+  durationMs: number,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+) {
+  const dur = Math.max(1, durationMs);
+  const travelStart = dur * 0.06;
+  const travelEnd = dur * 0.38;
+  const tp = easeInOutCubic(clamp01((localMs - travelStart) / (travelEnd - travelStart)));
+  const mx = (from.x + to.x) / 2;
+  const my = (from.y + to.y) / 2;
+  const dist = Math.hypot(to.x - from.x, to.y - from.y);
+  const cx = mx;
+  const cy = my - dist * 0.18;
+  const x = (1 - tp) * (1 - tp) * from.x + 2 * (1 - tp) * tp * cx + tp * tp * to.x;
+  const y = (1 - tp) * (1 - tp) * from.y + 2 * (1 - tp) * tp * cy + tp * tp * to.y;
+  const clickAt = dur * 0.44;
+  const pressSpan = dur * 0.16;
+  const press = Math.sin(clamp01((localMs - (clickAt - pressSpan / 2)) / pressSpan) * Math.PI);
+  const rippleP = easeOutCubic(clamp01((localMs - clickAt) / (dur * 0.34)));
+  return {
+    x, y, press,
+    arrived: localMs >= travelEnd,
+    clicked: localMs >= clickAt,
+    rippleP,
+    rippleOpacity: Math.max(0, 1 - rippleP),
+    travelP: tp,
+  };
+}
+
+/**
+ * Share Pop flight: after the act beat, a paper plane leaves the share button along a rising
+ * arc (quadratic, easeOutCubic over ~45% of the item) and fades as it goes; the share count
+ * ticks up behind it (seeded, to +12 by the end). Pure in (localMs, durationMs, base).
+ */
+export function shareFlightAt(localMs: number, durationMs: number, base: number) {
+  const ph = overlayPhase(localMs, durationMs);
+  const p = easeOutCubic(clamp01((localMs - durationMs * 0.42) / (durationMs * 0.45)));
+  const count = Math.max(0, Math.floor(base)) + (ph.acted ? Math.floor(p * 12) : 0);
+  return { p, x: p * 150, y: -p * 110 + p * p * 30, rot: -18 + p * 14, opacity: Math.max(0, 1 - p * 1.15), count, acted: ph.acted };
+}
+
+/**
+ * Chat read ticks: the stage under an outgoing message as time passes —
+ * 0 = one tick (sent), 1 = two ticks (delivered, ~30%), 2 = two ticks in the accent (read, ~62%).
+ */
+export function chatTicksAt(localMs: number, durationMs: number): { stage: 0 | 1 | 2 } {
+  const t = clamp01(localMs / Math.max(1, durationMs));
+  return { stage: t >= 0.62 ? 2 : t >= 0.3 ? 1 : 0 };
+}
+
+/**
+ * Countdown: steps 0..2 show 3 · 2 · 1 (each ~24% of the item, springing in with a shrinking
+ * ring), step 3 is the final word. `p` is the spring progress inside the current step.
+ */
+export function countdownAt(localMs: number, durationMs: number) {
+  const dur = Math.max(1, durationMs);
+  const stepMs = dur * 0.24;
+  const step = Math.min(3, Math.max(0, Math.floor(localMs / stepMs)));
+  const inStep = clamp01((localMs - step * stepMs) / Math.min(340, stepMs));
+  return { step, label: step < 3 ? String(3 - step) : null, p: springOut(inStep), ringP: clamp01((localMs - step * stepMs) / stepMs) };
 }
 
 /** Audio bars: 16 seeded bars, height 0..1 as a pure function of localMs. */
@@ -407,7 +520,7 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
     }
     case "comment-popup": {
       const comment = ls.slice(1).filter(Boolean).join("\n") || "This is exactly what I needed, thank you!";
-      const popScale = 0.8 + 0.2 * ph.enter;
+      const popScale = 0.72 + 0.28 * springOut(ph.enterT);
       const heartBeat = ph.acted ? 1 + 0.25 * Math.sin(Math.min(1, ph.act) * Math.PI) : 1;
       return (
         <div style={{ ...root, ...card, position: "relative", display: "flex", gap: 16 * sc, width: 560 * sc, transform: `translateY(${enterY.toFixed(1)}px) scale(${popScale.toFixed(3)})` }}>
@@ -427,7 +540,7 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
       const count = Number.isFinite(start) ? start + (ph.acted ? 1 : 0) : 0;
       return (
         <div style={{ ...root, position: "relative", display: "flex", alignItems: "center", gap: 16 * sc, width: 300 * sc, justifyContent: "center" }}>
-          <span style={{ transform: `scale(${((ph.acted ? 1.18 : 1) * (1 - press * 0.1)).toFixed(3)})`, display: "block" }}>
+          <span style={{ transform: `scale(${((0.5 + 0.5 * springOut(ph.enterT)) * (ph.acted ? 1.18 : 1) * (1 - press * 0.1)).toFixed(3)})`, display: "block" }}>
             <ThumbPath color={accent} filled={ph.acted} size={92 * sc} />
           </span>
           <span style={{ fontWeight: 800, fontSize: 40 * sc, transform: ph.acted ? "translateY(-2px)" : undefined }}>{count.toLocaleString("en-US")}</span>
@@ -442,7 +555,7 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
     }
     case "heart-pop": {
       const seed = seedOf(item.id);
-      const burst = ph.enter;
+      const burst = springOut(ph.enterT);
       const floaters = [0, 1, 2, 3, 4].map((i) => {
         const dx = (socialSeededUnit(seed + i * 13) - 0.5) * 260 * sc;
         const rise = Math.max(0, ph.t - 0.25) / 0.75;
@@ -632,7 +745,7 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
       );
     }
     case "logo-reveal": {
-      const sweep = clamp01(ph.t * 1.6);
+      const sweep = easeInOutCubic(clamp01(ph.t * 1.6));
       const C = 2 * Math.PI * 88;
       return (
         <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 * sc, width: 420 * sc }}>
@@ -877,6 +990,300 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
               </span>
             );
           })}
+        </div>
+      );
+    }
+    case "cursor-click": {
+      const choreo = cursorChoreoAt(localMs, dur, { x: 585, y: 298 }, { x: 424, y: 148 });
+      const labelNow = ph.acted ? line(ls, 1, "Done — welcome in") : line(ls, 0, "Get started");
+      return (
+        <div style={{ ...root, position: "relative", width: 640 * sc, height: 320 * sc }}>
+          <span style={{
+            position: "absolute", left: "50%", top: 96 * sc, transform: `translateX(-50%) scale(${(1 - choreo.press * 0.05).toFixed(3)})`,
+            display: "inline-flex", alignItems: "center", gap: 10 * sc, justifyContent: "center", width: 360 * sc, height: 104 * sc,
+            borderRadius: 26 * sc, backgroundColor: ph.acted ? shade(accent, 0.45) : accent, color: ph.acted ? CARD_FG : "#141412",
+            fontWeight: 800, fontSize: 38 * sc, boxShadow: "0 12px 34px rgba(0,0,0,0.42)", whiteSpace: "nowrap",
+          }}>
+            {ph.acted ? <Check color={CARD_FG} size={34 * sc} /> : null}{labelNow}
+          </span>
+          {choreo.rippleP > 0 ? (
+            <span style={{ position: "absolute", left: 424 * sc, top: 148 * sc, width: (26 + choreo.rippleP * 120) * sc, height: (26 + choreo.rippleP * 120) * sc, borderRadius: "50%", border: `${4 * sc}px solid ${accent}`, opacity: choreo.rippleOpacity.toFixed(2), transform: "translate(-50%, -50%)" }} />
+          ) : null}
+          <Pointer x={choreo.x - 8} y={choreo.y - 3} press={choreo.press} sc={sc} />
+        </div>
+      );
+    }
+    case "cursor-follow": {
+      const choreo = cursorChoreoAt(localMs, dur, { x: 66, y: 288 }, { x: 472, y: 96 });
+      const labelNow = ph.acted ? line(ls, 3, "Following") : line(ls, 2, "Follow");
+      return (
+        <div style={{ ...root, position: "relative", width: 640 * sc, height: 300 * sc }}>
+          <div style={{ ...card, position: "absolute", left: 20 * sc, top: 24 * sc, display: "flex", alignItems: "center", gap: 18 * sc, width: 600 * sc }}>
+            {avatar(84)}
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 800, fontSize: 32 * sc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 0, "Creator Name")}</span>
+              <span style={{ display: "block", fontSize: 25 * sc, opacity: 0.75, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 1, "@handle")}</span>
+            </span>
+            {pill(ph.acted, labelNow)}
+          </div>
+          {choreo.rippleP > 0 ? (
+            <span style={{ position: "absolute", left: 472 * sc, top: 96 * sc, width: (24 + choreo.rippleP * 110) * sc, height: (24 + choreo.rippleP * 110) * sc, borderRadius: "50%", border: `${4 * sc}px solid ${accent}`, opacity: choreo.rippleOpacity.toFixed(2), transform: "translate(-50%, -50%)" }} />
+          ) : null}
+          <Pointer x={choreo.x - 8} y={choreo.y - 3} press={choreo.press} sc={sc} />
+        </div>
+      );
+    }
+    case "cursor-subscribe": {
+      const choreo = cursorChoreoAt(localMs, dur, { x: 36, y: 282 }, { x: 336, y: 112 });
+      const labelNow = ph.acted ? line(ls, 1, "Subscribed") : line(ls, 0, "Subscribe");
+      return (
+        <div style={{ ...root, position: "relative", width: 560 * sc, height: 300 * sc }}>
+          <span style={{ position: "absolute", left: "50%", top: 58 * sc, transform: "translateX(-50%)" }}>
+            {pill(ph.acted, labelNow, 320)}
+          </span>
+          {choreo.rippleP > 0 ? (
+            <span style={{ position: "absolute", left: 336 * sc, top: 112 * sc, width: (24 + choreo.rippleP * 110) * sc, height: (24 + choreo.rippleP * 110) * sc, borderRadius: "50%", border: `${4 * sc}px solid ${accent}`, opacity: choreo.rippleOpacity.toFixed(2), transform: "translate(-50%, -50%)" }} />
+          ) : null}
+          <Pointer x={choreo.x - 8} y={choreo.y - 3} press={choreo.press} sc={sc} />
+        </div>
+      );
+    }
+    case "cursor-like": {
+      const choreo = cursorChoreoAt(localMs, dur, { x: 486, y: 284 }, { x: 178, y: 148 });
+      const start = parseInt((ls[0] ?? "128").replace(/[^0-9]/g, ""), 10);
+      const count = Number.isFinite(start) ? start + (ph.acted ? 1 : 0) : 0;
+      return (
+        <div style={{ ...root, position: "relative", width: 520 * sc, height: 300 * sc }}>
+          <span style={{ position: "absolute", left: 108 * sc, top: 78 * sc, display: "block", transform: `scale(${((0.6 + 0.4 * springOut(ph.enterT)) * (1 + choreo.press * 0.1)).toFixed(3)})` }}>
+            <HeartPath color={accent} filled={ph.acted} size={140 * sc} />
+          </span>
+          <span style={{ position: "absolute", left: 286 * sc, top: 118 * sc, fontWeight: 800, fontSize: 52 * sc }}>{count.toLocaleString("en-US")}</span>
+          {choreo.rippleP > 0 ? (
+            <span style={{ position: "absolute", left: 178 * sc, top: 148 * sc, width: (30 + choreo.rippleP * 150) * sc, height: (30 + choreo.rippleP * 150) * sc, borderRadius: "50%", border: `${4 * sc}px solid ${accent}`, opacity: choreo.rippleOpacity.toFixed(2), transform: "translate(-50%, -50%)" }} />
+          ) : null}
+          <Pointer x={choreo.x - 8} y={choreo.y - 3} press={choreo.press} sc={sc} />
+        </div>
+      );
+    }
+    case "share-pop": {
+      const sf = shareFlightAt(localMs, dur, parseInt((ls[1] ?? "248").replace(/[^0-9]/g, ""), 10) || 0);
+      const plane = (size: number, opacity: number) => (
+        <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden style={{ display: "block", opacity }}>
+          <path d="M8 52 L92 12 L58 88 L44 56 Z" fill={accent} />
+          <path d="M44 56 L92 12" stroke={CARD_BG} strokeWidth={4} />
+        </svg>
+      );
+      return (
+        <div style={{ ...root, ...card, position: "relative", display: "flex", alignItems: "center", gap: 16 * sc, width: 560 * sc, overflow: "visible" }}>
+          {avatar(72)}
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontWeight: 800, fontSize: 30 * sc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 0, "Creator Name")}</span>
+            <span style={{ display: "block", fontSize: 25 * sc, opacity: 0.8 }}>{sf.count.toLocaleString("en-US")} shares</span>
+          </span>
+          <span style={{ position: "relative", width: 76 * sc, height: 76 * sc, borderRadius: "50%", backgroundColor: shade(accent, 0.4), display: "grid", placeItems: "center", transform: `scale(${(1 + Math.sin(Math.min(1, Math.max(0, ph.act)) * Math.PI) * 0.12).toFixed(3)})` }}>
+            {plane(42 * sc, sf.p > 0 ? 0.35 : 1)}
+          </span>
+          {sf.p > 0 ? (
+            <span style={{ position: "absolute", right: 30 * sc, top: 6 * sc, transform: `translate(${(sf.x * sc).toFixed(1)}px, ${(sf.y * sc).toFixed(1)}px) rotate(${sf.rot.toFixed(1)}deg)` }}>
+              {plane(46 * sc, sf.opacity)}
+            </span>
+          ) : null}
+        </div>
+      );
+    }
+    case "save-pop": {
+      const popScale = (0.55 + 0.45 * springOut(ph.enterT)) * (1 + 0.16 * Math.sin(Math.min(1, Math.max(0, ph.act)) * Math.PI));
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * sc, width: 360 * sc }}>
+          <span style={{ display: "block", transform: `scale(${popScale.toFixed(3)})` }}>
+            <svg width={120 * sc} height={150 * sc} viewBox="0 0 100 124" aria-hidden style={{ display: "block" }}>
+              <path d="M22 8 L78 8 L78 116 L50 92 L22 116 Z" fill={ph.acted ? accent : "none"} stroke={accent} strokeWidth={7} strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span style={{ fontWeight: 800, fontSize: 32 * sc, opacity: ph.act, transform: `translateY(${((1 - ph.act) * 14 * sc).toFixed(1)}px)` }}>{line(ls, 0, "Saved")}</span>
+        </div>
+      );
+    }
+    case "follow-plus": {
+      const actStart = dur * 0.3 + Math.max(120, dur * 0.24);
+      const ringP = ph.acted ? ((localMs - actStart) % 1500) / 1500 : 0;
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 * sc, width: 340 * sc }}>
+          <span style={{ position: "relative", width: 168 * sc, height: 168 * sc, display: "block" }}>
+            {ph.acted ? <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: `${4 * sc}px solid ${accent}`, opacity: (1 - ringP).toFixed(2), transform: `scale(${(1 + ringP * 0.3).toFixed(3)})` }} /> : null}
+            <span style={{ position: "absolute", left: 9 * sc, top: 9 * sc }}>{avatar(150)}</span>
+            <span style={{ position: "absolute", right: 2 * sc, bottom: 2 * sc, width: 56 * sc, height: 56 * sc, borderRadius: "50%", backgroundColor: accent, display: "grid", placeItems: "center", border: `${4 * sc}px solid ${CARD_BG}`, transform: `scale(${(ph.acted ? 1 + 0.18 * Math.sin(Math.min(1, ph.act) * Math.PI) : 1).toFixed(3)})` }}>
+              {ph.acted ? <Check color="#141412" size={30 * sc} /> : (
+                <svg width={28 * sc} height={28 * sc} viewBox="0 0 100 100" aria-hidden><path d="M50 18 V82 M18 50 H82" stroke="#141412" strokeWidth={13} strokeLinecap="round" /></svg>
+              )}
+            </span>
+          </span>
+          <span style={{ fontWeight: 800, fontSize: 31 * sc }}>{line(ls, 0, "Creator Name")}</span>
+          <span style={{ fontSize: 25 * sc, opacity: 0.75, marginTop: -8 * sc }}>{line(ls, 1, "@handle")}</span>
+        </div>
+      );
+    }
+    case "gift-pop": {
+      const lidP = ph.act;
+      const pb = particleBurstAt(Math.max(0, localMs - dur * 0.4), dur * 0.6, seedOf(item.id) + 5, 10);
+      return (
+        <div style={{ ...root, position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 * sc, width: 400 * sc }}>
+          <span style={{ position: "relative", display: "block", width: 190 * sc, height: 190 * sc }}>
+            {ph.acted ? pb.dots.map((d) => <span key={d.i} style={{ position: "absolute", left: 95 * sc + d.x * sc * 0.8, top: 80 * sc + d.y * sc * 0.8, width: d.r * sc, height: d.r * sc, borderRadius: "50%", backgroundColor: accent, opacity: (d.opacity * 0.9).toFixed(2) }} />) : null}
+            <span style={{ position: "absolute", left: 10 * sc, top: 6 * sc, width: 170 * sc, height: 38 * sc, borderRadius: 10 * sc, backgroundColor: accent, transform: `translateY(${(-lidP * 40 * sc).toFixed(1)}px) rotate(${(-lidP * 13).toFixed(2)}deg)`, transformOrigin: "left bottom", opacity: (1 - lidP * 0.25).toFixed(2), boxShadow: "0 6px 18px rgba(0,0,0,0.35)" }} />
+            <span style={{ position: "absolute", left: 20 * sc, top: 44 * sc, width: 150 * sc, height: 118 * sc, borderRadius: 12 * sc, backgroundColor: shade(accent, 0.62) }}>
+              <span style={{ position: "absolute", left: "50%", top: 0, width: 26 * sc, height: "100%", transform: "translateX(-50%)", backgroundColor: accent }} />
+            </span>
+            <span style={{ position: "absolute", left: 10 * sc, top: 38 * sc, width: 170 * sc, height: 12 * sc, backgroundColor: accent, opacity: 0.9 }} />
+          </span>
+          <span style={{ fontWeight: 800, fontSize: 31 * sc }}>{line(ls, 0, "Thanks for the gift!")}</span>
+        </div>
+      );
+    }
+    case "bell-reminder": {
+      const actStart = dur * 0.3 + Math.max(120, dur * 0.24);
+      const ringMs = localMs - actStart;
+      const deg = ringMs > 0 ? bellRingDeg(ringMs) : 0;
+      const arcs = ringMs > 0 ? Math.max(0, Math.exp(-ringMs / 320)) : 0;
+      return (
+        <div style={{ ...root, ...card, display: "flex", alignItems: "center", gap: 18 * sc, width: 600 * sc }}>
+          <span style={{ width: 92 * sc, height: 92 * sc, borderRadius: "50%", backgroundColor: shade(accent, 0.4), display: "grid", placeItems: "center", flexShrink: 0 }}>
+            <Bell color={accent} size={58 * sc} deg={deg} arcs={arcs} />
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: "block", fontWeight: 800, fontSize: 31 * sc }}>{line(ls, 0, "Turn on notifications")}</span>
+            <span style={{ display: "block", fontSize: 25 * sc, opacity: 0.78 }}>{line(ls, 1, "Never miss a new video")}</span>
+          </span>
+        </div>
+      );
+    }
+    case "watch-next": {
+      const slideX = (1 - ph.enter) * 80 * sc;
+      return (
+        <div style={{ ...root, ...card, position: "relative", width: 620 * sc, overflow: "hidden", transform: `translateX(${slideX.toFixed(1)}px) translateY(${enterY.toFixed(1)}px)`, padding: 0 }}>
+          <span style={{ display: "flex", gap: 16 * sc, padding: `${16 * sc}px ${18 * sc}px ${22 * sc}px` }}>
+            <span style={{ position: "relative", width: 196 * sc, height: 122 * sc, borderRadius: 12 * sc, backgroundColor: shade(accent, 0.45), flexShrink: 0, display: "grid", placeItems: "center" }}>
+              <svg width={52 * sc} height={52 * sc} viewBox="0 0 100 100" aria-hidden><circle cx={50} cy={50} r={46} fill="rgba(20,20,18,0.55)" /><polygon points="40,32 72,50 40,68" fill={CARD_FG} /></svg>
+              <span style={{ position: "absolute", right: 8 * sc, bottom: 8 * sc, backgroundColor: "rgba(20,20,18,0.8)", color: CARD_FG, fontSize: 19 * sc, fontWeight: 700, padding: `${2 * sc}px ${7 * sc}px`, borderRadius: 6 * sc }}>12:48</span>
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 20 * sc, fontWeight: 800, letterSpacing: 2, color: accent }}>UP NEXT</span>
+              <span style={{ display: "block", fontWeight: 800, fontSize: 29 * sc, lineHeight: 1.25, marginTop: 4 * sc }}>{line(ls, 0, "How to Edit Videos — full guide")}</span>
+              <span style={{ display: "block", fontSize: 24 * sc, opacity: 0.75, marginTop: 4 * sc }}>{line(ls, 1, "Your Channel")}</span>
+            </span>
+          </span>
+          <span style={{ position: "absolute", left: 0, bottom: 0, height: 7 * sc, width: `${(ph.t * 100).toFixed(1)}%`, backgroundColor: accent }} />
+        </div>
+      );
+    }
+    case "chat-ticks": {
+      const ticks = chatTicksAt(localMs, dur);
+      const tickColor = ticks.stage === 2 ? accent : "#9A9A94";
+      const tickSvg = (
+        <svg width={40 * sc} height={24 * sc} viewBox="0 0 100 60" aria-hidden style={{ display: "block" }}>
+          <path d="M8 34 L26 50 L52 16" fill="none" stroke={tickColor} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" />
+          {ticks.stage >= 1 ? <path d="M40 34 L58 50 L84 16" fill="none" stroke={tickColor} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" /> : null}
+        </svg>
+      );
+      const bubble = (text: string, withTicks: boolean, i: number) => {
+        const p = easeOutQuint(clamp01((localMs - i * 260) / 320));
+        return (
+          <span key={i} style={{ alignSelf: "flex-end", maxWidth: "80%", opacity: p, transform: `translateY(${((1 - p) * 14 * sc).toFixed(1)}px)` }}>
+            <span style={{ display: "block", backgroundColor: accent, color: "#141412", borderRadius: 22 * sc, padding: `${13 * sc}px ${18 * sc}px`, fontSize: 27 * sc, fontWeight: 600, lineHeight: 1.3, boxShadow: "0 6px 20px rgba(0,0,0,0.35)" }}>{text}</span>
+            {withTicks ? <span style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 * sc, paddingRight: 6 * sc }}>{tickSvg}</span> : null}
+          </span>
+        );
+      };
+      const texts = ls.filter(Boolean).slice(0, 2);
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", gap: 10 * sc, width: 520 * sc }}>
+          {texts.map((t, i) => bubble(t, i === texts.length - 1, i))}
+        </div>
+      );
+    }
+    case "dm-typing": {
+      const switchMs = dur * 0.52;
+      const typing = localMs < switchMs;
+      const msgP = springOut(clamp01((localMs - switchMs) / 320));
+      return (
+        <div style={{ ...root, ...card, width: 560 * sc }}>
+          <span style={{ display: "flex", gap: 14 * sc, alignItems: "center", marginBottom: 14 * sc }}>
+            {avatar(58)}
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 800, fontSize: 29 * sc }}>{line(ls, 0, "Alex")}</span>
+              <span style={{ display: "block", fontSize: 22 * sc, color: accent }}>{typing ? "typing…" : "active now"}</span>
+            </span>
+          </span>
+          <span style={{ display: "flex", minHeight: 74 * sc, alignItems: "flex-start" }}>
+            {typing ? (
+              <span style={{ backgroundColor: "#2A2A27", borderRadius: 22 * sc, padding: `${16 * sc}px ${20 * sc}px`, display: "flex", gap: 8 * sc }}>
+                {[0, 1, 2].map((i) => (
+                  <span key={i} style={{ width: 12 * sc, height: 12 * sc, borderRadius: "50%", backgroundColor: CARD_FG, opacity: (0.35 + 0.65 * Math.abs(Math.sin(localMs / 300 - i * 0.9))).toFixed(2) }} />
+                ))}
+              </span>
+            ) : (
+              <span style={{ backgroundColor: "#2A2A27", borderRadius: 22 * sc, padding: `${14 * sc}px ${18 * sc}px`, fontSize: 27 * sc, lineHeight: 1.3, maxWidth: "88%", opacity: clamp01(msgP), transform: `scale(${(0.7 + 0.3 * msgP).toFixed(3)})`, transformOrigin: "left top" }}>{line(ls, 1, "That edit is exactly what I needed!")}</span>
+            )}
+          </span>
+        </div>
+      );
+    }
+    case "lower-third-bar": {
+      const slideX = (1 - ph.enter) * -90 * sc;
+      return (
+        <div style={{ ...root, position: "relative", width: 700 * sc, height: 104 * sc, transform: `translateX(${slideX.toFixed(1)}px)`, opacity: ph.enter * (1 - ph.exit) }}>
+          <span style={{ position: "absolute", left: 0, top: 0, height: 6 * sc, width: `${(ph.enter * 100).toFixed(1)}%`, backgroundColor: accent, borderRadius: 3 }} />
+          <span style={{ position: "absolute", left: 0, top: 12 * sc, right: 0, height: 92 * sc, backgroundColor: CARD_BG, borderRadius: 14 * sc, boxShadow: "0 10px 30px rgba(0,0,0,0.42)", display: "flex", alignItems: "center", gap: 18 * sc, padding: `0 ${24 * sc}px` }}>
+            <span style={{ width: 10 * sc, height: 56 * sc, backgroundColor: accent, borderRadius: 4, transform: `scaleY(${ph.enter.toFixed(3)})`, flexShrink: 0 }} />
+            <span style={{ fontWeight: 900, fontSize: 36 * sc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 0, "Creator Name")}</span>
+            <span style={{ marginLeft: "auto", fontSize: 27 * sc, fontWeight: 700, color: accent, whiteSpace: "nowrap" }}>{line(ls, 1, "Video Editor")}</span>
+          </span>
+        </div>
+      );
+    }
+    case "logo-mark": {
+      const sweep = easeInOutCubic(clamp01(ph.t * 1.5));
+      const C = 2 * Math.PI * 84;
+      const letterP = springOut(clamp01((localMs - dur * 0.16) / (dur * 0.3)));
+      const brand = line(ls, 0, "YOUR BRAND");
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * sc, width: 440 * sc }}>
+          <span style={{ position: "relative", width: 196 * sc, height: 196 * sc, display: "block" }}>
+            <svg width={196 * sc} height={196 * sc} viewBox="0 0 196 196" aria-hidden style={{ position: "absolute", inset: 0 }}>
+              <circle cx={98} cy={98} r={84} fill="none" stroke={`${accent}33`} strokeWidth={7} />
+              <circle cx={98} cy={98} r={84} fill="none" stroke={accent} strokeWidth={7} strokeLinecap="round" strokeDasharray={`${(C * sweep).toFixed(1)} ${C.toFixed(1)}`} transform="rotate(-90 98 98)" />
+            </svg>
+            <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontWeight: 900, fontSize: 88 * sc, color: accent, transform: `scale(${letterP.toFixed(3)})`, opacity: clamp01(letterP) }}>{brand.trim().charAt(0).toUpperCase() || "B"}</span>
+          </span>
+          <span style={{ fontWeight: 800, fontSize: 33 * sc, letterSpacing: 4, opacity: clamp01((ph.t - 0.42) / 0.25) }}>{brand}</span>
+        </div>
+      );
+    }
+    case "type-title": {
+      const title = line(ls, 0, "WATCH THIS FIRST");
+      const tp = typingAt(localMs, dur, title.length);
+      const underlineP = easeOutQuint(clamp01((localMs - dur * 0.72) / (dur * 0.2)));
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 * sc, width: 680 * sc }}>
+          <span style={{ fontWeight: 900, fontSize: 74 * sc, lineHeight: 1.08, textAlign: "center", minHeight: 84 * sc }}>
+            {title.slice(0, tp.chars)}
+            <span style={{ display: "inline-block", width: 4 * sc, height: "0.92em", marginLeft: 3 * sc, verticalAlign: "-0.08em", backgroundColor: accent, opacity: tp.caretOn ? 1 : 0 }} />
+          </span>
+          <span style={{ height: 8 * sc, width: 380 * sc, borderRadius: 4, backgroundColor: accent, transform: `scaleX(${underlineP.toFixed(3)})` }} />
+        </div>
+      );
+    }
+    case "countdown-pop": {
+      const cd = countdownAt(localMs, dur);
+      const C = 2 * Math.PI * 128;
+      const isWord = cd.step >= 3;
+      return (
+        <div style={{ ...root, position: "relative", width: 330 * sc, height: 330 * sc, display: "grid", placeItems: "center" }}>
+          <svg width={300 * sc} height={300 * sc} viewBox="0 0 300 300" aria-hidden style={{ position: "absolute" }}>
+            <circle cx={150} cy={150} r={128} fill="none" stroke={`${accent}2E`} strokeWidth={10} />
+            <circle cx={150} cy={150} r={128} fill="none" stroke={accent} strokeWidth={10} strokeLinecap="round" strokeDasharray={`${(C * (1 - cd.ringP)).toFixed(1)} ${C.toFixed(1)}`} transform="rotate(-90 150 150)" opacity={isWord ? 0 : 1} />
+          </svg>
+          <span style={{ fontWeight: 900, fontSize: (isWord ? 96 : 158) * sc, lineHeight: 1, color: isWord ? accent : CARD_FG, transform: `scale(${cd.p.toFixed(3)})`, opacity: clamp01(cd.p * 1.6) }}>{isWord ? line(ls, 0, "GO!") : cd.label}</span>
         </div>
       );
     }

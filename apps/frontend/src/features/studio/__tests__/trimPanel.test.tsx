@@ -23,9 +23,10 @@ function peaks(): Float32Array {
 describe("TrimPanel", () => {
   it("lists filler + pause proposals with the honest detection label (never AI)", () => {
     const { container } = render(<TrimPanel doc={doc} peaks={peaks()} durationMs={3900} onApply={vi.fn()} />);
-    expect(container.textContent).toContain("from your transcript and audio levels");
+    expect(container.textContent).toContain("From your transcript and audio levels");
     expect(container.textContent).toContain("not AI");
-    expect(container.textContent).toContain("150 ms of natural breath");
+    // (Package 3 H: the 150 ms breath-margin sentence was descriptive copy and
+    // was purged; the margin itself is still applied by the trim engine.)
     expect(screen.getByText(/Filler word "um"/)).toBeTruthy();
     expect(screen.getByText(/Pause 1\.5s/)).toBeTruthy();
   });

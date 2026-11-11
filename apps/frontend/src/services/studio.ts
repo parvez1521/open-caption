@@ -99,6 +99,9 @@ export const studioService = {
     onAbortReady?: (abort: () => void) => void,
     /** called as soon as the video has an id, before it is saved: captioning starts right then, in parallel */
     onRegistered?: (videoId: string) => void,
+    /** Package 2 item G: the Normal Editor door — the server opens the project with an
+     *  empty caption document and starts NO transcription job */
+    opts?: { editorMode?: boolean },
   ): Promise<{ jobId: string | null; videoId: string; noAudio?: boolean }> {
     const file = v.file;
     const mime = file.type || (file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : file.name.toLowerCase().endsWith(".mkv") ? "video/x-matroska" : "");
@@ -118,7 +121,7 @@ export const studioService = {
     // saving the copy and creating the transcribe job don't depend on each other
     const [, done] = await Promise.all([
       saveLocalVideo(reg.videoId, file),
-      apiClient.post<{ jobId: string | null; noAudio?: boolean }>(`/videos/${reg.videoId}/complete`, { json: { needsProxy: false } }),
+      apiClient.post<{ jobId: string | null; noAudio?: boolean }>(`/videos/${reg.videoId}/complete`, { json: { needsProxy: false, ...(opts?.editorMode ? { editorMode: true } : {}) } }),
     ]);
     onProgress(100);
     return { ...done, videoId: reg.videoId };

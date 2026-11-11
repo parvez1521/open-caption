@@ -1,25 +1,24 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
 import StudioShell from "@/components/studio/StudioShell";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
-import { useBrandNav } from "@/components/brand/BrandNav";
+import { ClipperWorkspace } from "@/features/clipper/ClipperWorkspace";
 
 /**
- * Clipper entry: long-form video in, short captioned clips out. The real work reuses the normal
- * studio flow — a project is uploaded and transcribed on-device exactly as always, and its
- * Clipper panel (opened directly from here) proposes segments from the transcript and creates
- * a normal caption project per clip. This page is the honest front door, not a second pipeline.
+ * Clipper — the standalone workspace (Package 3 item I.1: it opens in its own tab from the
+ * nav and from the Studio's launch card). Pick a captioned project and the workspace below
+ * proposes segments measured from its transcript, its audio silences and its scene changes,
+ * and creates a normal caption project per clip. Uploading and transcription still happen
+ * in the project's Studio — this page never pretends otherwise.
  */
-export default function ClipperPage() {
+function ClipperPageInner() {
   const router = useRouter();
-  const nav = useBrandNav();
   const [signedIn, setSignedIn] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -38,6 +37,16 @@ export default function ClipperPage() {
     enabled: signedIn,
   });
   const projects = data?.projects ?? [];
+  const searchParams = useSearchParams();
+  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("project"));
+  useEffect(() => {
+    const q = searchParams.get("project");
+    if (q) setSelectedId(q);
+  }, [searchParams]);
+  const select = (id: string) => {
+    setSelectedId(id);
+    router.replace(`/clipper?project=${id}`, { scroll: false });
+  };
 
   const startNew = async () => {
     setCreating(true);
@@ -45,8 +54,10 @@ export default function ClipperPage() {
     try {
       const used = projects.map((p) => /^Untitled (\d+)$/i.exec(p.title.trim())?.[1]).filter(Boolean).map(Number);
       const project = await projectsService.createProject(`Untitled ${String((used.length ? Math.max(...used) : 0) + 1).padStart(3, "0")}`);
-      // the studio's upload + on-device transcription run as normal; the Clipper panel opens when captions land
-      router.push(`/projects/${project.id}?clipper=1`);
+      // selected here straight away: the workspace shows its honest no-video state, with
+      // the link into the Studio where uploading + transcription actually happen
+      select(project.id);
+      setCreating(false);
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : "Couldn't create a project. Try again.");
       setCreating(false);
@@ -63,9 +74,9 @@ export default function ClipperPage() {
             </h1>
           </div>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Long-form video in, short captioned clips out. Clipper suggests 15–60 second segments
-            from your transcript — the speech between the silences — measured on your device. Pick a
-            project that already has captions, or start with a new long video.
+            Long-form video in, short captioned clips out. Suggestions are measured on your device
+            from the transcript, the audio&apos;s silence spans and frame-difference scene changes.
+            Pick a project that already has captions, or start with a new long video.
           </p>
           <button
             onClick={() => void startNew()}
@@ -88,33 +99,52 @@ export default function ClipperPage() {
           ) : projects.length === 0 ? (
             <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
               <p className="font-serif text-2xl font-semibold text-ink">No long video <em className="italic text-sand-600">yet.</em></p>
-              <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">Start with a new long video above: upload it in the studio, let the captions finish, and the Clipper panel will suggest the segments.</p>
+              <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">Start with a new long video above: upload it in the studio, let the captions finish, and the suggestions will appear here.</p>
             </div>
           ) : (
             <>
-              <h2 className="font-sora text-[13px] font-bold uppercase tracking-wider text-sand-600">Open a project in the Clipper</h2>
+              <h2 className="font-sora text-[13px] font-bold uppercase tracking-wider text-sand-600">Pick a project to clip</h2>
               <ul className="mt-4 space-y-2">
                 {projects.map((p) => (
                   <li key={p.id}>
-                    <Link
-                      href={`/projects/${p.id}?clipper=1`}
-                      onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); nav.go(`/projects/${p.id}?clipper=1`, "Opening the Clipper"); }}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-sand-200 bg-sand-50 px-4 py-3 transition hover:border-sand-300 hover:bg-sand-100"
+                    <button
+                      type="button"
+                      aria-pressed={selectedId === p.id}
+                      onClick={() => select(p.id)}
+                      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition ${selectedId === p.id ? "border-ink bg-sand-100" : "border-sand-200 bg-sand-50 hover:border-sand-300 hover:bg-sand-100"}`}
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-sora text-[14px] font-semibold text-ink">{p.title}</span>
                         <span className="block text-[12px] text-sand-600">Last edited {new Date(p.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
                       </span>
-                      <span className="shrink-0 font-sora text-[12px] font-semibold text-sand-600">Open Clipper →</span>
-                    </Link>
+                      <span className="shrink-0 font-sora text-[12px] font-semibold text-sand-600">{selectedId === p.id ? "Selected" : "Clip this →"}</span>
+                    </button>
                   </li>
                 ))}
               </ul>
-              <p className="mt-4 text-[13px] text-sand-700">A project without captions yet opens in the studio first — once its transcript is ready, its Clipper panel lists the suggested segments.</p>
             </>
           )}
         </div>
+
+        {selectedId ? (
+          <div className="pt-8">
+            <h2 className="font-sora text-[13px] font-bold uppercase tracking-wider text-sand-600">
+              {projects.find((p) => p.id === selectedId)?.title ?? "Project"} — clip suggestions
+            </h2>
+            <div className="mt-4">
+              <ClipperWorkspace key={selectedId} projectId={selectedId} />
+            </div>
+          </div>
+        ) : null}
       </div>
     </StudioShell>
+  );
+}
+
+export default function ClipperPage() {
+  return (
+    <Suspense fallback={null}>
+      <ClipperPageInner />
+    </Suspense>
   );
 }

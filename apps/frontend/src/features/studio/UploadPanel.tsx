@@ -9,6 +9,7 @@ import { studioService } from "@/services/studio";
 import { track } from "@/lib/track";
 import { ApiError } from "@/services/api-client";
 import { PrepareError, prepareVideo, type PrepareStage } from "@/features/upload/prepareVideo";
+import type { ProjectStartMode } from "./projectMode";
 import { Check, Film, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import { Button } from "./controls";
 
@@ -18,15 +19,21 @@ interface Props {
   note?: string;
   limits?: { maxBytes: number; maxDurationSec: number };
   language?: string | null;
+  /** Package 2 item G — which door this project started through. "editor" (Normal Editor):
+   *  the upload opens the Studio directly, no transcription, no language question. */
+  mode?: ProjectStartMode;
+  onModeChange?: (m: ProjectStartMode) => void;
 }
 
 const DEFAULT_LIMITS = { maxBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60 };
 
-/** Drag & drop / pick a video: checked and saved on this device (never uploaded), then captions start. */
-export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null }) => {
+/** Drag & drop / pick a video: checked and saved on this device (never uploaded), then captions start — or, through the Normal Editor door, the editor opens directly with no transcription. */
+export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null, mode = "captions", onModeChange }) => {
+  const editorMode = mode === "editor";
   // get the speech model ready while they pick a video, so captions start the moment it's in.
   // Desktop loads it into memory; phones only download the files (their memory is for the video).
   // Which model writes the captions depends on what's spoken: asked here, remembered for next time.
+  // (Normal Editor door: no model, no language question — captions can be generated later.)
   const [constrained] = useState(() => isConstrainedDevice());
   const [lang, setLang] = useState<SpeechLanguage | null>(() => {
     const fromProject = speechLanguageOf(language);
@@ -34,8 +41,9 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   });
   const [pending, setPending] = useState<File | null>(null);
   useEffect(() => {
+    if (editorMode) return;
     preloadSpeechModel(!window.matchMedia("(max-width: 767px), (pointer: coarse) and (hover: none)").matches, lang ?? likelySpeechLanguage());
-  }, [lang]);
+  }, [lang, editorMode]);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [over, setOver] = useState(false);
@@ -46,12 +54,12 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   const busy = progress !== null || prep !== null;
 
   const start = useCallback(
-    async (file: File, spoken: SpeechLanguage) => {
+    async (file: File, spoken: SpeechLanguage | null) => {
       setError(null);
       setPending(null);
-      const projectLanguage = PROJECT_LANGUAGE[spoken];
+      const projectLanguage = spoken ? PROJECT_LANGUAGE[spoken] : null;
       // saved on the project so a reload (or the next run) uses the same model
-      void studioService.savePatch(projectId, { language: projectLanguage }).catch(() => undefined);
+      if (spoken) void studioService.savePatch(projectId, { language: projectLanguage }).catch(() => undefined);
       setFileName(file.name);
       const ctrl = new AbortController();
       abortRef.current = () => ctrl.abort();
@@ -62,10 +70,10 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         setProgress(0);
         // captions start as soon as the video has an id (in parallel with saving it), not after the server round trips
         const done = await studioService.uploadVideo(projectId, ready, setProgress, (abort) => (abortRef.current = abort), (videoId) => {
-          if (!ready.hasAudio) return;
+          if (editorMode || !ready.hasAudio) return;
           track("video_added", { language: projectLanguage ?? "en", durationS: Math.round(ready.durationMs / 1000) });
           startSession({ projectId, videoId, file: ready.file, language: projectLanguage, info: { codec: ready.videoCodec, converted: ready.converted, previewMode: ready.previewMode, durationS: Math.round(ready.durationMs / 1000) } });
-        });
+        }, editorMode ? { editorMode: true } : undefined);
         if (done.jobId) void getSession(projectId)?.attachJob(done.jobId);
         setProgress(100);
         onUploaded();
@@ -80,8 +88,8 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
     },
     [projectId, onUploaded, limits],
   );
-  /** a video picked before the language was: ask first, then start */
-  const pick = (f: File) => (lang ? void start(f, lang) : setPending(f));
+  /** a video picked before the language was: ask first, then start (the editor door never asks) */
+  const pick = (f: File) => (editorMode ? void start(f, null) : lang ? void start(f, lang) : setPending(f));
   const choose = (l: SpeechLanguage) => {
     setLang(l);
     saveSpeechLanguage(l);
@@ -101,6 +109,25 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         }}
         className={`w-full max-w-xl rounded-2xl border-2 border-dashed p-10 text-center transition ${over ? "border-st-ink bg-st-lav/40" : "border-st-hover bg-st-panel"}`}
       >
+        {onModeChange && !busy && !prep ? (
+          <div className="mx-auto mb-5 grid max-w-md grid-cols-2 gap-1 rounded-xl border border-st-line bg-st-raised/60 p-1" role="radiogroup" aria-label="How this project starts">
+            {([
+              { m: "captions" as ProjectStartMode, label: "Captions", sub: "Transcribe & caption" },
+              { m: "editor" as ProjectStartMode, label: "Normal Editor", sub: "Edit only — captions later" },
+            ]).map((o) => (
+              <button
+                key={o.m}
+                role="radio"
+                aria-checked={mode === o.m}
+                onClick={() => onModeChange(o.m)}
+                className={`rounded-lg px-3 py-2 text-left transition ${mode === o.m ? "bg-st-panel shadow-sm" : "opacity-70 hover:opacity-100"}`}
+              >
+                <span className="block text-sm font-semibold text-st-text">{o.label}</span>
+                <span className="block text-[11px] leading-tight text-st-muted">{o.sub}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className={`mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-st-line bg-st-lav/60 text-obsidian transition-transform ${over ? "scale-110" : ""}`} aria-hidden>
           <Upload className="h-6 w-6" />
         </div>
@@ -144,7 +171,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
           </div>
         ) : (
           <>
-            <LanguageChoice value={lang} onChange={choose} asking={!!pending} />
+            {editorMode ? null : <LanguageChoice value={lang} onChange={choose} asking={!!pending} />}
             {pending ? (
               <p className="mt-3 text-xs text-st-muted">Pick the language and <span className="font-medium text-st-text">{pending.name}</span> starts right away.</p>
             ) : (

@@ -1,6 +1,7 @@
 import React from "react";
 import { emotionModifier, applyEmotion } from "./emotion";
-import { SPRINGS, springMs } from "./motion";
+import { SPRINGS, effectiveIntensity, entranceStyle, springMs } from "./motion";
+import { usesCardEntrance } from "./controls";
 import { getTemplate } from "./registry";
 import { layoutBox, scaleOf } from "./text";
 import type { PageRenderProps } from "./types";
@@ -40,6 +41,14 @@ const EmojiBurst: React.FC<PageRenderProps> = ({ page, timeMs, style, canvas, se
 /**
  * Renders ONE derived page with the template named by style.templateId, after applying the card's emotion.
  * Pure in its props, so it is identical in the browser Player and in renderMedia (the WYSIWYG guarantee).
+ *
+ * Card-level entrance (Package 2 item D): layouts that declare entrances of their own apply
+ * entranceStyle themselves; layouts that declare NONE (usesCardEntrance) get the entrance the
+ * shared renderer guarantees — entranceStyle on a full-canvas wrapper — but ONLY while the
+ * entrance is actually playing and only when a non-"none" type is chosen, so settled renders
+ * and un-chosen styles stay byte-identical to before. The wrapper is absolutely positioned
+ * inset-0, so the layout's own absolute positioning resolves against the same box as the
+ * composition's fill. Exits are unaffected (layouts already apply exitStyle everywhere).
  */
 export const PageView: React.FC<PageRenderProps> = (props) => {
   const { page, timeMs } = props;
@@ -48,9 +57,19 @@ export const PageView: React.FC<PageRenderProps> = (props) => {
   const tpl = getTemplate(props.style.templateId);
   const style = applyEmotion(props.style, tpl, page.emotion);
   const Template = tpl.Page;
+  const localMs = timeMs - page.startMs;
+  const cardEnter = usesCardEntrance(tpl) && style.entrance.type !== "none" && !props.settled && localMs < style.entrance.durationMs
+    ? entranceStyle(style, localMs, props.canvas.fps, effectiveIntensity(style, page.emotion), props.settled, style.fontSize * scaleOf(props.canvas))
+    : null;
   return (
     <>
-      <Template {...props} style={style} />
+      {cardEnter ? (
+        <div style={{ position: "absolute", inset: 0, ...cardEnter }}>
+          <Template {...props} style={style} />
+        </div>
+      ) : (
+        <Template {...props} style={style} />
+      )}
       <EmojiBurst {...props} style={style} />
     </>
   );

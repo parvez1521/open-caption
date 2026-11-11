@@ -191,6 +191,19 @@ export function mergeWithPrevious(doc: CaptionDoc, wordId: string): CaptionDoc {
   });
 }
 
+/** "Merge with next card" (Package 2 item B): the mirror of mergeWithPrevious — the word's
+ *  card continues into the FOLLOWING card: the break before the next word is removed and a
+ *  break after this word is forbidden. Same touch/undo semantics; no-op on the last word. */
+export function mergeWithNext(doc: CaptionDoc, wordId: string): CaptionDoc {
+  const i = indexOfWord(doc, wordId);
+  if (i < 0 || i >= doc.words.length - 1) return doc;
+  const next = doc.words[i + 1]!;
+  return touch(doc, {
+    manualBreaks: doc.manualBreaks.filter((x) => x !== next.id),
+    noBreakAfter: doc.noBreakAfter.includes(wordId) ? doc.noBreakAfter : [...doc.noBreakAfter, wordId],
+  });
+}
+
 export function setCardEmotion(doc: CaptionDoc, firstWordId: string, emotion: Emotion | undefined, source: "user" | "ai" | "heuristic" = "user"): CaptionDoc {
   const cards = { ...doc.cards };
   const cur = { ...cards[firstWordId] };

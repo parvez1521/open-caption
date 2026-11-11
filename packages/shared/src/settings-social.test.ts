@@ -20,7 +20,7 @@ describe("social overlay items (schema)", () => {
   });
   it("every new Motion Studio variant is accepted and made-up ones rejected", () => {
     const NEW = ["profile-card", "notification-pop", "dm-popup", "story-ring", "lower-third", "logo-reveal", "qr-frame", "kinetic-title", "glitch-title", "neon-sign", "particle-burst", "typing-post", "upvote-card", "live-badge", "product-tag", "form-card", "audio-bars"];
-    expect(OVERLAY_SOCIAL_VARIANTS).toHaveLength(30);
+    expect(OVERLAY_SOCIAL_VARIANTS).toHaveLength(46);
     for (const variant of NEW) {
       expect(OverlayItemSchema.safeParse({ ...base, kind: "social", variant }).success, variant).toBe(true);
     }

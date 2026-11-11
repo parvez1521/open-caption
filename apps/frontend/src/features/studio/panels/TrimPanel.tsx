@@ -52,7 +52,7 @@ export const TrimPanel: React.FC<Props> = ({ doc, peaks, durationMs, onSeek, onA
   if (doc.words.length === 0) {
     return (
       <div className="h-full overflow-y-auto">
-        <Section title="Trim" hint="Filler words and long pauses are proposed from your transcript and audio levels once this video has captions.">
+        <Section title="Trim">
           <p className="text-sm text-st-muted">No captions yet, so there is nothing to trim.</p>
         </Section>
       </div>
@@ -63,7 +63,7 @@ export const TrimPanel: React.FC<Props> = ({ doc, peaks, durationMs, onSeek, onA
     <div className="h-full overflow-y-auto">
       <Section
         title="Trim fillers & pauses"
-        hint={`Proposals are measured from your transcript and audio levels — a filler word's exact span, and pauses where a transcript gap and low audio agree. This is a deterministic check, not AI. Pause cuts keep ${BREATH_MARGIN_MS} ms of natural breath at each edge, and no cut ever lands inside a word. Review each cut, then apply — all checked cuts land as one undo step.`}
+        hint="From your transcript and audio levels — deterministic, not AI."
       >
         <label className="block text-sm text-st-text/90">
           <span className="mb-1 flex justify-between">

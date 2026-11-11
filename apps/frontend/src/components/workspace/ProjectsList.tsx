@@ -9,6 +9,7 @@ import { useBrandNav } from "@/components/brand/BrandNav";
 import { LogoWave } from "@/components/brand/LogoWave";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { studioService } from "@/services/studio";
+import { setProjectMode, type ProjectStartMode } from "@/features/studio/projectMode";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
 
 const STATUS_CHIP: Record<ProjectStatus, { label: string; cls: string; pulse?: boolean }> = {
@@ -46,6 +47,7 @@ export default function ProjectsList() {
   const [deleting, setDeleting] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [createMode, setCreateMode] = useState<ProjectStartMode>("captions");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
@@ -91,7 +93,8 @@ export default function ProjectsList() {
       const created = await projectsService.createProject(newTitle.trim());
       setCreateOpen(false);
       setNewTitle("");
-      nav.go(`/projects/${created.id}`, "Opening your project");
+      setProjectMode(created.id, createMode);
+      nav.go(`/projects/${created.id}?mode=${createMode}`, "Opening your project");
     } catch (err: any) {
       setCreateError(err.message || "Couldn't create the project. Please try again.");
     } finally {
@@ -295,6 +298,25 @@ export default function ProjectsList() {
             {createError && <div className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{createError}</div>}
             <form onSubmit={handleCreate} className="mt-5 space-y-5">
               <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Podcast ep. 12 — hook cut" autoFocus required disabled={creating} className="w-full rounded-lg border border-sand-300 bg-white px-4 py-3 text-[14px] text-ink placeholder:text-sand-500 outline-none transition-colors focus:border-sand-600 focus:ring-2 focus:ring-sand-200" />
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="How this project starts">
+                {([
+                  { m: "captions" as ProjectStartMode, label: "Captions", sub: "Transcribe & caption the video" },
+                  { m: "editor" as ProjectStartMode, label: "Normal Editor", sub: "Just edit — captions later, if wanted" },
+                ]).map((o) => (
+                  <button
+                    key={o.m}
+                    type="button"
+                    role="radio"
+                    aria-checked={createMode === o.m}
+                    disabled={creating}
+                    onClick={() => setCreateMode(o.m)}
+                    className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${createMode === o.m ? "border-ink bg-sand-100" : "border-sand-300 bg-white hover:border-sand-600"}`}
+                  >
+                    <span className="block text-[13px] font-semibold text-ink">{o.label}</span>
+                    <span className="block text-[11px] leading-tight text-sand-700">{o.sub}</span>
+                  </button>
+                ))}
+              </div>
               <div className="flex justify-end gap-3">
                 <button type="button" onClick={() => setCreateOpen(false)} disabled={creating} className="rounded-full border border-sand-300 px-5 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Cancel</button>
                 <button type="submit" disabled={creating || !newTitle.trim()} className="rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "Create project"}</button>

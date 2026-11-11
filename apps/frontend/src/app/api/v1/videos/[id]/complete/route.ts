@@ -1,6 +1,6 @@
 import { CompleteVideoBody } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
-import { openSilentVideo } from "@/lib/api/transcripts";
+import { openSilentVideo, openWithoutCaptions } from "@/lib/api/transcripts";
 import { startTranscription } from "@/lib/api/engine";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { enqueueJob } from "@/lib/api/jobs";
@@ -27,6 +27,14 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   if (video.has_audio === false) {
     await openSilentVideo({ projectId: video.project_id, ownerId: user.id, videoId });
     return ok({ jobId: null, engine: "none", companionOnline: false, cloudAvailable: false, noAudio: true });
+  }
+
+  // Package 2 item G — the "Normal Editor" door: no transcription job at all; the project
+  // opens in the editor with an empty caption document (captions can be generated later
+  // from the Captions panel, which starts the same transcription this route would have).
+  if (body.editorMode === true) {
+    await openWithoutCaptions({ projectId: video.project_id, ownerId: user.id });
+    return ok({ jobId: null, engine: "none", companionOnline: false, cloudAvailable: false, noAudio: false, editorMode: true });
   }
 
   // idempotent per video: a retried "complete" returns the same job

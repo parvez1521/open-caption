@@ -40,7 +40,7 @@ export const ElementsPanel: React.FC<OverlayPanelProps> = ({ settings, patch, se
     : OVERLAY_SHAPE_META.find((s) => s.id === o.shape)?.label ?? "Shape";
   return (
     <div className="h-full overflow-y-auto">
-      <Section title="Social Media" hint="Animated graphics drawn by Open Caption — no platform logos, your own words and colour. Pick one to place it at the playhead; it animates in the preview and the exported MP4.">
+      <Section title="Social Media">
         {SOCIAL_GROUPS.map((g) => (
           <div key={g.category} className="space-y-2">
             <h3 className="text-[11px] font-bold uppercase tracking-wider text-st-faint">{motionCategoryLabel(g.category)}</h3>
@@ -60,17 +60,14 @@ export const ElementsPanel: React.FC<OverlayPanelProps> = ({ settings, patch, se
                   {/* the graphic's REAL animation, live in the card (AnimatedSocialPreview renders the
                       same OverlayView the preview + export use) — a name alone never showed what it does */}
                   <AnimatedSocialPreview variant={m.id} />
-                  <span className="flex flex-col items-start gap-1 px-3 py-2.5">
-                    <span className="text-[12px] font-semibold leading-tight text-st-text">{m.label}</span>
-                    <span className="text-[11px] leading-snug text-st-faint">{m.hint.split(".")[0]}.</span>
-                  </span>
+                  <span className="px-3 py-2.5 text-[12px] font-semibold leading-tight text-st-text">{m.label}</span>
                 </button>
               ))}
             </div>
           </div>
         ))}
       </Section>
-      <Section title="Elements" hint="Shapes drawn by Open Caption. Pick one to place it over the video at the playhead, for three seconds.">
+      <Section title="Elements">
         <div className="grid grid-cols-3 gap-2">
           {OVERLAY_SHAPE_META.map((s) => (
             <button

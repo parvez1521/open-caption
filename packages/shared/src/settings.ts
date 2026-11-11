@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TranslationTargetSchema } from "./translate";
+import { ENTRANCES, EXITS } from "./style";
 
 export const PlatformSchema = z.enum(["tiktok", "reels", "shorts", "youtube", "linkedin", "podcast", "custom"]);
 export type Platform = z.infer<typeof PlatformSchema>;
@@ -33,7 +34,10 @@ export const NEUTRAL_VIDEO_ADJUST: VideoAdjust = {
 };
 
 /** The app's own overlay shape set (inline SVG, drawn in packages/compositions). */
-export const OVERLAY_SHAPES = ["ring", "circle", "arrow", "check", "star", "heart", "rectangle", "scribble-underline", "triangle"] as const;
+export const OVERLAY_SHAPES = ["ring", "circle", "arrow", "check", "star", "heart", "rectangle", "scribble-underline", "triangle",
+  // Package 2 item F batch: everyday creator geometry, same hand-drawn SVG family
+  "rounded-rectangle", "ellipse", "diamond", "chevron", "double-arrow", "speech-bubble", "underline-bar",
+  "corner-brackets", "progress-bar", "plus", "cross", "badge"] as const;
 export const OverlayShapeSchema = z.enum(OVERLAY_SHAPES);
 export type OverlayShape = z.infer<typeof OverlayShapeSchema>;
 
@@ -50,6 +54,11 @@ export const OVERLAY_SOCIAL_VARIANTS = [
   "logo-reveal", "qr-frame", "kinetic-title", "glitch-title", "neon-sign",
   "particle-burst", "typing-post", "upvote-card", "live-badge", "product-tag",
   "form-card", "audio-bars", "post-card", "repost-card", "voice-card",
+  // Follow-up batch (2026-11-11): the cursor move→click→react family plus the most-used
+  // social patterns the first library lacked (share/save, read ticks, countdown, up-next…).
+  "cursor-click", "cursor-follow", "cursor-subscribe", "cursor-like",
+  "share-pop", "save-pop", "follow-plus", "gift-pop", "bell-reminder", "watch-next",
+  "chat-ticks", "dm-typing", "lower-third-bar", "logo-mark", "type-title", "countdown-pop",
 ] as const;
 export const OverlaySocialVariantSchema = z.enum(OVERLAY_SOCIAL_VARIANTS);
 export type OverlaySocialVariant = z.infer<typeof OverlaySocialVariantSchema>;
@@ -83,6 +92,19 @@ export const OverlayItemSchema = z
       .regex(/^#[0-9a-fA-F]{6}$/, "colour must be a #rrggbb hex value")
       .default("#FFFFFF"),
     fontSize: z.number().min(12).max(300).optional(),
+    /**
+     * Package 3 item I.5 — entrance/exit animation for EVERY overlay kind, in the SAME
+     * motion system as the captions' In/Out (Package 2 item D): the same preset vocabulary
+     * (ENTRANCES / EXITS from the caption style model) and the same speed semantics
+     * (a multiplier over the renderer's base duration). Absent = no animation, exactly
+     * the pre-existing behaviour. The renderer applies the box-applicable subset of the
+     * presets (see OVERLAY_ENTER_ANIMS in @capseasy/compositions); letter-level presets
+     * stay caption-only because an overlay is one box, not letters.
+     */
+    enterAnim: z.enum(ENTRANCES).optional(),
+    enterSpeed: z.number().min(0.5).max(2).optional(),
+    exitAnim: z.enum(EXITS).optional(),
+    exitSpeed: z.number().min(0.5).max(2).optional(),
   })
   .refine((o) => o.endMs > o.startMs, { message: "endMs must be after startMs", path: ["endMs"] })
   .refine((o) => o.kind !== "shape" || o.shape !== undefined, { message: "shape overlays need a shape", path: ["shape"] })

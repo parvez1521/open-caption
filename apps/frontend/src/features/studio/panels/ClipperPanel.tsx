@@ -3,7 +3,9 @@
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CaptionDoc } from "@capseasy/shared";
-import { clampClipRange, createClipProject, fmtClipRange, rankClipProposals } from "@/features/clipper/clipper";
+import { clampClipRange, clipTargetCount, createClipProject, fmtClipRange, rankClipProposals } from "@/features/clipper/clipper";
+import { elementSuggestionsFor } from "@/features/clipper/suggestions";
+import { brollLicenceFor, brollQueryFor, downloadBrollFile, savedBrollKey, searchBroll, type BrollSuggestion } from "@/features/clipper/broll";
 import { detectSilences } from "@/features/clipper/analysis";
 import { useSceneAnalysis } from "@/features/clipper/useSceneAnalysis";
 import { ClipExplanation } from "@/features/clipper/ClipExplanation";
@@ -46,8 +48,13 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
     [peaks],
   );
   const proposals = useMemo(
-    () => rankClipProposals(doc.words.filter((w) => !w.hidden), { silences, sceneCuts: scene.cuts }),
-    [doc, silences, scene.cuts],
+    () => {
+      const ranked = rankClipProposals(doc.words.filter((w) => !w.hidden), { silences, sceneCuts: scene.cuts });
+      // Package 3 item I.2: ~1 suggestion per 6 minutes of video, min 3, max 8, and
+      // never more than the signals actually produced (the ranked list IS the support)
+      return ranked.slice(0, clipTargetCount(mediaDurationMs, ranked.length));
+    },
+    [doc, silences, scene.cuts, mediaDurationMs],
   );
   // Per-proposal user state is keyed by the proposal's own range (the same identity the
   // article's React key uses), NOT by list position: when scene analysis lands, proposals
@@ -64,6 +71,12 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
   const [windows, setWindows] = useState<Record<string, CropWindow>>({});
   const [titles, setTitles] = useState<Record<string, ClipTitleState | null>>({});
   const titleDeps = useClipTitleDeps();
+  // Package 3 item I.3/I.4: per-proposal suggestion state, keyed like `edits`.
+  // `ticked` starts EMPTY for every clip — an element is placed only when ticked.
+  const [ticked, setTicked] = useState<Record<string, string[]>>({});
+  const [brollState, setBrollState] = useState<Record<string, { status: "idle" | "loading" | "ready" | "error"; results: BrollSuggestion[]; selected: number[]; error?: string }>>({});
+  const [createdWithWarnings, setCreatedWithWarnings] = useState<{ id: string; warnings: string[] } | null>(null);
+  const brollKey = savedBrollKey();
 
   if (doc.words.length === 0) {
     return (
@@ -84,8 +97,20 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
     const range = clampClipRange(rangeOf(p), mediaDurationMs);
     setBusyKey(k);
     setError(null);
+    setCreatedWithWarnings(null);
     try {
-      const { projectId: newId } = await createClipProject({
+      // B-roll downloads happen BEFORE anything is created: a failed download aborts
+      // the whole creation with the reason shown, instead of a half-loaded clip.
+      const bs = brollState[k];
+      const chosenBroll = (bs?.results ?? []).filter((r) => (bs?.selected ?? []).includes(r.id));
+      const broll: { file: File; licence: ReturnType<typeof brollLicenceFor> }[] = [];
+      for (const s of chosenBroll) {
+        broll.push({ file: await downloadBrollFile(s), licence: brollLicenceFor(s, new Date().toISOString().slice(0, 10)) });
+      }
+      // only the TICKED suggestions are built into elements (unticked = never placed)
+      const suggestions = elementSuggestionsFor(p, { mediaDurationMs, title: titles[k]?.text });
+      const elements = suggestions.filter((s) => (ticked[k] ?? []).includes(s.id)).map((s) => s.item);
+      const { projectId: newId, warnings } = await createClipProject({
         sourceProjectId: projectId,
         sourceTitle,
         sourceVideoId,
@@ -96,11 +121,31 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
         title: titles[k]?.text.trim() ? titles[k]!.text : undefined,
         // the chosen crop window, only when reframing is on for this clip
         reframeWindow: canReframe && !reframeOff[k] ? (windows[k] ?? DEFAULT_CROP_WINDOW) : undefined,
+        elements: elements.length ? elements : undefined,
+        broll: broll.length ? broll : undefined,
       });
-      router.push(`/projects/${newId}`);
+      if (warnings.length) {
+        // the clip exists; say plainly what didn't ride along, and let the user open it
+        setCreatedWithWarnings({ id: newId, warnings });
+        setBusyKey(null);
+      } else {
+        router.push(`/projects/${newId}`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't create the clip. Try again.");
       setBusyKey(null);
+    }
+  };
+
+  const findBroll = async (p: (typeof proposals)[number]) => {
+    const k = keyOf(p);
+    if (!brollKey) return;
+    setBrollState((prev) => ({ ...prev, [k]: { status: "loading", results: [], selected: [] } }));
+    try {
+      const results = await searchBroll(brollQueryFor(p.text), brollKey);
+      setBrollState((prev) => ({ ...prev, [k]: { status: "ready", results, selected: [] } }));
+    } catch (e) {
+      setBrollState((prev) => ({ ...prev, [k]: { status: "error", results: [], selected: [], error: e instanceof Error ? e.message : "Search failed." } }));
     }
   };
 
@@ -192,6 +237,67 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
                     state={titles[k] ?? null}
                     onState={(next) => setTitles((prev) => ({ ...prev, [k]: next }))}
                   />
+                  {/* Package 3 item I.3: suggested elements — ticked ones only are placed */}
+                  {(() => {
+                    const suggestions = elementSuggestionsFor(p, { mediaDurationMs, title: titles[k]?.text });
+                    return (
+                      <div className="mt-3">
+                        <span className="mb-1.5 block text-[11px] font-medium text-st-faint">Suggested elements — only ticked ones are added</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {suggestions.map((s) => {
+                            const on = (ticked[k] ?? []).includes(s.id);
+                            return (
+                              <label key={s.id} className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${on ? "border-st-ink bg-st-lav text-st-ink" : "border-st-line bg-st-panel text-st-muted"}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={on}
+                                  onChange={(e) => setTicked((prev) => ({ ...prev, [k]: e.target.checked ? [...(prev[k] ?? []), s.id] : (prev[k] ?? []).filter((id) => id !== s.id) }))}
+                                  className="h-3.5 w-3.5 accent-[#34D399]"
+                                />
+                                {s.label}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {/* Package 3 item I.4: B-roll suggestions from Pixabay (your own key) */}
+                  <div className="mt-3">
+                    <span className="mb-1.5 block text-[11px] font-medium text-st-faint">B-roll suggestions</span>
+                    {!brollKey ? (
+                      <p className="text-xs text-st-faint">Add your free Pixabay key in the Sound Effects panel to get B-roll suggestions here.</p>
+                    ) : !brollState[k] || brollState[k]!.status === "idle" ? (
+                      <Button onClick={() => void findBroll(p)} className="!py-1 text-xs">Find B-roll for this clip</Button>
+                    ) : brollState[k]!.status === "loading" ? (
+                      <p className="text-xs text-st-faint">Searching Pixabay…</p>
+                    ) : brollState[k]!.status === "error" ? (
+                      <p className="text-xs text-st-text">{brollState[k]!.error}</p>
+                    ) : brollState[k]!.results.length === 0 ? (
+                      <p className="text-xs text-st-faint">No B-roll found for this clip&apos;s words.</p>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {brollState[k]!.results.map((r) => {
+                          const on = brollState[k]!.selected.includes(r.id);
+                          return (
+                            <button
+                              key={r.id}
+                              type="button"
+                              aria-pressed={on}
+                              title={on ? "Selected — added to the clip's media bin on create" : "Select this B-roll"}
+                              onClick={() => setBrollState((prev) => ({ ...prev, [k]: { ...prev[k]!, selected: on ? prev[k]!.selected.filter((id) => id !== r.id) : [...prev[k]!.selected, r.id] } }))}
+                              className={`relative overflow-hidden rounded-lg border-2 ${on ? "border-st-em" : "border-transparent"}`}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={r.previewUrl} alt={r.tags || "B-roll suggestion"} className="aspect-video w-full object-cover" loading="lazy" />
+                              <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-[10px] tabular-nums text-white">{r.durationSec}s</span>
+                              {on ? <span className="absolute left-1 top-1 rounded bg-st-em px-1 text-[10px] font-bold text-black">Added on create</span> : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                   <Button tone="primary" disabled={busyKey !== null} onClick={() => void create(p)} className="mt-2 w-full">
                     {busyKey === k ? "Creating clip…" : "Create clip"}
                   </Button>
@@ -201,6 +307,12 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
           </div>
         )}
         {error ? <p role="alert" className="mt-3 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">{error}</p> : null}
+        {createdWithWarnings ? (
+          <div role="alert" className="mt-3 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">
+            <p>The clip was created, but {createdWithWarnings.warnings.join("; ")}.</p>
+            <Button tone="primary" className="mt-2" onClick={() => router.push(`/projects/${createdWithWarnings.id}`)}>Open the clip</Button>
+          </div>
+        ) : null}
       </Section>
     </div>
   );

@@ -15,8 +15,13 @@ import type { BrowserExportContainer, BrowserExportVideoCodec, BrowserVideoExpor
  * `src: null` and mode "burn", CaptionedVideo paints exactly that colour behind the overlays
  * (verified at the composition level in packages/compositions overlayOnly tests).
  *
- * Every in-browser format here is OPAQUE. The copy constants below are the single source the
- * UI renders, and tests pin that no in-browser format is ever described as transparent.
+ * The "webm-alpha" format is the ONE transparent in-browser format: it renders with
+ * `backdrop: null` (the composition then paints nothing behind the overlay) through the web
+ * renderer's alpha path, and is offered ONLY behind the strict capability probe
+ * (alphaCapability.ts) plus the renderer's own transparent check. After encoding, the run
+ * helper demands a post-encode alpha verification (alphaVerify.ts, injected as a dep) —
+ * without a passing verification NOTHING is saved: an opaque file is never delivered
+ * labelled transparent. The copy constants below are the single source the UI renders.
  */
 
 /* ---------------- honest copy (pinned by tests) ---------------- */
@@ -26,7 +31,9 @@ export const CHROMA_BACKGROUND_LABEL = "Solid colour background for chroma-key r
 /** Shown wherever the MP4/WebM format choice is made. */
 export const SOLID_BACKGROUND_FORMAT_NOTE = "These files have a solid background";
 /** The one honest line about transparency in the in-browser export section. */
-export const TRANSPARENT_EXPORT_NOTE = "Transparent export: available via the desktop Companion app (MOV/WebM with alpha). In-browser exports use a solid background.";
+export const TRANSPARENT_EXPORT_NOTE = "Transparent export: available in this browser as WebM when the alpha checks pass (the option then appears above), and via the desktop Companion app (MOV/WebM with alpha).";
+/** Shown when a transparent render's post-encode alpha check fails — the file is NOT saved. */
+export const TRANSPARENT_VERIFY_FAILED_MESSAGE = "The render finished without real transparency, so nothing was downloaded — an opaque file is never labelled transparent. Try a solid-background format, or the Companion app.";
 
 /**
  * Default chroma colour: #00FF00, pure green. Keyers separate on the green channel, and a
@@ -75,7 +82,7 @@ export const MOTION_EXPORT_FPS_OPTIONS: { fps: 30 | 60; hint: string }[] = [
   { fps: 60, hint: "Smoother motion — the animation is drawn fresh at every frame, so 60 fps adds real in-between frames." },
 ];
 
-export type MotionExportFormatId = "mp4" | "webm";
+export type MotionExportFormatId = "mp4" | "webm" | "webm-alpha";
 
 export interface MotionExportFormat {
   id: MotionExportFormatId;
@@ -83,13 +90,14 @@ export interface MotionExportFormat {
   ext: "mp4" | "webm";
   container: BrowserExportContainer;
   videoCodec: BrowserExportVideoCodec;
-  /** pinned false: in-browser renders are always opaque (see alphaCapability.ts) */
-  transparent: false;
+  /** true ONLY for webm-alpha — gated behind the alpha probe + post-encode verification */
+  transparent: boolean;
 }
 
 export const MOTION_EXPORT_FORMATS: MotionExportFormat[] = [
   { id: "mp4", label: "MP4", ext: "mp4", container: "mp4", videoCodec: "h264", transparent: false },
   { id: "webm", label: "WebM", ext: "webm", container: "webm", videoCodec: "vp9", transparent: false },
+  { id: "webm-alpha", label: "WebM — transparent background", ext: "webm", container: "webm", videoCodec: "vp9", transparent: true },
 ];
 
 export interface MotionExportSelection {
@@ -146,7 +154,10 @@ export interface BuiltMotionExport {
   height: number;
   fps: 30 | 60;
   durationMs: number;
+  /** the solid colour painted behind the overlay, or the literal "transparent" for webm-alpha */
   backgroundColor: string;
+  /** true for the webm-alpha format: backdrop null + renderer alpha path + post-encode verify */
+  transparent: boolean;
   /** the single overlay item: spans [0, durationMs), centred, scale-fitted */
   item: OverlayItem;
   /** the in-memory render input — never saved as a project */
@@ -169,17 +180,19 @@ export function buildMotionExport(
   assetSrc?: string,
 ): BuiltMotionExport {
   const { width, height } = motionExportDimensions(selection.aspect, selection.shortEdge);
-  const backgroundColor = motionExportBackgroundColor(selection);
+  const format = MOTION_EXPORT_FORMATS.find((f) => f.id === selection.format) ?? MOTION_EXPORT_FORMATS[0]!;
+  // Transparent: no backdrop at all — with src null the composition then paints nothing behind
+  // the overlay, so the renderer's alpha path carries real transparency into the WebM.
+  const backgroundColor = format.transparent ? "transparent" : motionExportBackgroundColor(selection);
   const base = buildMotionOverlayItem(config, 0, asset ?? null);
   const item: OverlayItem = { ...base, x: 0.5, y: 0.5, scale: fitScaleForCanvas(config.variant, width, height) };
-  const format = MOTION_EXPORT_FORMATS.find((f) => f.id === selection.format) ?? MOTION_EXPORT_FORMATS[0]!;
   const input: CaptionedVideoInput = {
     src: null,
     media: { width, height, fps: selection.fps, durationMs: config.durationMs, rotation: 0 },
     doc: emptyDoc(),
     settings: ProjectSettingsSchema.parse({ overlays: [item] }),
     mode: "burn",
-    backdrop: backgroundColor,
+    backdrop: format.transparent ? null : backgroundColor,
     videoEngine: "media",
     overlays: [item],
     ...(asset && assetSrc ? { overlayAssets: { [asset.id]: assetSrc } } : {}),
@@ -190,6 +203,7 @@ export function buildMotionExport(
     fps: selection.fps,
     durationMs: config.durationMs,
     backgroundColor,
+    transparent: format.transparent,
     item,
     input,
     filename: `${config.variant}-${width}x${height}.${format.ext}`,
@@ -240,6 +254,11 @@ export function motionExportReducer(state: MotionExportState, event: MotionExpor
 export interface RunStandaloneExportDeps {
   render: (job: BrowserVideoExportJob) => Promise<Blob>;
   save: (blob: Blob, filename: string) => void;
+  /**
+   * Post-encode alpha verification (alphaVerify.ts in the app). REQUIRED for a transparent
+   * build: without it — or when it returns false — the export FAILS and nothing is saved.
+   */
+  verify?: (blob: Blob) => Promise<boolean>;
 }
 
 /**
@@ -248,6 +267,10 @@ export interface RunStandaloneExportDeps {
  * AbortSignal (the renderer checks it between frames, exactly like the Studio path):
  * an abort mid-render resolves as `{ cancelled: true }` and saves NOTHING; a real render
  * failure is rethrown with its original message so the UI can show it verbatim.
+ *
+ * Transparent builds additionally pass the encoded blob through deps.verify BEFORE saving:
+ * if the file does not provably contain real alpha, the run throws
+ * TRANSPARENT_VERIFY_FAILED_MESSAGE and the opaque file is never delivered.
  */
 export async function runStandaloneExport(args: {
   built: BuiltMotionExport;
@@ -267,6 +290,7 @@ export async function runStandaloneExport(args: {
       quality: "high",
       container: built.container,
       videoCodec: built.videoCodec,
+      transparent: built.transparent,
       signal,
       onProgress,
     });
@@ -275,6 +299,17 @@ export async function runStandaloneExport(args: {
     throw e;
   }
   if (signal.aborted) return { cancelled: true };
+  if (built.transparent) {
+    let verified = false;
+    if (deps.verify) {
+      try {
+        verified = await deps.verify(blob);
+      } catch {
+        verified = false; // a verification that cannot run is a failed verification
+      }
+    }
+    if (!verified) throw new Error(TRANSPARENT_VERIFY_FAILED_MESSAGE);
+  }
   deps.save(blob, built.filename);
   return { cancelled: false, filename: built.filename, sizeBytes: blob.size };
 }

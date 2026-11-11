@@ -6,6 +6,7 @@
  */
 import React from "react";
 import type { CaptionStyleV2, Page } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, exitStyle } from "../motion";
 import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps, TemplateCapabilities } from "../types";
@@ -90,7 +91,7 @@ export const fillPaint = (fill: CaptionStyleV2["fill"]): Paint =>
 
 /** the style's own shadows + glow, after any look-specific layers (`extra`, already in px) */
 export function shadowStack(style: CaptionStyleV2, sc: number, extra: string[] = [], mul = 1): string | undefined {
-  const layers = [...extra, ...style.shadows.map((s) => `${(s.x * sc * mul).toFixed(2)}px ${(s.y * sc * mul).toFixed(2)}px ${(s.blur * sc * mul).toFixed(2)}px ${s.color}`)];
+  const layers = [...extra, ...style.shadows.map((s) => `${(s.x * sc * mul).toFixed(2)}px ${(s.y * sc * mul).toFixed(2)}px ${(s.blur * sc * mul).toFixed(2)}px ${shadowColorOf(s)}`)];
   if (style.glow.enabled) {
     const r = style.glow.radius * sc;
     layers.push(`0 0 ${r.toFixed(2)}px ${withAlpha(style.glow.color, style.glow.intensity)}`, `0 0 ${(r * 2).toFixed(2)}px ${withAlpha(style.glow.color, style.glow.intensity * 0.6)}`);

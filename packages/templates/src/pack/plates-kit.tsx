@@ -6,6 +6,7 @@
  */
 import type React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { famCss, fillCss } from "../text";
 import type { TemplateCapabilities } from "../types";
 import { EASE, bezier, keyWordIndex } from "./kit";
@@ -107,7 +108,7 @@ export const wordFill = (w: Word, fill: CaptionStyleV2["fill"]): CaptionStyleV2[
 
 /** the style's shadows as box-shadow layers (plates cast them instead of the letters) */
 export const boxShadowOf = (style: CaptionStyleV2, sc: number, mul = 1) =>
-  style.shadows.length ? style.shadows.map((s) => `${px(s.x * sc * mul)} ${px(s.y * sc * mul)} ${px(s.blur * sc * mul)} ${s.color}`).join(", ") : undefined;
+  style.shadows.length ? style.shadows.map((s) => `${px(s.x * sc * mul)} ${px(s.y * sc * mul)} ${px(s.blur * sc * mul)} ${shadowColorOf(s)}`).join(", ") : undefined;
 
 /** solid colour of a fill (hero fills are usually solid) */
 export const solidOf = (fill: CaptionStyleV2["fill"] | undefined, dflt: string) => (!fill ? dflt : fill.type === "solid" ? fill.color : fill.stops[0]!.color);

@@ -76,7 +76,7 @@ describe("CaptionsPanel — captions track lock (5.5a)", () => {
     expect(shiftButtons.length).toBeGreaterThan(0);
     for (const b of shiftButtons) expect((b as HTMLButtonElement).disabled).toBe(true);
     // split / join / hide are disabled
-    for (const name of ["Split card here", "Join previous", "Hide word"]) {
+    for (const name of ["Split card here", "Join previous", "Join next", "Hide word"]) {
       expect((screen.getByRole("button", { name }) as HTMLButtonElement).disabled).toBe(true);
     }
   });

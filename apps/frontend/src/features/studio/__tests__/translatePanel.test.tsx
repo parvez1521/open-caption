@@ -17,12 +17,19 @@ describe("TranslatePanel", () => {
     );
     for (const m of TRANSLATION_MODELS) {
       expect(html).toContain(m.targetLabel);
-      expect(html).toContain(`~${m.approxDownloadMb} MB`);
     }
+    // Package 2 item A: the dropdown rows carry NO download sizes — the one honest
+    // download line lives in the panel's Details instead (so the size check is scoped
+    // to the <option> elements, not the whole panel)
+    expect(html).not.toContain("model download");
+    const options = [...html.matchAll(/<option[^>]*>([^<]*)<\/option>/g)].map((m) => m[1]);
+    expect(options.length).toBeGreaterThan(1);
+    for (const label of options) expect(label).not.toMatch(/MB|download/i);
+    expect(html).toContain("First use of a language downloads its model once (~110 MB); after that it works on this device.");
     expect(html).not.toContain("Portuguese");
     expect(html).not.toContain('value="pt"');
-    // honest labelling: on-device machine translation, never dressed up as AI/human
-    expect(html).toContain("On-device machine translation (OPUS-MT)");
+    // honest labelling: runs on-device in the browser, never dressed up as AI/human
+    expect(html).toContain("Runs entirely in your browser");
     expect(html).not.toMatch(/AI translation|human translation, not|powered by AI/i);
   });
 

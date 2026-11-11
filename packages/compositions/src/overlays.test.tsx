@@ -36,6 +36,11 @@ describe("OverlayView (static markup — the same tree the Player and the web-re
 
   it("renders every shape in the set as an SVG painted with the item colour", () => {
     expect(OVERLAY_SHAPE_META.map((s) => s.id)).toEqual([...OVERLAY_SHAPES]);
+    // Package 2 item F: the original nine plus twelve new creator shapes
+    expect(OVERLAY_SHAPES).toHaveLength(21);
+    for (const id of ["rounded-rectangle", "ellipse", "diamond", "chevron", "double-arrow", "speech-bubble", "underline-bar", "corner-brackets", "progress-bar", "plus", "cross", "badge"] as const) {
+      expect(OVERLAY_SHAPES).toContain(id);
+    }
     for (const shape of OVERLAY_SHAPES) {
       const html = renderToStaticMarkup(<OverlayShapeSvg shape={shape} color="#FFA946" size={120} />);
       expect(html).toContain("<svg");
@@ -43,6 +48,30 @@ describe("OverlayView (static markup — the same tree the Player and the web-re
       expect(html).toContain("#FFA946");
       expect(html).not.toContain("mix-blend-mode");
     }
+  });
+
+  it("Package 3 I.5: overlay entrance/exit animation applies only to animated items", () => {
+    const base: OverlayItem = { id: "a1", kind: "shape", shape: "star", startMs: 0, endMs: 4000, x: 0.5, y: 0.5, scale: 1, rotation: 0, color: "#FFA946" };
+    // no animation fields: no animation wrapper styles anywhere
+    const plain = renderToStaticMarkup(<OverlayView item={base} sc={1} localMs={0} />);
+    expect(plain).not.toContain("translateY");
+    // rise entrance at t=0: fully offset + transparent; settled by the base duration
+    const rising: OverlayItem = { ...base, enterAnim: "rise" };
+    const at0 = renderToStaticMarkup(<OverlayView item={rising} sc={1} localMs={0} />);
+    expect(at0).toContain("translateY(26");
+    expect(at0).toContain("opacity:0");
+    const settled = renderToStaticMarkup(<OverlayView item={rising} sc={1} localMs={2000} />);
+    expect(settled).not.toContain("translateY");
+    // exit fade near the end of the window: opacity dropping; mid-window untouched
+    const fading: OverlayItem = { ...base, exitAnim: "fade" };
+    const nearEnd = renderToStaticMarkup(<OverlayView item={fading} sc={1} localMs={3950} />);
+    expect(nearEnd).toMatch(/opacity:0\.\d/);
+    const mid = renderToStaticMarkup(<OverlayView item={fading} sc={1} localMs={2000} />);
+    expect(mid).not.toMatch(/opacity:0\.\d/);
+    // speed semantics: 2x speed halves the entrance duration
+    const fast: OverlayItem = { ...base, enterAnim: "rise", enterSpeed: 2 };
+    expect(renderToStaticMarkup(<OverlayView item={fast} sc={1} localMs={200} />)).not.toContain("translateY");
+    expect(renderToStaticMarkup(<OverlayView item={rising} sc={1} localMs={200} />)).toContain("translateY");
   });
 
   it("renders an image overlay only when its asset URL is resolved in this context", () => {

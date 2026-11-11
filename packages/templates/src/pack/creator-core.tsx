@@ -7,6 +7,7 @@
  */
 import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
+import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, easeFn, effectiveIntensity, exitStyle } from "../motion";
 import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
@@ -260,9 +261,9 @@ export function withEntrance(rows: RowSpec[], plan: EntrancePlan): RowSpec[] {
 // ---------------------------------------------------------------- user effects shared by every look
 /** the user's drop shadows as a CSS filter chain (follows gradient glyphs) */
 export const shadowFilter = (style: CaptionStyleV2, sc: number) =>
-  style.shadows.map((s) => `drop-shadow(${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc).toFixed(2)}px ${s.color})`).join(" ");
+  style.shadows.map((s) => `drop-shadow(${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc).toFixed(2)}px ${shadowColorOf(s)})`).join(" ");
 /** the user's drop shadows as text-shadow layers */
-export const shadowText = (style: CaptionStyleV2, sc: number) => style.shadows.map((s) => `${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc).toFixed(2)}px ${s.color}`);
+export const shadowText = (style: CaptionStyleV2, sc: number) => style.shadows.map((s) => `${(s.x * sc).toFixed(2)}px ${(s.y * sc).toFixed(2)}px ${(s.blur * sc).toFixed(2)}px ${shadowColorOf(s)}`);
 export const strokeOf = (style: CaptionStyleV2, sc: number) => (style.stroke.enabled && style.stroke.width > 0 ? { width: style.stroke.width * sc, color: style.stroke.color } : undefined);
 export const joinF = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(" ") || undefined;
 export const joinS = (...xs: (string | undefined | false)[]) => xs.filter(Boolean).join(", ") || undefined;

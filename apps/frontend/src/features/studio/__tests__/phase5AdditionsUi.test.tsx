@@ -2,16 +2,13 @@
  * A4 + A5 UI contracts:
  * - SegmentInspector's Auto zooms section: honest deterministic copy, the
  *   intensity choice, and the count-gated action firing onAutoZooms.
- * - TitleCardControl: generation shows the title WITH its SourceBadge for
- *   confirmation/edit (template badged as template, cloud as free AI), and
- *   placing hands a normal overlay object to onPlace.
+ * (The A5 TitleCardControl suite was removed with the control itself —
+ * Package 2 item E: the auto title card left the Text panel on the owner's order.)
  */
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { ModelRunner } from "../../create/service";
 import { SegmentInspector } from "../panels/SegmentInspector";
-import { TitleCardControl } from "../panels/TitleCardControl";
 import { IDENTITY_TRANSFORM, type SegmentView } from "../segmentView";
 
 const view = (p: Partial<SegmentView> = {}): SegmentView => ({
@@ -61,50 +58,5 @@ describe("SegmentInspector — Auto zooms (A4)", () => {
       <SegmentInspector segment={view()} playheadMs={0} production={{ kind: "idle" }} {...noopHandlers} keyframes={[]} effects={[]} />,
     );
     expect(container.textContent).not.toContain("Auto zooms");
-  });
-});
-
-describe("TitleCardControl (A5)", () => {
-  it("template generation is badged 'Template engine', is editable, and places a normal overlay at 0", async () => {
-    const onPlace = vi.fn();
-    render(
-      <TitleCardControl
-        sourceTitle="My long podcast"
-        transcriptText="nobody tells you this about morning routines and it changes everything"
-        durationMs={60_000}
-        onPlace={onPlace}
-        deps={{ modelEnabled: false }}
-      />,
-    );
-    fireEvent.click(screen.getByText("Add title card"));
-    const input = await screen.findByLabelText(/Title card text/);
-    expect(document.body.textContent).toContain("Template engine");
-    expect(document.body.textContent).toContain("No model was used");
-    fireEvent.change(input, { target: { value: "My edited title" } });
-    fireEvent.click(screen.getByText("Place title card at start"));
-    await waitFor(() => expect(onPlace).toHaveBeenCalledTimes(1));
-    const item = onPlace.mock.calls[0]![0];
-    expect(item.kind).toBe("text");
-    expect(item.text).toBe("My edited title");
-    expect(item.startMs).toBe(0);
-    expect(item.endMs).toBe(3000);
-  });
-
-  it("a cloud title is badged as free AI, never as template", async () => {
-    const runCloud: ModelRunner = async () => "The morning routine nobody films";
-    render(
-      <TitleCardControl
-        sourceTitle="My long podcast"
-        transcriptText="nobody tells you this about morning routines"
-        durationMs={60_000}
-        onPlace={vi.fn()}
-        deps={{ runCloud, modelEnabled: false }}
-      />,
-    );
-    fireEvent.click(screen.getByText("Add title card"));
-    const input = await screen.findByLabelText(/Title card text/) as HTMLInputElement;
-    expect(input.value).toBe("The morning routine nobody films");
-    expect(document.querySelector("[data-source='cloud']")).not.toBeNull();
-    expect(document.body.textContent).toContain("Free AI");
   });
 });

@@ -188,7 +188,6 @@ export function HeroCylinder() {
           ))}
         </div>
       </div>
-      <p className="mt-1 text-center text-[12px] font-medium text-[#FFFFEB]/60">Trending templates, playing live · drag to spin</p>
     </div>
   );
 }
