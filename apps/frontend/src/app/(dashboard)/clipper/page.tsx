@@ -83,10 +83,11 @@ function ClipperPageInner() {
           <button
             onClick={() => void startNew()}
             disabled={creating}
-            className="mt-5 rounded-full bg-ink px-5 py-2.5 font-sora text-[13px] font-semibold text-dune-white transition hover:opacity-85 disabled:opacity-50 cursor-pointer"
+            className="wb-btn-primary mt-5 disabled:opacity-50"
           >
             {creating ? "Creating project…" : "Start with a new long video"}
           </button>
+          <p className="mt-3 text-[13px] text-sand-600">Your plan&apos;s length limit applies — Free covers up to 5 minutes.</p>
           {createError ? <p role="alert" className="mt-3 text-[13px] font-medium text-obsidian">{createError}</p> : null}
         </div>
 
@@ -96,7 +97,7 @@ function ClipperPageInner() {
           ) : isError ? (
             <div className="rounded-xl border border-orange-accent/60 bg-orange-accent/10 p-8 text-center space-y-3">
               <p className="font-sora text-[14px] font-semibold text-obsidian">Couldn&apos;t load your projects.</p>
-              <button onClick={() => refetch()} className="rounded-full border border-orange-accent/60 px-5 py-2 font-sora text-[12px] font-semibold text-obsidian hover:bg-orange-accent/20 transition-colors cursor-pointer">Retry</button>
+              <button onClick={() => refetch()} className="wb-btn-secondary">Retry</button>
             </div>
           ) : projects.length === 0 ? (
             <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
@@ -113,7 +114,7 @@ function ClipperPageInner() {
                       type="button"
                       aria-pressed={selectedId === p.id}
                       onClick={() => select(p.id)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition ${selectedId === p.id ? "border-ink bg-sand-100" : "border-sand-200 bg-sand-50 hover:border-sand-300 hover:bg-sand-100"}`}
+                      className={`flex w-full items-center justify-between gap-3 rounded-wb-panel border px-4 py-3 text-left transition-colors ${selectedId === p.id ? "border-ink bg-sand-100 shadow-[inset_3px_0_0_var(--color-wb-blue)]" : "border-sand-200 bg-sand-50 hover:border-sand-300 hover:bg-sand-100"}`}
                     >
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-sora text-[14px] font-semibold text-ink">{p.title}</span>

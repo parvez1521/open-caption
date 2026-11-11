@@ -1654,7 +1654,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                   role="tab"
                   aria-selected={rightTab === "motion"}
                   onClick={() => setRightTab("motion")}
-                  className={`relative rounded-lg px-2.5 py-1.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  className={`relative rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
                 >
                   Motion
                 </button>
@@ -1664,7 +1664,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                     role="tab"
                     aria-selected={rightTab === "inspector"}
                     onClick={() => setRightTab("inspector")}
-                    className={`relative rounded-lg px-2.5 py-1.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                    className={`relative rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
                   >
                     Inspector
                   </button>
@@ -1673,7 +1673,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                   type="button"
                   aria-label="Collapse right panel"
                   onClick={() => setRightCollapsed(true)}
-                  className="relative ml-auto rounded-lg px-2 py-1.5 text-st-muted before:absolute before:-inset-2 before:content-[''] hover:bg-st-hover hover:text-st-text"
+                  className="relative ml-auto rounded-lg px-2 py-2.5 text-st-muted before:absolute before:-inset-2 before:content-[''] hover:bg-st-hover hover:text-st-text"
                 >
                   ›
                 </button>

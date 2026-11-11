@@ -6,6 +6,11 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
   label?: string;
 }
 
+/**
+ * Workbench field (Phase 3 design system).
+ * Sand surface, 8 px radius, emerald focus border — never indigo. Label is
+ * 12 px semibold, not uppercase-tracked shouting.
+ */
 export default function Input({
   className,
   error,
@@ -16,11 +21,11 @@ export default function Input({
   ...props
 }: InputProps) {
   return (
-    <div className="flex flex-col gap-1.5 w-full">
+    <div className="flex w-full flex-col gap-1.5">
       {label && (
         <label
           htmlFor={id}
-          className="text-xs font-semibold text-zinc-400 select-none uppercase tracking-wider"
+          className="select-none text-xs font-semibold text-sand-500"
         >
           {label}
         </label>
@@ -30,16 +35,16 @@ export default function Input({
         type={type}
         disabled={disabled}
         className={cn(
-          "w-full px-3.5 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-150 rounded-lg text-sm transition-all focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-zinc-550",
+          "w-full rounded-wb-field border border-sand-200 bg-sand-50 px-3.5 py-2.5 text-sm text-ink transition-colors outline-none placeholder:text-sand-500 focus:border-emerald-accent disabled:cursor-not-allowed disabled:opacity-50",
           {
-            "border-red-500/80 focus:ring-red-500 focus:border-red-500": error,
+            "border-[#E5484D] focus:border-[#E5484D]": error,
           },
           className
         )}
         {...props}
       />
       {error && (
-        <span className="text-xs text-red-450 font-medium">
+        <span className="text-xs font-medium text-[#E5484D]">
           {error}
         </span>
       )}

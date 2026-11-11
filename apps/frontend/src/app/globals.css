@@ -66,6 +66,21 @@
   --animate-subtle-float: subtle-float 6s ease-in-out infinite;
   --animate-caption-pop: caption-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 
+  /* ── Premium Creator Workbench (Phase 3 design system, 2026-11-12) ──────────
+   * Restrained electric blue: the workbench accent, used ONLY for selection /
+   * active-navigation indicators on dashboard surfaces (sidebar active bar,
+   * selected list item edge, active filter count). It never replaces emerald
+   * (#34D399, the product's primary action colour) or orange (#FFA946, the
+   * "now"/highlight colour), and it never fills a large surface. */
+  --color-wb-blue: #5B8DEF;
+  --color-wb-blue-text: #A8C0FF;
+  --color-wb-blue-soft: #22304A;
+
+  /* Workbench shape tokens: one radius per job, one spacing base (4px). */
+  --radius-wb-panel: 12px;
+  --radius-wb-field: 8px;
+  --radius-wb-pill: 999px;
+
   /* Typography: TWO fonts, locked. Sans for everything; the accent is Instrument Serif Italic (slightly cursive).
      The old display aliases (styled/sora/serif/display) all point at the sans so headings stay one family. */
   --font-sans: var(--font-normal-sys), system-ui, sans-serif;
@@ -115,96 +130,72 @@ em,
   letter-spacing: 0;
 }
 
+/* --- WORKBENCH PRIMITIVES (Phase 3 design system) -------------------------
+ * One shared set of panel / button / field / eyebrow styles for dashboard
+ * surfaces (dashboard, Motion, Clipper, settings). Studio panels keep their
+ * own st-* primitives (controls.tsx) — same tokens, tighter density.
+ * No hover transforms anywhere: state changes are colour/border only. */
+@layer components {
+  .wb-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-sand-500);
+  }
+  .wb-panel {
+    border-radius: var(--radius-wb-panel);
+    border: 1px solid var(--color-sand-200);
+    background: var(--color-sand-100);
+  }
+  .wb-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    border-radius: var(--radius-wb-pill);
+    background: var(--color-emerald-accent);
+    color: #141412;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+  .wb-btn-primary:hover { background: #4BE0A5; }
+  .wb-btn-primary:disabled { opacity: 0.5; }
+  .wb-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    border-radius: var(--radius-wb-pill);
+    border: 1px solid var(--color-sand-200);
+    background: var(--color-sand-50);
+    color: var(--color-ink);
+    padding: 0.625rem 1.25rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+  .wb-btn-secondary:hover { border-color: var(--color-sand-300); }
+  .wb-field {
+    width: 100%;
+    border-radius: var(--radius-wb-field);
+    border: 1px solid var(--color-sand-200);
+    background: var(--color-sand-50);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--color-ink);
+    outline: none;
+  }
+  .wb-field::placeholder { color: var(--color-sand-500); }
+  .wb-field:focus { border-color: var(--color-emerald-accent); }
+}
+
 /* --- MOTION & EFFECT UTILITY CLASSES --- */
 
-/* 1. Conic-Gradient Rotating Border (Sleek, razor-thin 1px border) */
-@property --angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes rotate-conic {
-  to {
-    --angle: 360deg;
-  }
-}
-
-.conic-glow-pill {
-  position: relative;
-  border-radius: 9999px;
-  padding: 1px;
-  background: transparent;
-  z-index: 1;
-}
-/* in the components layer so utilities (hidden, sm:block, w-full…) can override it */
-@layer components {
-  .conic-glow-pill { display: inline-flex; }
-}
-
-.conic-glow-pill::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: conic-gradient(from var(--angle), #FFA946, #34D399, #F0D7FF, #FFFFEB, #FFA946);
-  animation: rotate-conic 3s linear infinite;
-  z-index: -1;
-}
-
-/* Subtle soundwave bar bounce */
-@keyframes wave-bar {
-  0%, 100% { transform: scaleY(1); }
-  50% { transform: scaleY(0.7); }
-}
-
-.animate-wave-bar-1 { animation: wave-bar 1.6s ease-in-out infinite; transform-origin: bottom; }
-.animate-wave-bar-2 { animation: wave-bar 1.9s ease-in-out infinite 0.25s; transform-origin: bottom; }
-.animate-wave-bar-3 { animation: wave-bar 1.4s ease-in-out infinite 0.5s; transform-origin: bottom; }
-
-/* 2. Gradient Text Sweep */
-@keyframes text-sweep {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.gradient-text-sweep {
-  background: linear-gradient(90deg, #FFFFEB, #FFA946, #34D399, #FFFFEB);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: text-sweep 4s ease infinite;
-}
-
-/* 3. Infinite Marquee Animation */
-@keyframes marquee-left {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
-}
-
-.animate-marquee-slow {
-  display: flex;
-  width: max-content;
-  animation: marquee-left 28s linear infinite;
-}
-
-.animate-marquee-fast {
-  display: flex;
-  width: max-content;
-  animation: marquee-left 14s linear infinite;
-}
+/* Subtle soundwave bars are static now (ban list: no decorative animation);
+   the footer mark keeps the three bars without motion. */
 
 /* Lenis smooth-scroll integration */
 html.lenis, html.lenis body {
@@ -259,7 +250,7 @@ html.lenis, html.lenis body {
 .st-rise { animation: st-rise 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .st-rise, .animate-fade-in-up, .animate-subtle-float, .animate-caption-pop, .animate-marquee-slow, .animate-marquee-fast, .gradient-text-sweep, .conic-glow-pill::before { animation: none !important; }
+  .st-rise, .animate-fade-in-up, .animate-subtle-float, .animate-caption-pop { animation: none !important; }
   .animate-pulse, .animate-spin, .animate-bounce { animation: none !important; }
 }
 
@@ -271,7 +262,7 @@ html[data-intro="play"] { --hero-at: 260ms; }
 html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused !important; }
 [data-hero="eyebrow"] { animation: hero-fade-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) var(--hero-at) both; }
 [data-hero="word"] { animation: hero-up 1.1s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 60ms) both; }
-[data-hero="word2"] { animation: hero-up 1.1s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 150ms) both, text-sweep 4s ease calc(var(--hero-at) + 1.3s) infinite; }
+[data-hero="word2"] { animation: hero-up 1.1s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 150ms) both; }
 [data-hero="sub"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 340ms) both; }
 [data-hero="cta"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 460ms) both; }
 [data-hero="points"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 560ms) both; }

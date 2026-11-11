@@ -15,7 +15,9 @@ function demoDoc(text: string, gapMs = 330) {
 
 const BACKDROPS = [
   "linear-gradient(160deg,#1f3b33 0%,#0f231d 55%,#0a1512 100%)",
-  "linear-gradient(160deg,#3a2a4a 0%,#1d1626 60%,#110d17 100%)",
+  // No purple anywhere on the site (owner ban list): the second demo backdrop
+  // is deep graphite instead of the old plum tone.
+  "linear-gradient(160deg,#232a33 0%,#14181d 60%,#0d0f12 100%)",
   "linear-gradient(160deg,#4a3218 0%,#241a10 60%,#140e08 100%)",
   "linear-gradient(160deg,#1c2a44 0%,#101828 60%,#0a0f19 100%)",
 ];
@@ -96,7 +98,7 @@ export function CyclingPreview({ lookIds, intervalMs = 4600, className = "" }: {
   return (
     <div className={`relative ${className}`}>
       <LivePreview key={id} lookId={id} playWhenVisible={false} backdrop={i} className="h-full w-full" text="Don't edit your captions just upload the video" />
-      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/45 px-3 py-1 text-[11px] font-semibold text-[#FFFFEB]/90 backdrop-blur">
+      <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[11px] font-semibold text-[#FFFFEB]/90">
         {getLook(id)?.name}
       </div>
     </div>

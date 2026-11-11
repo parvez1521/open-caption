@@ -97,14 +97,14 @@ export default function StudioShell({ children }: { children: React.ReactNode })
   const healthy = health ? health.database && health.queue : undefined;
   return (
     <div className="min-h-screen bg-dune-white md:flex">
-      {/* Mobile top bar (sidebar is hidden below md) */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-sand-200 bg-sand-50/90 px-4 py-3 backdrop-blur md:hidden">
+      {/* Mobile top bar (sidebar is hidden below md) — solid surface, no blur */}
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-sand-200 bg-sand-50 px-4 py-3 md:hidden">
         <Link href="/dashboard" aria-label="Open Caption projects">
           <Logo height={24} />
         </Link>
         <nav className="flex max-w-[62vw] items-center gap-1 overflow-x-auto">
           {NAV_ITEMS.map((item) => (
-            <Link key={item.href} href={item.href} {...(item.newTab ? { target: "_blank", rel: "noopener" } : {})} aria-label={item.label} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-sora text-[12px] font-semibold ${isNavActive(pathname, item) ? "bg-sand-200 text-ink" : "text-sand-700"}`}>
+            <Link key={item.href} href={item.href} {...(item.newTab ? { target: "_blank", rel: "noopener" } : {})} aria-label={item.label} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-sora text-[12px] font-semibold ${isNavActive(pathname, item) ? "bg-sand-200 text-ink shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "text-sand-700"}`}>
               {NAV_ICONS[item.id]}
               <span className="whitespace-nowrap">{item.label}</span>
             </Link>
@@ -131,11 +131,11 @@ export default function StudioShell({ children }: { children: React.ReactNode })
         <nav className="px-3 space-y-4 overflow-y-auto">
           {NAV_GROUPS.map((group) => (
             <div key={group.id} className="space-y-1">
-              {group.heading ? <p className="px-3 pb-1 font-sora text-[11px] font-semibold uppercase tracking-wider text-sand-500">{group.heading}</p> : null}
+              {group.heading ? <p className="px-3 pb-1 font-sora text-[12px] font-semibold uppercase tracking-wider text-sand-500">{group.heading}</p> : null}
               {group.items.map((item) => {
                 const active = isNavActive(pathname, item);
                 return (
-                  <Link key={item.href} href={item.href} {...(item.newTab ? { target: "_blank", rel: "noopener" } : {})} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold transition-colors ${active ? "bg-sand-200 text-ink" : "text-sand-700 hover:bg-sand-100 hover:text-ink"}`}>
+                  <Link key={item.href} href={item.href} {...(item.newTab ? { target: "_blank", rel: "noopener" } : {})} className={`relative flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold transition-colors ${active ? "bg-sand-200 text-ink shadow-[inset_3px_0_0_var(--color-wb-blue)]" : "text-sand-700 hover:bg-sand-100 hover:text-ink"}`}>
                     {NAV_ICONS[item.id]}
                     {item.label}
                   </Link>

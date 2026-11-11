@@ -5,6 +5,12 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   hoverable?: boolean;
 }
 
+/**
+ * Workbench panel card (Phase 3 design system).
+ * Solid sand surface, 12 px radius, hairline border. No glass (no
+ * backdrop-blur, no translucent fill) and no hover lift/shadow — a hoverable
+ * card only darkens its border (colour-only state change, owner ban list).
+ */
 export default function Card({
   className,
   children,
@@ -14,10 +20,9 @@ export default function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-zinc-800/80 bg-zinc-900/40 backdrop-blur-md p-6 text-zinc-100",
+        "rounded-wb-panel border border-sand-200 bg-sand-100 p-6 text-ink",
         {
-          "transition-all duration-300 hover:bg-zinc-900/60 hover:border-zinc-700/60 hover:shadow-lg hover:shadow-zinc-950/20":
-            hoverable,
+          "transition-colors hover:border-sand-300": hoverable,
         },
         className
       )}

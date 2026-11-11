@@ -126,7 +126,7 @@ export const TemplateCard = React.memo(function TemplateCard({
         }
       }}
       aria-pressed={chosen}
-      className={`group block w-full cursor-pointer overflow-hidden rounded-2xl border bg-st-panel text-left transition ${chosen ? "border-st-ink shadow-[0_0_0_3px_var(--color-st-lav)]" : "border-st-line hover:border-st-ink/30 hover:shadow-[0_8px_20px_-14px_rgba(0,0,0,0.5)]"}`}
+      className={`group block w-full cursor-pointer overflow-hidden rounded-xl border bg-st-panel text-left transition-colors ${chosen ? "border-st-ink shadow-[0_0_0_3px_var(--color-st-lav)]" : "border-st-line hover:border-st-ink/30"}`}
     >
       <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
         <span className="truncate text-sm font-bold text-st-text">
@@ -206,11 +206,14 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
             <Save className="h-4 w-4" aria-hidden />{saving ? "Saving…" : "Save template"}
           </button>
         </div>
-        <div className="hidden flex-wrap gap-1.5 lg:flex">
+        <div className="flex flex-wrap gap-1.5">
           {cats.map((c) => (
-            <button key={c} onClick={() => setCat(c)} className={`rounded-full border px-3 py-1.5 text-xs transition lg:px-2.5 lg:py-1 ${cat === c ? "border-st-ink bg-st-ink text-st-panel" : "border-st-line bg-st-panel text-st-muted hover:text-st-text"}`}>{c}</button>
+            <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c} className={`rounded-full border px-3 py-2 text-xs transition-colors ${cat === c ? "border-st-ink bg-st-ink text-st-panel shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-st-line bg-st-panel text-st-muted hover:text-st-text"}`}>{c}</button>
           ))}
         </div>
+        <p className="text-xs tabular-nums text-st-faint" role="status">
+          {shown.length} of {LOOKS.length} looks{cat !== "All" ? ` in ${cat}` : ""}{needle ? ` matching “${q.trim()}”` : ""}
+        </p>
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {shown.length === 0 ? <p className="py-8 text-center text-sm text-st-faint">No templates match “{q}”.</p> : null}

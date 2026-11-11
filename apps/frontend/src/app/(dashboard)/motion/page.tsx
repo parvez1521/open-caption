@@ -53,14 +53,14 @@ export default function MotionDiscoveryPage() {
     <StudioShell>
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-10 sm:py-10">
         <div className="border-b border-sand-200 pb-8">
-          <h1 className="font-serif text-3xl font-semibold tracking-[-0.015em] text-ink sm:text-4xl">
+          <p className="wb-eyebrow">46 templates · included in every plan</p>
+          <h1 className="mt-2 font-serif text-3xl font-semibold tracking-[-0.015em] text-ink sm:text-4xl">
             Motion <em className="italic text-sand-600">Studio</em>
           </h1>
-          <p className="mt-2 max-w-2xl text-[14px] text-sand-800">
+          <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-sand-800">
             Animated graphics for your videos — subscribe pills, follow cards, counters, titles and more.
             Pick one, make it yours, and add it to a project. Every preview below is the real graphic, playing.
-            All {MOTION_TEMPLATES.length} templates are included in every plan, Free included — motion
-            templates are separate from the 150 caption looks, and both are included.
+            Motion templates are separate from the 150 caption looks, and both are included.
           </p>
         </div>
 
@@ -72,7 +72,7 @@ export default function MotionDiscoveryPage() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search templates — try “follow”, “counter”, “qr”…"
               aria-label="Search motion templates"
-              className="min-w-0 flex-1 rounded-full border border-sand-200 bg-sand-50 px-4 py-2.5 text-[14px] text-ink outline-none placeholder:text-sand-500 focus:border-sand-400 sm:max-w-md"
+              className="wb-field min-w-0 flex-1 sm:max-w-md"
             />
             <label className="flex items-center gap-2 text-[13px] font-medium text-sand-700">
               Sort
@@ -80,7 +80,7 @@ export default function MotionDiscoveryPage() {
                 value={sort}
                 onChange={(e) => setSort(e.target.value as MotionSort)}
                 aria-label="Sort templates"
-                className="rounded-full border border-sand-200 bg-sand-50 px-3 py-2 text-[13px] font-medium text-ink outline-none focus:border-sand-400"
+                className="rounded-wb-field border border-sand-200 bg-sand-50 px-3 py-2.5 text-[13px] font-medium text-ink outline-none focus:border-emerald-accent"
               >
                 {SORT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -97,7 +97,7 @@ export default function MotionDiscoveryPage() {
               type="button"
               onClick={() => setCategory("all")}
               aria-pressed={category === "all"}
-              className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition ${category === "all" ? "border-ink bg-ink text-[#141412]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
+              className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors ${category === "all" ? "border-ink bg-ink text-[#141412] shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
             >
               All ({MOTION_TEMPLATES.length})
             </button>
@@ -107,7 +107,7 @@ export default function MotionDiscoveryPage() {
                 type="button"
                 onClick={() => setCategory(c)}
                 aria-pressed={category === c}
-                className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition ${category === c ? "border-ink bg-ink text-[#141412]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
+                className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors ${category === c ? "border-ink bg-ink text-[#141412] shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
               >
                 {motionCategoryLabel(c)} ({count})
               </button>
@@ -122,7 +122,7 @@ export default function MotionDiscoveryPage() {
             <button
               type="button"
               onClick={clearFilters}
-              className="mt-5 rounded-full bg-ink px-5 py-2.5 font-sora text-[13px] font-semibold text-[#141412] transition hover:opacity-85 cursor-pointer"
+              className="wb-btn-primary mt-5"
             >
               Clear search
             </button>
@@ -133,7 +133,7 @@ export default function MotionDiscoveryPage() {
               <Link
                 key={t.id}
                 href={`/motion/${t.id}`}
-                className="flex flex-col overflow-hidden rounded-xl border border-sand-200 bg-sand-50 transition hover:border-sand-300 hover:bg-sand-100"
+                className="flex flex-col overflow-hidden rounded-wb-panel border border-sand-200 bg-sand-100 transition-colors hover:border-sand-300"
                 aria-label={`Customise ${t.title}`}
               >
                 <MotionPreview item={previewItems.get(t.id)!} />
