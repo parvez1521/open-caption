@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CaptionDocSchema, type CaptionDoc } from "@capseasy/shared";
 import { CaptionsPanel } from "../panels/CaptionsPanel";
-import { modeFromSearch, projectModeOf, setProjectMode } from "../projectMode";
+import { aiEditIntroSeen, markAiEditIntroSeen, modeFromSearch, projectModeOf, setProjectMode, START_DOORS } from "../projectMode";
 
 /**
  * Package 2 item G — the two doors. Covered here:
@@ -33,6 +33,32 @@ describe("project mode record", () => {
     expect(modeFromSearch("?mode=captions")).toBe("captions");
     expect(modeFromSearch("?mode=banana")).toBeNull();
     expect(modeFromSearch("")).toBeNull();
+  });
+});
+
+describe("the AI Edit door (third door)", () => {
+  beforeEach(() => window.localStorage.clear());
+  it("round-trips the ai-edit door per project", () => {
+    setProjectMode("p1", "ai-edit");
+    expect(projectModeOf("p1")).toBe("ai-edit");
+    expect(projectModeOf("p2")).toBe("captions");
+  });
+  it("parses ?mode=ai-edit and nothing else new", () => {
+    expect(modeFromSearch("?mode=ai-edit")).toBe("ai-edit");
+    expect(modeFromSearch("?mode=ai")).toBeNull();
+  });
+  it("the chooser offers exactly three doors, captions first, AI Edit last", () => {
+    expect(START_DOORS.map((d) => d.mode)).toEqual(["captions", "editor", "ai-edit"]);
+    for (const d of START_DOORS) {
+      expect(d.label.length).toBeGreaterThan(0);
+      expect(d.sub.length).toBeGreaterThan(0);
+    }
+  });
+  it("the first-run intro flag is per project and sticks", () => {
+    expect(aiEditIntroSeen("p1")).toBe(false);
+    markAiEditIntroSeen("p1");
+    expect(aiEditIntroSeen("p1")).toBe(true);
+    expect(aiEditIntroSeen("p2")).toBe(false);
   });
 });
 
@@ -98,7 +124,7 @@ vi.mock("@/lib/track", () => ({ track: vi.fn() }));
 
 import { UploadPanel } from "../UploadPanel";
 
-describe("UploadPanel — the two doors at upload time", () => {
+describe("UploadPanel — the doors at upload time", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
@@ -125,5 +151,27 @@ describe("UploadPanel — the two doors at upload time", () => {
   it("captions mode (the default door): the language question is asked, as today", () => {
     render(<UploadPanel projectId="p1" onUploaded={vi.fn()} />);
     expect(screen.getByText("Language spoken in the video")).toBeTruthy();
+  });
+
+  it("all three doors render in the toggle", () => {
+    render(<UploadPanel projectId="p1" onUploaded={vi.fn()} mode="captions" onModeChange={vi.fn()} />);
+    expect(screen.getByRole("radio", { name: /^Captions/ })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /Normal Editor/ })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: /^AI Edit/ })).toBeTruthy();
+  });
+
+  it("ai-edit mode: transcription still happens (the plan needs the words) — language asked, session starts", async () => {
+    const onUploaded = vi.fn();
+    const { container } = render(<UploadPanel projectId="p1" onUploaded={onUploaded} mode="ai-edit" onModeChange={vi.fn()} />);
+    expect(screen.getByText("Language spoken in the video")).toBeTruthy();
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files: [new File(["x"], "clip.mp4", { type: "video/mp4" })] } });
+    // no remembered language in this browser: the panel asks, the pick starts the upload
+    const english = await screen.findByRole("radio", { name: /^English/ });
+    fireEvent.click(english);
+    await waitFor(() => expect(onUploaded).toHaveBeenCalled());
+    expect(startSession).toHaveBeenCalled();
+    const opts = uploadVideo.mock.calls[0]?.[5] as { editorMode?: boolean } | undefined;
+    expect(opts?.editorMode).toBeFalsy();
   });
 });

@@ -1,4 +1,6 @@
 import React from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CaptionDocSchema, ProjectSettingsSchema, type Word } from "@capseasy/shared";
@@ -105,5 +107,78 @@ describe("AiEditPanel — with a cloud answer", () => {
     expect(screen.getByText("B-roll ideas")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Search Pixabay" })).toBeTruthy();
     expect(onCommit).not.toHaveBeenCalled();
+  });
+});
+
+describe("AiEditPanel — stage preview (W1)", () => {
+  it("preview pushes a throwaway applied state, follows the ticks, never commits, and restores on stop", async () => {
+    const onCommit = vi.fn();
+    const onPreviewChange = vi.fn();
+    const state = makeState();
+    const untouched = JSON.parse(JSON.stringify(state)) as unknown;
+    render(
+      <AiEditPanel state={state} sourceTitle="My video" peaks={peaks()} hopMs={HOP}
+        onCommit={onCommit} onImportBroll={noImport} deps={{ modelEnabled: false }} onPreviewChange={onPreviewChange} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Create my edit plan" }));
+    await waitFor(() => expect(screen.getByText("Template engine")).toBeTruthy());
+
+    const lastPreview = () => onPreviewChange.mock.calls.at(-1)?.[0] as PolishProjectState | null | undefined;
+    fireEvent.click(screen.getByRole("button", { name: "Preview on stage" }));
+    await waitFor(() => expect(lastPreview()).not.toBeNull());
+    const first = lastPreview()!;
+    // the preview is the plan applied to a copy: a different object on an edited
+    // timeline — and the committed state object is byte-identical afterwards
+    expect(first).not.toBe(state);
+    expect(JSON.stringify(first)).not.toBe(JSON.stringify(state));
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(JSON.parse(JSON.stringify(state))).toEqual(untouched);
+    expect(screen.getByText(/nothing is applied until you press Apply/)).toBeTruthy();
+
+    // unticking a step re-renders the preview from the current ticks
+    fireEvent.click(screen.getAllByRole("checkbox")[0]!);
+    await waitFor(() => expect(lastPreview()).not.toBeNull());
+    expect(JSON.stringify(lastPreview())).not.toBe(JSON.stringify(first));
+    expect(onCommit).not.toHaveBeenCalled();
+
+    // stopping the preview restores the stage (null), still nothing committed
+    fireEvent.click(screen.getByRole("button", { name: "Stop preview" }));
+    await waitFor(() => expect(lastPreview()).toBeNull());
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(JSON.parse(JSON.stringify(state))).toEqual(untouched);
+  });
+
+  it("with zero steps ticked the preview is disabled and says why", async () => {
+    render(
+      <AiEditPanel state={makeState()} sourceTitle="My video" peaks={peaks()} hopMs={HOP}
+        onCommit={vi.fn()} onImportBroll={noImport} deps={{ modelEnabled: false }} onPreviewChange={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Create my edit plan" }));
+    await waitFor(() => expect(screen.getByText("Template engine")).toBeTruthy());
+    for (const box of screen.getAllByRole("checkbox")) fireEvent.click(box);
+    const btn = screen.getByRole("button", { name: "Preview on stage" }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(screen.getByText("Tick at least one step to preview it on the stage.")).toBeTruthy();
+  });
+});
+
+describe("StudioPage — the stage preview can never reach an export (source pins)", () => {
+  const src = readFileSync(join(process.cwd(), "src/features/studio/StudioPage.tsx"), "utf8");
+  it("the stage takes the preview override; the ExportModal takes only the committed render input", () => {
+    expect(src).toContain("input={previewInput ?? playerInput ?? input}");
+    expect(src).toContain("renderInput={exportRenderInput}");
+    expect(src).toContain("Preview — not applied");
+  });
+  it("the export input derivation never reads the preview state", () => {
+    const region = src.slice(src.indexOf("const exportInput"), src.indexOf("const previewSettings"));
+    expect(region.length).toBeGreaterThan(0);
+    expect(region).not.toContain("aiEditPreview");
+    expect(region).not.toContain("previewInput");
+  });
+  it("the AI Edit panel receives the preview callback and the first-run activation is mode-gated", () => {
+    expect(src).toContain("onPreviewChange={handleAiEditPreview}");
+    expect(src).toContain('startMode === "ai-edit"');
+    expect(src).toContain("aiEditIntroSeen(projectId)");
+    expect(src).toContain("markAiEditIntroSeen(projectId)");
   });
 });

@@ -36,6 +36,8 @@ const LivePreview = dynamic(() => import("./LivePreview").then((m) => m.LivePrev
 const HeroCylinder = dynamic(() => import("./HeroCylinder").then((m) => m.HeroCylinder), { ssr: false, loading: () => <div className="h-[320px] w-full animate-pulse rounded-2xl bg-[#1C1C1A] sm:h-[360px]" /> });
 // Motion Studio previews: the real animated graphics, loaded lazily like the other live previews
 const MotionPreview = dynamic(() => import("@/features/motion/MotionPreview").then((m) => m.MotionPreview), { ssr: false, loading: () => <div className="aspect-[700/360] w-full animate-pulse bg-[#141412]" /> });
+// The AI Edit demonstration: a real sample clip edited live by the real renderer, loaded lazily
+const AiEditDemo = dynamic(() => import("./AiEditDemo").then((m) => m.AiEditDemo), { ssr: false, loading: () => <div className="aspect-[4/3] w-full animate-pulse rounded-[2rem] bg-[#1C1C1A]" /> });
 
 const INK = "#FFFFEB";
 export const GITHUB_URL = "https://github.com/parvez1521/open-caption";
@@ -104,7 +106,7 @@ export function Nav() {
           <Link href={signedIn ? "/dashboard" : "/login"} className="hidden whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-[#FFFFEB]/80 transition hover:text-[#FFFFEB] sm:block">{signedIn ? "Dashboard" : "Sign in"}</Link>
           {/* phones: this moves into the menu */}
           <div className="conic-glow-pill hidden rounded-full p-[1px] sm:block">
-            <Link href="/start" onPointerEnter={warmModel} onClick={warmModel} className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-4 py-2 text-sm font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            <Link href="/start?choose=1" onPointerEnter={warmModel} onClick={warmModel} className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-4 py-2 text-sm font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
               Start free <span aria-hidden>→</span>
             </Link>
           </div>
@@ -122,7 +124,7 @@ export function Nav() {
             <a key={href} href={href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-base font-semibold text-[#FFFFEB] hover:bg-[#262622]/60">{label}</a>
           ))}
           <div className="mt-2 grid gap-2 border-t border-[#FFFFEB]/10 pt-3 sm:hidden">
-            <Link href="/start" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-5 py-3.5 text-base font-bold text-[#FFFFEB] active:scale-[0.98]">
+            <Link href="/start?choose=1" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-5 py-3.5 text-base font-bold text-[#FFFFEB] active:scale-[0.98]">
               Start free <span aria-hidden>→</span>
             </Link>
             <Link href={signedIn ? "/dashboard" : "/login"} onClick={() => setOpen(false)} className="rounded-full px-5 py-3 text-center text-base font-semibold text-[#FFFFEB]/70">{signedIn ? "Dashboard" : "Sign in"}</Link>
@@ -165,7 +167,7 @@ export function Hero() {
 
         <div data-hero="cta" className="mt-7 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
           <div className="conic-glow-pill w-full rounded-full p-[1px] sm:w-auto">
-            <Link href="/start" onPointerEnter={warmModel} onClick={warmModel} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-8 py-4 text-base font-bold text-[#FFFFEB] shadow-sm transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] sm:w-auto">
+            <Link href="/start?choose=1" onPointerEnter={warmModel} onClick={warmModel} className="flex w-full items-center justify-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-8 py-4 text-base font-bold text-[#FFFFEB] shadow-sm transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] sm:w-auto">
               Caption your first video free <span aria-hidden>→</span>
             </Link>
           </div>
@@ -455,6 +457,37 @@ export function MotionStudioSection() {
   );
 }
 
+/**
+ * AI Edit section: the demonstration is the product's real machinery on a real
+ * sample clip — the style chips and plan checklist narrate the panel's flow
+ * while the real composition renders the before and the edited states.
+ */
+export function AiEditSection() {
+  return (
+    <section id="ai-edit" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
+          <div>
+            <span className="rounded-md bg-[#34D399] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">New</span>
+            <h2 className="font-styled mt-4 text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+              Pick a style. <em className="font-normal italic text-[#34D399]">AI Edit does the cutting.</em>
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
+              Choose a look, add a line of instruction if you like, and AI Edit drafts the whole
+              edit — the caption look, punch-in zooms, key words and a hook — as a checklist.
+              Nothing is applied until you approve it, and every step can be previewed and undone.
+            </p>
+            <Link href="/start?choose=1" className="mt-7 inline-flex items-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-6 py-3.5 text-base font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
+              Try AI Edit <span aria-hidden>→</span>
+            </Link>
+          </div>
+          <AiEditDemo />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function BrowserCard() {
   const rows = [
     ["Speech recognition", "runs on your device"],
@@ -672,7 +705,7 @@ export function ClosingCta() {
         <p className="relative mx-auto mt-5 max-w-lg text-[#FFFFEB]/70 text-base sm:text-lg leading-relaxed">Your next video deserves captions people actually watch. Start free, in under a minute.</p>
         <div className="relative mt-9 inline-block">
           <div className="conic-glow-pill rounded-full p-[1px]">
-            <Link href="/start" className="flex items-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-8 py-4 text-base sm:text-lg font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            <Link href="/start?choose=1" className="flex items-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-8 py-4 text-base sm:text-lg font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
               Create free captions <span aria-hidden>→</span>
             </Link>
           </div>

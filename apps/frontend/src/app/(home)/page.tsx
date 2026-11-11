@@ -5,7 +5,7 @@ import Lenis from "lenis";
 import { Loader } from "@/components/home/Loader";
 import { ensureGsap, prefersReducedMotion } from "@/components/home/gsap";
 import dynamic from "next/dynamic";
-import { ClipperSection, ClosingCta, Control, Faq, Footer, Hero, HowItWorks, MotionStudioSection, Nav, Privacy } from "@/components/home/Sections";
+import { AiEditSection, ClipperSection, ClosingCta, Control, Faq, Footer, Hero, HowItWorks, MotionStudioSection, Nav, Privacy } from "@/components/home/Sections";
 
 const SpatialScroll = dynamic(
   () => import("@/components/spatial/SpatialScroll").then((m) => m.SpatialScroll),
@@ -109,6 +109,7 @@ export default function LandingPage() {
       <HowItWorks />
       <ClipperSection />
       <MotionStudioSection />
+      <AiEditSection />
       <Control />
       {/* the heavy showcase (live players) mounts after the intro, so the intro and hero entrance get the main thread */}
       {/* the #looks anchor lives outside the late-mounting showcase, so nav and footer links always land */}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
-import { modeFromSearch } from "@/features/studio/projectMode";
+import { modeFromSearch, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
 import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, startGuestSession, takeAfterSignIn } from "@/services/auth/guest";
 import type { Project } from "@/services/types";
 import { LogoWave } from "@/components/brand/LogoWave";
@@ -15,6 +15,9 @@ import { LogoWave } from "@/components/brand/LogoWave";
  * - guest coming back: their latest project
  * - signed out on a browser that had an account: sign in (never a guest account)
  * - brand-new visitor: a guest account and a fresh project
+ * Homepage "Get Started" carries ?choose=1: a brand-new visitor first picks a door
+ * (Captions / Normal Editor / AI Edit — START_DOORS) and the fresh project starts
+ * through it. An explicit ?mode= link skips the chooser, as does a returning guest.
  * `replace`, never `push`, so Back doesn't bounce through here.
  */
 
@@ -45,7 +48,22 @@ export default function StartPage() {
   const router = useRouter();
   const [failed, setFailed] = useState(false);
   const [notConfigured, setNotConfigured] = useState(false);
+  // ?choose=1 (homepage Get Started) with no project yet: the visitor picks a door first
+  const [chooser, setChooser] = useState<{ projects: Project[] } | null>(null);
   const once = useRef(false);
+
+  const createAndRoute = useCallback(
+    async (projects: Project[], mode: ProjectStartMode | null) => {
+      try {
+        const project = await projectsService.createProject(nextUntitled(projects));
+        router.replace(mode ? `/projects/${project.id}?mode=${mode}` : `/projects/${project.id}`);
+      } catch {
+        setChooser(null);
+        setFailed(true);
+      }
+    },
+    [router],
+  );
 
   // fetch the speech model files while the person is on their way to the studio (idle, and not on a metered connection)
   useEffect(() => { void import("@/features/transcribe/browserWhisper").then((m) => m.warmSpeechModel()); }, []);
@@ -90,16 +108,21 @@ export default function StartPage() {
         const live = projects.filter((p) => !p.archived_at && !p.deleted_at).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
         // a guest continues where they left off
         const existing = live[0];
-        const project = existing ?? (await projectsService.createProject(nextUntitled(projects)));
-        // Package 2 item G: the homepage's second door (/start?mode=editor) — the mode is a
-        // STARTING choice, so it is forwarded only for a project created by this visit.
-        const doorMode = !existing ? modeFromSearch(window.location.search) : null;
-        router.replace(doorMode ? `/projects/${project.id}?mode=${doorMode}` : `/projects/${project.id}`);
+        if (existing) return router.replace(`/projects/${existing.id}`);
+        // The mode is a STARTING choice, forwarded only for a project created by this
+        // visit: an explicit door link (?mode=) goes straight through; ?choose=1 (the
+        // homepage's Get Started) asks first, with the three doors.
+        const doorMode = modeFromSearch(window.location.search);
+        if (!doorMode && new URLSearchParams(window.location.search).get("choose") === "1") {
+          setChooser({ projects });
+          return;
+        }
+        await createAndRoute(projects, doorMode);
       } catch {
         setFailed(true);
       }
     })();
-  }, [router]);
+  }, [router, createAndRoute]);
 
   return (
     <div className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center">
@@ -111,6 +134,26 @@ export default function StartPage() {
           <a href="/" className="mt-2 rounded-full bg-[#FFFFEB] px-5 py-2.5 text-sm font-semibold text-[#141412]">
             Back to home
           </a>
+        </div>
+      ) : chooser ? (
+        <div className="flex w-full max-w-md flex-col items-center gap-5">
+          <LogoWave height={40} />
+          <h1 className="text-xl font-bold text-[#FFFFEB]">How do you want to start?</h1>
+          <div className="grid w-full gap-2" role="radiogroup" aria-label="How this project starts">
+            {START_DOORS.map((door) => (
+              <button
+                key={door.mode}
+                role="radio"
+                aria-checked={false}
+                onClick={() => void createAndRoute(chooser.projects, door.mode)}
+                className="rounded-2xl border border-[#FFFFEB]/12 bg-[#1E1E1B] px-5 py-4 text-left transition hover:border-[#FFFFEB]/35"
+              >
+                <span className="block text-[15px] font-semibold text-[#FFFFEB]">{door.label}</span>
+                <span className="mt-0.5 block text-[13px] text-[#FFFFEB]/65">{door.sub}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[13px] text-[#FFFFEB]/55">You can switch later — this only sets how the first project opens.</p>
         </div>
       ) : failed ? (
         <div>

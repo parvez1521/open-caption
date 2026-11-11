@@ -9,7 +9,7 @@ import { studioService } from "@/services/studio";
 import { track } from "@/lib/track";
 import { ApiError } from "@/services/api-client";
 import { PrepareError, prepareVideo, type PrepareStage } from "@/features/upload/prepareVideo";
-import type { ProjectStartMode } from "./projectMode";
+import { START_DOORS, type ProjectStartMode } from "./projectMode";
 import { Check, Film, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import { Button } from "./controls";
 
@@ -110,17 +110,14 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         className={`w-full max-w-xl rounded-2xl border-2 border-dashed p-10 text-center transition ${over ? "border-st-ink bg-st-lav/40" : "border-st-hover bg-st-panel"}`}
       >
         {onModeChange && !busy && !prep ? (
-          <div className="mx-auto mb-5 grid max-w-md grid-cols-2 gap-1 rounded-xl border border-st-line bg-st-raised/60 p-1" role="radiogroup" aria-label="How this project starts">
-            {([
-              { m: "captions" as ProjectStartMode, label: "Captions", sub: "Transcribe & caption" },
-              { m: "editor" as ProjectStartMode, label: "Normal Editor", sub: "Edit only — captions later" },
-            ]).map((o) => (
+          <div className="mx-auto mb-5 grid max-w-md grid-cols-3 gap-1 rounded-xl border border-st-line bg-st-raised/60 p-1" role="radiogroup" aria-label="How this project starts">
+            {START_DOORS.map((o) => (
               <button
-                key={o.m}
+                key={o.mode}
                 role="radio"
-                aria-checked={mode === o.m}
-                onClick={() => onModeChange(o.m)}
-                className={`rounded-lg px-3 py-2 text-left transition ${mode === o.m ? "bg-st-panel shadow-sm" : "opacity-70 hover:opacity-100"}`}
+                aria-checked={mode === o.mode}
+                onClick={() => onModeChange(o.mode)}
+                className={`rounded-lg px-3 py-2 text-left transition ${mode === o.mode ? "bg-st-panel shadow-sm" : "opacity-70 hover:opacity-100"}`}
               >
                 <span className="block text-sm font-semibold text-st-text">{o.label}</span>
                 <span className="block text-[11px] leading-tight text-st-muted">{o.sub}</span>

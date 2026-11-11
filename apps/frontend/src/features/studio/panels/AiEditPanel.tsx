@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { SourceBadge } from "@/features/create/SourceBadge";
 import { sourceNote } from "@/features/create/model";
 import type { GenerationDeps } from "@/features/create/service";
@@ -40,6 +40,10 @@ interface Props {
   hopMs: number;
   /** commit a whole plan state as ONE undo step (StudioPage -> editAll) */
   onCommit: (next: PolishProjectState) => void;
+  /** stage preview (W1): while previewing, the panel pushes the plan applied to a
+   *  THROWAWAY state and StudioPage's stage renders it; null restores the stage.
+   *  Previewing never calls onCommit — Apply stays the only commit path. */
+  onPreviewChange?: (next: PolishProjectState | null) => void;
   /** D5: import one chosen B-roll suggestion into the project's media bin */
   onImportBroll: (s: BrollSuggestion) => Promise<void>;
   /** generation deps override (tests); defaults to the clipper's assembly */
@@ -61,7 +65,7 @@ const ANY_LOOK = "__any";
  * default-OFF stock search suggestions beside the checklist: nothing is
  * searched or imported until the user clicks.
  */
-export const AiEditPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs, onCommit, onImportBroll, deps: depsProp }) => {
+export const AiEditPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs, onCommit, onPreviewChange, onImportBroll, deps: depsProp }) => {
   const hookDeps = useClipTitleDeps();
   const deps = depsProp ?? hookDeps;
   const [stylePick, setStylePick] = useState<string>("clean");
@@ -71,6 +75,7 @@ export const AiEditPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
   const [stage, setStage] = useState<"ai" | "build" | null>(null);
   const [result, setResult] = useState<AiEditPlanResult | null>(null);
   const [unchecked, setUnchecked] = useState<ReadonlySet<PolishStepKind>>(new Set());
+  const [previewOn, setPreviewOn] = useState(false);
   const [record, setRecord] = useState<PolishAppliedRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [brollResults, setBrollResults] = useState<Record<string, BrollSuggestion[]>>({});
@@ -89,6 +94,7 @@ export const AiEditPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
   };
 
   const buildPlan = async () => {
+    setPreviewOn(false);
     setError(null);
     const routeAvailable = Boolean(deps.runCloud) || Boolean(deps.modelEnabled && deps.runModel);
     setStage(routeAvailable ? "ai" : "build");
@@ -144,12 +150,35 @@ export const AiEditPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
   const plan = result?.plan ?? null;
   const checkedCount = plan ? plan.steps.filter((s) => !unchecked.has(s.id)).length : 0;
 
+  /* W1 preview: the checked steps applied to a throwaway copy of the CURRENT
+   * state. applyPolishPlan is pure — the committed state, the undo history and
+   * the saved project are never touched; the result only feeds the stage.
+   * Deps are the state's FIELDS (StudioPage re-creates the wrapper object every
+   * render; the fields are the store's stable references). */
+  const previewState = useMemo(() => {
+    if (!previewOn || !plan || checkedCount === 0) return null;
+    const checked = new Set(plan.steps.filter((s) => !unchecked.has(s.id)).map((s) => s.id));
+    return applyPolishPlan(state, plan, checked).state;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewOn, plan, unchecked, checkedCount, state.doc, state.comp, state.settings, state.style, state.lookId]);
+  const previewCbRef = useRef(onPreviewChange);
+  useEffect(() => {
+    previewCbRef.current = onPreviewChange;
+  }, [onPreviewChange]);
+  useEffect(() => {
+    previewCbRef.current?.(previewState);
+  }, [previewState]);
+  useEffect(() => () => {
+    previewCbRef.current?.(null);
+  }, []);
+
   const apply = () => {
     if (!plan) return;
     const checked = new Set(plan.steps.filter((s) => !unchecked.has(s.id)).map((s) => s.id));
     if (checked.size === 0) return;
     const { state: next, record: rec } = applyPolishPlan(state, plan, checked);
     if (rec.steps.length === 0) return;
+    setPreviewOn(false);
     onCommit(next);
     setRecord(rec);
   };
@@ -328,6 +357,18 @@ export const AiEditPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
                   <p key={i} className="mt-1 text-xs leading-snug text-st-faint">{n}</p>
                 ))}
               </div>
+            ) : null}
+            {onPreviewChange ? (
+              <>
+                <Button disabled={checkedCount === 0} aria-pressed={previewOn} onClick={() => setPreviewOn((v) => !v)} className="w-full">
+                  {previewOn ? "Stop preview" : "Preview on stage"}
+                </Button>
+                {checkedCount === 0 ? (
+                  <p className="text-xs text-st-faint">Tick at least one step to preview it on the stage.</p>
+                ) : previewOn ? (
+                  <p className="text-xs text-st-faint">Showing on the stage — nothing is applied until you press Apply.</p>
+                ) : null}
+              </>
             ) : null}
             <Button tone="primary" disabled={checkedCount === 0} onClick={apply} className="w-full">
               {checkedCount === 0 ? "No steps checked" : `Apply ${checkedCount} step${checkedCount === 1 ? "" : "s"} — one undo step`}
