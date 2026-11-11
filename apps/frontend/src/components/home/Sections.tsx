@@ -27,7 +27,7 @@ function homeMotionItem(templateId: OverlaySocialVariant): OverlayItem {
 }
 import { PLANS } from "@capseasy/shared";
 import { Logo as BrandLogo } from "@/components/brand/Logo";
-import { LEGAL_PAGES } from "@/lib/legal";
+import { LEGAL, LEGAL_PAGES } from "@/lib/legal";
 import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/brand";
 
 // the real renderer is client-only and fairly heavy: load it after the page shell
@@ -374,14 +374,16 @@ export function ClipperSection() {
               One long video, <em className="font-normal italic text-[#34D399]">many short clips.</em>
             </h2>
             <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
-              The Clipper reads your transcript and proposes the segments worth clipping: the speech
-              runs between silences, sized 15 to 60 seconds. Adjust the edges, create a clip, and it
-              becomes its own captioned project, ready to style and post.
+              The Clipper reads your transcript and proposes the segments worth clipping: measured
+              suggestions from the speech runs between silences, or the AI Clipping Studio&rsquo;s
+              ranked moments. Adjust the edges, create a clip, and it becomes its own captioned
+              project, ready to style and post.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-[#FFFFEB]/60">
-              Smart segment suggestions from your transcript — no highlight magic, just your words
-              and the pauses between them. Your source video is not re-encoded or cut; a clip is a
-              range on the same file, kept on your device.
+              The AI ranks moments with an Editorial score — an estimate, never a performance
+              prediction — and the measured suggestions show the signals behind their order. Your
+              source video is not re-encoded or cut; a clip is a range on the same file, kept on
+              your device.
             </p>
             <Link href="/clipper" className="mt-7 inline-flex items-center gap-2 rounded-full border border-[#FFFFEB]/30 bg-[#252B26] px-6 py-3.5 text-base font-bold text-[#FFFFEB] transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]">
               Open the Clipper <span aria-hidden>→</span>
@@ -619,7 +621,7 @@ export function Faq() {
         </div>
 
         {/* Outer Split Container Card */}
-        <div data-reveal className="bg-white/60 rounded-3xl p-5 sm:p-8 border border-[#FFFFEB]/10 shadow-[0_20px_50px_-35px_rgba(0,0,0,0.3)] backdrop-blur">
+        <div data-reveal className="bg-[#1C1C1A] rounded-3xl p-5 sm:p-8 border border-[#FFFFEB]/10 shadow-[0_20px_50px_-35px_rgba(0,0,0,0.3)]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
             
             {/* Left Column: Questions List Card */}
@@ -746,6 +748,7 @@ const FOOTER_COLUMNS = [
     title: "COMPANY",
     links: [
       { label: "About", href: "/about" },
+      { label: "Support", href: `mailto:${LEGAL.email}` },
       { label: "Sign in to app", href: "/login" },
       { label: "Terms of service", href: "/terms" },
       { label: "Privacy policy", href: "/privacy" },

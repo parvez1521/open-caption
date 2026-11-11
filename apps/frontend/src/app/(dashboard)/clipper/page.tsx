@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
@@ -38,13 +38,12 @@ function ClipperPageInner() {
   });
   const projects = data?.projects ?? [];
   const searchParams = useSearchParams();
-  const [selectedId, setSelectedId] = useState<string | null>(() => searchParams.get("project"));
-  useEffect(() => {
-    const q = searchParams.get("project");
-    if (q) setSelectedId(q);
-  }, [searchParams]);
+  const queryClient = useQueryClient();
+  // Selection lives ONLY in the ?project= param — one source of truth, so the
+  // list, the heading and the address bar can never disagree (persona audit
+  // 2026-11-11: state + param were kept in sync by an effect and could desync).
+  const selectedId = searchParams.get("project");
   const select = (id: string) => {
-    setSelectedId(id);
     router.replace(`/clipper?project=${id}`, { scroll: false });
   };
 
@@ -54,8 +53,10 @@ function ClipperPageInner() {
     try {
       const used = projects.map((p) => /^Untitled (\d+)$/i.exec(p.title.trim())?.[1]).filter(Boolean).map(Number);
       const project = await projectsService.createProject(`Untitled ${String((used.length ? Math.max(...used) : 0) + 1).padStart(3, "0")}`);
-      // selected here straight away: the workspace shows its honest no-video state, with
+      // refresh the list so the new project appears without a manual reload,
+      // then select it: the workspace shows its honest no-video state, with
       // the link into the Studio where uploading + transcription actually happen
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
       select(project.id);
       setCreating(false);
     } catch (e) {
@@ -75,8 +76,9 @@ function ClipperPageInner() {
           </div>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
             Long-form video in, short captioned clips out. Suggestions are measured on your device
-            from the transcript, the audio&apos;s silence spans and frame-difference scene changes.
-            Pick a project that already has captions, or start with a new long video.
+            from the transcript, the audio&apos;s silence spans and frame-difference scene changes —
+            and the AI Clipping Studio in the panel below ranks moments from the transcript with an
+            editorial estimate. Pick a project that already has captions, or start with a new long video.
           </p>
           <button
             onClick={() => void startNew()}

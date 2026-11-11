@@ -15,10 +15,13 @@ import { LogoWave } from "@/components/brand/LogoWave";
  * - guest coming back: their latest project
  * - signed out on a browser that had an account: sign in (never a guest account)
  * - brand-new visitor: a guest account and a fresh project
- * Homepage "Get Started" carries ?choose=1: a brand-new visitor first picks a door
+ * Homepage "Get Started" carries ?choose=1: the visitor first picks a door
  * (Captions / Normal Editor / AI Edit — START_DOORS) and the fresh project starts
- * through it. An explicit ?mode= link skips the chooser, as does a returning guest.
- * `replace`, never `push`, so Back doesn't bounce through here.
+ * through it. ?choose=1 is an explicit request for that choice, so it shows the
+ * doors even when a project already exists (with a continue link to it); plain
+ * /start without it sends a returning guest straight to their latest project.
+ * An explicit ?mode= link skips the chooser. `replace`, never `push`, so Back
+ * doesn't bounce through here.
  */
 
 function nextUntitled(projects: Project[]) {
@@ -48,8 +51,9 @@ export default function StartPage() {
   const router = useRouter();
   const [failed, setFailed] = useState(false);
   const [notConfigured, setNotConfigured] = useState(false);
-  // ?choose=1 (homepage Get Started) with no project yet: the visitor picks a door first
-  const [chooser, setChooser] = useState<{ projects: Project[] } | null>(null);
+  // ?choose=1 (homepage Get Started): the visitor picks a door first — even when
+  // a project already exists (existing is offered as a continue link instead)
+  const [chooser, setChooser] = useState<{ projects: Project[]; existing: Project | null } | null>(null);
   const once = useRef(false);
 
   const createAndRoute = useCallback(
@@ -106,17 +110,19 @@ export default function StartPage() {
       try {
         const projects = await projectsService.getProjects();
         const live = projects.filter((p) => !p.archived_at && !p.deleted_at).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
+        // The mode is a STARTING choice, forwarded only for a project created by this
+        // visit: an explicit door link (?mode=) goes straight through; ?choose=1 (the
+        // homepage's Get Started) asks first, with the three doors — even when a
+        // project already exists, because the click asked for the choice. Plain
+        // /start keeps the "continue where you left off" redirect below.
+        const doorMode = modeFromSearch(window.location.search);
+        if (!doorMode && new URLSearchParams(window.location.search).get("choose") === "1") {
+          setChooser({ projects, existing: live[0] ?? null });
+          return;
+        }
         // a guest continues where they left off
         const existing = live[0];
         if (existing) return router.replace(`/projects/${existing.id}`);
-        // The mode is a STARTING choice, forwarded only for a project created by this
-        // visit: an explicit door link (?mode=) goes straight through; ?choose=1 (the
-        // homepage's Get Started) asks first, with the three doors.
-        const doorMode = modeFromSearch(window.location.search);
-        if (!doorMode && new URLSearchParams(window.location.search).get("choose") === "1") {
-          setChooser({ projects });
-          return;
-        }
         await createAndRoute(projects, doorMode);
       } catch {
         setFailed(true);
@@ -154,6 +160,14 @@ export default function StartPage() {
             ))}
           </div>
           <p className="text-[13px] text-[#FFFFEB]/55">You can switch later — this only sets how the first project opens.</p>
+          {chooser.existing ? (
+            <button
+              onClick={() => router.replace(`/projects/${chooser.existing!.id}`)}
+              className="text-[13px] font-semibold text-[#FFFFEB]/75 underline decoration-[#FFA946] decoration-2 underline-offset-4 hover:text-[#FFFFEB]"
+            >
+              Or continue your latest project, {chooser.existing.title} →
+            </button>
+          ) : null}
         </div>
       ) : failed ? (
         <div>

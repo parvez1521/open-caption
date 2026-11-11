@@ -10,6 +10,7 @@ import { track } from "@/lib/track";
 import { ApiError } from "@/services/api-client";
 import { PrepareError, prepareVideo, type PrepareStage } from "@/features/upload/prepareVideo";
 import { START_DOORS, type ProjectStartMode } from "./projectMode";
+import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
 import { Check, Film, ShieldCheck, Sparkles, Upload } from "lucide-react";
 import { Button } from "./controls";
 
@@ -179,7 +180,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
             <ul className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-st-muted">
               <li className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Stays on your device</li>
               <li className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" aria-hidden /> No watermark</li>
-              <li className="flex items-center gap-1.5"><Film className="h-3.5 w-3.5" aria-hidden /> MP4, MOV or WebM · up to {Math.round(limits.maxDurationSec / 60)} min</li>
+              <li className="flex items-center gap-1.5"><Film className="h-3.5 w-3.5" aria-hidden /> MP4, MOV or WebM · up to {Math.round(limits.maxDurationSec / 60)} min · {uploadLimitLabel(limits.maxBytes)} max</li>
             </ul>
             <input ref={inputRef} type="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.webm,.mkv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) pick(f); e.target.value = ""; }} />
           </>
@@ -213,7 +214,7 @@ const LanguageChoice: React.FC<{ value: SpeechLanguage | null; onChange: (l: Spe
           <span className="min-w-0">
             <span className="block text-sm font-semibold">{m.choiceLabel}</span>
             <span className="block text-[11px] leading-tight text-st-muted">{m.choiceHint}</span>
-            <span className="block text-[11px] leading-tight text-st-muted">Model download ~{m.approxDownloadMb} MB, once</span>
+            <span className="block text-[11px] leading-tight text-st-muted">Speech model ~{m.approxDownloadMb} MB, one download — captions are made on your device</span>
           </span>
         </button>
       ))}

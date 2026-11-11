@@ -23,7 +23,10 @@ export default function DashboardPage() {
     authService.getCurrentUser().then(setCurrentUser);
   }, [router]);
 
-  const firstName = currentUser?.name?.split(" ")[0];
+  // Guests (anonymous sessions) have no email and no real name: greet them as
+  // what they are instead of "Welcome back" to an account they never made.
+  const isGuest = currentUser ? !currentUser.email : false;
+  const firstName = isGuest ? undefined : currentUser?.name?.split(" ")[0];
 
   return (
     <StudioShell>
@@ -33,7 +36,7 @@ export default function DashboardPage() {
             <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-[-0.015em] text-ink break-words">
               {firstName ? (<>Welcome back, <em className="italic text-sand-600">{firstName}.</em></>) : "Your projects"}
             </h1>
-            <p className="mt-2 text-[14px] text-sand-800">Every clip you&apos;re captioning, in one place. Projects stay saved on your account — pick up where you left off.</p>
+            <p className="mt-2 text-[14px] text-sand-800">{isGuest ? "Every clip you're captioning, in one place. You're exploring as a guest — projects are saved to this guest session, and a free account keeps them under your name." : "Every clip you're captioning, in one place. Projects stay saved on your account — pick up where you left off."}</p>
           </div>
         </div>
 

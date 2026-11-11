@@ -7,8 +7,9 @@ import { useParams } from "next/navigation";
 
 /**
  * The editor is the heaviest screen in the app (video + speech model + player). If anything in it
- * crashes — most often a phone browser running out of memory — the project must not look lost: the
- * project and its captions live on the account, and this screen is the way back into them.
+ * crashes — most often a browser running low on memory — the project must not look lost: the
+ * project and its captions are saved (guests keep them in this guest session, signed-in users on
+ * their account), and this screen is the way back into them.
  */
 export default function ProjectError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   const params = useParams();
@@ -26,8 +27,8 @@ export default function ProjectError({ error, reset }: { error: Error & { digest
         </div>
         <h1 className="text-2xl font-bold tracking-tight">The editor hit a snag</h1>
         <p className="mt-2 text-[15px] text-[#FFFFEB]/65">
-          Nothing you made is lost — this project and its captions are saved on your account. On phones this
-          usually means the browser ran low on memory; closing other tabs first can help.
+          Nothing you made is lost — this project and its captions are saved, and reopening is safe. It
+          usually means the browser ran low on memory; closing other tabs or apps first can help.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button onClick={reset} className="rounded-full bg-[#FFFFEB] px-5 py-2.5 text-sm font-semibold text-[#141412]">Resume your project</button>

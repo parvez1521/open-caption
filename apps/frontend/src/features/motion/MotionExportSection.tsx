@@ -218,7 +218,7 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
           </div>
         </div>
         <p className="text-[12px] text-sand-600">
-          Exports at {dims.width} × {dims.height}. {MOTION_EXPORT_FPS_OPTIONS.find((o) => o.fps === selection.fps)?.hint}
+          Exports at {dims.width} × {dims.height} · {selection.fps} fps. {MOTION_EXPORT_FPS_OPTIONS.find((o) => o.fps === selection.fps)?.hint}
         </p>
 
         <div>

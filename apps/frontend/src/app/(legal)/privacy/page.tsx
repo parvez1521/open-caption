@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
-import { PLANS } from "@capseasy/shared";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
@@ -12,12 +11,12 @@ export default function PrivacyPage() {
     <LegalDoc
       title="Privacy"
       accent="Policy"
-      intro={<>This policy explains what we collect when you use the website, the studio and the optional desktop helper app, why, who processes it for us, how long we keep it, and the choices you have. {LEGAL.operator} is the controller of this data.</>}
+      intro={<>This policy explains what we collect when you use the website, the studio and the optional desktop Companion app, why, who processes it for us, how long we keep it, and the choices you have. {LEGAL.operator} is the controller of this data.</>}
     >
       <Sec id="summary" title="In short">
         <ul>
           <li>Speech recognition runs <strong>in your browser</strong>, on your own device. We do not send your audio to a third-party speech service.</li>
-          <li>We store your account, your projects, your uploaded videos and your exports so the studio works across devices.</li>
+          <li>We store your account, your projects (captions and settings) and your exports so the studio works across devices. Your videos stay on your device — the one exception is a transparent-overlay export you send to the desktop Companion app: that video passes through our storage so the Companion can render it.</li>
           <li>We do not sell personal data, and do not train AI models on your videos or transcripts.</li>
           <li>If advertising is enabled on the site, Google and other third-party vendors may use cookies to serve ads based on your prior visits — section 8 explains this and how to opt out. No ads run inside the editor, and advertising never touches your videos or transcripts.</li>
         </ul>
@@ -26,7 +25,7 @@ export default function PrivacyPage() {
       <Sec id="collect" title="1. What we collect">
         <ul>
           <li><strong>Account data:</strong> email address, name, password (stored only as a secure hash by our authentication provider) or your Google sign-in identity, and profile picture if your sign-in provider supplies one.</li>
-          <li><strong>Your content:</strong> videos you upload, audio extracted from them, transcripts, captions, styles, saved looks, brand colours and fonts, and the files you export.</li>
+          <li><strong>Your content:</strong> the videos you add (they stay on your device, except a video you send to a Companion export, which passes through our storage for that job), transcripts, captions, styles, saved looks, brand colours and fonts, and the files you export.</li>
           <li><strong>Companion data:</strong> for each computer you pair: its name, operating system, app version and capabilities (such as available disk space and installed speech models), and when it was last online. Pairing tokens are stored only as a secure hash.</li>
           <li><strong>Usage data:</strong> how much you upload, transcribe and render (to apply plan limits), job status and error logs, and basic request logs (IP address, browser, time) kept by our hosting provider for security and debugging.</li>
           <li><strong>Messages:</strong> anything you send us by email.</li>
@@ -43,7 +42,7 @@ export default function PrivacyPage() {
       </Sec>
 
       <Sec id="local" title="3. On-device processing">
-        <p>The Open Caption Companion downloads your video from our storage to your computer, transcribes it with a speech model that runs locally, renders exports locally, and uploads the results back to your account. The speech model and rendering never send your audio anywhere else. The Companion keeps a local cache of videos it has processed, which you can clear by deleting its cache folder.</p>
+        <p>By default, everything runs in your browser: speech recognition, editing and MP4 rendering happen on your device, and your video is never uploaded. The optional desktop Companion app is the exception. For a transparent overlay export, the Companion downloads your video from our storage to your computer, renders the export locally, and uploads the result back to your account. The rendering never sends your video or audio anywhere else. The Companion keeps a local cache of videos it has processed, which you can clear by deleting its cache folder.</p>
       </Sec>
 
       <Sec id="cloud" title="4. Transcription">
@@ -55,13 +54,13 @@ export default function PrivacyPage() {
       </Sec>
 
       <Sec id="transfers" title="6. International transfers">
-        <p>Our providers may store or process data outside your country, including in South Korea (database and file storage) and the United States (website hosting). Where the law requires it, we rely on appropriate safeguards such as standard contractual clauses.</p>
+        <p>Our providers may store or process data outside your country, including in India (database and file storage) and the United States (website hosting). Where the law requires it, we rely on appropriate safeguards such as standard contractual clauses.</p>
       </Sec>
 
       <Sec id="retention" title="7. How long we keep it">
         <ul>
-          <li>Projects, videos and captions: until you delete them or close your account.</li>
-          <li>Exports: {PLANS.free.exportRetentionDays} days, then deleted automatically.</li>
+          <li>Projects and captions: until you delete them or close your account.</li>
+          <li>Exports: kept for 7 to 60 days depending on your plan (see Pricing), then deleted automatically.</li>
           <li>Deleted projects: removed from storage within 30 days, including backups.</li>
           <li>Account data: until you close your account, then deleted within 30 days, except records we must keep by law (for example invoices).</li>
           <li>Security and request logs: typically up to 30 days.</li>

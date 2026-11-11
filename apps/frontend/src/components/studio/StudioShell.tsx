@@ -91,6 +91,9 @@ export default function StudioShell({ children }: { children: React.ReactNode })
     }
   };
 
+  // Guests are anonymous sessions with no email: they never signed in, so the
+  // shell must not offer them a "Sign out" — it offers the account path instead.
+  const isGuest = user ? !user.email : false;
   const healthy = health ? health.database && health.queue : undefined;
   return (
     <div className="min-h-screen bg-dune-white md:flex">
@@ -107,9 +110,13 @@ export default function StudioShell({ children }: { children: React.ReactNode })
             </Link>
           ))}
           {SHOW_HEALTH ? <span title={healthy === undefined ? "Checking service" : healthy ? "All systems running" : "Service problem"} className={`ml-1 h-2 w-2 rounded-full ${healthy === undefined ? "bg-sand-300" : healthy ? "bg-emerald-accent" : "bg-orange-accent"}`} /> : null}
+          {isGuest ? (
+            <Link href="/login?mode=signup" className="ml-1 shrink-0 rounded-lg px-2.5 py-2 font-sora text-[12px] font-semibold text-sand-700 hover:bg-sand-100 hover:text-ink">Sign up free</Link>
+          ) : (
           <button onClick={handleSignOut} aria-label="Sign out" className="ml-1 rounded-lg p-2 text-sand-600 hover:bg-sand-100 hover:text-ink">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H9m4 7H7a2 2 0 01-2-2V5a2 2 0 012-2h6" /></svg>
           </button>
+          )}
         </nav>
       </header>
 
@@ -172,8 +179,17 @@ export default function StudioShell({ children }: { children: React.ReactNode })
               <p className="truncate font-sora text-[13px] font-semibold text-ink">
                 {user?.name ?? "…"}
               </p>
-              <p className="truncate text-[11px] text-sand-600">{user?.email ?? ""}</p>
+              <p className="truncate text-[11px] text-sand-600">{user?.email ? user.email : user ? "Guest session" : ""}</p>
             </div>
+            {isGuest ? (
+              <Link
+                href="/login?mode=signup"
+                title="Create a free account"
+                className="shrink-0 rounded-lg px-2 py-2 font-sora text-[12px] font-semibold text-sand-700 hover:bg-sand-100 hover:text-ink transition-colors"
+              >
+                Sign up free
+              </Link>
+            ) : (
             <button
               onClick={handleSignOut}
               title="Sign out"
@@ -183,6 +199,7 @@ export default function StudioShell({ children }: { children: React.ReactNode })
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H9m4 7H7a2 2 0 01-2-2V5a2 2 0 012-2h6" />
               </svg>
             </button>
+            )}
           </div>
         </div>
       </aside>

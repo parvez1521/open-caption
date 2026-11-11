@@ -297,7 +297,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
                 ))}
               </div>
             </div>
-            <p className="mt-1 text-xs text-st-faint sm:text-right">{RESOLUTION_OPTIONS.find((r) => r.id === exportSettings.resolution)?.hint} Exports at {outDims.width} × {outDims.height}.</p>
+            <p className="mt-1 text-xs text-st-faint sm:text-right">{RESOLUTION_OPTIONS.find((r) => r.id === exportSettings.resolution)?.hint} Exports at {outDims.width} × {outDims.height} · {exportSettings.fps} fps.</p>
           </div>
 
           <div className="mb-3 text-sm text-st-text/80">
