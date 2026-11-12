@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MODELS, PROJECT_LANGUAGE, SHIPPED_LANGUAGES, isConstrainedDevice, modelFiles, runtimeFor, savedSpeechLanguage, speechLanguageOf } from "../runtime";
+import { MODELS, PROJECT_LANGUAGE, SHIPPED_LANGUAGES, isConstrainedDevice, likelySpeechLanguage, modelFiles, runtimeFor, savedSpeechLanguage, speechLanguageOf } from "../runtime";
 
 const PHONE_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
@@ -75,7 +75,7 @@ describe("multilingual model map (Slice 5.2: Devanagari Hindi)", () => {
     expect(PROJECT_LANGUAGE.en).toBe("en");
   });
 
-  it("project language -> model: hi-Latn stays Roman, bare hi is Devanagari, everything else is English", () => {
+  it("project language -> model: hi-Latn stays Roman, bare hi is Devanagari, unknown codes fall back to English", () => {
     expect(speechLanguageOf("hi-Latn")).toBe("hinglish");
     expect(speechLanguageOf("hinglish")).toBe("hinglish");
     expect(speechLanguageOf("hi")).toBe("hindi");
@@ -84,11 +84,11 @@ describe("multilingual model map (Slice 5.2: Devanagari Hindi)", () => {
     expect(speechLanguageOf("en")).toBe("en");
     expect(speechLanguageOf("auto")).toBe("en");
     expect(speechLanguageOf(null)).toBe("en");
-    expect(speechLanguageOf("fr")).toBe("en"); // unshipped languages are never promised: they fall back, not listed
+    expect(speechLanguageOf("ja")).toBe("en"); // unshipped languages are never promised: they fall back, not listed
   });
 
   it("only shipped languages are offered, each with label, hint and download size from the one map", () => {
-    expect(SHIPPED_LANGUAGES.map((m) => m.key)).toEqual(["en", "hinglish", "hindi"]);
+    expect(SHIPPED_LANGUAGES.map((m) => m.key)).toEqual(["en", "hinglish", "hindi", "tamil", "telugu", "bengali", "marathi", "punjabi", "urdu", "spanish", "french", "german", "arabic", "portuguese"]);
     for (const m of SHIPPED_LANGUAGES) {
       expect(m.choiceLabel.length).toBeGreaterThan(0);
       expect(m.choiceHint.length).toBeGreaterThan(0);
@@ -103,5 +103,73 @@ describe("multilingual model map (Slice 5.2: Devanagari Hindi)", () => {
     localStorage.setItem("ce:speech-language", "hinglish");
     expect(savedSpeechLanguage()).toBe("hinglish");
     localStorage.removeItem("ce:speech-language");
+  });
+});
+
+describe("eleven new languages (2026-11-12: Indian + world)", () => {
+  const NEW: { key: keyof typeof MODELS; token: string; project: string; budget: number }[] = [
+    { key: "tamil", token: "ta", project: "ta", budget: 12 },
+    { key: "telugu", token: "te", project: "te", budget: 12 },
+    { key: "bengali", token: "bn", project: "bn", budget: 12 },
+    { key: "marathi", token: "mr", project: "mr", budget: 12 },
+    { key: "punjabi", token: "pa", project: "pa", budget: 12 },
+    { key: "urdu", token: "ur", project: "ur", budget: 12 },
+    { key: "spanish", token: "es", project: "es", budget: 7 },
+    { key: "french", token: "fr", project: "fr", budget: 7 },
+    { key: "german", token: "de", project: "de", budget: 7 },
+    { key: "arabic", token: "ar", project: "ar", budget: 12 },
+    { key: "portuguese", token: "pt", project: "pt", budget: 7 },
+  ];
+
+  it("every new language is the stock Whisper base with its own token: same files as English, no second download", () => {
+    for (const n of NEW) {
+      const m = MODELS[n.key];
+      expect(m.language).toBe(n.token);
+      expect(m.id).toBe(MODELS.en.id);
+      expect(m.revision).toBe(MODELS.en.revision);
+      expect(m.licence).toBe("MIT");
+      expect(m.tokensPerSecond).toBe(n.budget);
+      expect(modelFiles(m, runtimeFor("wasm"))).toEqual(modelFiles(MODELS.en, runtimeFor("wasm")));
+      expect(modelFiles(m, runtimeFor("webgpu"))).toEqual(modelFiles(MODELS.en, runtimeFor("webgpu")));
+    }
+  });
+
+  it("project language -> model for all eleven (code, region variant, full name)", () => {
+    const cases: [string, string][] = [
+      ["ta", "tamil"], ["ta-IN", "tamil"], ["tamil", "tamil"],
+      ["te", "telugu"], ["te-IN", "telugu"],
+      ["bn", "bengali"], ["bn-BD", "bengali"], ["bangla", "bengali"],
+      ["mr", "marathi"], ["mr-IN", "marathi"],
+      ["pa", "punjabi"], ["pa-IN", "punjabi"],
+      ["ur", "urdu"], ["ur-PK", "urdu"],
+      ["es", "spanish"], ["es-ES", "spanish"],
+      ["fr", "french"], ["fr-FR", "french"],
+      ["de", "german"], ["de-DE", "german"], ["deutsch", "german"],
+      ["ar", "arabic"], ["ar-SA", "arabic"],
+      ["pt", "portuguese"], ["pt-BR", "portuguese"],
+    ];
+    for (const [input, expected] of cases) expect(speechLanguageOf(input)).toBe(expected);
+  });
+
+  it("project language round-trips for all eleven", () => {
+    for (const n of NEW) expect(PROJECT_LANGUAGE[n.key]).toBe(n.project);
+  });
+
+  it("remembers a new-language choice and rejects an unknown saved value", () => {
+    localStorage.setItem("ce:speech-language", "tamil");
+    expect(savedSpeechLanguage()).toBe("tamil");
+    localStorage.setItem("ce:speech-language", "xx");
+    expect(savedSpeechLanguage()).toBe(null);
+    localStorage.removeItem("ce:speech-language");
+  });
+
+  it("guesses from the browser language for the new languages", () => {
+    localStorage.removeItem("ce:speech-language");
+    setNavigator({ languages: ["ta-IN", "en-IN"] });
+    expect(likelySpeechLanguage()).toBe("tamil");
+    setNavigator({ languages: ["pt-BR"] });
+    expect(likelySpeechLanguage()).toBe("portuguese");
+    setNavigator({ languages: ["xx"] });
+    expect(likelySpeechLanguage()).toBe("en");
   });
 });

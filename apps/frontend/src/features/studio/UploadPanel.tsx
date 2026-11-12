@@ -39,7 +39,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   const [constrained] = useState(() => isConstrainedDevice());
   const [lang, setLang] = useState<SpeechLanguage | null>(() => {
     const fromProject = speechLanguageOf(language);
-    return fromProject === "hinglish" || fromProject === "hindi" ? fromProject : savedSpeechLanguage();
+    return fromProject !== "en" ? fromProject : savedSpeechLanguage();
   });
   const [pending, setPending] = useState<File | null>(null);
   useEffect(() => {
@@ -248,5 +248,6 @@ const LanguageChoice: React.FC<{ value: SpeechLanguage | null; onChange: (l: Spe
     </div>
     {value === "hinglish" ? <p className="mt-2 px-1 text-[11px] text-st-muted">Captions are written in English letters, like &ldquo;yeh trick kamaal hai&rdquo;.</p> : null}
     {value === "hindi" ? <p className="mt-2 px-1 text-[11px] text-st-muted">Captions are written in Devanagari script, like &ldquo;यह ट्रिक कमाल है&rdquo;. Uses the same model download as English{MODELS.hindi.id === MODELS.en.id ? " — if English captions were used before, there is nothing new to download" : ""}.</p> : null}
+    {value && value !== "en" && value !== "hinglish" && value !== "hindi" && MODELS[value].id === MODELS.en.id ? <p className="mt-2 px-1 text-[11px] text-st-muted">Uses the same model download as English — if English captions were used before, there is nothing new to download.</p> : null}
   </div>
 );

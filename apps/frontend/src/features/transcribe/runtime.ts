@@ -10,6 +10,12 @@
  *   hindi     the SAME stock multilingual Whisper base as `en`, forced to Hindi ("hi"): captions come out in
  *             Devanagari script. Same repo, revision and files as `en`, so a browser that already downloaded the
  *             English model downloads nothing extra — only the language token changes.
+ *   tamil, telugu, bengali, marathi, punjabi, urdu, spanish, french, german, arabic, portuguese
+ *             the SAME stock multilingual Whisper base as `en`, forced to that language's Whisper token
+ *             ("ta", "te", "bn", "mr", "pa", "ur", "es", "fr", "de", "ar", "pt"): same repo, revision and files
+ *             as `en`, so again nothing extra to download — only the token changes. Urdu and Arabic write
+ *             right-to-left scripts; they render through the browser's bidi handling (no RTL-specific caption
+ *             layout yet).
  * Only the chosen model is downloaded. A language ships only when it is wired end to end (this map, the worker's
  * language token, and the caption engine's alignment gate — Devanagari fixtures live in the caption-engine suite);
  * no other language is listed anywhere in the UI.
@@ -22,7 +28,21 @@
  * the upstream licence) — Whisper/Transformers.js were audited SAFE (Apache-2.0/MIT family) in the Phase 1 audit.
  */
 
-export type SpeechLanguage = "en" | "hinglish" | "hindi";
+export type SpeechLanguage =
+  | "en"
+  | "hinglish"
+  | "hindi"
+  | "tamil"
+  | "telugu"
+  | "bengali"
+  | "marathi"
+  | "punjabi"
+  | "urdu"
+  | "spanish"
+  | "french"
+  | "german"
+  | "arabic"
+  | "portuguese";
 
 export interface SpeechModel {
   key: SpeechLanguage;
@@ -106,6 +126,152 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     choiceLabel: "Hindi (देवनागरी)",
     choiceHint: "Hindi — captions in Devanagari script",
   },
+  // The eleven below share the stock multilingual Whisper base with `en` (same repo + revision, only the language
+  // token changes), so none of them costs a second download on a browser that has captioned English before.
+  // Non-Latin scripts budget 12 tokens/second like Hindi; Latin-script languages budget 7 like English.
+  tamil: {
+    key: "tamil",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "ta",
+    label: "whisper-base · Tamil (browser)",
+    tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Tamil (தமிழ்)",
+    choiceHint: "Tamil — captions in Tamil script",
+  },
+  telugu: {
+    key: "telugu",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "te",
+    label: "whisper-base · Telugu (browser)",
+    tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Telugu (తెలుగు)",
+    choiceHint: "Telugu — captions in Telugu script",
+  },
+  bengali: {
+    key: "bengali",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "bn",
+    label: "whisper-base · Bengali (browser)",
+    tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Bengali (বাংলা)",
+    choiceHint: "Bengali — captions in Bengali script",
+  },
+  marathi: {
+    key: "marathi",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "mr",
+    label: "whisper-base · Marathi (browser)",
+    tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Marathi (मराठी)",
+    choiceHint: "Marathi — captions in Devanagari script",
+  },
+  punjabi: {
+    key: "punjabi",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "pa",
+    label: "whisper-base · Punjabi (browser)",
+    tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Punjabi (ਪੰਜਾਬੀ)",
+    choiceHint: "Punjabi — captions in Gurmukhi script",
+  },
+  urdu: {
+    key: "urdu",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "ur",
+    label: "whisper-base · Urdu (browser)",
+    tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Urdu (اردو)",
+    choiceHint: "Urdu — captions in Urdu script",
+  },
+  spanish: {
+    key: "spanish",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "es",
+    label: "whisper-base · Spanish (browser)",
+    tokensPerSecond: 7,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Spanish (Español)",
+    choiceHint: "Spanish — captions in Spanish",
+  },
+  french: {
+    key: "french",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "fr",
+    label: "whisper-base · French (browser)",
+    tokensPerSecond: 7,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "French (Français)",
+    choiceHint: "French — captions in French",
+  },
+  german: {
+    key: "german",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "de",
+    label: "whisper-base · German (browser)",
+    tokensPerSecond: 7,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "German (Deutsch)",
+    choiceHint: "German — captions in German",
+  },
+  arabic: {
+    key: "arabic",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "ar",
+    label: "whisper-base · Arabic (browser)",
+    tokensPerSecond: 12,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Arabic (العربية)",
+    choiceHint: "Arabic — captions in Arabic script",
+  },
+  portuguese: {
+    key: "portuguese",
+    id: "onnx-community/whisper-base_timestamped",
+    revision: "608c49e61301901684bc36cac8f74b95ff6b5a8e",
+    host: HF,
+    language: "pt",
+    label: "whisper-base · Portuguese (browser)",
+    tokensPerSecond: 7,
+    licence: "MIT",
+    approxDownloadMb: 90,
+    choiceLabel: "Portuguese (Português)",
+    choiceHint: "Portuguese — captions in Portuguese",
+  },
 };
 
 /**
@@ -113,7 +279,22 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
  * and available. A language that is not wired end to end must not appear here — and if it is not in MODELS, it
  * cannot appear at all.
  */
-export const SHIPPED_LANGUAGES: SpeechModel[] = [MODELS.en, ...(HINGLISH_AVAILABLE ? [MODELS.hinglish] : []), MODELS.hindi];
+export const SHIPPED_LANGUAGES: SpeechModel[] = [
+  MODELS.en,
+  ...(HINGLISH_AVAILABLE ? [MODELS.hinglish] : []),
+  MODELS.hindi,
+  MODELS.tamil,
+  MODELS.telugu,
+  MODELS.bengali,
+  MODELS.marathi,
+  MODELS.punjabi,
+  MODELS.urdu,
+  MODELS.spanish,
+  MODELS.french,
+  MODELS.german,
+  MODELS.arabic,
+  MODELS.portuguese,
+];
 
 /**
  * Project language ("en", "hi", "hi-Latn", "auto" …) -> which model writes its captions.
@@ -126,11 +307,37 @@ export const speechLanguageOf = (projectLanguage: string | null | undefined): Sp
   const l = (projectLanguage ?? "").trim().toLowerCase();
   if (l === "hi-latn" || l.startsWith("hinglish")) return HINGLISH_AVAILABLE ? "hinglish" : "en";
   if (l === "hi" || l.startsWith("hi-deva") || l.startsWith("hi-in")) return "hindi";
+  if (l === "ta" || l.startsWith("ta-") || l === "tamil") return "tamil";
+  if (l === "te" || l.startsWith("te-") || l === "telugu") return "telugu";
+  if (l === "bn" || l.startsWith("bn-") || l === "bengali" || l === "bangla") return "bengali";
+  if (l === "mr" || l.startsWith("mr-") || l === "marathi") return "marathi";
+  if (l === "pa" || l.startsWith("pa-") || l === "punjabi") return "punjabi";
+  if (l === "ur" || l.startsWith("ur-") || l === "urdu") return "urdu";
+  if (l === "es" || l.startsWith("es-") || l === "spanish" || l === "espanol") return "spanish";
+  if (l === "fr" || l.startsWith("fr-") || l === "french" || l === "francais") return "french";
+  if (l === "de" || l.startsWith("de-") || l === "german" || l === "deutsch") return "german";
+  if (l === "ar" || l.startsWith("ar-") || l === "arabic") return "arabic";
+  if (l === "pt" || l.startsWith("pt-") || l === "portuguese" || l === "portugues") return "portuguese";
   return "en";
 };
 
 /** What we store as the project's language for each choice. */
-export const PROJECT_LANGUAGE: Record<SpeechLanguage, string> = { en: "en", hinglish: "hi-Latn", hindi: "hi" };
+export const PROJECT_LANGUAGE: Record<SpeechLanguage, string> = {
+  en: "en",
+  hinglish: "hi-Latn",
+  hindi: "hi",
+  tamil: "ta",
+  telugu: "te",
+  bengali: "bn",
+  marathi: "mr",
+  punjabi: "pa",
+  urdu: "ur",
+  spanish: "es",
+  french: "fr",
+  german: "de",
+  arabic: "ar",
+  portuguese: "pt",
+};
 
 export const modelKeyOf = (m: SpeechModel) => `${m.id}@${m.revision}`;
 
@@ -140,22 +347,41 @@ export function savedSpeechLanguage(): SpeechLanguage | null {
   if (!HINGLISH_AVAILABLE) return "en";
   try {
     const v = localStorage.getItem(PREF_KEY);
-    return v === "en" || v === "hinglish" || v === "hindi" ? v : null;
+    return v !== null && v in MODELS ? (v as SpeechLanguage) : null;
   } catch {
     return null;
   }
 }
 /**
- * Best guess before they've answered, for warming the model in the background: Hindi in the browser languages ->
- * Hinglish. Unchanged by the Devanagari path: Roman-Hinglish stays the default guess, and Hindi (Devanagari) is
- * always an explicit pick on the upload screen, never a guess.
+ * Best guess before they've answered, for warming the model in the background: the browser's first language,
+ * mapped to a shipped choice (Hindi in the browser languages -> Hinglish). Unchanged by the Devanagari path:
+ * Roman-Hinglish stays the default guess for Hindi, and Hindi (Devanagari) is always an explicit pick on the
+ * upload screen, never a guess.
  */
 export function likelySpeechLanguage(): SpeechLanguage {
   if (!HINGLISH_AVAILABLE) return "en";
   const saved = savedSpeechLanguage();
   if (saved) return saved;
   const langs = typeof navigator === "undefined" ? [] : navigator.languages ?? [navigator.language];
-  return langs.some((l) => /^hi/i.test(l)) ? "hinglish" : "en";
+  const GUESS: Record<string, SpeechLanguage> = {
+    hi: "hinglish",
+    ta: "tamil",
+    te: "telugu",
+    bn: "bengali",
+    mr: "marathi",
+    pa: "punjabi",
+    ur: "urdu",
+    es: "spanish",
+    fr: "french",
+    de: "german",
+    ar: "arabic",
+    pt: "portuguese",
+  };
+  for (const l of langs) {
+    const guess = GUESS[l.slice(0, 2).toLowerCase()];
+    if (guess) return guess;
+  }
+  return "en";
 }
 export function saveSpeechLanguage(l: SpeechLanguage) {
   try {
