@@ -8,7 +8,9 @@
  *   - a sign-in return on a non-canonical *.vercel.app host is forwarded to the canonical app domain, token and
  *     all, so the session is saved where the user will actually use the app
  */
-export const CANONICAL_APP = (process.env.NEXT_PUBLIC_APP_URL || "https://www.captionseasy.com").replace(/\/$/, "");
+import { PRODUCTION_URL } from "./seo";
+
+export const CANONICAL_APP = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).replace(/\/$/, "");
 
 export const authReturnScript = () => `(function(){try{
 var hsh=location.hash||"",q=location.search||"";
