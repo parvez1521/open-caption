@@ -22,8 +22,10 @@ export interface YoutubeConfig {
   clientSecret: string;
 }
 
-export interface MetaConfig {
+export interface InstagramConfig {
+  /** The Instagram App ID from Instagram → API setup with Instagram login (NOT the Meta App ID). */
   appId: string;
+  /** The Instagram App Secret from the same setup — server-only, never in a client bundle. */
   appSecret: string;
 }
 
@@ -33,14 +35,22 @@ export function youtubeConfig(): YoutubeConfig | null {
   return clientId && clientSecret ? { clientId, clientSecret } : null;
 }
 
-export function metaConfig(): MetaConfig | null {
-  const appId = process.env.META_APP_ID;
-  const appSecret = process.env.META_APP_SECRET;
+/**
+ * Instagram Login credentials (Business Login for Instagram): the Instagram
+ * App ID + Secret shown under Instagram → API setup with Instagram login →
+ * "Set up Instagram business login". They DIFFER from the Meta App ID and
+ * App Secret in Settings > Basic — those belong to the Facebook Login flow
+ * and cannot be used here. Until these two vars exist, Instagram reads
+ * "not switched on".
+ */
+export function instagramConfig(): InstagramConfig | null {
+  const appId = process.env.INSTAGRAM_APP_ID;
+  const appSecret = process.env.INSTAGRAM_APP_SECRET;
   return appId && appSecret ? { appId, appSecret } : null;
 }
 
 export function platformConfigured(platform: ConnectPlatform): boolean {
-  return platform === "youtube" ? youtubeConfig() !== null : metaConfig() !== null;
+  return platform === "youtube" ? youtubeConfig() !== null : instagramConfig() !== null;
 }
 
 /** The public origin OAuth callbacks land on: the configured app URL, else the request's own origin. */

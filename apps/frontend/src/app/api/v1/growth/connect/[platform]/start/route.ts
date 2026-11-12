@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/api/auth";
 import { notFound, ok, route, type Ctx } from "@/lib/api/http";
-import { appOrigin, isConnectPlatform, metaConfig, platformConfigured, redirectUriFor, youtubeConfig } from "@/lib/api/connections/config";
+import { appOrigin, isConnectPlatform, instagramConfig, platformConfigured, redirectUriFor, youtubeConfig } from "@/lib/api/connections/config";
 import { signOAuthState } from "@/lib/api/connections/state";
 import { youtubeAuthUrl } from "@/lib/api/connections/youtube";
 import { instagramAuthUrl } from "@/lib/api/connections/instagram";
@@ -31,6 +31,6 @@ export const GET = route(async (req: Request, { params }: Ctx<{ platform: string
   const url =
     platform === "youtube"
       ? youtubeAuthUrl({ config: youtubeConfig()!, redirectUri, state })
-      : instagramAuthUrl({ config: metaConfig()!, redirectUri, state });
+      : instagramAuthUrl({ config: instagramConfig()!, redirectUri, state });
   return ok({ url });
 });
