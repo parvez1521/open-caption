@@ -1,14 +1,18 @@
 /**
  * First-visit onboarding survey — a routing quiz shown once, right after
- * sign-up, before the user picks a tool. Two questions, one screen at a time;
- * the last answer routes to the right tool. LocalStorage only: no DB column,
+ * sign-up, before the dashboard. Two questions, one screen at a time;
+ * the last answer is saved (localStorage) and the user lands on the
+ * dashboard, where they pick the tool. LocalStorage only: no DB column,
  * no API route, no server work.
  *
  * This is NOT the Studio's first-visit mini tutorial
  * (features/studio/tutorial.ts, 5–6 steps after captions generate) — that
- * teaches the Studio; this survey routes BEFORE any tool is chosen.
+ * teaches the Studio; this survey asks what the user wants BEFORE the
+ * dashboard, so the dashboard can offer the matching tool.
  *
- * Destinations (resolved from the real doors, not invented):
+ * Destinations (resolved from the real doors, not invented) — the goal→tool
+ * map the dashboard uses to offer the matching tool; the survey itself
+ * always lands on the dashboard first (SURVEY_FINISH_DESTINATION):
  *   transcribe → /transcribe (the standalone Transcribe tool)
  *   edit       → /editor (the Normal Editor's front door: continue the most
  *                recent project, or pick any project to edit — the "editor"
@@ -67,6 +71,9 @@ export const GOAL_DESTINATIONS: Readonly<Record<SurveyGoal, string>> = {
   edit: "/editor",
   captions: "/captions",
 };
+
+/** Where the survey lands when finished (or skipped via /start): the dashboard first — the user picks the tool there. */
+export const SURVEY_FINISH_DESTINATION = "/dashboard";
 
 export function destinationForGoal(goal: SurveyGoal): string {
   return GOAL_DESTINATIONS[goal];

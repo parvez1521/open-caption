@@ -6,7 +6,7 @@ import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
 import { modeFromSearch, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
 import { isOnboardingDone } from "@/features/onboarding/survey";
-import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, startGuestSession, takeAfterSignIn } from "@/services/auth/guest";
+import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, takeAfterSignIn } from "@/services/auth/guest";
 import type { Project } from "@/services/types";
 import { LoadingMark } from "@/components/brand/LoadingMark";
 
@@ -15,7 +15,9 @@ import { LoadingMark } from "@/components/brand/LoadingMark";
  * - signed-in account: moves a pending guest project over (see guest.ts), then the page they were headed to, else the dashboard
  * - guest coming back: their latest project
  * - signed out on a browser that had an account: sign in (never a guest account)
- * - brand-new visitor: a guest account and a fresh project
+ * - brand-new visitor: sign-up first — Start for free is login-first, so no
+ *   guest session is created on this path; after sign-up the survey runs,
+ *   then the dashboard
  * Homepage "Get Started" carries ?choose=1: the visitor first picks a door
  * (Captions / Normal Editor / AI Edit — START_DOORS) and the fresh project starts
  * through it. ?choose=1 is an explicit request for that choice, so it shows the
@@ -109,9 +111,13 @@ export default function StartPage() {
         }
       }
       if (!session) {
+        // Start for free is login-first: a brand-new visitor signs up before
+        // any session is created — no guest account on this path. Returning
+        // guests already have a session (handled above), so they still
+        // continue where they left off; a browser that had a real account
+        // goes to sign-in instead of sign-up.
         if (hadAccountHere()) return router.replace("/login");
-        session = (await startGuestSession()) ? (await supabase.auth.getSession()).data.session : null;
-        if (!session) return router.replace("/login?mode=signup");
+        return router.replace("/login?mode=signup");
       }
       try {
         const projects = await projectsService.getProjects();
