@@ -5,7 +5,8 @@ import { canTranscribeInBrowser, isSpeechModelSaved, type BrowserStatus } from "
 import { getSession, startSession, useSessionView, type SessionView } from "@/features/transcribe/session";
 import { getLocalVideo } from "@/features/upload/localVideos";
 import { studioService, type StudioJob } from "@/services/studio";
-import { LogoWave } from "@/components/brand/LogoWave";
+import { CaptionProgress } from "@/components/brand/CaptionProgress";
+import { LoadingMark } from "@/components/brand/LoadingMark";
 import { Button } from "./controls";
 
 interface Props {
@@ -119,13 +120,12 @@ export const ProcessingPanel: React.FC<Props> = ({ projectId, job, canTranscribe
     const pct = Math.max(2, Math.min(100, job.progress ?? 0));
     return (
       <Center>
-        <Bars />
+        <div className="mb-4 flex justify-center" aria-hidden>
+          <LoadingMark height={48} />
+        </div>
         <h2 className="text-lg font-semibold">{job.status === "queued" ? "Starting…" : "Working…"}</h2>
         <p className="mt-1 text-sm text-st-muted">{job.kind === "transcribe" ? "Listening to your video and writing the captions." : "This can take a moment."}</p>
-        <div className="mx-auto mt-5 h-2 w-72 max-w-full overflow-hidden rounded-full bg-st-line">
-          <div className="h-full rounded-full bg-st-em transition-all duration-500" style={{ width: `${pct}%` }} />
-        </div>
-        <p className="mt-2 text-xs tabular-nums text-st-faint">{Math.round(job.progress ?? 0)}%</p>
+        <CaptionProgress className="mt-5" percent={pct} caption={`${Math.round(job.progress ?? 0)}%`} />
         <Button className="mt-4" disabled={busy} onClick={() => act(() => studioService.cancelJob(job.id))}>Cancel</Button>
       </Center>
     );
@@ -183,7 +183,7 @@ const VERBS = [
   "Warming up the mic", "Sprinkling style", "Herding words",
   "Pondering", "Choreographing", "Brewing", "Calibrating", "Kerning", "Riffing", "Composing", "Harmonizing",
   "Stitching sentences", "Spotting the hook", "Marinating", "Percolating", "Crafting", "Orchestrating",
-  "Noodling", "Clarifying", "Smoothing edges", "Measuring pauses", "Finessing", "Wrangling commas",
+  "Noodling", "Smoothing edges", "Measuring pauses", "Finessing", "Wrangling commas",
   "Conjuring", "Assembling", "Fine-tuning", "Making it pop",
 ];
 
@@ -194,10 +194,10 @@ export function etaText(sec: number) {
   return `About ${m} minute${m === 1 ? "" : "s"} left`;
 }
 
-/** The logo wave: the "something is happening" animation. */
-export const Bars = () => (
+/** The loading mark: the "something is happening" animation. */
+const Mark = () => (
   <div className="mb-4 flex justify-center" aria-hidden>
-    <LogoWave height={48} />
+    <LoadingMark height={48} />
   </div>
 );
 
@@ -236,15 +236,18 @@ const WritingCaptions: React.FC<{ view: SessionView; isPhone: boolean; onStop: (
   const title = !status ? (firstTime ? "Downloading the speech model (about 90 MB, first time only)…" : "Warming up…") : status.stage === "load" && firstTime ? "Loading the speech model…" : STAGE_TEXT[status.stage];
   return (
     <Center>
-      <Bars />
+      <Mark />
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="mt-1 text-sm font-medium text-st-text/70" aria-live="polite">{VERBS[verb % VERBS.length]}…</p>
-      <div className="mx-auto mt-5 h-2 w-72 max-w-full overflow-hidden rounded-full bg-st-line">
-        <div className="h-full rounded-full bg-st-em transition-all duration-500" style={{ width: `${shown}%` }} />
-      </div>
-      <p className="mt-2 text-xs tabular-nums text-st-faint">
-        {shown}% · {eta != null ? etaText(eta) : firstTime ? "First time takes about a minute or two" : "Just a moment"}
-      </p>
+      <CaptionProgress
+        className="mt-5"
+        percent={shown}
+        caption={
+          <>
+            {shown}% · {eta != null ? etaText(eta) : firstTime ? "First time takes about a minute or two" : "Just a moment"}
+          </>
+        }
+      />
       {view.resumed ? <p className="mt-2 text-xs text-st-muted">Continuing from where it stopped.</p> : null}
       {firstTime ? (
         <p className="mt-3 text-sm text-st-muted">This first run downloads the speech model, so it takes a little longer. Don&apos;t close this tab{isPhone ? " or lock your screen" : ""}. Next time it&apos;s instant.</p>

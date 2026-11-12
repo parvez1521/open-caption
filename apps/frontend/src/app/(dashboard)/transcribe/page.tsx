@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { fmtSrtTime } from "@motion-ai/caption-engine/core";
 import type { Page, Word } from "@capseasy/shared";
 import StudioShell from "@/components/studio/StudioShell";
+import { CaptionProgress } from "@/components/brand/CaptionProgress";
 import { Check, Copy, Film, Upload } from "@/components/ui/icons";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
 import { canTranscribeInBrowser, preloadSpeechModel } from "@/features/transcribe/browserWhisper";
@@ -383,9 +384,7 @@ export default function TranscribePage() {
                     </p>
                     <p className="font-mono text-[13px] text-sand-600">{progress}%</p>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#232320]" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-                    <div className="h-full rounded-full bg-[#34D399]" style={{ width: `${progress}%` }} />
-                  </div>
+                  <CaptionProgress className="mt-3" percent={progress} trackClassName="bg-[#232320]" />
                   {words.length > 0 && (
                     <p className="mt-3 text-[13px] leading-relaxed text-sand-800">
                       {transcriptPlainText(wordsToTranscriptPages(words)).slice(-220)}

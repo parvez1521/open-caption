@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectsService } from "@/services/projects";
 import { Project, ProjectStatus } from "@/services/types";
 import { useBrandNav } from "@/components/brand/BrandNav";
-import { LogoWave } from "@/components/brand/LogoWave";
+import { LoadingMark } from "@/components/brand/LoadingMark";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { studioService } from "@/services/studio";
 import { setProjectMode, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
@@ -365,7 +365,7 @@ export default function ProjectsList() {
       )}
       {deleting > 0 && (
         <div role="status" aria-live="polite" className="ce-veil-card fixed bottom-6 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-3 rounded-full bg-ink px-5 py-3 font-sora text-[13px] font-semibold text-dune-white shadow-sand-deep">
-          <LogoWave height={18} />
+          <LoadingMark height={18} />
           Deleting project…
         </div>
       )}

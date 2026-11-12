@@ -2,11 +2,11 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { LogoWave } from "./LogoWave";
+import { LoadingMark } from "./LoadingMark";
 
 /**
- * The wave between events. Anything that takes a moment (opening a project, creating one, leaving the studio) shows the
- * logo wave over the page instead of leaving the screen frozen. Two rules keep it from ever slowing things down:
+ * The loading mark between events. Anything that takes a moment (opening a project, creating one, leaving the studio) shows the
+ * loading mark over the page instead of leaving the screen frozen. Two rules keep it from ever slowing things down:
  *   - it only appears if the wait lasts longer than SHOW_AFTER_MS, so quick moves stay instant, and
  *   - once it appears it stays at least MIN_SHOW_MS, so it never flashes.
  */
@@ -15,9 +15,9 @@ const MIN_SHOW_MS = 380;
 const GIVE_UP_MS = 12_000;
 
 interface BrandNavApi {
-  /** Navigate with the wave over the wait. */
+  /** Navigate with the loading mark over the wait. */
   go: (href: string, label?: string, opts?: { replace?: boolean }) => void;
-  /** Show the wave for work that isn't a navigation. Call the returned function when the work is done. */
+  /** Show the loading mark for work that isn't a navigation. Call the returned function when the work is done. */
   busy: (label?: string) => () => void;
 }
 
@@ -129,7 +129,7 @@ export function BrandNavProvider({ children }: { children: React.ReactNode }) {
     [hold, release],
   );
 
-  // the new page is on screen: take the wave down (its own skeleton carries on from here)
+  // the new page is on screen: take the mark down (its own skeleton carries on from here)
   useEffect(() => {
     if (target.current && pathname === target.current) {
       target.current = null;
@@ -150,7 +150,7 @@ export function BrandNavProvider({ children }: { children: React.ReactNode }) {
           className={`fixed inset-0 z-[95] grid place-items-center bg-sand-50/80 backdrop-blur-[3px] transition-opacity duration-150 ${leaving ? "opacity-0" : "ce-veil"}`}
         >
           <div className="ce-veil-card flex flex-col items-center gap-4 rounded-2xl border border-sand-200 bg-sand-50 px-9 py-7 shadow-sand-soft">
-            <LogoWave height={44} />
+            <LoadingMark height={44} tone="dark" />
             <p className="text-[14px] font-semibold text-ink">{veil.label}…</p>
           </div>
         </div>

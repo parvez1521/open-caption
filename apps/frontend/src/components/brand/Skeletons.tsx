@@ -1,5 +1,5 @@
 import React from "react";
-import { LogoWave } from "./LogoWave";
+import { LoadingMark } from "./LoadingMark";
 
 /** A shimmering placeholder block. Sized by the caller; shaped like the thing that is about to appear. */
 export const Skel = ({ className = "", style }: { className?: string; style?: React.CSSProperties }) => (
@@ -85,7 +85,7 @@ export function StudioSkeleton({ label = "Opening your project" }: { label?: str
         <section className="grid min-h-[260px] shrink-0 place-items-center border-b border-st-line bg-st-bg p-3 max-lg:h-[44dvh] lg:min-h-0" aria-hidden>
           <div className="relative grid h-full max-h-full place-items-center overflow-hidden rounded-xl bg-[#0B0B0A] shadow-[0_18px_40px_-18px_rgba(0,0,0,0.45)]" style={{ aspectRatio: "9 / 16", maxWidth: "100%" }}>
             <div className="skel absolute inset-0 !bg-[#FFFFEB]/10 opacity-30" />
-            <LogoWave height={44} tone="light" className="relative" />
+            <LoadingMark height={44} tone="light" className="relative" />
           </div>
         </section>
 

@@ -8,7 +8,7 @@ import { modeFromSearch, START_DOORS, type ProjectStartMode } from "@/features/s
 import { isOnboardingDone } from "@/features/onboarding/survey";
 import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, startGuestSession, takeAfterSignIn } from "@/services/auth/guest";
 import type { Project } from "@/services/types";
-import { LogoWave } from "@/components/brand/LogoWave";
+import { LoadingMark } from "@/components/brand/LoadingMark";
 
 /**
  * The hub every "Start free" click and every sign-in (password, Google, email confirmation) lands on:
@@ -140,7 +140,7 @@ export default function StartPage() {
     <main id="main-content" className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center">
       {notConfigured ? (
         <div className="flex max-w-sm flex-col items-center gap-4">
-          <LogoWave height={40} />
+          <LoadingMark height={40} />
           <p className="text-[15px] font-semibold text-[#FFFFEB]">Accounts are coming soon — no sign-up needed to make captions.</p>
           <p className="text-[13px] font-medium text-[#FFFFEB]/70">We&apos;re finishing the studio setup. Check back shortly — your clips and captions will be made right in your browser, free.</p>
           <a href="/" className="mt-2 rounded-full bg-[#FFFFEB] px-5 py-2.5 text-sm font-semibold text-[#141412]">
@@ -149,7 +149,7 @@ export default function StartPage() {
         </div>
       ) : chooser ? (
         <div className="flex w-full max-w-md flex-col items-center gap-5">
-          <LogoWave height={40} />
+          <LoadingMark height={40} />
           <h1 className="text-xl font-bold text-[#FFFFEB]">How do you want to start?</h1>
           <div className="grid w-full gap-2" role="radiogroup" aria-label="How this project starts">
             {START_DOORS.map((door) => (
@@ -184,7 +184,7 @@ export default function StartPage() {
         </div>
       ) : (
         <div className="flex flex-col items-center gap-4">
-          <LogoWave height={40} />
+          <LoadingMark height={40} />
           <p className="text-[13px] font-semibold text-[#FFFFEB]/70">Opening your studio…</p>
         </div>
       )}

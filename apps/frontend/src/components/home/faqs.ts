@@ -10,11 +10,11 @@ export const FAQS = [
   },
   {
     q: "Will Open Caption work with vertical 9:16 Shorts, Reels, and TikToks?",
-    a: "Yes. Open Caption is made for vertical 9:16 Shorts, Reels and TikToks, and works just as well with 16:9 widescreen video. Drag the caption box anywhere in the frame to keep it clear of faces and platform buttons.",
+    a: "Yes. Vertical 9:16 is what Open Caption is built for, and 16:9 widescreen works the same way. You can drag the caption box anywhere in the frame, clear of faces and platform buttons.",
   },
   {
     q: "How is Open Caption different from basic CapCut or Premiere captions?",
-    a: "Every word is timed to the speech, the key word on each line gets its own colour, box or motion, and you pick from 150 animated looks instead of plain text. There is no watermark and nothing to install.",
+    a: "CapCut and Premiere captions are plain timed text. Here every word is timed to the speech, the key word on each line gets its own colour, box or motion, and you start from 150 animated looks. No watermark, nothing to install.",
   },
   {
     q: "Do I need to install anything?",
@@ -22,14 +22,14 @@ export const FAQS = [
   },
   {
     q: "Can I customize the font, colors, and animations?",
-    a: "Yes. Start from a look (Hormozi-style box, Karaoke Fill, Beast Bounce, Luxe Serif, Neon, Comic, Retro 3D and more), then change fonts, colours, outlines, position and motion. Save your colours and font as a brand kit to reuse on every project.",
+    a: "Yes. Start from a look, such as the Hormozi-style box, Karaoke Fill, Beast Bounce, Luxe Serif, Neon, Comic or Retro 3D, then change fonts, colours, outlines, position and motion. Save your colours and font as a brand kit and reuse it on every project.",
   },
   {
     q: "Does it support Hindi and Hinglish?",
-    a: "Yes, in both scripts. Pick Hindi / Hinglish when you add your video and the captions come out in Roman script, the way most creators type — it uses a Whisper speech model fine-tuned for Hindi-English speech. Or pick Hindi (देवनागरी) and the captions come out in Devanagari script, using the multilingual Whisper model. Together with English, those are the three language choices today.",
+    a: "Yes, in 14 languages. Hindi / Hinglish captions come out in Roman script, the way most creators type, from a Whisper model fine-tuned for Hindi-English speech. Hindi (देवनागरी) comes out in Devanagari script. The rest, Tamil, Telugu, Bengali, Marathi, Punjabi, Urdu, Spanish, French, German, Arabic and Portuguese, use the multilingual Whisper model.",
   },
   {
     q: "What export formats are supported?",
-    a: "An MP4 with the captions burned in, ready to post on Reels, Shorts and TikTok; transparent overlay videos (MOV and WebM) rendered by the free desktop Companion app; and caption files — SRT, VTT, ASS, plain text and JSON — for YouTube, LinkedIn, Premiere, CapCut and other editors.",
+    a: "An MP4 with the captions burned in, ready to post on Reels, Shorts and TikTok; transparent overlay videos (MOV and WebM) rendered by the free desktop Companion app; and caption files (SRT, VTT, ASS, plain text and JSON) for YouTube, LinkedIn, Premiere, CapCut and other editors.",
   },
 ];

@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useSyncExternalStore } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { MOTION_TEMPLATES, defaultMotionConfig } from "@capseasy/motion";
+import { getLook } from "@capseasy/templates";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { FAQS } from "./faqs";
+import { prefersReducedMotion } from "./gsap";
 
 /** A preview item for a motion template, built as a plain literal so this section's static
  *  bundle stays light (the renderer itself arrives with the dynamically-imported MotionPreview). */
@@ -25,15 +27,10 @@ function homeMotionItem(templateId: OverlaySocialVariant): OverlayItem {
     color: cfg.color,
   };
 }
-import { PLANS } from "@capseasy/shared";
 import { Logo as BrandLogo } from "@/components/brand/Logo";
 import { LEGAL, LEGAL_PAGES } from "@/lib/legal";
 import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/brand";
 
-// the real renderer is client-only and fairly heavy: load it after the page shell
-const CyclingPreview = dynamic(() => import("./LivePreview").then((m) => m.CyclingPreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#0F3D2E]" /> });
-const LivePreview = dynamic(() => import("./LivePreview").then((m) => m.LivePreview), { ssr: false, loading: () => <div className="h-full w-full animate-pulse bg-[#1f2b27]" /> });
-const HeroCylinder = dynamic(() => import("./HeroCylinder").then((m) => m.HeroCylinder), { ssr: false, loading: () => <div className="h-[320px] w-full animate-pulse rounded-2xl bg-[#1C1C1A] sm:h-[360px]" /> });
 // Motion Studio previews: the real animated graphics, loaded lazily like the other live previews
 const MotionPreview = dynamic(() => import("@/features/motion/MotionPreview").then((m) => m.MotionPreview), { ssr: false, loading: () => <div className="aspect-[700/360] w-full animate-pulse bg-[#141412]" /> });
 // The AI Edit demonstration: a real sample clip edited live by the real renderer, loaded lazily
@@ -53,9 +50,9 @@ export function Logo({ light = false }: { light?: boolean }) {
 
 const NAV_LINKS = [
   ["How it works", "#how"],
-  ["Controls", "#control"],
+  ["Editor", "#control"],
   ["Looks", "#looks"],
-  ["No install", "#privacy"],
+  ["On your device", "#privacy"],
   ["FAQ", "#faq"],
 ] as const;
 
@@ -120,14 +117,52 @@ export function Nav() {
   );
 }
 
-/** Hero visual: the Trending templates cylinder (HeroCylinder) — live animated previews, drag to spin. */
+/**
+ * Hero: a split layout, not a centred headline over a strip of clips. The copy sits on
+ * the left; on the right, one live captioned player cycles through trending looks using
+ * the same renderer the editor and the export use. No decorative animation near the
+ * hero: the player is the product working, and the headline entrance is the page's
+ * existing CSS-timed fade (data-hero attributes, see globals.css).
+ */
+/** Hero visual: pre-rendered clips of real looks, cycled on a plain video element.
+ *  The Remotion Player path (LivePreview/CyclingPreview) was tried here first and
+ *  rendered nothing verifiable in a headless render, so the hero uses the same
+ *  pre-rendered /looks/<id>.mp4 clips the phone (lite) path already ships — the
+ *  real looks, rendered by the real composition. Reduced motion shows the poster. */
+const HERO_LOOK_IDS = ["hormozi_box", "beast_bounce", "karaoke_fill", "pop_clean"];
+
+function HeroLookVideo() {
+  const [index, setIndex] = useState(0);
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    setReduced(prefersReducedMotion());
+  }, []);
+  useEffect(() => {
+    if (reduced) return;
+    const t = setInterval(() => setIndex((i) => (i + 1) % HERO_LOOK_IDS.length), 4600);
+    return () => clearInterval(t);
+  }, [reduced]);
+  const id = HERO_LOOK_IDS[index];
+  const name = getLook(id)?.name ?? id;
+  return (
+    <div className="relative aspect-[8/3] w-full overflow-hidden bg-[#141412]">
+      {reduced ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`/looks/${id}.webp`} alt={`${name} caption look`} className="h-full w-full object-contain" />
+      ) : (
+        <video key={id} src={`/looks/${id}.mp4`} poster={`/looks/${id}.webp`} autoPlay muted loop playsInline preload="auto" className="h-full w-full object-contain" aria-label={`${name} caption look playing`} />
+      )}
+      <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">{name}</span>
+    </div>
+  );
+}
 
 export function Hero() {
   return (
-    <section className="relative flex min-h-[100svh] w-full flex-col overflow-hidden pt-[max(6.5rem,12vh)]">
-
-      <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-5 text-center">
-        <div data-hero="eyebrow" className="flex flex-wrap items-center justify-center gap-2.5">
+    <section className="relative mx-auto flex min-h-[100svh] w-full max-w-6xl flex-col justify-center px-5 pb-16 pt-[max(7rem,14vh)]">
+      <div className="relative z-10 max-w-2xl">
+        <div data-hero="eyebrow" className="flex flex-wrap items-center gap-2.5">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-widest text-[#34D399]">Free caption studio · Runs in your browser</span>
           {PH_POST_ID ? (
             <a href={`https://www.producthunt.com/posts/${PH_SLUG}?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-${PH_SLUG}`} target="_blank" rel="noopener noreferrer">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -136,24 +171,21 @@ export function Hero() {
           ) : null}
         </div>
 
-        <h1 className="font-styled mt-5 text-[clamp(2.7rem,min(6.4vw,9.5vh),5.6rem)] font-bold leading-[0.9] tracking-[-0.05em] text-[#FFFFEB]">
-          <span className="inline-block overflow-hidden pb-[0.06em]">
-            <span data-hero="word" className="inline-block mr-3 sm:mr-4">Don&rsquo;t edit,</span>
-            <span data-hero="word2" className="font-accent inline-block pr-[0.06em] text-[1.1em] font-normal italic tracking-[-0.025em] text-[#34D399]">just upload.</span>
-          </span>
+        <h1 className="font-styled mt-5 text-[clamp(2.6rem,6vw,4.6rem)] font-bold leading-[0.95] tracking-[-0.04em] text-[#FFFFEB]">
+          <span data-hero="word" className="block">Every word,</span>
+          <span data-hero="word2" className="font-accent block pr-[0.06em] font-normal italic tracking-[-0.025em] text-[#34D399]">on screen, on time.</span>
         </h1>
 
-        <p data-hero="sub" className="mx-auto mt-5 max-w-2xl text-[15px] sm:text-[17px] leading-relaxed text-[#FFFFEB]/70 px-4 font-medium">
-          Animated captions for your Shorts, Reels and TikToks, made right in your browser. 150 animated looks, every word editable, no install and no watermark.
+        <p data-hero="sub" className="mt-5 max-w-lg text-[15px] leading-relaxed text-[#FFFFEB]/70 sm:text-[17px] font-medium">
+          Open Caption turns speech into animated, word-timed captions for Shorts, Reels and TikTok. 150 looks and 14 languages, no watermark, all in the tab you already have open.
         </p>
 
-
-        <div data-hero="cta" className="mt-7 flex w-full flex-col items-center justify-center gap-3 sm:w-auto sm:flex-row">
+        <div data-hero="cta" className="mt-7 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <Link href="/start?choose=1" onPointerEnter={warmModel} onClick={warmModel} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:w-auto">
             Caption your first video free <span aria-hidden>→</span>
           </Link>
-          <a href="#how" className="w-full rounded-full border border-[#FFFFEB]/15 bg-[#1C1C1A] px-7 py-4 text-base font-semibold text-[#FFFFEB]/80 hover:text-[#FFFFEB] sm:w-auto">
-            See how it works
+          <a href="#looks" className="w-full rounded-full border border-[#FFFFEB]/15 bg-[#1C1C1A] px-7 py-4 text-center text-base font-semibold text-[#FFFFEB]/80 hover:text-[#FFFFEB] sm:w-auto">
+            Browse the looks
           </a>
         </div>
         <p data-hero="editor-door" className="mt-3 text-sm text-[#FFFFEB]/60">
@@ -162,14 +194,47 @@ export function Hero() {
             Open the plain editor — no captions
           </Link>
         </p>
-
-
+        <p data-hero="points" className="mt-6 font-mono text-xs tracking-wide text-[#FFFFEB]/50">
+          150 looks · 14 languages · No watermark
+        </p>
       </div>
 
-      {/* trending templates on a rotating cylinder: live previews of the real templates */}
-      <div data-hero="stream" className="relative z-0 mt-4 pt-2 sm:mt-auto">
-        <HeroCylinder />
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-b from-transparent to-[#141412]" />
+      {/* the captions are the visual: a full-width strip of the real looks, cycled */}
+      <div className="relative z-0 mt-12 w-full">
+        <div className="overflow-hidden rounded-[2rem] border border-[#FFFFEB]/10 shadow-2xl">
+          <HeroLookVideo />
+        </div>
+        <p className="mt-3 text-center text-xs text-[#FFFFEB]/50">Rendered by the same composition the editor uses.</p>
+      </div>
+    </section>
+  );
+}
+
+/** The four ways in, as full-width rows: captions, plain editing, AI Edit, transcribe. */
+const DOORS = [
+  { href: "/start?mode=captions", tag: "Captions", title: "Add captions", body: "Upload a clip and get word-timed captions in one of 150 looks." },
+  { href: "/start?mode=editor", tag: "Editor", title: "Edit a video", body: "The plain editor, no captions attached. Cut, trim and arrange." },
+  { href: "/start?mode=ai-edit", tag: "AI Edit", title: "AI Edit", body: "Describe the edit, then approve the plan before anything is applied." },
+  { href: "/transcribe", tag: "Transcribe", title: "Transcribe", body: "A file in, a timed transcript out, in 14 languages." },
+];
+
+export function ToolDoors() {
+  return (
+    <section className="px-4 pb-24 sm:pb-32">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="max-w-2xl">
+          <h2 className="font-styled text-3xl font-bold tracking-tight text-[#FFFFEB] sm:text-4xl">Start with what you need.</h2>
+        </div>
+        <div data-reveal className="mt-8 border-t border-[#FFFFEB]/10">
+          {DOORS.map((d) => (
+            <Link key={d.href} href={d.href} className="group grid grid-cols-1 gap-1 border-b border-[#FFFFEB]/10 py-6 sm:grid-cols-12 sm:items-baseline sm:gap-6">
+              <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#34D399] sm:col-span-2">{d.tag}</span>
+              <span className="font-styled text-xl font-bold text-[#FFFFEB] sm:col-span-4">{d.title}</span>
+              <span className="text-sm leading-relaxed text-[#FFFFEB]/70 sm:col-span-5">{d.body}</span>
+              <span aria-hidden className="hidden text-right text-[#FFFFEB]/50 transition group-hover:text-[#FFFFEB] sm:col-span-1 sm:block">→</span>
+            </Link>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -181,7 +246,7 @@ function UploadArtifact() {
       <div className="flex items-center justify-between gap-3">
         <span className="font-mono text-xs text-[#FFFFEB]/60">drop your clip here</span>
         <span className="rounded-full bg-[#1E1E1B] border border-[#FFFFEB]/10 px-3 py-1 font-mono text-[11px] font-semibold text-[#34D399]">
-          take-07_final.mp4
+          reel-draft.mp4
         </span>
       </div>
       <div className="mt-4 h-2 rounded-full bg-[#FFFFEB]/5 overflow-hidden">
@@ -258,58 +323,57 @@ function RenderArtifact() {
 const PIPELINE_STEPS = [
   {
     n: "1",
-    title: "Upload the take",
-    body: "One MP4, straight from your camera roll. No timeline setup, no project files, no plugins.",
+    title: "Drop in a clip",
+    body: "One video file, straight from your camera roll. The file stays on your device.",
     artifact: <UploadArtifact />,
   },
   {
     n: "2",
-    title: "Every word gets a timestamp",
-    body: "Speech-to-text runs at word level, so the engine knows exactly when each syllable lands — and you can clean up the transcript before anything is styled.",
+    title: "Speech becomes timed words",
+    body: "The speech model runs in your browser and stamps every word with its moment. Fix a name or drop a filler before anything is styled.",
     artifact: <TranscriptArtifact />,
   },
   {
     n: "3",
-    title: "Pick a look, direct the frame",
-    body: "Choose from distinct cinematic styles, then drag the caption box anywhere in the frame and tune the hero and body text independently.",
+    title: "Choose the look, place the box",
+    body: "Start from 150 animated looks. Drag the caption box clear of faces and buttons, then tune the hero word and the body line apart.",
     artifact: <StyleArtifact />,
   },
   {
     n: "4",
-    title: "Render and post",
-    body: "A deterministic Remotion pipeline burns the animation into a crisp 1080p vertical MP4. What you previewed is exactly what exports.",
+    title: "Export the finished video",
+    body: "The same renderer that showed you the preview burns the captions into a 1080p vertical MP4. What you saw is what posts.",
     artifact: <RenderArtifact />,
   },
 ];
 
+/**
+ * How it works: a sticky heading on the left, the four steps as a plain list on the
+ * right, each with its artifact underneath. No alternating two-column rows.
+ */
 export function HowItWorks() {
   return (
     <section id="how" className="relative px-4 py-24 sm:py-32">
-      <div className="mx-auto max-w-6xl">
-        <div data-reveal className="max-w-2xl">
-          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-6xl">
-            From camera roll to <em className="font-normal italic text-[#34D399]">captioned</em> in four moves.
-          </h2>
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-12">
+        <div data-reveal className="lg:col-span-4">
+          <div className="lg:sticky lg:top-28">
+            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+              Four steps, <em className="font-normal italic text-[#34D399]">then post.</em>
+            </h2>
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-[#FFFFEB]/70">
+              No timeline to set up. No project files to manage.
+            </p>
+          </div>
         </div>
 
-        <div className="relative mt-16">
-          <div className="space-y-12 lg:space-y-16">
+        <div className="lg:col-span-8">
+          <div className="space-y-12">
             {PIPELINE_STEPS.map((s) => (
-              <div key={s.n} data-step className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center">
-                <div className="lg:col-span-5 lg:pl-12 relative">
-                  <span
-                    aria-hidden
-                    className="hidden lg:grid place-items-center absolute left-0 top-1.5 w-8 h-8 rounded-full bg-[#FFFFEB] text-[#141412] font-styled font-bold text-xs shadow-sm ring-4 ring-[#141412]"
-                  >
-                    {s.n}
-                  </span>
-                  <p className="font-styled italic text-[#34D399] text-base">Step {s.n}</p>
-                  <h3 className="mt-1 font-styled text-2xl font-bold text-[#FFFFEB]">{s.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#FFFFEB]/70 max-w-md">{s.body}</p>
-                </div>
-                <div className="lg:col-span-7">
-                  {s.artifact}
-                </div>
+              <div key={s.n} data-step>
+                <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[#34D399]">Step {s.n}</p>
+                <h3 className="mt-1 font-styled text-2xl font-bold text-[#FFFFEB]">{s.title}</h3>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-[#FFFFEB]/70">{s.body}</p>
+                <div className="mt-4">{s.artifact}</div>
               </div>
             ))}
           </div>
@@ -318,8 +382,6 @@ export function HowItWorks() {
     </section>
   );
 }
-
-
 
 export function ClipperSection() {
   const rows = [
@@ -331,15 +393,15 @@ export function ClipperSection() {
     <section id="clipper" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
-          <div>
+          <div className="lg:order-2">
             <span className="rounded-md bg-[#FFA946] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Trending</span>
             <h2 className="font-styled mt-4 text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
-              One long video, <em className="font-normal italic text-[#34D399]">many short clips.</em>
+              One long take, <em className="font-normal italic text-[#34D399]">cut into clips worth posting.</em>
             </h2>
             <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
               The Clipper reads your transcript and proposes the segments worth clipping: measured
-              suggestions from the speech runs between silences, or the AI Clipping Studio&rsquo;s
-              ranked moments. Adjust the edges, create a clip, and it becomes its own captioned
+              suggestions from the speech between silences, or the AI Clipping Studio&rsquo;s
+              ranked moments. Trim the edges, create a clip, and it becomes its own captioned
               project, ready to style and post.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-[#FFFFEB]/60">
@@ -352,7 +414,7 @@ export function ClipperSection() {
               Open the Clipper <span aria-hidden>→</span>
             </Link>
           </div>
-          <div className="rounded-[2rem] border border-[#FFFFEB]/10 bg-[#1E1E1B] p-6 sm:p-8">
+          <div className="rounded-[2rem] border border-[#FFFFEB]/10 bg-[#1E1E1B] p-6 sm:p-8 lg:order-1">
             <p className="font-mono text-[11px] uppercase tracking-widest text-[#FFFFEB]/50">Suggested segments · from the transcript</p>
             <div className="mt-5 space-y-3">
               {rows.map(([range, label]) => (
@@ -376,20 +438,7 @@ export function TranscribeSection() {
     <section id="transcribe" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
-          <div>
-            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
-              Drop a file in, <em className="font-normal italic text-[#34D399]">read what was said.</em>
-            </h2>
-            <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
-              Transcribe turns a video or audio file into a timed transcript, in 14 languages,
-              with the speech model running in your browser. Copy it, or download it as TXT, SRT
-              or VTT.
-            </p>
-            <Link href="/transcribe" className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-6 py-3.5 text-base font-bold text-[#141412]">
-              Open Transcribe <span aria-hidden>→</span>
-            </Link>
-          </div>
-          <div className="rounded-[2rem] border border-[#FFFFEB]/10 bg-[#1E1E1B] p-6 sm:p-8">
+          <div className="rounded-[2rem] border border-[#FFFFEB]/10 bg-[#1E1E1B] p-6 sm:p-8 lg:order-1">
             <p className="font-mono text-[11px] uppercase tracking-widest text-[#FFFFEB]/50">Transcript · timed segments</p>
             <div className="mt-5 space-y-3">
               {[
@@ -404,6 +453,19 @@ export function TranscribeSection() {
               ))}
             </div>
             <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/45">TXT · SRT · VTT downloads · 14 languages</p>
+          </div>
+          <div className="lg:order-2">
+            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+              A file in, <em className="font-normal italic text-[#34D399]">a transcript out.</em>
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
+              Transcribe turns a video or audio file into a timed transcript, in 14 languages,
+              with the speech model running in your browser. Copy it, or download it as TXT, SRT
+              or VTT.
+            </p>
+            <Link href="/transcribe" className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-6 py-3.5 text-base font-bold text-[#141412]">
+              Open Transcribe <span aria-hidden>→</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -472,10 +534,13 @@ export function AiEditSection() {
     <section id="ai-edit" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
-          <div>
+          <div className="lg:order-1">
+            <AiEditDemo />
+          </div>
+          <div className="lg:order-2">
             <span className="rounded-md bg-[#34D399] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">New</span>
             <h2 className="font-styled mt-4 text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
-              Pick a style. <em className="font-normal italic text-[#34D399]">AI Edit does the cutting.</em>
+              Describe the edit. <em className="font-normal italic text-[#34D399]">Check the plan. Keep what works.</em>
             </h2>
             <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
               Choose a look, add a line of instruction if you like, and AI Edit drafts the whole
@@ -486,7 +551,6 @@ export function AiEditSection() {
               Try AI Edit <span aria-hidden>→</span>
             </Link>
           </div>
-          <AiEditDemo />
         </div>
       </div>
     </section>
@@ -495,8 +559,8 @@ export function AiEditSection() {
 
 function BrowserCard() {
   const rows = [
-    ["Speech recognition", "runs on your device"],
-    ["Your video file", "stays on your device"],
+    ["Speech recognition", "on this device"],
+    ["Your video file", "never uploaded for captions or export"],
     ["MP4 export", "made in this tab"],
     ["Install", "nothing, ever"],
   ];
@@ -517,17 +581,15 @@ export function Privacy() {
   return (
     <section id="privacy" className="px-4 pb-24 sm:pb-32">
       <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] border border-[#FFFFEB]/12 bg-[#1E1E1B] px-6 py-14 text-[#FFFFEB] sm:px-14 sm:py-20 shadow-2xl">
-
         <div className="relative grid items-center gap-10 lg:grid-cols-2">
-          <div className="lg:pr-8">
-            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight sm:text-5xl">Nothing to install. <em className="font-normal italic text-[#F0D7FF]">It runs in your browser.</em></h2>
-            <p className="mt-6 text-base sm:text-lg leading-relaxed text-[#FFFFEB]/75">
-              Captions are written, styled and exported right in the tab you have open, on your phone or your laptop. No app, no plugin, no per-minute bill.
-            </p>
-          </div>
-          
-          <div className="min-w-0 lg:h-full">
+          <div className="min-w-0 lg:h-full lg:order-1">
             <BrowserCard />
+          </div>
+          <div className="lg:pr-8 lg:order-2">
+            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight sm:text-5xl">Your video <em className="font-normal italic text-[#34D399]">never leaves</em> this tab.</h2>
+            <p className="mt-6 text-base sm:text-lg leading-relaxed text-[#FFFFEB]/75">
+              Transcription, styling and the MP4 export all run in the browser tab you already have open, on your phone or your laptop. No app, no plugin, no per-minute bill.
+            </p>
           </div>
         </div>
       </div>
@@ -537,77 +599,61 @@ export function Privacy() {
 
 const CONTROLS = [
   {
-    title: "The caption box is yours",
-    body: "Drag and resize the caption region anywhere in the frame — clear of faces, product shots, or platform UI. The render honours it to the pixel.",
-    tag: "layout",
+    n: "01",
+    title: "Move the caption box",
+    body: "Drag and resize the caption region anywhere in the frame, clear of faces, product shots or platform buttons. The export honours it to the pixel.",
   },
   {
-    title: "Timing you can re-cut",
+    n: "02",
+    title: "Re-cut the timing",
     body: "A word-level timeline lets you nudge any word's in and out points when the delivery needs a different beat than the transcript suggests.",
-    tag: "timeline",
   },
   {
-    title: "Clean the transcript first",
-    body: "Fix names, drop filler words, and merge fragments before styling — so the animation never amplifies a typo.",
-    tag: "transcript",
+    n: "03",
+    title: "Fix the transcript first",
+    body: "Correct names, drop filler words and merge fragments before styling, so the animation never amplifies a typo.",
   },
   {
-    title: "Hero and body, styled apart",
-    body: "The emphasized word and the supporting line carry independent fonts, sizes, and colours. Tune one without disturbing the other.",
-    tag: "typography",
+    n: "04",
+    title: "Style the hero word apart",
+    body: "The emphasized word and the supporting line carry their own fonts, sizes and colours. Tune one without touching the other.",
   },
   {
-    title: "Every export, kept",
+    n: "05",
+    title: "Every export is saved",
     body: "Each render lands in the project's export history with its settings, so last week's look is one click to reproduce.",
-    tag: "exports",
   },
 ];
 
+/**
+ * Editor controls: a plain numbered list, no tag pills, no sticky side column.
+ * The facts are the same five the editor offers; the wording is rewritten.
+ */
 export function Control() {
   return (
     <section id="control" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
-      <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-12">
-        <div data-reveal className="lg:col-span-4">
-          <div className="lg:sticky lg:top-28">
-            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
-              Automatic, <em className="font-normal italic text-[#34D399]">until you disagree.</em>
-            </h2>
-            <p className="mt-4 text-sm leading-relaxed text-[#FFFFEB]/70 max-w-sm">
-              AI creates the baseline in seconds. You keep frame-by-frame control over every word, break, position, and motion curve.
-            </p>
-          </div>
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="max-w-2xl">
+          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+            You stay in charge of <em className="font-normal italic text-[#34D399]">every word.</em>
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-[#FFFFEB]/70">
+            The first pass is automatic. After that, every word, break, position and motion curve is yours to change.
+          </p>
         </div>
-
-        <div className="lg:col-span-8">
-          <div className="divide-y divide-[#FFFFEB]/10 border-t border-b border-[#FFFFEB]/10">
-            {CONTROLS.map((c) => (
-              <div
-                key={c.tag}
-                data-reveal
-                className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-6 py-6 items-baseline sm:px-4 sm:-mx-4"
-              >
-                <span className="sm:col-span-3 font-mono text-xs uppercase tracking-wider text-[#34D399] font-semibold">
-                  <span className="rounded-full bg-[#252B26]/60 px-2.5 py-1 text-[11px] text-[#FFFFEB]">
-                    {c.tag}
-                  </span>
-                </span>
-                <div className="sm:col-span-9">
-                  <h3 className="font-styled text-lg font-bold text-[#FFFFEB]">
-                    {c.title}
-                  </h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-[#FFFFEB]/70 max-w-[54ch]">
-                    {c.body}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+        <div className="mt-12 border-t border-[#FFFFEB]/10">
+          {CONTROLS.map((c) => (
+            <div key={c.n} data-reveal className="grid grid-cols-1 gap-1 border-b border-[#FFFFEB]/10 py-6 sm:grid-cols-12 sm:gap-6">
+              <span className="font-mono text-xs font-semibold text-[#34D399] sm:col-span-1">{c.n}</span>
+              <h3 className="font-styled text-lg font-bold text-[#FFFFEB] sm:col-span-4">{c.title}</h3>
+              <p className="max-w-[54ch] text-sm leading-relaxed text-[#FFFFEB]/70 sm:col-span-7">{c.body}</p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
   );
 }
-
 
 export function Faq() {
   const [activeIdx, setActiveIdx] = useState(0);
@@ -615,84 +661,34 @@ export function Faq() {
   return (
     <section id="faq" className="px-4 pb-24 sm:pb-32">
       <div className="mx-auto max-w-6xl">
-        <div data-reveal className="text-center mb-12">
-          <h2 className="font-styled text-5xl sm:text-6xl font-normal italic text-[#FFFFEB]">
-            Good questions.
+        <div data-reveal className="max-w-2xl">
+          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+            Questions, answered.
           </h2>
+          <p className="mt-4 text-base leading-relaxed text-[#FFFFEB]/70">
+            The things people ask before their first caption.
+          </p>
         </div>
 
-        {/* Outer Split Container Card */}
-        <div data-reveal className="bg-[#1C1C1A] rounded-3xl p-5 sm:p-8 border border-[#FFFFEB]/10 shadow-[0_20px_50px_-35px_rgba(0,0,0,0.3)]">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-            
-            {/* Left Column: Questions List Card */}
-            <div className="lg:col-span-6 bg-[#0F3D2E] text-[#FFFFEB] rounded-2xl p-5 sm:p-7 flex flex-col justify-between shadow-lg">
-              <div>
-                <h3 className="font-styled font-bold text-xl sm:text-2xl mb-5 text-[#FFFFEB] flex items-center justify-between">
-                  <span>Questions</span>
-                  <span className="text-xs font-mono font-normal uppercase tracking-wider text-[#34D399]">
-                    {activeIdx + 1} / {FAQS.length}
-                  </span>
-                </h3>
-
-                <div className="space-y-2.5">
-                  {FAQS.map((faq, idx) => {
-                    const isActive = activeIdx === idx;
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveIdx(idx)}
-                        className={`w-full text-left p-3.5 sm:p-4 rounded-xl text-sm sm:text-[15px] leading-snug transition-all flex items-center justify-between gap-3 ${
-                          isActive
-                            ? "bg-[#34D399]/20 text-[#FFFFEB] font-bold border border-[#34D399]/40 shadow-sm"
-                            : "text-[#FFFFEB]/75 hover:text-[#FFFFEB] hover:bg-white/5 border border-transparent"
-                        }`}
-                      >
-                        <span>{faq.q}</span>
-                        <span className={`text-xs transition-transform ${isActive ? "text-[#34D399] rotate-90" : "text-[#FFFFEB]/50"}`}>
-                          →
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+        <div data-reveal className="mt-10 border-t border-[#FFFFEB]/10">
+          {FAQS.map((faq, idx) => {
+            const isActive = activeIdx === idx;
+            return (
+              <div key={idx} className="border-b border-[#FFFFEB]/10">
+                <button
+                  onClick={() => setActiveIdx(isActive ? -1 : idx)}
+                  aria-expanded={isActive}
+                  className="flex w-full items-center justify-between gap-4 py-5 text-left"
+                >
+                  <span className="font-styled text-lg font-bold text-[#FFFFEB] sm:text-xl">{faq.q}</span>
+                  <span aria-hidden className="shrink-0 font-mono text-lg text-[#34D399]">{isActive ? "−" : "+"}</span>
+                </button>
+                {isActive ? (
+                  <p className="max-w-3xl pb-6 text-sm leading-relaxed text-[#FFFFEB]/80 sm:text-base">{faq.a}</p>
+                ) : null}
               </div>
-            </div>
-
-            {/* Right Column: Active Answer View */}
-            <div className="lg:col-span-6 flex flex-col justify-between p-2 sm:p-4">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-mono text-xs uppercase tracking-wider text-[#34D399] font-bold">
-                    Answer
-                  </span>
-                  <span className="text-xs text-[#FFFFEB]/60 font-mono">
-                    Instant clarification
-                  </span>
-                </div>
-
-                {/* Active Question Title Repeated */}
-                <h4 className="font-styled text-lg sm:text-xl font-bold text-[#FFFFEB] mb-4 leading-snug">
-                  {FAQS[activeIdx].q}
-                </h4>
-
-                {/* Answer Bubble Card */}
-                <div className="bg-[#1E1E1B] p-6 sm:p-7 rounded-2xl border border-[#FFFFEB]/10 shadow-sm text-sm sm:text-base text-[#FFFFEB]/85 leading-relaxed">
-                  {FAQS[activeIdx].a}
-                </div>
-              </div>
-
-              {/* Bottom Brand Mark Accent */}
-              <div className="mt-6 pt-4 border-t border-[#FFFFEB]/5 flex items-center justify-between text-xs text-[#FFFFEB]/50">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-[#34D399]" />
-                  {BRAND_NAME}
-                </span>
-                <span className="font-mono">Runs in your browser</span>
-              </div>
-            </div>
-
-          </div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -702,11 +698,13 @@ export function Faq() {
 export function ClosingCta() {
   return (
     <section className="px-4 pb-16">
-      <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] bg-[#0F3D2E] px-6 py-20 text-center text-[#FFFFEB] sm:py-28 shadow-2xl">
-        <h2 className="relative font-styled text-5xl font-bold tracking-tight sm:text-7xl">Now, <em className="font-normal italic text-[#F0D7FF]">captivate.</em></h2>
-        <p className="relative mx-auto mt-5 max-w-lg text-[#FFFFEB]/70 text-base sm:text-lg leading-relaxed">Your next video deserves captions people actually watch. Start free, in under a minute.</p>
-        <div className="relative mt-9">
-          <Link href="/start?choose=1" className="inline-flex items-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:text-lg">
+      <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] bg-[#0F3D2E] px-6 py-14 text-[#FFFFEB] shadow-2xl sm:px-12 sm:py-16">
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-xl">
+            <h2 className="font-styled text-4xl font-bold tracking-tight sm:text-5xl">Start with one clip.</h2>
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-[#FFFFEB]/70 sm:text-lg">Upload a video and see your words on screen in under a minute. Free, no watermark.</p>
+          </div>
+          <Link href="/start?choose=1" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:text-lg">
             Create free captions <span aria-hidden>→</span>
           </Link>
         </div>
@@ -717,7 +715,7 @@ export function ClosingCta() {
 
 const FOOTER_COLUMNS = [
   {
-    title: "PRODUCT",
+    title: "Product",
     links: [
       { label: "How it works", href: "/#how" },
       { label: "Pricing", href: "/pricing" },
@@ -728,7 +726,7 @@ const FOOTER_COLUMNS = [
     ],
   },
   {
-    title: "CREATORS",
+    title: "For creators",
     links: [
       { label: "Looks for Shorts, Reels & TikTok", href: "/#looks" },
       { label: "Hindi & Hinglish support", href: "/#faq" },
@@ -736,14 +734,14 @@ const FOOTER_COLUMNS = [
     ],
   },
   {
-    title: "RESOURCES",
+    title: "Help",
     links: [
       { label: "Frequently asked questions", href: "/#faq" },
       { label: "Project studio", href: "/dashboard" },
     ],
   },
   {
-    title: "COMPANY",
+    title: "Company",
     links: [
       { label: "About", href: "/about" },
       { label: "Support", href: `mailto:${LEGAL.email}` },
@@ -762,7 +760,7 @@ export function Footer() {
   return (
     <footer className="relative overflow-hidden border-t border-[#FFFFEB]/10 bg-[#1E1E1B] pt-20 pb-10 text-[#FFFFEB]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        
+
         {/* 4 Column Footer Links Grid */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-10 md:grid-cols-4 lg:gap-16 pb-16">
           {FOOTER_COLUMNS.map((col) => (
@@ -790,12 +788,12 @@ export function Footer() {
         {/* Giant Open Caption Bottom Logo matching Image 1 */}
         <div className="pt-10 sm:pt-14 border-t border-[#FFFFEB]/10 flex items-center justify-between overflow-hidden select-none">
           <Link href="/" className="group flex items-center gap-3 sm:gap-5 w-full">
-            {/* Audio Wave Icon Bars with subtle rhythmic bounce */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5 h-12 sm:h-20 md:h-28 lg:h-36 shrink-0" aria-hidden>
-              <span className="w-1.5 sm:w-3 lg:w-4 bg-[#FFFFEB] h-1/2 rounded-full" />
-              <span className="w-1.5 sm:w-3 lg:w-4 bg-[#FFA946] h-full rounded-full" />
-              <span className="w-1.5 sm:w-3 lg:w-4 bg-[#34D399] h-4/5 rounded-full" />
-            </div>
+            {/* Caption-lines mark, same geometry as the logo */}
+            <svg viewBox="0 0 100 100" className="h-12 w-auto shrink-0 sm:h-20 md:h-28 lg:h-36" aria-hidden role="presentation">
+              <rect x="16" y="32" width="46" height="13" rx="6.5" fill="#FFFFEB" />
+              <rect x="16" y="55" width="60" height="13" rx="6.5" fill="#FFFFEB" />
+              <rect x="80" y="55" width="13" height="13" rx="2.5" fill="#FFA946" />
+            </svg>
 
             {/* Giant Open Caption Typography */}
             <span className="font-styled font-black text-4xl sm:text-7xl md:text-8xl lg:text-[130px] leading-none tracking-tighter text-[#FFFFEB]">
