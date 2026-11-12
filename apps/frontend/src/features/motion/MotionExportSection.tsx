@@ -48,7 +48,7 @@ interface Props {
 }
 
 const pill = (active: boolean) =>
-  `rounded-full border px-3 py-1.5 text-[12px] font-semibold transition ${active ? "border-ink bg-ink text-[#141412]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`;
+  `relative rounded-full border px-3 py-1.5 text-[12px] font-semibold transition before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${active ? "border-ink bg-ink text-[#141412]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`;
 
 export const MotionExportSection: React.FC<Props> = ({ config, asset = null, assetSrc }) => {
   const [selection, setSelection] = useState<MotionExportSelection>(DEFAULT_MOTION_EXPORT_SELECTION);

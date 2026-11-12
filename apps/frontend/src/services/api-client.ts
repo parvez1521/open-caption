@@ -184,6 +184,46 @@ export const apiClient = {
     throw lastError;
   },
 
+  /** Binary download: same Bearer auth as the JSON calls, but the response is
+   * bytes, not the standard `{ success, data }` envelope — used by the
+   * /transcribe link proxy, which streams a media file back to the browser.
+   * On an error status the body IS the standard error envelope, so it still
+   * throws ApiError with the server's plain message. No retry: a large
+   * download is not worth fetching twice on a blip. */
+  async getBlob(path: string, init?: { signal?: AbortSignal }): Promise<{ blob: Blob; fileName: string | null; contentType: string | null }> {
+    const token = await getAuthToken();
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+
+    const response = await fetchWithNetworkErrorHandling(`${API_BASE_URL}${path}`, {
+      headers,
+      signal: init?.signal,
+    });
+    if (!response.ok) {
+      let body: ApiErrorBody | null = null;
+      try {
+        body = (await response.json())?.error ?? null;
+      } catch {
+        // Non-JSON error body: fall through to the generic message.
+      }
+      throw new ApiError(response.status, body ?? { code: "UNKNOWN_ERROR", message: "Request failed." });
+    }
+    const rawName = response.headers.get("x-file-name");
+    let fileName: string | null = null;
+    if (rawName) {
+      try {
+        fileName = decodeURIComponent(rawName);
+      } catch {
+        fileName = null; // A malformed name falls back to the content-type name on the caller side.
+      }
+    }
+    return {
+      blob: await response.blob(),
+      // The proxy URL-encodes the name (a raw filename can hold characters a header value may not).
+      fileName,
+      contentType: response.headers.get("content-type"),
+    };
+  },
+
   /** Multipart upload with progress reporting (fetch has no upload-progress event).
    * `onXhrReady` hands back the underlying XHR so the caller can `.abort()` it. */
   uploadWithProgress<T>(

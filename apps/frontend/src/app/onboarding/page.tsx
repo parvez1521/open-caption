@@ -84,7 +84,7 @@ export default function OnboardingPage() {
         </div>
         <h1 className="text-xl font-bold text-[#FFFFEB]">{question.question}</h1>
         {step === 0 ? (
-          <p className="text-[13px] text-[#FFFFEB]/55">Two quick questions, then the right tool opens.</p>
+          <p className="text-[13px] text-[#FFFFEB]/55">Two quick questions, then your dashboard opens.</p>
         ) : null}
         <div className="grid w-full gap-2" role="radiogroup" aria-label={question.question}>
           {step === 0
