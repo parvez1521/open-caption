@@ -5,7 +5,7 @@ import Lenis from "lenis";
 import { Loader } from "@/components/home/Loader";
 import { ensureGsap, prefersReducedMotion } from "@/components/home/gsap";
 import dynamic from "next/dynamic";
-import { AiEditSection, ClipperSection, ClosingCta, Control, Faq, Footer, Hero, HowItWorks, MotionStudioSection, Nav, Privacy } from "@/components/home/Sections";
+import { AiEditSection, ClipperSection, ClosingCta, Control, Faq, Footer, Hero, HowItWorks, MotionStudioSection, Nav, Privacy, TranscribeSection } from "@/components/home/Sections";
 
 const SpatialScroll = dynamic(
   () => import("@/components/spatial/SpatialScroll").then((m) => m.SpatialScroll),
@@ -108,6 +108,7 @@ export default function LandingPage() {
       <Hero />
       <HowItWorks />
       <ClipperSection />
+      <TranscribeSection />
       <MotionStudioSection />
       <AiEditSection />
       <Control />

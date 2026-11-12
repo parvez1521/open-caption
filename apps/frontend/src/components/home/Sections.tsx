@@ -371,6 +371,46 @@ export function ClipperSection() {
   );
 }
 
+export function TranscribeSection() {
+  return (
+    <section id="transcribe" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
+          <div>
+            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+              Drop a file in, <em className="font-normal italic text-[#34D399]">read what was said.</em>
+            </h2>
+            <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
+              Transcribe turns a video or audio file into a timed transcript, in 14 languages,
+              with the speech model running in your browser. Copy it, or download it as TXT, SRT
+              or VTT.
+            </p>
+            <Link href="/transcribe" className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-6 py-3.5 text-base font-bold text-[#141412]">
+              Open Transcribe <span aria-hidden>→</span>
+            </Link>
+          </div>
+          <div className="rounded-[2rem] border border-[#FFFFEB]/10 bg-[#1E1E1B] p-6 sm:p-8">
+            <p className="font-mono text-[11px] uppercase tracking-widest text-[#FFFFEB]/50">Transcript · timed segments</p>
+            <div className="mt-5 space-y-3">
+              {[
+                ["0:00", "hello, and welcome back to the show"],
+                ["0:04", "today we are looking at three free tools"],
+                ["0:09", "the first one runs entirely in your browser"],
+              ].map(([time, line]) => (
+                <div key={time} className="flex items-baseline gap-3 rounded-xl border border-[#FFFFEB]/10 bg-[#262622] px-4 py-3.5">
+                  <span className="shrink-0 font-mono text-sm font-semibold text-[#34D399]">{time}</span>
+                  <span className="min-w-0 text-sm text-[#FFFFEB]/80">{line}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/45">TXT · SRT · VTT downloads · 14 languages</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /**
  * Motion Studio section: four featured templates from the motion registry, playing live in a
  * horizontal scroll row (the same shared live-preview budget as the Studio picker keeps the
@@ -682,6 +722,7 @@ const FOOTER_COLUMNS = [
       { label: "How it works", href: "/#how" },
       { label: "Pricing", href: "/pricing" },
       { label: "Clipper", href: "/clipper" },
+      { label: "Transcribe", href: "/transcribe" },
       { label: "Looks gallery", href: "/#looks" },
       { label: "Precision controls", href: "/#control" },
     ],
