@@ -21,6 +21,9 @@ export default function DashboardPage() {
     }
     setSignedIn(true);
     authService.getCurrentUser().then(setCurrentUser);
+    // A name saved in /settings fires USER_UPDATED: refresh the greeting
+    // without waiting for a reload or a navigation.
+    return authService.subscribeToUserChanges(setCurrentUser);
   }, [router]);
 
   // Guests (anonymous sessions) have no email and no real name: greet them as

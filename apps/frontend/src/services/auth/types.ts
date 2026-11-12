@@ -24,4 +24,9 @@ export interface AuthProvider {
   /** Updates the current user's profile (display name today). Returns the
    * updated user so callers can refresh local state without a refetch. */
   updateProfile(fields: { name?: string }): Promise<User>;
+  /** Subscribes to signed-in user changes (profile save, sign-in/out). The
+   * callback receives the mapped user (null after sign-out); returns an
+   * unsubscribe function. Lets the shell and pages show a saved name
+   * without a reload. */
+  subscribeToUserChanges(cb: (user: User | null) => void): () => void;
 }
