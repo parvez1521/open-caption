@@ -3,20 +3,15 @@
 import { fromWhisperCaptions, toSrt, toTxt, toVtt } from "@motion-ai/caption-engine/core";
 import { PLANS, type Page, type Word } from "@capseasy/shared";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
-import { apiClient } from "@/services/api-client";
 import { decodeAudio } from "./browserWhisper";
-import { linkFileName } from "./linkFile";
 import { MODELS, isConstrainedDevice, type SpeechLanguage } from "./runtime";
 import { dropRepeatedRuns } from "./speech";
 import type { In, Out } from "./whisper.worker";
 
 /**
- * Standalone Transcribe: upload a file — or paste a direct media link — and get its transcript. No Studio project,
+ * Standalone Transcribe: upload a file and get its transcript. No Studio project,
  * no server round-trip for the transcription itself. The speech model runs in this browser, exactly like the Studio's
- * transcription — only the project/server half is missing. Links are direct media file URLs only (fetched through the
- * same-origin proxy, /api/v1/transcribe/proxy — the browser can no longer fetch arbitrary hosts directly, production
- * CSP allows connect-src 'self' + named hosts only): YouTube and Instagram links can't work, those sites don't share
- * the file. The proxy streams the file to this browser and stores nothing.
+ * transcription — only the project/server half is missing.
  *
  * Limits are the frozen Free tier (50 MB, 5 min) for everyone on this page:
  * there is no project here to read a paid plan from, and the full Studio
@@ -288,45 +283,4 @@ export function runStandaloneTranscribe(
       rejectFn?.(aborted());
     },
   };
-}
-
-// ---------- direct-link fetch (paste a link, transcribe it) ----------
-
-// Filename helper, shared with the proxy route (features/transcribe/linkFile.ts).
-export { linkFileName } from "./linkFile";
-
-/**
- * Fetch a direct media-file link through the same-origin proxy
- * (/api/v1/transcribe/proxy, via api-client like every other client call)
- * and return it as a File for the same probe + pipeline an upload takes. The
- * proxy does the fetching server-side and streams the bytes back; the browser
- * could no longer fetch arbitrary hosts directly (production CSP). Plain
- * errors, one per cause — the proxy's messages surface unchanged:
- * - bad URL (not http/https) -> "Paste a full link..."
- * - dead/unreachable link -> "Couldn't reach this link..."
- * - HTTP error status -> "This link couldn't be opened (HTTP n)..."
- * - not audio/video (content-type, then the probe) -> "This link isn't a video or audio file."
- * - over the size cap -> the same over-limit line as uploads.
- *
- * YouTube/Instagram links never reach here as media — those hosts serve no direct file, so they fail the
- * content-type/probe checks with the plain errors.
- */
-export async function fetchTranscribeLink(rawUrl: string, signal?: AbortSignal): Promise<File> {
-  let url: URL;
-  try {
-    url = new URL(rawUrl.trim());
-  } catch {
-    throw new Error("Paste a full link starting with http:// or https://.");
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Paste a full link starting with http:// or https://.");
-  }
-  const { blob, fileName, contentType } = await apiClient.getBlob(
-    `/transcribe/proxy?url=${encodeURIComponent(url.toString())}`,
-    { signal },
-  );
-  const file = new File([blob], fileName ?? linkFileName(url, contentType), { type: contentType ?? blob.type });
-  const problem = validateTranscribeFile(file);
-  if (problem) throw new Error(problem);
-  return file;
 }
