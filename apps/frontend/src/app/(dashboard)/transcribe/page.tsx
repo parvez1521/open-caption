@@ -7,12 +7,13 @@ import StudioShell from "@/components/studio/StudioShell";
 import { Check, Copy, Film, Upload } from "@/components/ui/icons";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
 import { canTranscribeInBrowser, preloadSpeechModel } from "@/features/transcribe/browserWhisper";
-import { SHIPPED_LANGUAGES, likelySpeechLanguage, type SpeechLanguage } from "@/features/transcribe/runtime";
+import { SHIPPED_LANGUAGES, likelySpeechLanguage, saveSpeechLanguage, savedSpeechLanguage, type SpeechLanguage } from "@/features/transcribe/runtime";
 import {
   STAGE_LABELS,
   TRANSCRIBE_ACCEPT,
   TRANSCRIBE_LIMITS,
   buildTranscriptDownloads,
+  fetchTranscribeLink,
   pageText,
   probeMediaFile,
   runStandaloneTranscribe,
@@ -24,13 +25,12 @@ import {
 } from "@/features/transcribe/standalone";
 
 /**
- * Standalone Transcribe — upload a file, get its transcript. No Studio project
- * is created and nothing is uploaded: the speech model runs in this browser.
+ * Standalone Transcribe — upload a file, or paste a direct media link, and get its transcript.
+ * No Studio project is created and nothing is uploaded: the speech model runs in this browser.
  * Guest-friendly by construction: this page never asks who the user is (the
  * dashboard layout boots a guest session for signed-out visitors, same as
- * the Studio's guest doors). There is no link/URL input here — fetching
- * remote media is out of scope by the G6 verdict, so files come from the
- * device only.
+ * the Studio's guest doors). Links are direct media files only: YouTube and
+ * Instagram don't share the file, so their links can't work.
  */
 
 type Phase = "idle" | "ready" | "running" | "done" | "error";
@@ -51,12 +51,20 @@ function downloadFile(name: string, content: string, type: string) {
 
 export default function TranscribePage() {
   const [file, setFile] = useState<File | null>(null);
+  const [mode, setMode] = useState<"upload" | "link">("upload");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [fetchingLink, setFetchingLink] = useState(false);
   const [durationMs, setDurationMs] = useState(0);
   const [language, setLanguage] = useState<SpeechLanguage>("en");
-  // Guess from the browser only after mount: the server renders "en", so a
-  // mount-time guess can never cause a hydration mismatch.
+  // The choice is explicit only when the user picked it before (saved) or picks it now: a browser
+  // guess is never treated as a choice, so a guessed English keeps Whisper auto-detect — the same
+  // rule the Studio session uses. Guess after mount only: the server renders "en", so a mount-time
+  // guess can never cause a hydration mismatch.
+  const [languageExplicit, setLanguageExplicit] = useState(false);
   useEffect(() => {
-    setLanguage(likelySpeechLanguage());
+    const saved = savedSpeechLanguage();
+    setLanguage(saved ?? likelySpeechLanguage());
+    setLanguageExplicit(saved !== null);
   }, []);
   const [phase, setPhase] = useState<Phase>("idle");
   const [stage, setStage] = useState<{ stage: StandaloneStage; progress: number; device?: string } | null>(null);
@@ -105,10 +113,15 @@ export default function TranscribePage() {
     setWords([]);
     setStage({ stage: "download", progress: 0 });
     setPhase("running");
-    const run = runStandaloneTranscribe(file, language, {
-      onStatus: (s, progress, device) => setStage({ stage: s, progress, device }),
-      onPartial: (w) => setWords(w),
-    });
+    const run = runStandaloneTranscribe(
+      file,
+      language,
+      {
+        onStatus: (s, progress, device) => setStage({ stage: s, progress, device }),
+        onPartial: (w) => setWords(w),
+      },
+      { explicitLanguage: languageExplicit },
+    );
     runRef.current = run;
     try {
       const result = await run.promise;
@@ -126,7 +139,22 @@ export default function TranscribePage() {
     } finally {
       runRef.current = null;
     }
-  }, [file, language, phase]);
+  }, [file, language, languageExplicit, phase]);
+
+  const fetchLink = useCallback(async () => {
+    if (fetchingLink) return;
+    setError(null);
+    setFetchingLink(true);
+    try {
+      const f = await fetchTranscribeLink(linkUrl);
+      await pick(f);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't open this link.");
+      setPhase("error");
+    } finally {
+      setFetchingLink(false);
+    }
+  }, [fetchingLink, linkUrl, pick]);
 
   const cancel = useCallback(() => {
     runRef.current?.cancel();
@@ -135,6 +163,8 @@ export default function TranscribePage() {
   const reset = useCallback(() => {
     runRef.current?.cancel();
     setFile(null);
+    setLinkUrl("");
+    setMode("upload");
     setWords([]);
     setError(null);
     setStage(null);
@@ -163,12 +193,32 @@ export default function TranscribePage() {
       <div className="px-4 sm:px-10 py-8 sm:py-10 max-w-5xl mx-auto">
         <div className="pb-8 border-b border-sand-200">
           <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-[-0.015em] text-ink">Transcribe</h1>
-          <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">Upload a video or audio file. Get its transcript.</p>
+          <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">Upload a file or paste a link. Get its transcript.</p>
         </div>
 
         <div className="py-8 space-y-6">
           {phase !== "done" && (
             <>
+              <div className="flex gap-2" role="tablist" aria-label="Add a file">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "upload"}
+                  onClick={() => setMode("upload")}
+                  className={`rounded-full px-4 py-2 text-[13px] font-semibold ${mode === "upload" ? "bg-[#34D399] text-[#141412]" : "border border-sand-300 text-ink"}`}
+                >
+                  Upload a file
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "link"}
+                  onClick={() => setMode("link")}
+                  className={`rounded-full px-4 py-2 text-[13px] font-semibold ${mode === "link" ? "bg-[#34D399] text-[#141412]" : "border border-sand-300 text-ink"}`}
+                >
+                  Paste a link
+                </button>
+              </div>
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -183,7 +233,7 @@ export default function TranscribePage() {
                 }}
                 className={`rounded-2xl border border-dashed px-6 py-10 text-center ${
                   dragOver ? "border-[#34D399] bg-[#34D399]/10" : "border-sand-300 bg-[#1C1C1A]"
-                }`}
+                }${mode === "link" ? " hidden" : ""}`}
               >
                 <Film className="mx-auto h-8 w-8 text-sand-600" aria-hidden />
                 {file ? (
@@ -230,6 +280,45 @@ export default function TranscribePage() {
                 />
               </div>
 
+              {mode === "link" && (
+                <div className="rounded-2xl border border-sand-300 bg-[#1C1C1A] px-6 py-6">
+                  <label htmlFor="transcribe-link" className="block text-[13px] font-semibold text-ink">
+                    Paste a direct link to a video or audio file
+                  </label>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      id="transcribe-link"
+                      type="url"
+                      value={linkUrl}
+                      disabled={running || fetchingLink}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                      placeholder="https://example.com/clip.mp4"
+                      className="w-full flex-1 rounded-xl border border-sand-300 bg-[#232320] px-3 py-2.5 text-[14px] text-ink"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void fetchLink()}
+                      disabled={!linkUrl.trim() || fetchingLink || running}
+                      className="rounded-full bg-[#34D399] px-5 py-2.5 text-[14px] font-bold text-[#141412] disabled:opacity-40"
+                    >
+                      {fetchingLink ? "Fetching..." : "Fetch link"}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[12px] text-sand-600">
+                    Direct video/audio links work. YouTube and Instagram links don&apos;t: those sites don&apos;t share the file.
+                  </p>
+                  {file && (
+                    <div className="mt-4">
+                      <p className="text-[15px] font-semibold text-ink break-all">{file.name}</p>
+                      <p className="mt-1 text-[13px] text-sand-600">
+                        {durationMs > 0 ? `${fmtClock(durationMs)} · ` : ""}
+                        {(file.size / (1024 * 1024)).toFixed(1)} MB
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label htmlFor="transcribe-language" className="block text-[13px] font-semibold text-ink">
                   What&apos;s spoken in the file?
@@ -238,16 +327,20 @@ export default function TranscribePage() {
                   id="transcribe-language"
                   value={language}
                   disabled={running}
-                  onChange={(e) => setLanguage(e.target.value as SpeechLanguage)}
+                  onChange={(e) => {
+                    const l = e.target.value as SpeechLanguage;
+                    setLanguage(l);
+                    setLanguageExplicit(true);
+                    saveSpeechLanguage(l);
+                  }}
                   className="mt-2 w-full max-w-sm rounded-xl border border-sand-300 bg-[#1C1C1A] px-3 py-2.5 text-[14px] text-ink"
                 >
                   {SHIPPED_LANGUAGES.map((m) => (
                     <option key={m.key} value={m.key}>
-                      {m.label}
+                      {m.choiceLabel}
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-[12px] text-sand-600">Runs in this browser. The speech model downloads once.</p>
               </div>
 
               {error && (

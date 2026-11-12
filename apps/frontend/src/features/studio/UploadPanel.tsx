@@ -220,8 +220,8 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
 
 /**
  * "What's spoken in the video?" The choices come straight from the transcription model map (SHIPPED_LANGUAGES in
- * features/transcribe/runtime): a language is offered only when it is wired end to end, and each choice shows that
- * model's honest one-time download size from the same map.
+ * features/transcribe/runtime): a language is offered only when it is wired end to end, and each card shows
+ * only the language name.
  */
 const LanguageChoice: React.FC<{ value: SpeechLanguage | null; onChange: (l: SpeechLanguage) => void; asking: boolean }> = ({ value, onChange, asking }) => (
   <div className={`mx-auto mt-6 max-w-md rounded-xl p-2 text-left ${asking ? "bg-st-lav/50 ring-2 ring-st-ink" : ""}`} role="radiogroup" aria-label="Language spoken in the video">
@@ -240,8 +240,6 @@ const LanguageChoice: React.FC<{ value: SpeechLanguage | null; onChange: (l: Spe
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-semibold">{m.choiceLabel}</span>
-            <span className="block text-[11px] leading-tight text-st-muted">{m.choiceHint}</span>
-            <span className="block text-[11px] leading-tight text-st-muted">Speech model ~{m.approxDownloadMb} MB, one download — captions are made on your device</span>
           </span>
         </button>
       ))}

@@ -69,8 +69,6 @@ export interface SpeechModel {
   approxDownloadMb: number;
   /** Label for the upload-screen language choice. */
   choiceLabel: string;
-  /** One-line hint under the upload-screen language choice. */
-  choiceHint: string;
 }
 
 const HF = "https://huggingface.co/";
@@ -94,7 +92,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "English",
-    choiceHint: "Only English is spoken",
   },
   hinglish: {
     key: "hinglish",
@@ -107,7 +104,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Hindi / Hinglish",
-    choiceHint: "Hindi, or Hindi mixed with English — captions in English letters",
   },
   hindi: {
     key: "hindi",
@@ -124,7 +120,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Hindi (देवनागरी)",
-    choiceHint: "Hindi — captions in Devanagari script",
   },
   // The eleven below share the stock multilingual Whisper base with `en` (same repo + revision, only the language
   // token changes), so none of them costs a second download on a browser that has captioned English before.
@@ -140,7 +135,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Tamil (தமிழ்)",
-    choiceHint: "Tamil — captions in Tamil script",
   },
   telugu: {
     key: "telugu",
@@ -153,7 +147,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Telugu (తెలుగు)",
-    choiceHint: "Telugu — captions in Telugu script",
   },
   bengali: {
     key: "bengali",
@@ -166,7 +159,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Bengali (বাংলা)",
-    choiceHint: "Bengali — captions in Bengali script",
   },
   marathi: {
     key: "marathi",
@@ -179,7 +171,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Marathi (मराठी)",
-    choiceHint: "Marathi — captions in Devanagari script",
   },
   punjabi: {
     key: "punjabi",
@@ -192,7 +183,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Punjabi (ਪੰਜਾਬੀ)",
-    choiceHint: "Punjabi — captions in Gurmukhi script",
   },
   urdu: {
     key: "urdu",
@@ -205,7 +195,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Urdu (اردو)",
-    choiceHint: "Urdu — captions in Urdu script",
   },
   spanish: {
     key: "spanish",
@@ -218,7 +207,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Spanish (Español)",
-    choiceHint: "Spanish — captions in Spanish",
   },
   french: {
     key: "french",
@@ -231,7 +219,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "French (Français)",
-    choiceHint: "French — captions in French",
   },
   german: {
     key: "german",
@@ -244,7 +231,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "German (Deutsch)",
-    choiceHint: "German — captions in German",
   },
   arabic: {
     key: "arabic",
@@ -257,7 +243,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Arabic (العربية)",
-    choiceHint: "Arabic — captions in Arabic script",
   },
   portuguese: {
     key: "portuguese",
@@ -270,7 +255,6 @@ export const MODELS: Record<SpeechLanguage, SpeechModel> = {
     licence: "MIT",
     approxDownloadMb: 90,
     choiceLabel: "Portuguese (Português)",
-    choiceHint: "Portuguese — captions in Portuguese",
   },
 };
 
