@@ -408,10 +408,14 @@ export function ClipperSection() {
               The AI ranks moments with an Editorial score — an estimate, never a performance
               prediction — and the measured suggestions show the signals behind their order. Your
               source video is not re-encoded or cut; a clip is a range on the same file, kept on
-              your device.
+              your device. The separate AI Clipper section compares every clip against the whole
+              video, and its runs resume where they stopped.
             </p>
             <Link href="/clipper" className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-6 py-3.5 text-base font-bold text-[#141412]">
               Open the Clipper <span aria-hidden>→</span>
+            </Link>
+            <Link href="/ai-clipper" className="ml-3 mt-7 inline-flex items-center justify-center gap-2 rounded-full border border-[#FFFFEB]/20 px-6 py-3.5 text-base font-bold text-[#FFFFEB]">
+              Open the AI Clipper <span aria-hidden>→</span>
             </Link>
           </div>
           <div className="rounded-[2rem] border border-[#FFFFEB]/10 bg-[#1E1E1B] p-6 sm:p-8 lg:order-1">
@@ -720,6 +724,7 @@ const FOOTER_COLUMNS = [
       { label: "How it works", href: "/#how" },
       { label: "Pricing", href: "/pricing" },
       { label: "Clipper", href: "/clipper" },
+      { label: "AI Clipper", href: "/ai-clipper" },
       { label: "Transcribe", href: "/transcribe" },
       { label: "Looks gallery", href: "/#looks" },
       { label: "Precision controls", href: "/#control" },
@@ -773,7 +778,7 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      {...(link.href === "/clipper" ? { target: "_blank", rel: "noopener" } : {})}
+                      {...(link.href === "/clipper" || link.href === "/ai-clipper" ? { target: "_blank", rel: "noopener" } : {})}
                       className="inline-flex min-h-10 items-center transition-colors hover:text-[#34D399] hover:underline underline-offset-4 lg:min-h-0"
                     >
                       {link.label}

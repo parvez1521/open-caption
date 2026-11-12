@@ -193,10 +193,12 @@ import { ClipperLaunchCard } from "../studio/panels/ClipperLaunchCard";
 import { NAV_ITEMS } from "@/components/studio/nav";
 
 describe("Clipper launch behaviour (I.1)", () => {
-  it("the main-nav Clipper entry opens in a new tab; the other entries do not", () => {
+  it("the main-nav Clipper entries open in a new tab; the other entries do not", () => {
     const clipper = NAV_ITEMS.find((i) => i.id === "clipper")!;
     expect(clipper.newTab).toBe(true);
-    expect(NAV_ITEMS.filter((i) => i.newTab).map((i) => i.id)).toEqual(["clipper"]);
+    const aiClipper = NAV_ITEMS.find((i) => i.id === "ai-clipper")!;
+    expect(aiClipper.newTab).toBe(true);
+    expect(NAV_ITEMS.filter((i) => i.newTab).map((i) => i.id)).toEqual(["clipper", "ai-clipper"]);
   });
   it("the Studio launch card links to the standalone Clipper for THIS project, in a new tab", () => {
     render(<ClipperLaunchCard projectId="proj-9" />);
