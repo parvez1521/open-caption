@@ -87,11 +87,10 @@ describe("multilingual model map (Slice 5.2: Devanagari Hindi)", () => {
     expect(speechLanguageOf("ja")).toBe("en"); // unshipped languages are never promised: they fall back, not listed
   });
 
-  it("only shipped languages are offered, each with label, hint and download size from the one map", () => {
+  it("only shipped languages are offered, each with a label and download size from the one map", () => {
     expect(SHIPPED_LANGUAGES.map((m) => m.key)).toEqual(["en", "hinglish", "hindi", "tamil", "telugu", "bengali", "marathi", "punjabi", "urdu", "spanish", "french", "german", "arabic", "portuguese"]);
     for (const m of SHIPPED_LANGUAGES) {
       expect(m.choiceLabel.length).toBeGreaterThan(0);
-      expect(m.choiceHint.length).toBeGreaterThan(0);
       expect(m.approxDownloadMb).toBeGreaterThan(0);
       expect(m.licence.length).toBeGreaterThan(0);
     }
