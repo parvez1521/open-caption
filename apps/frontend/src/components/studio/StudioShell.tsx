@@ -66,6 +66,9 @@ export default function StudioShell({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     authService.getCurrentUser().then(setUser);
+    // A name saved in /settings fires USER_UPDATED: refresh the header
+    // without waiting for a reload or a navigation.
+    return authService.subscribeToUserChanges(setUser);
   }, []);
 
   const { data: health } = useQuery<HealthChecks | null>({

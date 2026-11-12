@@ -18,12 +18,26 @@ const getProjectRef = (url: string | undefined): string => {
 const projectRef = getProjectRef(supabaseUrl);
 const STORAGE_KEY = projectRef ? `sb-${projectRef}-auth-token` : "sb-auth-token";
 
-function mapSupabaseUser(sbUser: SupabaseUser): User {
+function resolveDisplayName(sbUser: SupabaseUser): string {
   // Anonymous (guest) sessions have no name and no email: call them what they
   // are — "Guest" — never the generic "User", which reads as a signed-in name.
-  const name = sbUser.is_anonymous
-    ? "Guest"
-    : sbUser.user_metadata?.name || sbUser.email?.split("@")[0] || "User";
+  if (sbUser.is_anonymous) return "Guest";
+  const meta = sbUser.user_metadata ?? {};
+  const text = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+  // The app-level override lives under `display_name`, a key Google never
+  // sends: a name saved in /settings survives the next Google sign-in, which
+  // refreshes `name` from the provider's profile and would otherwise
+  // overwrite it. Blank overrides fall through, never blank the name.
+  return (
+    text(meta.display_name) ||
+    text(meta.name) ||
+    sbUser.email?.split("@")[0] ||
+    "User"
+  );
+}
+
+function mapSupabaseUser(sbUser: SupabaseUser): User {
+  const name = resolveDisplayName(sbUser);
   return {
     id: sbUser.id,
     email: sbUser.email || "",
@@ -31,6 +45,13 @@ function mapSupabaseUser(sbUser: SupabaseUser): User {
     avatar_url: sbUser.user_metadata?.avatar_url || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
     created_at: sbUser.created_at,
   };
+}
+
+type UserChangeListener = (user: User | null) => void;
+const userChangeListeners = new Set<UserChangeListener>();
+
+function notifyUserChange(user: User | null) {
+  userChangeListeners.forEach((cb) => cb(user));
 }
 
 let activeToken: string | null = null;
@@ -43,8 +64,15 @@ if (typeof window !== "undefined") {
   // possibly-expired token straight from localStorage. Eagerly awaiting
   // getSession() here (which itself waits on that same internal refresh)
   // closes most of that race on page load.
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
     activeToken = session?.access_token || null;
+    // A profile save (updateUser → USER_UPDATED) or a fresh sign-in changes
+    // the user object: push it to every subscribed shell/page so a saved
+    // name shows without a reload. Token refreshes carry no new name, so
+    // they notify nobody.
+    if (event === "USER_UPDATED" || event === "SIGNED_IN" || event === "SIGNED_OUT") {
+      notifyUserChange(session?.user ? mapSupabaseUser(session.user) : null);
+    }
   });
   supabase.auth.getSession().then(({ data: { session } }) => {
     activeToken = session?.access_token || null;
@@ -173,8 +201,15 @@ export const supabaseAuthProvider: AuthProvider = {
   },
 
   async updateProfile(fields: { name?: string }) {
+    const name = fields.name?.trim() ?? "";
+    if (!name) {
+      throw new Error("Display name can't be empty.");
+    }
     const { data, error } = await supabase.auth.updateUser({
-      data: { ...(fields.name !== undefined ? { name: fields.name } : {}) },
+      // `display_name` is the durable override: Google never sends that key,
+      // so the next sign-in can't overwrite it. `name` stays in sync for
+      // anything else reading the provider name.
+      data: { display_name: name, name },
     });
     if (error) {
       throw new Error(error.message);
@@ -183,5 +218,12 @@ export const supabaseAuthProvider: AuthProvider = {
       throw new Error("Profile update failed. No user returned.");
     }
     return mapSupabaseUser(data.user);
+  },
+
+  subscribeToUserChanges(cb: (user: User | null) => void) {
+    userChangeListeners.add(cb);
+    return () => {
+      userChangeListeners.delete(cb);
+    };
   },
 };
