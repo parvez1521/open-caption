@@ -3,16 +3,20 @@
 import { fromWhisperCaptions, toSrt, toTxt, toVtt } from "@motion-ai/caption-engine/core";
 import { PLANS, type Page, type Word } from "@capseasy/shared";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
+import { apiClient } from "@/services/api-client";
 import { decodeAudio } from "./browserWhisper";
+import { linkFileName } from "./linkFile";
 import { MODELS, isConstrainedDevice, type SpeechLanguage } from "./runtime";
 import { dropRepeatedRuns } from "./speech";
 import type { In, Out } from "./whisper.worker";
 
 /**
  * Standalone Transcribe: upload a file — or paste a direct media link — and get its transcript. No Studio project,
- * no server round-trip. The speech model runs in this browser, exactly like the Studio's transcription — only the
- * project/server half is missing. Links are direct media file URLs only (fetched in the browser): YouTube and
- * Instagram links can't work, those sites don't share the file.
+ * no server round-trip for the transcription itself. The speech model runs in this browser, exactly like the Studio's
+ * transcription — only the project/server half is missing. Links are direct media file URLs only (fetched through the
+ * same-origin proxy, /api/v1/transcribe/proxy — the browser can no longer fetch arbitrary hosts directly, production
+ * CSP allows connect-src 'self' + named hosts only): YouTube and Instagram links can't work, those sites don't share
+ * the file. The proxy streams the file to this browser and stores nothing.
  *
  * Limits are the frozen Free tier (50 MB, 5 min) for everyone on this page:
  * there is no project here to read a paid plan from, and the full Studio
@@ -288,44 +292,24 @@ export function runStandaloneTranscribe(
 
 // ---------- direct-link fetch (paste a link, transcribe it) ----------
 
-/** Media extension by served content-type, for links whose URL carries no filename. */
-const LINK_EXT_BY_TYPE: Record<string, string> = {
-  "video/mp4": ".mp4",
-  "video/quicktime": ".mov",
-  "video/webm": ".webm",
-  "video/x-matroska": ".mkv",
-  "audio/mpeg": ".mp3",
-  "audio/mp4": ".m4a",
-  "audio/wav": ".wav",
-  "audio/webm": ".webm",
-  "audio/ogg": ".ogg",
-};
-
-const overLimit = () =>
-  `This file is over the ${uploadLimitLabel(TRANSCRIBE_LIMITS.maxBytes)} limit for this tool. Trim it and try again.`;
-
-/** A filename for a fetched file: the URL's last segment when it looks like media, else a plain name. */
-export function linkFileName(url: URL, contentType: string | null): string {
-  const last = decodeURIComponent(url.pathname.split("/").pop() ?? "").trim();
-  if (last && /\.(mp4|mov|webm|mkv|mp3|m4a|wav|ogg)$/i.test(last)) return last;
-  const ext = contentType ? LINK_EXT_BY_TYPE[contentType.split(";")[0]!.trim().toLowerCase()] : undefined;
-  return `transcribed-file${ext ?? ".mp4"}`;
-}
+// Filename helper, shared with the proxy route (features/transcribe/linkFile.ts).
+export { linkFileName } from "./linkFile";
 
 /**
- * Fetch a direct media-file link in the browser and return it as a File for the same probe + pipeline
- * an upload takes. Plain errors, one per cause:
+ * Fetch a direct media-file link through the same-origin proxy
+ * (/api/v1/transcribe/proxy, via api-client like every other client call)
+ * and return it as a File for the same probe + pipeline an upload takes. The
+ * proxy does the fetching server-side and streams the bytes back; the browser
+ * could no longer fetch arbitrary hosts directly (production CSP). Plain
+ * errors, one per cause — the proxy's messages surface unchanged:
  * - bad URL (not http/https) -> "Paste a full link..."
  * - dead/unreachable link -> "Couldn't reach this link..."
- * - host answers but blocks cross-origin reads -> "This link blocks downloads..."
  * - HTTP error status -> "This link couldn't be opened (HTTP n)..."
  * - not audio/video (content-type, then the probe) -> "This link isn't a video or audio file."
  * - over the size cap -> the same over-limit line as uploads.
  *
- * A failed fetch can't tell a dead link from a CORS block on its own, so a failure is probed once with
- * a no-cors request: an opaque success means the host is up and CORS is the block; a second failure
- * means the link is dead. No server is involved; YouTube/Instagram links never reach here as media —
- * those hosts serve no direct file, so they fail the content-type/probe checks with the plain errors.
+ * YouTube/Instagram links never reach here as media — those hosts serve no direct file, so they fail the
+ * content-type/probe checks with the plain errors.
  */
 export async function fetchTranscribeLink(rawUrl: string, signal?: AbortSignal): Promise<File> {
   let url: URL;
@@ -337,38 +321,11 @@ export async function fetchTranscribeLink(rawUrl: string, signal?: AbortSignal):
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new Error("Paste a full link starting with http:// or https://.");
   }
-  // Pre-check the size before downloading the body (best effort: some hosts refuse HEAD, and then
-  // the GET below still enforces the cap from its own headers and the final file size).
-  const limitMessage = overLimit();
-  try {
-    const head = await fetch(url.toString(), { method: "HEAD", signal });
-    const len = head.headers.get("content-length");
-    if (head.ok && len !== null && Number(len) > TRANSCRIBE_LIMITS.maxBytes) throw new Error(limitMessage);
-  } catch (e) {
-    if (e instanceof Error && e.message === limitMessage) throw e;
-    // HEAD blocked or failed: continue to the GET, which enforces the cap itself.
-  }
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), { signal });
-  } catch (e) {
-    if (signal?.aborted || (e as { name?: string }).name === "AbortError") throw e;
-    try {
-      await fetch(url.toString(), { method: "GET", mode: "no-cors", signal });
-    } catch {
-      throw new Error("Couldn't reach this link — check it and try again.");
-    }
-    throw new Error("This link blocks downloads — download the file and upload it instead.");
-  }
-  if (!res.ok) throw new Error(`This link couldn't be opened (HTTP ${res.status}). Check the link and try again.`);
-  const type = res.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
-  if (type && !type.startsWith("video/") && !type.startsWith("audio/")) {
-    throw new Error("This link isn't a video or audio file.");
-  }
-  const len = res.headers.get("content-length");
-  if (len !== null && Number(len) > TRANSCRIBE_LIMITS.maxBytes) throw new Error(overLimit());
-  const blob = await res.blob();
-  const file = new File([blob], linkFileName(url, type || null), { type: type || blob.type });
+  const { blob, fileName, contentType } = await apiClient.getBlob(
+    `/transcribe/proxy?url=${encodeURIComponent(url.toString())}`,
+    { signal },
+  );
+  const file = new File([blob], fileName ?? linkFileName(url, contentType), { type: contentType ?? blob.type });
   const problem = validateTranscribeFile(file);
   if (problem) throw new Error(problem);
   return file;

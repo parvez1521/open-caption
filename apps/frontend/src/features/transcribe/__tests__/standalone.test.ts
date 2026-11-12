@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import type { Word } from "@capseasy/shared";
 import {
   STAGE_LABELS,
@@ -10,6 +10,10 @@ import {
   wordsToTranscriptPages,
 } from "../standalone";
 import { SHIPPED_LANGUAGES } from "../runtime";
+
+vi.mock("@/services/api-client", () => ({ apiClient: { getBlob: vi.fn() } }));
+
+import { apiClient } from "@/services/api-client";
 
 const w = (text: string, startMs: number, endMs: number): Word => ({
   id: `w-${startMs}`,
@@ -105,116 +109,69 @@ describe("standalone transcribe", () => {
   });
 });
 
-describe("fetchTranscribeLink (direct media links)", () => {
+describe("fetchTranscribeLink (direct media links, via the same-origin proxy)", () => {
+  const getBlob = apiClient.getBlob as unknown as Mock;
+
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.clearAllMocks();
   });
 
-  const headers = (init: Record<string, string>) => new Headers(init);
-  /** Mock fetch: HEAD/GET answers come from `get`, the no-cors probe from `probe` (default: fail). */
-  const mockFetch = (get: (url: string, init?: RequestInit) => Promise<Response>, probe?: () => Promise<Response>) => {
-    const calls: { url: string; init?: RequestInit }[] = [];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        calls.push({ url, init });
-        if (init?.mode === "no-cors") {
-          if (probe) return probe();
-          throw new TypeError("Failed to fetch");
-        }
-        return get(url, init);
-      }),
-    );
-    return calls;
-  };
-
-  it("fetches a direct mp4 link and returns it as a File for the same pipeline", async () => {
-    const calls = mockFetch(async (_url, init) => {
-      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: headers({ "content-length": "1000" }) });
-      return new Response(new Blob(["x"], { type: "video/mp4" }), { status: 200, headers: headers({ "content-type": "video/mp4", "content-length": "1000" }) });
+  /** The proxy's answer for one link: the streamed bytes plus the name/type headers it sends. */
+  const proxyOk = (fileName: string | null, contentType: string | null, body = "x") =>
+    getBlob.mockResolvedValueOnce({
+      blob: new Blob([body], { type: contentType ?? "video/mp4" }),
+      fileName,
+      contentType,
     });
+
+  it("fetches a direct mp4 link through the proxy and returns it as a File for the same pipeline", async () => {
+    proxyOk("clip.mp4", "video/mp4");
     const f = await fetchTranscribeLink("https://cdn.example.com/clip.mp4");
     expect(f).toBeInstanceOf(File);
     expect(f.name).toBe("clip.mp4");
     expect(f.type).toBe("video/mp4");
-    expect(calls.some((c) => c.init?.method === "HEAD")).toBe(true);
+    expect(getBlob).toHaveBeenCalledWith("/transcribe/proxy?url=https%3A%2F%2Fcdn.example.com%2Fclip.mp4", expect.anything());
   });
 
   it("names a link with no media filename from its content-type", async () => {
-    mockFetch(async (_url, init) => {
-      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: headers({}) });
-      return new Response(new Blob(["x"], { type: "audio/mpeg" }), { status: 200, headers: headers({ "content-type": "audio/mpeg" }) });
-    });
+    proxyOk(null, "audio/mpeg");
     const f = await fetchTranscribeLink("https://cdn.example.com/download?id=7");
     expect(f.name).toBe("transcribed-file.mp3");
   });
 
-  it("refuses a link the HEAD pre-check already shows is over the limit, without GET", async () => {
-    const calls = mockFetch(async (_url, init) => {
-      if (init?.method === "HEAD")
-        return new Response(null, { status: 200, headers: headers({ "content-length": String(TRANSCRIBE_LIMITS.maxBytes + 1) }) });
-      return new Response(new Blob(["x"]), { status: 200 });
-    });
-    await expect(fetchTranscribeLink("https://cdn.example.com/big.mp4")).rejects.toThrow(/over the 50 MB limit/);
-    expect(calls.some((c) => c.init?.method !== "HEAD")).toBe(false);
+  it("refuses non-http links and bare words without calling the proxy", async () => {
+    await expect(fetchTranscribeLink("notaurl")).rejects.toThrow(/http:\/\/ or https:\/\//);
+    await expect(fetchTranscribeLink("ftp://example.com/clip.mp4")).rejects.toThrow(/http:\/\/ or https:\/\//);
+    expect(getBlob).not.toHaveBeenCalled();
   });
 
-  it("refuses a link whose GET says it is over the limit", async () => {
-    mockFetch(async (_url, init) => {
-      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: headers({}) });
-      return new Response(new Blob(["x"]), { status: 200, headers: headers({ "content-type": "video/mp4", "content-length": String(TRANSCRIBE_LIMITS.maxBytes + 1) }) });
-    });
+  it("surfaces the proxy's over-limit error unchanged", async () => {
+    getBlob.mockRejectedValueOnce(new Error("This file is over the 50 MB limit for this tool. Trim it and try again."));
     await expect(fetchTranscribeLink("https://cdn.example.com/big.mp4")).rejects.toThrow(/over the 50 MB limit/);
   });
 
-  it("refuses a link whose body is over the limit even with no content-length", async () => {
-    // Raw bytes as the Response body: a jsdom Blob handed to undici's Response loses its size,
-    // so the oversize body has to be built from bytes, not from a Blob.
-    mockFetch(async (_url, init) => {
-      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: headers({}) });
-      return new Response(new Uint8Array(TRANSCRIBE_LIMITS.maxBytes + 1), {
-        status: 200,
-        headers: headers({ "content-type": "video/mp4" }),
-      });
+  it("refuses a file the proxy returned over the limit even with no content-length", async () => {
+    getBlob.mockResolvedValueOnce({
+      blob: new Blob([new Uint8Array(TRANSCRIBE_LIMITS.maxBytes + 1)], { type: "video/mp4" }),
+      fileName: "big.mp4",
+      contentType: "video/mp4",
     });
     await expect(fetchTranscribeLink("https://cdn.example.com/big.mp4")).rejects.toThrow(/over the 50 MB limit/);
   });
 
-  it("reports an HTTP error status plainly", async () => {
-    mockFetch(async (_url, init) => {
-      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: headers({}) });
-      return new Response("nope", { status: 404, headers: headers({}) });
-    });
+  it("surfaces the proxy's HTTP error status plainly", async () => {
+    getBlob.mockRejectedValueOnce(new Error("This link couldn't be opened (HTTP 404). Check the link and try again."));
     await expect(fetchTranscribeLink("https://cdn.example.com/gone.mp4")).rejects.toThrow(/couldn't be opened \(HTTP 404\)/);
   });
 
-  it("refuses a link that isn't a video or audio file", async () => {
-    mockFetch(async (_url, init) => {
-      if (init?.method === "HEAD") return new Response(null, { status: 200, headers: headers({}) });
-      return new Response("<html/>", { status: 200, headers: headers({ "content-type": "text/html" }) });
-    });
+  it("surfaces the proxy's non-media error plainly", async () => {
+    getBlob.mockRejectedValueOnce(new Error("This link isn't a video or audio file."));
     await expect(fetchTranscribeLink("https://example.com/page")).rejects.toThrow(/isn't a video or audio file/);
   });
 
-  it("tells a dead link from a CORS block: both fetches fail means unreachable", async () => {
-    mockFetch(async () => {
-      throw new TypeError("Failed to fetch");
-    });
+  it("surfaces the proxy's unreachable-link error plainly", async () => {
+    getBlob.mockRejectedValueOnce(new Error("Couldn't reach this link — check it and try again."));
     await expect(fetchTranscribeLink("https://dead.example.com/clip.mp4")).rejects.toThrow(/Couldn't reach this link/);
-  });
-
-  it("tells a dead link from a CORS block: no-cors probe succeeding means the host blocks downloads", async () => {
-    mockFetch(
-      async () => {
-        throw new TypeError("Failed to fetch");
-      },
-      async () => new Response(null, { status: 200 }),
-    );
-    await expect(fetchTranscribeLink("https://blocked.example.com/clip.mp4")).rejects.toThrow(/blocks downloads/);
-  });
-
-  it("refuses non-http links and bare words", async () => {
-    await expect(fetchTranscribeLink("notaurl")).rejects.toThrow(/http:\/\/ or https:\/\//);
-    await expect(fetchTranscribeLink("ftp://example.com/clip.mp4")).rejects.toThrow(/http:\/\/ or https:\/\//);
   });
 });
