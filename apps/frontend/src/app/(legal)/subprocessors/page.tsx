@@ -43,7 +43,7 @@ export default function SubprocessorsPage() {
       </Sec>
 
       <Sec id="local" title="Processed on your own device">
-        <p>Speech recognition and MP4 export run in your browser, and transparent overlay exports run in the optional desktop Companion app on your own computer, so no third party processes that audio for transcription. The speech model itself is downloaded once from Hugging Face; no audio is sent to it. The exception is a link pasted on the Transcribe page: the linked file is fetched through our own server (hosted by Vercel, above) and streamed to your browser, and is not stored.</p>
+        <p>Speech recognition and MP4 export run in your browser, and transparent overlay exports run in the optional desktop Companion app on your own computer, so no third party processes that audio for transcription. The speech model itself is downloaded once from Hugging Face; no audio is sent to it.</p>
       </Sec>
     </LegalDoc>
   );

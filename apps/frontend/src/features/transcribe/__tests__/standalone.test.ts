@@ -1,19 +1,14 @@
-import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Word } from "@capseasy/shared";
 import {
   STAGE_LABELS,
   TRANSCRIBE_LIMITS,
   buildTranscriptDownloads,
-  fetchTranscribeLink,
   transcriptPlainText,
   validateTranscribeFile,
   wordsToTranscriptPages,
 } from "../standalone";
 import { SHIPPED_LANGUAGES } from "../runtime";
-
-vi.mock("@/services/api-client", () => ({ apiClient: { getBlob: vi.fn() } }));
-
-import { apiClient } from "@/services/api-client";
 
 const w = (text: string, startMs: number, endMs: number): Word => ({
   id: `w-${startMs}`,
@@ -106,72 +101,5 @@ describe("standalone transcribe", () => {
     expect(Object.keys(STAGE_LABELS).sort()).toEqual(["audio", "download", "load", "transcribe"]);
     expect(STAGE_LABELS.download).toMatch(/Download/);
     expect(STAGE_LABELS.transcribe).toMatch(/Transcrib/);
-  });
-});
-
-describe("fetchTranscribeLink (direct media links, via the same-origin proxy)", () => {
-  const getBlob = apiClient.getBlob as unknown as Mock;
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.clearAllMocks();
-  });
-
-  /** The proxy's answer for one link: the streamed bytes plus the name/type headers it sends. */
-  const proxyOk = (fileName: string | null, contentType: string | null, body = "x") =>
-    getBlob.mockResolvedValueOnce({
-      blob: new Blob([body], { type: contentType ?? "video/mp4" }),
-      fileName,
-      contentType,
-    });
-
-  it("fetches a direct mp4 link through the proxy and returns it as a File for the same pipeline", async () => {
-    proxyOk("clip.mp4", "video/mp4");
-    const f = await fetchTranscribeLink("https://cdn.example.com/clip.mp4");
-    expect(f).toBeInstanceOf(File);
-    expect(f.name).toBe("clip.mp4");
-    expect(f.type).toBe("video/mp4");
-    expect(getBlob).toHaveBeenCalledWith("/transcribe/proxy?url=https%3A%2F%2Fcdn.example.com%2Fclip.mp4", expect.anything());
-  });
-
-  it("names a link with no media filename from its content-type", async () => {
-    proxyOk(null, "audio/mpeg");
-    const f = await fetchTranscribeLink("https://cdn.example.com/download?id=7");
-    expect(f.name).toBe("transcribed-file.mp3");
-  });
-
-  it("refuses non-http links and bare words without calling the proxy", async () => {
-    await expect(fetchTranscribeLink("notaurl")).rejects.toThrow(/http:\/\/ or https:\/\//);
-    await expect(fetchTranscribeLink("ftp://example.com/clip.mp4")).rejects.toThrow(/http:\/\/ or https:\/\//);
-    expect(getBlob).not.toHaveBeenCalled();
-  });
-
-  it("surfaces the proxy's over-limit error unchanged", async () => {
-    getBlob.mockRejectedValueOnce(new Error("This file is over the 50 MB limit for this tool. Trim it and try again."));
-    await expect(fetchTranscribeLink("https://cdn.example.com/big.mp4")).rejects.toThrow(/over the 50 MB limit/);
-  });
-
-  it("refuses a file the proxy returned over the limit even with no content-length", async () => {
-    getBlob.mockResolvedValueOnce({
-      blob: new Blob([new Uint8Array(TRANSCRIBE_LIMITS.maxBytes + 1)], { type: "video/mp4" }),
-      fileName: "big.mp4",
-      contentType: "video/mp4",
-    });
-    await expect(fetchTranscribeLink("https://cdn.example.com/big.mp4")).rejects.toThrow(/over the 50 MB limit/);
-  });
-
-  it("surfaces the proxy's HTTP error status plainly", async () => {
-    getBlob.mockRejectedValueOnce(new Error("This link couldn't be opened (HTTP 404). Check the link and try again."));
-    await expect(fetchTranscribeLink("https://cdn.example.com/gone.mp4")).rejects.toThrow(/couldn't be opened \(HTTP 404\)/);
-  });
-
-  it("surfaces the proxy's non-media error plainly", async () => {
-    getBlob.mockRejectedValueOnce(new Error("This link isn't a video or audio file."));
-    await expect(fetchTranscribeLink("https://example.com/page")).rejects.toThrow(/isn't a video or audio file/);
-  });
-
-  it("surfaces the proxy's unreachable-link error plainly", async () => {
-    getBlob.mockRejectedValueOnce(new Error("Couldn't reach this link — check it and try again."));
-    await expect(fetchTranscribeLink("https://dead.example.com/clip.mp4")).rejects.toThrow(/Couldn't reach this link/);
   });
 });

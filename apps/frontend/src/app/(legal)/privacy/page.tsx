@@ -42,7 +42,7 @@ export default function PrivacyPage() {
       </Sec>
 
       <Sec id="local" title="3. On-device processing">
-        <p>By default, everything runs in your browser: speech recognition, editing and MP4 rendering happen on your device, and your video file is never uploaded. Only the file&rsquo;s name, size, length and format are sent to our servers and stored with your project. The optional desktop Companion app is the exception. For a transparent overlay export, the Companion downloads your video from our storage to your computer, renders the export locally, and uploads the result back to your account. The rendering never sends your video or audio anywhere else. The Companion keeps a local cache of videos it has processed, which you can clear by deleting its cache folder. Pasting a link on the Transcribe page is the other exception: the linked file is fetched through our server and streamed to your browser, and is not stored.</p>
+        <p>By default, everything runs in your browser: speech recognition, editing and MP4 rendering happen on your device, and your video file is never uploaded. Only the file&rsquo;s name, size, length and format are sent to our servers and stored with your project. The optional desktop Companion app is the exception. For a transparent overlay export, the Companion downloads your video from our storage to your computer, renders the export locally, and uploads the result back to your account. The rendering never sends your video or audio anywhere else. The Companion keeps a local cache of videos it has processed, which you can clear by deleting its cache folder.</p>
       </Sec>
 
       <Sec id="ai" title="AI features">
