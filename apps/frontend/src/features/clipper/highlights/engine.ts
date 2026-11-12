@@ -47,11 +47,23 @@ export interface HighlightEngineInput {
   /** ranges already chosen (Regenerate): candidates duplicating these are dropped */
   exclude?: readonly RangeLike[];
   onStage?: (event: HighlightStageEvent) => void;
+  /**
+   * AI Clipper durable runs: per-window candidates already collected by an
+   * earlier, interrupted run. A seeded window is NOT re-read by the model —
+   * its saved candidates stand, so a resume only pays for unfinished windows.
+   * Seeded entries are `null` for windows with nothing saved yet.
+   */
+  seedWindows?: readonly (RawCandidate[] | null)[];
+  /** AI Clipper durable runs: called with each freshly-read window's candidates (also `[]` when a window failed) so the caller can checkpoint it. */
+  onWindowCandidates?: (windowIndex: number, candidates: RawCandidate[]) => void;
+  /** AI Clipper Cancel: checked before each window; aborting throws an AbortError and stops the run. */
+  signal?: AbortSignal;
 }
 
 export async function runHighlightEngine(input: HighlightEngineInput): Promise<HighlightRunResult> {
   const { words, request } = input;
   const notes: string[] = [];
+  input.signal?.throwIfAborted();
 
   if (!input.runner) {
     const clips = runSignalsPath({ words, analysis: input.analysis, peaks: input.peaks, hopMs: input.hopMs, request, exclude: input.exclude });
@@ -77,6 +89,15 @@ export async function runHighlightEngine(input: HighlightEngineInput): Promise<H
   const perWindow: RawCandidate[][] = windows.map(() => []);
 
   const runWindow = async (wi: number): Promise<void> => {
+    // A seeded window (resume) never reaches the model: its saved candidates stand.
+    const seeded = input.seedWindows?.[wi];
+    if (seeded) {
+      perWindow[wi] = seeded;
+      done += 1;
+      input.onStage?.({ type: "window-done", done, total: windows.length, failed });
+      return;
+    }
+    input.signal?.throwIfAborted();
     const win = windows[wi]!;
     const prompt = buildHighlightPrompt({
       contentType: request.contentType,
@@ -102,6 +123,7 @@ export async function runHighlightEngine(input: HighlightEngineInput): Promise<H
       }
     }
     done += 1;
+    input.onWindowCandidates?.(wi, perWindow[wi]);
     input.onStage?.({ type: "window-done", done, total: windows.length, failed });
   };
 
@@ -110,6 +132,8 @@ export async function runHighlightEngine(input: HighlightEngineInput): Promise<H
   await Promise.all(
     Array.from({ length: Math.min(concurrency, windows.length) }, async () => {
       while (cursor < windows.length) {
+        // Cancel stops the run: no new window starts after the abort.
+        input.signal?.throwIfAborted();
         const wi = cursor++;
         await runWindow(wi);
       }

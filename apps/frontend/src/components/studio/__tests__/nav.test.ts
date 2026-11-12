@@ -27,6 +27,7 @@ describe("shell nav config", () => {
       ["supporting", "Media Library", "/library"],
       ["supporting", "Brand Kit", "/brand"],
       ["supporting", "Clipper", "/clipper"],
+      ["supporting", "AI Clipper", "/ai-clipper"],
       ["supporting", "Transcribe", "/transcribe"],
       ["supporting", "Reel Analyzer", "/analyzer"],
       ["supporting", "Teleprompter", "/prompter"],
