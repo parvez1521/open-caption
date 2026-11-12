@@ -145,7 +145,7 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
     <button
       onClick={() => void start()}
       disabled={phase === "preparing"}
-      className="inline-flex items-center justify-center gap-2 rounded-full bg-obsidian px-5 py-2.5 text-sm font-semibold text-major transition hover:bg-obsidian/85 active:scale-[0.98] disabled:opacity-60"
+      className="inline-flex items-center justify-center gap-2 rounded-full bg-obsidian px-5 py-2.5 text-sm font-semibold text-major transition-colors hover:bg-obsidian/85 disabled:opacity-60"
     >
       {phase === "preparing" ? "Preparing…" : phase === "waiting" ? (os === "windows" ? "Download again" : "Get a new command") : "Connect this computer"}
       <span aria-hidden>→</span>

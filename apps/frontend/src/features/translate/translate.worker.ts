@@ -12,8 +12,12 @@
  * own, so outputs line up 1:1 with the input lines (the caller rebuilds a CaptionDoc from them).
  */
 import { pipeline, env, type TranslationPipeline } from "@huggingface/transformers";
+import { useBundledOnnxWasm } from "../transcribe/onnxWasm";
 
 env.allowLocalModels = false;
+// OC-003: self-hosted ONNX WASM (bundled assets) instead of the jsDelivr CDN
+// default — must run before the first pipeline() call.
+useBundledOnnxWasm();
 
 export type TranslateIn =
   | { type: "translate"; modelId: string; revision: string; lines: string[] }

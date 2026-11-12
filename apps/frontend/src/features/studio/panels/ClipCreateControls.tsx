@@ -313,7 +313,7 @@ export const ReframeControl: React.FC<{
             {face.state.kind === "consent" ? (
               <>
                 <p className="text-[11px] leading-snug text-st-faint">
-                  Face centring uses a small face-detection model — YuNet, MIT licence, about 0.25 MB — loaded
+                  Face centring uses a small face-detection model — YuNet, about 0.25 MB — loaded
                   from this site. It runs entirely on your device: frames from this clip are checked here and
                   nothing is uploaded. It centres the window once, on the largest face it finds; the window
                   does not follow movement afterwards.

@@ -113,7 +113,7 @@ export function SubmitButton({
       type="submit"
       disabled={loading || props.disabled}
       {...props}
-      className="w-full rounded-xl bg-[#FFFFEB] py-3.5 font-medium text-[14px] text-[#141412] transition-all duration-150 hover:bg-[#E4E4D6] active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+      className="w-full rounded-xl bg-[#FFFFEB] py-3.5 font-medium text-[14px] text-[#141412] transition-colors hover:bg-[#E4E4D6] disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-sm"
     >
       {loading && (
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#141412]/30 border-t-[#141412]" />
@@ -168,7 +168,7 @@ export default function AuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen w-full bg-major flex flex-col lg:flex-row font-sans selection:bg-emerald-accent selection:text-[#141412]">
+    <main id="main-content" className="min-h-screen w-full bg-major flex flex-col lg:flex-row font-sans selection:bg-emerald-accent selection:text-[#141412]">
       {/* Left brand panel. On phones it collapses to a slim bar so the form starts at the
           top — the earlier full-width stock photo pushed sign-in below the fold. */}
       <div className="relative w-full lg:w-1/2 lg:min-h-screen bg-[#1C1C1A] overflow-hidden select-none">
@@ -204,7 +204,7 @@ export default function AuthShell({
           <ul className="mt-6 space-y-2.5 text-[14px] font-medium text-[#FFFFEB]/70">
             <li>Automatic captions in English, Hindi and Hinglish</li>
             <li>150 animated looks, free to use</li>
-            <li>Your video stays on your device — nothing to install</li>
+            <li>Your video file stays on your device — nothing to install</li>
           </ul>
         </div>
       </div>
@@ -228,6 +228,6 @@ export default function AuthShell({
           <div className="w-full">{children}</div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

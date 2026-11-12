@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, FoldHorizontal, Link2, Lock, LockOpen, Magnet, Maximize2, Plus, Scissors, SlidersHorizontal, Volume2, VolumeX, ZoomIn, ZoomOut } from "lucide-react";
+import { Eye, EyeOff, FoldHorizontal, Link2, Lock, LockOpen, Magnet, Maximize2, Plus, Scissors, SlidersHorizontal, Volume2, VolumeX, ZoomIn, ZoomOut } from "@/components/ui/icons";
 import type { AudioClip, AudioTrack, CompositionTrackKind, Page, TrackState, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
+import { formatTimecode, parseTimecode, stepFrameMs } from "./timecode";
 import { formatDelta, pxToMs, toggleIds } from "./dragSelect";
 import { overlayClipsOf, trackOf, type Composition, type OverlayClip } from "./composition";
 import { snapMove, snapValue } from "./snap";
@@ -19,6 +20,8 @@ interface Props {
   words: Word[];
   durationMs: number;
   timeMs: number;
+  /** the project's frame rate (video fps, 30 when unknown): one frame-step moves exactly 1000/fps ms */
+  fps?: number;
   /** exact playback time, read every animation frame so the playhead glides instead of stepping with `timeMs` */
   getTimeMs?: () => number;
   /** while playing, the view scrolls with the playhead so the words being said are always on screen */
@@ -133,7 +136,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fps = 30, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -157,6 +160,19 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   const [snap, setSnap] = useState(true);
   const [ripple, setRipple] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  /** typed timecode while the playhead field has focus; null means "show the live playhead" */
+  const [tcDraft, setTcDraft] = useState<string | null>(null);
+  /** ref mirror of tcDraft: commitTc must be idempotent — Enter commits then blurs, and the blur fires commit again */
+  const tcDraftRef = useRef<string | null>(null);
+  const commitTc = () => {
+    const d = tcDraftRef.current;
+    if (d === null) return;
+    tcDraftRef.current = null;
+    setTcDraft(null);
+    const parsed = parseTimecode(d, fps, total);
+    if (parsed !== null) onSeek(parsed);
+    // malformed input reverts to the playhead: the field shows formatTimecode(timeMs) again
+  };
   const zoomedOnce = useRef(false);
   const frames = useFilmstrip(videoId, videoUrl, durationMs);
 
@@ -549,6 +565,10 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
   };
 
   const icon = "h-4 w-4";
+  /**
+   * Toolbar buttons are 32 px on screen; the invisible `before:` expander takes
+   * the tap target to 44 px (Phase 2B touch targets) without inflating the visible control.
+   */
   const btn = (label: string, children: React.ReactNode, onClick: () => void, o: { disabled?: boolean; active?: boolean } = {}) => (
     <button
       onClick={onClick}
@@ -556,7 +576,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
       title={label}
       aria-label={label}
       aria-pressed={o.active}
-      className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-30 ${o.active ? "bg-st-em/30 text-st-ink" : "text-st-text/85 hover:bg-st-hover"}`}
+      className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg transition before:absolute before:-inset-1.5 before:content-[''] disabled:cursor-not-allowed disabled:opacity-30 ${o.active ? "bg-st-em/30 text-st-ink" : "text-st-text/85 hover:bg-st-hover"}`}
     >
       {children}
     </button>
@@ -568,7 +588,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={`grid ${tier === "wide" ? "h-6 w-6" : "h-5 w-5"} shrink-0 place-items-center rounded-md transition ${active ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+      className={`relative grid h-7 w-7 shrink-0 place-items-center rounded-md transition before:absolute before:-inset-2 before:content-[''] ${active ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
     >
       {children}
     </button>
@@ -609,7 +629,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
       <div className="flex shrink-0 flex-nowrap items-center gap-x-1 gap-y-1 overflow-x-auto border-b border-st-line bg-st-panel px-2 py-1.5 text-xs text-st-muted [scrollbar-width:none] sm:flex-wrap sm:overflow-visible">
         <div className="flex shrink-0 rounded-lg border border-st-line bg-st-raised p-0.5" role="radiogroup" aria-label="Show captions as">
           {(["word", "line"] as const).map((m) => (
-            <button key={m} role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`rounded-md px-3 py-1.5 text-[11px] sm:py-1 font-semibold tracking-wide transition ${mode === m ? "bg-st-ink text-st-panel" : "text-st-muted hover:text-st-text"}`}>
+            <button key={m} role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`relative rounded-md px-3 py-1.5 text-[11px] sm:py-1 font-semibold tracking-wide transition before:absolute before:-inset-y-2.5 before:-inset-x-1 before:content-[''] ${mode === m ? "bg-st-ink text-st-panel" : "text-st-muted hover:text-st-text"}`}>
               {m.toUpperCase()}
             </button>
           ))}
@@ -626,7 +646,24 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, ge
         {sep}
         {btn(snap ? "Snapping on" : "Snapping off", <Magnet className={icon} />, () => { setSnap(!snap); save("ce_tl_snap", snap ? "0" : "1"); }, { active: snap })}
         {btn(ripple ? "Linked: moving a caption moves everything after it" : "Linked moves off", <Link2 className={icon} />, () => { setRipple(!ripple); save("ce_tl_ripple", ripple ? "0" : "1"); }, { active: ripple })}
-        <span className="ml-auto shrink-0 whitespace-nowrap rounded-md border border-st-line bg-st-panel px-2 py-1 font-mono tabular-nums text-st-text">{fmtTime(timeMs)} <span className="text-st-faint">/ {fmtTime(total)}</span></span>
+        <span className="ml-auto flex shrink-0 items-center gap-1">
+          {btn("Previous frame", <span aria-hidden className="text-base leading-none">‹</span>, () => onSeek(stepFrameMs(timeMs, fps, -1, total)), { disabled: timeMs <= 0 })}
+          <input
+            value={tcDraft ?? formatTimecode(timeMs, fps)}
+            onChange={(e) => { tcDraftRef.current = e.target.value; setTcDraft(e.target.value); }}
+            onBlur={commitTc}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { commitTc(); (e.target as HTMLInputElement).blur(); }
+              if (e.key === "Escape") { tcDraftRef.current = null; setTcDraft(null); (e.target as HTMLInputElement).blur(); }
+            }}
+            aria-label="Playhead timecode (hours:minutes:seconds:frames)"
+            title="Type a timecode, e.g. 00:01:12:08, then Enter"
+            spellCheck={false}
+            className="w-[104px] shrink-0 rounded-md border border-st-line bg-st-panel px-2 py-1 text-center font-mono text-xs tabular-nums text-st-text outline-none focus:border-st-lav"
+          />
+          {btn("Next frame", <span aria-hidden className="text-base leading-none">›</span>, () => onSeek(stepFrameMs(timeMs, fps, 1, total)), { disabled: timeMs >= total })}
+          <span className="whitespace-nowrap rounded-md border border-st-line bg-st-panel px-2 py-1 font-mono tabular-nums text-st-text">{fmtTime(timeMs)} <span className="text-st-faint">/ {fmtTime(total)}</span></span>
+        </span>
         {btn("Zoom out", <ZoomOut className={icon} />, () => setZoom((z) => Math.max(1, z / 1.6)), { disabled: zoom <= 1 })}
         <input type="range" min={0} max={100} value={Math.round((Math.log(zoom) / Math.log(40)) * 100)} onChange={(e) => setZoom(Math.pow(40, Number(e.target.value) / 100))} className="w-24 shrink-0 accent-[#34D399] sm:w-32" aria-label="Timeline zoom" />
         {btn("Zoom in", <ZoomIn className={icon} />, () => setZoom((z) => Math.min(40, z * 1.6)), { disabled: zoom >= 40 })}

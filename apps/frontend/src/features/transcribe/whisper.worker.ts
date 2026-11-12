@@ -13,10 +13,14 @@
  */
 import { pipeline, env, StoppingCriteria, type AutomaticSpeechRecognitionPipeline } from "@huggingface/transformers";
 import { MODELS, isConstrainedDevice, pickRuntime, runtimeFor, type Device, type SpeechLanguage } from "./runtime";
+import { useBundledOnnxWasm } from "./onnxWasm";
 import { Resampler, downmix } from "./resample";
 import { SR, TimelineAligner, capWordEnd, dropRepeatedRuns, isLooping, planWindows, renderWindow, toOriginalSeconds, type PackedWindow } from "./speech";
 
 env.allowLocalModels = false;
+// OC-003: self-hosted ONNX WASM (bundled assets) instead of the jsDelivr CDN
+// default — must run before the first pipeline() call.
+useBundledOnnxWasm();
 
 export type RawWord = { text: string; startMs: number; endMs: number };
 export type In =

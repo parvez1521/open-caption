@@ -55,7 +55,8 @@ export default function AboutPage() {
         <p>
           The heavy work — transcription, editing previews and MP4 rendering — happens on your device, in the
           browser. Your video files live in your browser&rsquo;s storage on this device; an account only syncs your
-          projects, captions and settings so you can pick them up elsewhere. That design is also the privacy story:
+          projects, captions, full transcripts and settings — plus the file name, size, length and format of each
+          video — so you can pick them up elsewhere. That design is also the privacy story:
           your audio is never sent to a third-party speech service. The{" "}
           <Link href="/privacy">Privacy Policy</Link> describes exactly what is stored where.
         </p>

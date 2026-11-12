@@ -6,7 +6,20 @@
  * - In-browser Whisper + the local text model (@huggingface/transformers): model files are fetched
  *   from huggingface.co (large files redirect to its LFS/Xet CDNs, *.huggingface.co / *.hf.co),
  *   inference runs in bundled module workers and ONNX WASM — hence `worker-src blob:`,
- *   `'wasm-unsafe-eval'`, and connect-src for the HF hosts.
+ *   `'wasm-unsafe-eval'`, and connect-src for the HF hosts. The ONNX WASM itself is
+ *   self-hosted: the three Transformers.js workers point `wasmPaths` at the
+ *   `/_next/static/media/` assets webpack emits (see
+ *   features/transcribe/onnxWasm.ts), so cdn.jsdelivr.net is deliberately NOT
+ *   in this policy — Transformers.js' jsDelivr CDN default is never used.
+ * - Template/caption fonts (OC-003, fixed 2026-11-12): the app's own UI fonts
+ *   are self-hosted via next/font, but caption/template fonts are fetched at
+ *   runtime — @remotion/google-fonts loads the css2 stylesheet from
+ *   fonts.googleapis.com and the woff2 files from fonts.gstatic.com, and the
+ *   Fontsource-hosted families load woff2 from cdn.jsdelivr.net
+ *   (packages/templates/src/fonts.ts). Those three named HTTPS origins are
+ *   allowlisted in connect-src/font-src below; the loads previously failed
+ *   silently (errors swallowed, system-font fallback) because the origins
+ *   were missing. Self-hosting ~100 caption fonts is the follow-up, not this fix.
  * - Supabase: REST + realtime websocket against the project origin (*.supabase.co), plus
  *   storage-hosted avatars/media.
  * - Sentry: envelopes go through the same-origin tunnel route (/monitoring, covered by 'self');
@@ -61,7 +74,16 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         "https://cdn.pixabay.com",
       ],
     ],
-    ["font-src", ["'self'", "data:"]],
+    [
+      "font-src",
+      [
+        "'self'",
+        "data:",
+        // OC-003: caption/template fonts — woff2 from Google Fonts + Fontsource.
+        "https://fonts.gstatic.com",
+        "https://cdn.jsdelivr.net",
+      ],
+    ],
     ["media-src", ["'self'", "blob:", "data:", "https://*.supabase.co", "https://cdn.pixabay.com"]],
     [
       "connect-src",
@@ -85,6 +107,9 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         // (files are fetched to be stored in the project's on-device bin).
         "https://api.pixabay.com",
         "https://cdn.pixabay.com",
+        // OC-003: Google Fonts css2 stylesheet fetched at runtime by
+        // @remotion/google-fonts (template/caption fonts).
+        "https://fonts.googleapis.com",
       ],
     ],
     ["worker-src", ["'self'", "blob:"]],

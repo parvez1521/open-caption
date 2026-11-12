@@ -17,7 +17,7 @@ export default function CookiesPage() {
     <LegalDoc
       title="Cookie"
       accent="Policy"
-      intro={<>{LEGAL.product} itself stores only what the site needs to work: your sign-in session and a few editor preferences — no advertising or cross-site tracking cookies of our own. If advertising is ever enabled on the site, Google and its partners may set advertising cookies as described below.</>}
+      intro={<>{LEGAL.product} itself stores only what the site needs to work: your sign-in session and a few editor preferences — no advertising or cross-site tracking cookies of our own. Analytics on this site (Vercel Analytics and Speed Insights) set no cookies. If advertising is ever enabled on the site, Google and its partners may set advertising cookies as described below.</>}
     >
       <Sec id="what" title="What we store">
         <div className="-mx-1 overflow-x-auto">
@@ -36,7 +36,11 @@ export default function CookiesPage() {
             </tbody>
           </table>
         </div>
-        <p>All of these are strictly necessary or remember a choice you made, so they do not need consent under most cookie laws. If we ever add analytics or marketing cookies, we will ask for your consent first and update this page.</p>
+        <p>All of these are strictly necessary or remember a choice you made, so they do not need consent under most cookie laws. Analytics already runs on this site, but it sets no cookies (see below). If we ever add marketing cookies, we will ask for your consent first and update this page.</p>
+      </Sec>
+
+      <Sec id="analytics" title="Analytics (no cookies)">
+        <p>Every page loads Vercel Analytics and Speed Insights, which record page visits and a few product events: a video added (with its language and length), captions ready or failed, and an export finished or failed (with its format, quality, resolution and frame rate). They never receive your video, audio or transcripts, and they set no cookies.</p>
       </Sec>
 
       <Sec id="ads" title="Advertising cookies (only if ads are enabled)">
@@ -45,7 +49,7 @@ export default function CookiesPage() {
       </Sec>
 
       <Sec id="third" title="Third-party requests">
-        <p>The caption preview loads the fonts used by each look from Google Fonts, so your browser contacts Google&rsquo;s font servers when you open the studio or the looks gallery. Our hosting provider records basic request logs for security. See the <Link href="/subprocessors">subprocessors</Link>.</p>
+        <p>The caption preview loads the fonts used by each look from Google Fonts, so your browser contacts Google&rsquo;s font servers when you open the studio or the looks gallery. Speech and translation models are downloaded from Hugging Face when you first use them. When you use an AI feature (Growth Coach, the Create tools or Clipper highlights), the text you send goes to Groq. When something goes wrong, an error report goes to Sentry. Searching stock media contacts Pixabay directly from your browser, using a key you provide. Our hosting provider records basic request logs for security. See the <Link href="/subprocessors">subprocessors</Link>.</p>
       </Sec>
 
       <Sec id="control" title="Your control">

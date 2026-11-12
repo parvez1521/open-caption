@@ -6,7 +6,7 @@ export const FAQS = [
   },
   {
     q: "Is my video uploaded anywhere?",
-    a: "For transcription and the normal MP4 export, no — speech recognition and rendering run inside your browser, so the video is not sent anywhere for those. Your captions and settings are saved with your project so you can reopen it later. One exception: transparent overlay exports are rendered by the optional desktop Companion app, and that render does use the video from your project.",
+    a: "For transcription and the normal MP4 export, no — speech recognition and rendering run inside your browser, so the video file is not sent anywhere for those. The file name, size, length and format of each video are stored with your project, and your captions and full transcripts are saved so you can reopen the project later. One exception: transparent overlay exports are rendered by the optional desktop Companion app, and that render does use the video from your project.",
   },
   {
     q: "Will Open Caption work with vertical 9:16 Shorts, Reels, and TikToks?",

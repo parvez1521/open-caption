@@ -18,7 +18,7 @@ export default function ProjectError({ error, reset }: { error: Error & { digest
     Sentry.captureException(error);
   }, [error]);
   return (
-    <main className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center text-[#FFFFEB]">
+    <main id="main-content" className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center text-[#FFFFEB]">
       <div className="max-w-md">
         <div className="mx-auto mb-5 flex h-9 items-end justify-center gap-[5px]" aria-hidden>
           {["#FFFFEB", "#FFA946", "#34D399"].map((c, i) => (

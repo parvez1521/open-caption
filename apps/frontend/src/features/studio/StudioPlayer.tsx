@@ -4,7 +4,7 @@ import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { CaptionedVideo, type CaptionedVideoInput } from "@capseasy/compositions";
 import type { Platform } from "@capseasy/shared";
-import { Pause, Play } from "lucide-react";
+import { Pause, Play } from "@/components/ui/icons";
 import { fmtTime } from "./controls";
 import { safeZoneFor, safeZoneStyle } from "./safeZone";
 
@@ -230,7 +230,7 @@ const Transport: React.FC<{ player: React.RefObject<PlayerRef | null>; fps: numb
         type="button"
         onClick={() => player.current?.toggle()}
         aria-label={isPlaying ? "Pause" : "Play"}
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-st-ink text-st-panel active:scale-95"
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-st-ink text-st-panel hover:bg-st-ink/85"
       >
         {isPlaying ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="ml-0.5 h-5 w-5" fill="currentColor" />}
       </button>

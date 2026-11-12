@@ -131,7 +131,7 @@ export default function StartPage() {
   }, [router, createAndRoute]);
 
   return (
-    <div className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center">
+    <main id="main-content" className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center">
       {notConfigured ? (
         <div className="flex max-w-sm flex-col items-center gap-4">
           <LogoWave height={40} />
@@ -182,6 +182,6 @@ export default function StartPage() {
           <p className="text-[13px] font-semibold text-[#FFFFEB]/70">Opening your studio…</p>
         </div>
       )}
-    </div>
+    </main>
   );
 }

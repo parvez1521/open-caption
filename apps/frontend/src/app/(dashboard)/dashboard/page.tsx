@@ -41,12 +41,14 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 pt-8 sm:grid-cols-2">
-          <Link href="/exports" className="rounded-xl border border-sand-200 bg-white p-5 transition-colors hover:border-sand-500">
-            <p className="font-sora text-[14px] font-bold text-ink">Export History</p>
+          <Link href="/exports" className="wb-panel block p-5 transition-colors hover:border-sand-300">
+            <p className="wb-eyebrow">Library</p>
+            <p className="mt-2 font-sora text-[14px] font-bold text-ink">Export History</p>
             <p className="mt-1 text-[13px] leading-relaxed text-sand-700">Every file you have exported, across all projects.</p>
           </Link>
-          <Link href="/brand" className="rounded-xl border border-sand-200 bg-white p-5 transition-colors hover:border-sand-500">
-            <p className="font-sora text-[14px] font-bold text-ink">Brand Kit</p>
+          <Link href="/brand" className="wb-panel block p-5 transition-colors hover:border-sand-300">
+            <p className="wb-eyebrow">Identity</p>
+            <p className="mt-2 font-sora text-[14px] font-bold text-ink">Brand Kit</p>
             <p className="mt-1 text-[13px] leading-relaxed text-sand-700">Your saved colours, font and voice — used by the generators and every project&apos;s Style panel.</p>
           </Link>
         </div>

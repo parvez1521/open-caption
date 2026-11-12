@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 
 /** Small light-theme form primitives shared by the studio panels. */
 
@@ -29,17 +29,68 @@ export const Section: React.FC<{ title: string; children: React.ReactNode; hint?
 
 const row = "flex items-center justify-between gap-3 text-sm text-st-text/90";
 
+/** Decimals a step needs (0.05 -> 2, 1 -> 0), so a typed value snaps to the same grid the slider moves on. */
+const decimalsOf = (step: number) => {
+  const s = String(step);
+  const i = s.indexOf(".");
+  return i === -1 ? 0 : s.length - i - 1;
+};
+
+/**
+ * Slider with a paired numeric input (Phase 2B pro precision): dragging still
+ * works exactly as before, and a pro can also type the exact value — "1.25"
+ * brightness, "-6 dB" — instead of dragging to it. The typed value clamps to
+ * [min, max] and snaps to the step grid on blur/Enter; garbage reverts.
+ */
 export const Slider: React.FC<{ label: string; value: number; min: number; max: number; step?: number; unit?: string; onChange: (v: number) => void; format?: (v: number) => string }> = ({
   label, value, min, max, step = 1, unit = "", onChange, format,
-}) => (
-  <label className="block text-sm text-st-text/90">
-    <span className="mb-1 flex justify-between">
-      <span>{label}</span>
-      <span className="tabular-nums text-st-muted">{format ? format(value) : `${Math.round(value * 100) / 100}${unit}`}</span>
-    </span>
-    <input type="range" className="w-full accent-[#34D399]" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-  </label>
-);
+}) => {
+  const decimals = decimalsOf(step);
+  const snap = (v: number) => Number((Math.round(v / step) * step).toFixed(decimals));
+  /** typed text while the number field has focus; null means "show the live value" */
+  const [draft, setDraft] = useState<string | null>(null);
+  /** ref mirror of draft: commit() must be idempotent — Enter commits then blurs, and the blur fires commit again */
+  const draftRef = useRef<string | null>(null);
+  const setDraftBoth = (v: string | null) => { draftRef.current = v; setDraft(v); };
+  const shown = draft ?? String(Number(value.toFixed(decimals)));
+  const commit = () => {
+    const d = draftRef.current;
+    if (d === null) return;
+    draftRef.current = null;
+    setDraft(null);
+    if (d.trim() === "") return; // cleared field reverts; Number("") is 0 and must never commit
+    const n = Number(d);
+    if (!Number.isFinite(n)) return;
+    const clamped = snap(Math.min(max, Math.max(min, n)));
+    if (clamped !== value) onChange(clamped);
+  };
+  return (
+    <label className="block text-sm text-st-text/90">
+      <span className="mb-1 flex justify-between">
+        <span>{label}</span>
+        <span className="tabular-nums text-st-muted">{format ? format(value) : `${Math.round(value * 100) / 100}${unit}`}</span>
+      </span>
+      <span className="flex items-center gap-2">
+        <input type="range" className="min-w-0 flex-1 accent-[#34D399]" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} aria-label={label} />
+        <input
+          type="number"
+          aria-label={`${label} (exact value${unit ? ` in ${unit.trim()}` : ""})`}
+          className="w-20 shrink-0 rounded-md border border-st-line bg-st-panel px-2 py-1 text-sm tabular-nums text-st-text outline-none focus:border-st-lav"
+          min={min}
+          max={max}
+          step={step}
+          value={shown}
+          onChange={(e) => setDraftBoth(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { commit(); (e.target as HTMLInputElement).blur(); }
+            if (e.key === "Escape") { setDraftBoth(null); (e.target as HTMLInputElement).blur(); }
+          }}
+        />
+      </span>
+    </label>
+  );
+};
 
 export const Toggle: React.FC<{ label: string; checked: boolean; onChange: (v: boolean) => void; hint?: string }> = ({ label, checked, onChange, hint }) => (
   <label className={`${row} cursor-pointer`}>

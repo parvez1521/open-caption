@@ -17,7 +17,7 @@ interface TimelineProps {
 
 export default function Timeline({ stages, currentStageId, className }: TimelineProps) {
   return (
-    <div className={cn("space-y-6 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-zinc-800", className)}>
+    <div className={cn("space-y-6 relative before:absolute before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-sand-200", className)}>
       {stages.map((stage, idx) => {
         const isCompleted = stage.status === "completed";
         const isProcessing = stage.status === "processing";
@@ -32,16 +32,16 @@ export default function Timeline({ stages, currentStageId, className }: Timeline
                 className={cn(
                   "w-7.5 h-7.5 rounded-full flex items-center justify-center border text-xs font-semibold transition-all",
                   {
-                    "bg-indigo-600/10 border-indigo-500 text-indigo-400 shadow-md shadow-indigo-500/20": isProcessing,
+                    "bg-emerald-accent/10 border-emerald-accent text-emerald-accent": isProcessing,
                     "bg-green-500/15 border-green-500 text-green-400": isCompleted,
                     "bg-red-500/15 border-red-500 text-red-400": isFailed,
-                    "bg-zinc-900 border-zinc-700 text-zinc-400": isQueued,
-                    "bg-zinc-950 border-zinc-800 text-zinc-650": stage.status === "idle",
+                    "bg-sand-100 border-sand-300 text-sand-500": isQueued,
+                    "bg-sand-50 border-sand-200 text-sand-500": stage.status === "idle",
                   }
                 )}
               >
                 {isProcessing ? (
-                  <Spinner className="w-3.5 h-3.5 text-indigo-400" />
+                  <Spinner className="w-3.5 h-3.5 text-emerald-accent" />
                 ) : isCompleted ? (
                   "✓"
                 ) : isFailed ? (
@@ -57,17 +57,17 @@ export default function Timeline({ stages, currentStageId, className }: Timeline
               <div className="flex items-center justify-between gap-2">
                 <h4
                   className={cn("text-sm font-semibold transition-colors", {
-                    "text-indigo-400": isProcessing,
+                    "text-emerald-accent": isProcessing,
                     "text-green-400": isCompleted,
                     "text-red-400": isFailed,
-                    "text-zinc-200": isQueued,
-                    "text-zinc-500": stage.status === "idle",
+                    "text-sand-800": isQueued,
+                    "text-sand-500": stage.status === "idle",
                   })}
                 >
                   {stage.name}
                 </h4>
                 {isProcessing && (
-                  <span className="text-[10px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 rounded px-1.5 py-0.5 animate-pulse uppercase tracking-wider font-bold">
+                  <span className="text-[10px] bg-emerald-accent/10 text-emerald-accent border border-emerald-accent/20 rounded px-1.5 py-0.5 uppercase tracking-wider font-bold">
                     Active
                   </span>
                 )}
@@ -75,8 +75,8 @@ export default function Timeline({ stages, currentStageId, className }: Timeline
               {stage.description && (
                 <p
                   className={cn("text-xs mt-0.5 transition-colors", {
-                    "text-zinc-400": isProcessing || isCompleted,
-                    "text-zinc-550": isQueued || stage.status === "idle",
+                    "text-sand-600": isProcessing || isCompleted,
+                    "text-sand-500": isQueued || stage.status === "idle",
                     "text-red-400/80": isFailed,
                   })}
                 >

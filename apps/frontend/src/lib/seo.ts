@@ -130,7 +130,7 @@ export function softwareApplicationJsonLd() {
       "MP4 export with burned-in captions",
       "SRT subtitle export",
       "No watermark",
-      "Video never leaves your device",
+      "Video file stays on your device",
     ],
     image: `${SITE_URL}/opengraph-image.jpg`,
   };

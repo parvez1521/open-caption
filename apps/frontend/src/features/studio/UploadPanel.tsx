@@ -8,10 +8,11 @@ import { MODELS, PROJECT_LANGUAGE, SHIPPED_LANGUAGES, isConstrainedDevice, likel
 import { studioService } from "@/services/studio";
 import { track } from "@/lib/track";
 import { ApiError } from "@/services/api-client";
-import { PrepareError, prepareVideo, type PrepareStage } from "@/features/upload/prepareVideo";
+import { PrepareError, prepareVideo, type PrepareStage, type PreparedVideo } from "@/features/upload/prepareVideo";
 import { START_DOORS, type ProjectStartMode } from "./projectMode";
+import { transcribePreflightWarning } from "./preflight";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
-import { Check, Film, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { BadgeCheck, Check, Film, ShieldCheck, Upload } from "@/components/ui/icons";
 import { Button } from "./controls";
 
 interface Props {
@@ -28,7 +29,7 @@ interface Props {
 
 const DEFAULT_LIMITS = { maxBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60 };
 
-/** Drag & drop / pick a video: checked and saved on this device (never uploaded), then captions start — or, through the Normal Editor door, the editor opens directly with no transcription. */
+/** Drag & drop / pick a video: checked and saved on this device — the file itself is never uploaded, only its name, size, length and format are registered with the project — then captions start, or, through the Normal Editor door, the editor opens directly with no transcription. */
 export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null, mode = "captions", onModeChange }) => {
   const editorMode = mode === "editor";
   // get the speech model ready while they pick a video, so captions start the moment it's in.
@@ -47,6 +48,8 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   }, [lang, editorMode]);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** pre-flight hold: a long clip on a constrained device waits here for the user's call — nothing is uploaded or transcribed until they choose */
+  const [warn, setWarn] = useState<{ ready: PreparedVideo; spoken: SpeechLanguage | null; message: string } | null>(null);
   const [over, setOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [prep, setPrep] = useState<PrepareStage | null>(null);
@@ -54,10 +57,29 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   const inputRef = useRef<HTMLInputElement>(null);
   const busy = progress !== null || prep !== null;
 
+  /** save the prepared video and start captions (or open the editor directly, Normal Editor door) */
+  const runPrepared = useCallback(
+    async (ready: PreparedVideo, spoken: SpeechLanguage | null) => {
+      const projectLanguage = spoken ? PROJECT_LANGUAGE[spoken] : null;
+      setProgress(0);
+      // captions start as soon as the video has an id (in parallel with saving it), not after the server round trips
+      const done = await studioService.uploadVideo(projectId, ready, setProgress, (abort) => (abortRef.current = abort), (videoId) => {
+        if (editorMode || !ready.hasAudio) return;
+        track("video_added", { language: projectLanguage ?? "en", durationS: Math.round(ready.durationMs / 1000) });
+        startSession({ projectId, videoId, file: ready.file, language: projectLanguage, info: { codec: ready.videoCodec, converted: ready.converted, previewMode: ready.previewMode, durationS: Math.round(ready.durationMs / 1000) } });
+      }, editorMode ? { editorMode: true } : undefined);
+      if (done.jobId) void getSession(projectId)?.attachJob(done.jobId);
+      setProgress(100);
+      onUploaded();
+    },
+    [projectId, onUploaded, editorMode],
+  );
+
   const start = useCallback(
     async (file: File, spoken: SpeechLanguage | null) => {
       setError(null);
       setPending(null);
+      setWarn(null);
       const projectLanguage = spoken ? PROJECT_LANGUAGE[spoken] : null;
       // saved on the project so a reload (or the next run) uses the same model
       if (spoken) void studioService.savePatch(projectId, { language: projectLanguage }).catch(() => undefined);
@@ -68,16 +90,13 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         // check (and if needed shrink / convert) on this device first: bad files never get uploaded
         const ready = await prepareVideo(file, limits, setPrep, ctrl.signal);
         setPrep(null);
-        setProgress(0);
-        // captions start as soon as the video has an id (in parallel with saving it), not after the server round trips
-        const done = await studioService.uploadVideo(projectId, ready, setProgress, (abort) => (abortRef.current = abort), (videoId) => {
-          if (editorMode || !ready.hasAudio) return;
-          track("video_added", { language: projectLanguage ?? "en", durationS: Math.round(ready.durationMs / 1000) });
-          startSession({ projectId, videoId, file: ready.file, language: projectLanguage, info: { codec: ready.videoCodec, converted: ready.converted, previewMode: ready.previewMode, durationS: Math.round(ready.durationMs / 1000) } });
-        }, editorMode ? { editorMode: true } : undefined);
-        if (done.jobId) void getSession(projectId)?.attachJob(done.jobId);
-        setProgress(100);
-        onUploaded();
+        // pre-flight (Phase 2B): a long clip on a constrained device warns BEFORE
+        // anything is uploaded or transcribed — the user picks "Start anyway" or cancels
+        if (!editorMode && ready.hasAudio) {
+          const message = transcribePreflightWarning(ready.durationMs);
+          if (message) { setWarn({ ready, spoken, message }); return; }
+        }
+        await runPrepared(ready, spoken);
       } catch (e) {
         setPrep(null);
         setProgress(null);
@@ -87,7 +106,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         setError(e instanceof PrepareError || e instanceof ApiError || e instanceof Error ? e.message : "Upload failed. Please try again.");
       }
     },
-    [projectId, onUploaded, limits],
+    [projectId, onUploaded, limits, runPrepared, editorMode],
   );
   /** a video picked before the language was: ask first, then start (the editor door never asks) */
   const pick = (f: File) => (editorMode ? void start(f, null) : lang ? void start(f, lang) : setPending(f));
@@ -167,6 +186,14 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
             </div>
             <Button className="mt-4" onClick={() => abortRef.current?.()}>Cancel</Button>
           </div>
+        ) : warn ? (
+          <div role="alert" className="mx-auto mt-5 max-w-md rounded-xl border border-st-or/60 bg-st-or/15 px-3 py-3 text-left">
+            <p className="text-sm text-st-text">{warn.message}</p>
+            <div className="mt-3 flex gap-2">
+              <Button tone="primary" onClick={() => { const w = warn; setWarn(null); void runPrepared(w.ready, w.spoken); }}>Start anyway</Button>
+              <Button onClick={() => setWarn(null)}>Cancel</Button>
+            </div>
+          </div>
         ) : (
           <>
             {editorMode ? null : <LanguageChoice value={lang} onChange={choose} asking={!!pending} />}
@@ -178,9 +205,9 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
               </Button>
             )}
             <ul className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-st-muted">
-              <li className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Stays on your device</li>
-              <li className="flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" aria-hidden /> No watermark</li>
-              <li className="flex items-center gap-1.5"><Film className="h-3.5 w-3.5" aria-hidden /> MP4, MOV or WebM · up to {Math.round(limits.maxDurationSec / 60)} min · {uploadLimitLabel(limits.maxBytes)} max</li>
+              <li className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Video file stays on your device</li>
+              <li className="flex items-center gap-1.5"><BadgeCheck className="h-3.5 w-3.5" aria-hidden /> No watermark</li>
+              <li className="flex items-center gap-1.5"><Film className="h-3.5 w-3.5" aria-hidden /> MP4, MOV or WebM · up to {Math.round(limits.maxDurationSec / 60)} min · {uploadLimitLabel(limits.maxBytes)} max on this device</li>
             </ul>
             <input ref={inputRef} type="file" accept="video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.webm,.mkv" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) pick(f); e.target.value = ""; }} />
           </>

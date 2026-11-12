@@ -14,6 +14,7 @@ import { EXPORT_OPTIONS, exportDimsWithCanvas, optionKey, translatedTextOptions,
 import type { CanvasSettings } from "./canvas";
 import { ApiError } from "@/services/api-client";
 import { Button, fmtBytes, fmtTime, triggerDownload } from "./controls";
+import { exportPreflightNote, fourKBlockReason } from "./preflight";
 import { VideoReady } from "./VideoReady";
 import { track } from "@/lib/track";
 
@@ -83,11 +84,18 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const [startS, setStartS] = useState(0);
   const [endS, setEndS] = useState(Math.round(video.durationMs / 100) / 10);
   const totalS = Math.round(video.durationMs / 100) / 10;
+  // 4K is off on low-memory devices (Phase 2B pre-flight): the gate reuses the
+  // same constrained-device signal as transcription (phone, or <= 4 GB reported
+  // memory). A project that saved 4K on a stronger device falls back to 2K here —
+  // the render below uses the effective resolution, never a 4K attempt.
+  const [blocked4kReason] = useState(() => fourKBlockReason());
+  const effectiveResolution: ExportResolution = blocked4kReason && exportSettings.resolution === "4k" ? "2k" : exportSettings.resolution;
+  const exportNote = exportPreflightNote(effectiveResolution);
   // the chosen resolution as absolute output dims, from the project's EFFECTIVE aspect — the
   // canvas aspect when one is chosen, else the source's own (shared short-edge rule: 9:16 at
   // 1080p is 1080x1920, 16:9 is 1920x1080). This drives BOTH render paths below: the in-browser
   // render (exportHere) and the dims sent in the server/companion export payload (start).
-  const outDims = exportDimsWithCanvas(video, canvas, exportSettings.resolution);
+  const outDims = exportDimsWithCanvas(video, canvas, effectiveResolution);
   const outFps = exportSettings.fps;
   const trimValid = !trim || (endS - startS >= 0.5 && startS >= 0 && endS <= totalS + 0.05);
 
@@ -174,7 +182,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       setWebDone(`${fmtBytes(blob.size)} · made in ${fmtTime(clock() - started)}`);
       setMade({ blob, name });
       setShowReady(true);
-      track("export_done", { kind: "mp4", quality, trimmed: trim, resolution: exportSettings.resolution, fps: outFps });
+      track("export_done", { kind: "mp4", quality, trimmed: trim, resolution: effectiveResolution, fps: outFps });
     } catch (e) {
       if (stalled && attempt < 2) again = true;
       else if (stalled) setError("The export kept stalling. Keep this tab open and in front while it renders, then try again.");
@@ -182,7 +190,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         Sentry.captureException(e, { tags: { area: "browser-export" } });
         track("export_failed", { kind: "mp4" });
         // a memory failure gets plain words + the fix (lower resolution), never a generic failure
-        const oom = exportMemoryErrorMessage(e, exportSettings.resolution);
+        const oom = exportMemoryErrorMessage(e, effectiveResolution);
         setError(oom ?? (e instanceof Error ? `Couldn't render in the browser: ${e.message}` : "Couldn't render in the browser."));
       }
     } finally {
@@ -292,12 +300,16 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               <span>Resolution</span>
               <div role="radiogroup" aria-label="Export resolution" className="grid grid-cols-4 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
-                {RESOLUTION_OPTIONS.map((r) => (
-                  <button key={r.id} role="radio" aria-checked={exportSettings.resolution === r.id} onClick={() => onExportSettings({ ...exportSettings, resolution: r.id })} className={`whitespace-nowrap rounded-md px-2.5 py-2 text-xs sm:py-1 ${exportSettings.resolution === r.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{EXPORT_RESOLUTION_LABEL[r.id]}</button>
-                ))}
+                {RESOLUTION_OPTIONS.map((r) => {
+                  const blocked = r.id === "4k" && blocked4kReason !== null;
+                  return (
+                    <button key={r.id} role="radio" aria-checked={effectiveResolution === r.id} aria-disabled={blocked || undefined} disabled={blocked} title={blocked ? blocked4kReason ?? undefined : undefined} onClick={() => onExportSettings({ ...exportSettings, resolution: r.id })} className={`whitespace-nowrap rounded-md px-2.5 py-2 text-xs sm:py-1 ${effectiveResolution === r.id ? "bg-st-lav text-obsidian" : "text-st-text/80"} ${blocked ? "opacity-40" : ""}`}>{EXPORT_RESOLUTION_LABEL[r.id]}</button>
+                  );
+                })}
               </div>
             </div>
-            <p className="mt-1 text-xs text-st-faint sm:text-right">{RESOLUTION_OPTIONS.find((r) => r.id === exportSettings.resolution)?.hint} Exports at {outDims.width} × {outDims.height} · {exportSettings.fps} fps.</p>
+            <p className="mt-1 text-xs text-st-faint sm:text-right">{RESOLUTION_OPTIONS.find((r) => r.id === effectiveResolution)?.hint} Exports at {outDims.width} × {outDims.height} · {exportSettings.fps} fps.</p>
+            {blocked4kReason ? <p className="mt-1 text-xs text-st-faint sm:text-right">{blocked4kReason}</p> : exportNote ? <p className="mt-1 text-xs text-st-faint sm:text-right">{exportNote}</p> : null}
           </div>
 
           <div className="mb-3 text-sm text-st-text/80">
