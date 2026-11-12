@@ -7,8 +7,8 @@ import { isGuestUser } from "@/services/auth/guest";
 import { ChevronLeft } from "@/components/ui/icons";
 import { LoadingMark } from "@/components/brand/LoadingMark";
 import {
+  SURVEY_FINISH_DESTINATION,
   SURVEY_QUESTIONS,
-  destinationForGoal,
   isOnboardingDone,
   markOnboardingDone,
   saveOnboardingAnswers,
@@ -18,8 +18,9 @@ import {
 
 /**
  * First-visit onboarding survey — the routing quiz a signed-in user sees
- * once, right after sign-up, before /start's doors. Two questions, one
- * screen at a time; the last answer routes to the right tool.
+ * once, right after sign-up, before the dashboard. Two questions, one
+ * screen at a time; the last answer saves the goal (localStorage) and lands
+ * on the dashboard, where the user picks the tool.
  *
  * Guards (defence in depth — /start already only sends first-visit
  * signed-in users here): guests and anyone whose flag is set go straight
@@ -46,7 +47,7 @@ export default function OnboardingPage() {
   const finish = (goal: SurveyGoal) => {
     saveOnboardingAnswers({ userType, goal });
     markOnboardingDone();
-    router.replace(destinationForGoal(goal));
+    router.replace(SURVEY_FINISH_DESTINATION);
   };
 
   const skip = () => {

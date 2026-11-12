@@ -6,8 +6,8 @@ import { ONBOARDING_ANSWERS_KEY, ONBOARDING_DONE_KEY } from "@/features/onboardi
 /**
  * Onboarding survey page: Q1 then Q2, one screen at a time, Skip on every
  * step, Back on Q2. The last answer stores both answers (localStorage only)
- * and routes to the chosen tool. Guests and flag-set users are sent back to
- * /start instead of seeing the survey.
+ * and lands on the dashboard, where the user picks the tool. Guests and
+ * flag-set users are sent back to /start instead of seeing the survey.
  */
 
 const nav = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
@@ -61,11 +61,11 @@ describe("onboarding page", () => {
     expect(nav.replace).not.toHaveBeenCalled();
   });
 
-  it("the last answer stores both answers, marks done, and routes to the tool", async () => {
+  it("the last answer stores both answers, marks done, and lands on the dashboard", async () => {
     render(<OnboardingPage />);
     fireEvent.click(await screen.findByRole("radio", { name: "Creator" }));
     fireEvent.click(await screen.findByRole("radio", { name: "Transcribe a video or audio" }));
-    expect(nav.replace).toHaveBeenCalledWith("/transcribe");
+    expect(nav.replace).toHaveBeenCalledWith("/dashboard");
     expect(window.localStorage.getItem(ONBOARDING_DONE_KEY)).toBe("1");
     expect(JSON.parse(window.localStorage.getItem(ONBOARDING_ANSWERS_KEY)!)).toEqual({
       userType: "creator",
@@ -73,11 +73,15 @@ describe("onboarding page", () => {
     });
   });
 
-  it("edit routes to the Normal Editor door and captions to the Captions home", async () => {
+  it("every goal finishes on the dashboard — the user picks the tool there", async () => {
     const first = render(<OnboardingPage />);
     fireEvent.click(await screen.findByRole("radio", { name: "Teacher / educator" }));
     fireEvent.click(await screen.findByRole("radio", { name: "Edit a video" }));
-    expect(nav.replace).toHaveBeenCalledWith("/editor");
+    expect(nav.replace).toHaveBeenCalledWith("/dashboard");
+    expect(JSON.parse(window.localStorage.getItem(ONBOARDING_ANSWERS_KEY)!)).toEqual({
+      userType: "teacher",
+      goal: "edit",
+    });
 
     nav.replace.mockClear();
     window.localStorage.clear();
@@ -85,7 +89,11 @@ describe("onboarding page", () => {
     render(<OnboardingPage />);
     fireEvent.click(await screen.findByRole("radio", { name: "Business / brand" }));
     fireEvent.click(await screen.findByRole("radio", { name: "Add captions to a video" }));
-    expect(nav.replace).toHaveBeenCalledWith("/captions");
+    expect(nav.replace).toHaveBeenCalledWith("/dashboard");
+    expect(JSON.parse(window.localStorage.getItem(ONBOARDING_ANSWERS_KEY)!)).toEqual({
+      userType: "business",
+      goal: "captions",
+    });
   });
 
   it("Skip marks the survey done and goes to /start, never showing again", async () => {

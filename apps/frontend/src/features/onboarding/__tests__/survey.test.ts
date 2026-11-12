@@ -3,6 +3,7 @@ import {
   GOAL_DESTINATIONS,
   ONBOARDING_ANSWERS_KEY,
   ONBOARDING_DONE_KEY,
+  SURVEY_FINISH_DESTINATION,
   SURVEY_QUESTIONS,
   destinationForGoal,
   isOnboardingDone,
@@ -13,7 +14,8 @@ import {
 } from "../survey";
 
 /**
- * Onboarding survey logic: the two questions, where each Q2 answer routes,
+ * Onboarding survey logic: the two questions, the goal→tool map the
+ * dashboard uses to offer the matching tool, the dashboard-first finish,
  * and the first-visit gate (signed-in, non-guest, flag unset — guests and
  * returning users never see the survey; Skip marks it done).
  */
@@ -59,6 +61,13 @@ describe("goal destinations", () => {
 
   it("covers every goal, no goal without a destination", () => {
     expect(Object.keys(GOAL_DESTINATIONS).sort()).toEqual(["captions", "edit", "transcribe"]);
+  });
+
+  it("finishing the survey lands on the dashboard first — the user picks the tool there", () => {
+    expect(SURVEY_FINISH_DESTINATION).toBe("/dashboard");
+    expect(SURVEY_FINISH_DESTINATION).not.toBe(destinationForGoal("transcribe"));
+    expect(SURVEY_FINISH_DESTINATION).not.toBe(destinationForGoal("edit"));
+    expect(SURVEY_FINISH_DESTINATION).not.toBe(destinationForGoal("captions"));
   });
 });
 
