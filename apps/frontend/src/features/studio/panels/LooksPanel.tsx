@@ -208,7 +208,7 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
         </div>
         <div className="flex flex-wrap gap-1.5">
           {cats.map((c) => (
-            <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c} className={`rounded-full border px-3 py-2 text-xs transition-colors ${cat === c ? "border-st-ink bg-st-ink text-st-panel shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-st-line bg-st-panel text-st-muted hover:text-st-text"}`}>{c}</button>
+            <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c} className={`relative rounded-full border px-3 py-2 text-xs transition-colors before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${cat === c ? "border-st-ink bg-st-ink text-st-panel shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-st-line bg-st-panel text-st-muted hover:text-st-text"}`}>{c}</button>
           ))}
         </div>
         <p className="text-xs tabular-nums text-st-faint" role="status">

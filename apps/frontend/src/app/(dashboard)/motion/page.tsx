@@ -97,7 +97,7 @@ export default function MotionDiscoveryPage() {
               type="button"
               onClick={() => setCategory("all")}
               aria-pressed={category === "all"}
-              className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors ${category === "all" ? "border-ink bg-ink text-[#141412] shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
+              className={`relative rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${category === "all" ? "border-ink bg-ink text-[#141412] shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
             >
               All ({MOTION_TEMPLATES.length})
             </button>
@@ -107,7 +107,7 @@ export default function MotionDiscoveryPage() {
                 type="button"
                 onClick={() => setCategory(c)}
                 aria-pressed={category === c}
-                className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors ${category === c ? "border-ink bg-ink text-[#141412] shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
+                className={`relative rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${category === c ? "border-ink bg-ink text-[#141412] shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
               >
                 {motionCategoryLabel(c)} ({count})
               </button>

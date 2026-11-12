@@ -264,7 +264,7 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
                     type="button"
                     onClick={() => setBackdrop(b.id)}
                     aria-pressed={backdrop === b.id}
-                    className={`rounded-full border px-3 py-1.5 text-[12px] font-semibold transition ${backdrop === b.id ? "border-ink bg-ink text-[#141412]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
+                    className={`relative rounded-full border px-3 py-1.5 text-[12px] font-semibold transition before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${backdrop === b.id ? "border-ink bg-ink text-[#141412]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`}
                   >
                     {b.label}
                   </button>

@@ -39,7 +39,7 @@ export default function Button({
           "bg-emerald-accent text-[#141412] hover:bg-[#4BE0A5]": variant === "primary",
           "border border-sand-200 bg-sand-100 text-ink hover:border-sand-300 hover:bg-sand-200":
             variant === "secondary",
-          "bg-[#E5484D] text-[#FFFFEB] hover:bg-[#D93A3F]": variant === "danger",
+          "bg-[#E5484D] text-[#141412] hover:bg-[#D93A3F]": variant === "danger",
           "bg-transparent text-sand-600 hover:bg-sand-100 hover:text-ink":
             variant === "ghost",
         },
