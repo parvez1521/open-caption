@@ -102,6 +102,8 @@ export interface HighlightClip {
   reason: string;
   /** the Editorial Score — an estimate, labelled as such wherever it renders */
   score: number;
+  /** true when the score was re-ranked comparatively across windows (AI Clipper rerank) */
+  calibrated?: boolean;
   breakdown: BreakdownRow[];
   rank: number;
   /** the clip's transcript text */
