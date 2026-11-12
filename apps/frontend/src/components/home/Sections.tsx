@@ -4,10 +4,9 @@ import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { MOTION_TEMPLATES, defaultMotionConfig } from "@capseasy/motion";
-import { getLook } from "@capseasy/templates";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { FAQS } from "./faqs";
-import { prefersReducedMotion } from "./gsap";
+import { HeroCylinder } from "./HeroCylinder";
 
 /** A preview item for a motion template, built as a plain literal so this section's static
  *  bundle stays light (the renderer itself arrives with the dynamically-imported MotionPreview). */
@@ -119,44 +118,11 @@ export function Nav() {
 
 /**
  * Hero: a split layout, not a centred headline over a strip of clips. The copy sits on
- * the left; on the right, one live captioned player cycles through trending looks using
- * the same renderer the editor and the export use. No decorative animation near the
- * hero: the player is the product working, and the headline entrance is the page's
- * existing CSS-timed fade (data-hero attributes, see globals.css).
+ * the left; below it, the trending caption looks ride a slowly rotating 3D cylinder —
+ * drag to spin it, or let it turn by itself. Every card is a live preview of the real
+ * template motion, and the headline entrance is the page's existing CSS-timed fade
+ * (data-hero attributes, see globals.css).
  */
-/** Hero visual: pre-rendered clips of real looks, cycled on a plain video element.
- *  The Remotion Player path (LivePreview/CyclingPreview) was tried here first and
- *  rendered nothing verifiable in a headless render, so the hero uses the same
- *  pre-rendered /looks/<id>.mp4 clips the phone (lite) path already ships — the
- *  real looks, rendered by the real composition. Reduced motion shows the poster. */
-const HERO_LOOK_IDS = ["hormozi_box", "beast_bounce", "karaoke_fill", "pop_clean"];
-
-function HeroLookVideo() {
-  const [index, setIndex] = useState(0);
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    setReduced(prefersReducedMotion());
-  }, []);
-  useEffect(() => {
-    if (reduced) return;
-    const t = setInterval(() => setIndex((i) => (i + 1) % HERO_LOOK_IDS.length), 4600);
-    return () => clearInterval(t);
-  }, [reduced]);
-  const id = HERO_LOOK_IDS[index];
-  const name = getLook(id)?.name ?? id;
-  return (
-    <div className="relative aspect-[8/3] w-full overflow-hidden bg-[#141412]">
-      {reduced ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={`/looks/${id}.webp`} alt={`${name} caption look`} className="h-full w-full object-contain" />
-      ) : (
-        <video key={id} src={`/looks/${id}.mp4`} poster={`/looks/${id}.webp`} autoPlay muted loop playsInline preload="auto" className="h-full w-full object-contain" aria-label={`${name} caption look playing`} />
-      )}
-      <span className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">{name}</span>
-    </div>
-  );
-}
-
 export function Hero() {
   return (
     <section className="relative mx-auto flex min-h-[100svh] w-full max-w-6xl flex-col justify-center px-5 pb-16 pt-[max(7rem,14vh)]">
@@ -199,12 +165,10 @@ export function Hero() {
         </p>
       </div>
 
-      {/* the captions are the visual: a full-width strip of the real looks, cycled */}
+      {/* the captions are the visual: the trending looks on a rotating 3D cylinder */}
       <div className="relative z-0 mt-12 w-full">
-        <div className="overflow-hidden rounded-[2rem] border border-[#FFFFEB]/10 shadow-2xl">
-          <HeroLookVideo />
-        </div>
-        <p className="mt-3 text-center text-xs text-[#FFFFEB]/50">Rendered by the same composition the editor uses.</p>
+        <HeroCylinder />
+        <p className="mt-3 text-center text-xs text-[#FFFFEB]/50">Drag to spin the ring — live previews of the trending caption looks.</p>
       </div>
     </section>
   );
