@@ -44,6 +44,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "library", label: "Media Library", href: "/library", group: "supporting", activeMatch: ["/library"] },
   { id: "brand", label: "Brand Kit", href: "/brand", group: "supporting", activeMatch: ["/brand"] },
   { id: "clipper", label: "Clipper", href: "/clipper", group: "supporting", activeMatch: ["/clipper"], newTab: true },
+  { id: "transcribe", label: "Transcribe", href: "/transcribe", group: "supporting", activeMatch: ["/transcribe"] },
   { id: "analyzer", label: "Reel Analyzer", href: "/analyzer", group: "supporting", activeMatch: ["/analyzer"] },
   { id: "teleprompter", label: "Teleprompter", href: "/prompter", group: "supporting", activeMatch: ["/prompter"] },
   { id: "exports", label: "Export History", href: "/exports", group: "supporting", activeMatch: ["/exports"] },
