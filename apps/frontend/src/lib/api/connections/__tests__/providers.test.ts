@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { metaConfig, platformConfigured, youtubeConfig } from "../config";
+import { instagramConfig, platformConfigured, youtubeConfig } from "../config";
 import { signOAuthState, verifyOAuthState } from "../state";
 import {
   exchangeYoutubeCode,
@@ -15,6 +15,7 @@ import {
 import {
   fetchInstagramMedia,
   instagramAuthUrl,
+  INSTAGRAM_SCOPES,
   mapInstagramMedia,
   parseInstagramInsights,
   NO_INSIGHTS,
@@ -29,7 +30,7 @@ import {
 
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
 
-const ENV_KEYS = ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "META_APP_ID", "META_APP_SECRET", "SUPABASE_SERVICE_ROLE_KEY"] as const;
+const ENV_KEYS = ["YOUTUBE_CLIENT_ID", "YOUTUBE_CLIENT_SECRET", "INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET", "SUPABASE_SERVICE_ROLE_KEY"] as const;
 const saved: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -51,7 +52,7 @@ afterEach(() => {
 describe("env gates", () => {
   it("no credentials configured → both platforms off", () => {
     expect(youtubeConfig()).toBeNull();
-    expect(metaConfig()).toBeNull();
+    expect(instagramConfig()).toBeNull();
     expect(platformConfigured("youtube")).toBe(false);
     expect(platformConfigured("instagram")).toBe(false);
   });
@@ -92,9 +93,16 @@ describe("consent URLs", () => {
     expect(url.searchParams.get("redirect_uri")).toBe("https://app.example/cb");
   });
 
-  it("Instagram asks for basic + insights + page list (the review-gated set)", () => {
-    const url = new URL(instagramAuthUrl({ config: { appId: "meta-id", appSecret: "s" }, redirectUri: "https://app.example/cb", state: "st" }));
-    expect(url.searchParams.get("scope")).toBe("instagram_basic,instagram_manage_insights,pages_show_list");
+  it("Instagram asks only for basic + insights on instagram.com (Instagram Login — no Page, no pages_show_list)", () => {
+    const url = new URL(instagramAuthUrl({ config: { appId: "ig-app-id", appSecret: "s" }, redirectUri: "https://app.example/cb", state: "st" }));
+    expect(url.origin).toBe("https://www.instagram.com");
+    expect(url.pathname).toBe("/oauth/authorize");
+    expect(url.searchParams.get("client_id")).toBe("ig-app-id");
+    expect(url.searchParams.get("response_type")).toBe("code");
+    expect(url.searchParams.get("redirect_uri")).toBe("https://app.example/cb");
+    expect(url.searchParams.get("state")).toBe("st");
+    expect(url.searchParams.get("scope")).toBe("instagram_business_basic,instagram_business_manage_insights");
+    expect(INSTAGRAM_SCOPES).toEqual(["instagram_business_basic", "instagram_business_manage_insights"]);
   });
 });
 

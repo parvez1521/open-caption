@@ -120,11 +120,10 @@ export function AccountsBar({ onSynced }: { onSynced?: () => void }) {
       onSynced?.();
       void load();
     } else if (failed) {
-      setNotice(
-        failed === "instagram"
-          ? "Instagram didn't finish connecting. This can happen while Meta's permission review for the app is still pending — nothing was stored."
-          : `${platformName(failed)} didn't finish connecting — nothing was stored. You can try again from its card.`,
-      );
+      // No cause is claimed here: the callback only carries the platform,
+      // and past failures were code bugs, not Meta's review — so the notice
+      // says only what is known (it didn't finish, nothing was stored).
+      setNotice(`${platformName(failed)} didn't finish connecting — nothing was stored. You can try again from its card.`);
     } else if (off) {
       const platform = off.replace(/-off$/, "");
       setNotice(`${platformName(platform)} connect isn't switched on for Open Caption yet.`);

@@ -1,7 +1,7 @@
 import "server-only";
 import { getAdmin } from "@/lib/supabase/admin";
 import { isMissingTableError } from "@/lib/api/growth";
-import { metaConfig, youtubeConfig, type ConnectPlatform } from "./config";
+import { instagramConfig, youtubeConfig, type ConnectPlatform } from "./config";
 import {
   ConnectionStoreNotReady,
   getConnection,
@@ -54,7 +54,7 @@ async function ensureFreshToken(ownerId: string, conn: ConnectionRow, fetchImpl:
       await upsertConnection(ownerId, next);
       return next;
     }
-    const cfg = metaConfig();
+    const cfg = instagramConfig();
     if (!cfg) return conn;
     const tokens = await refreshInstagramToken({ config: cfg, accessToken: conn.accessToken, fetchImpl });
     const next: ConnectionRow = { ...conn, accessToken: tokens.accessToken, expiresAt: tokens.expiresAt };
@@ -230,7 +230,7 @@ export async function connectYoutube(ownerId: string, code: string, redirectUri:
 
 /** Callback step for Instagram: same shape as YouTube (see connectYoutube). */
 export async function connectInstagram(ownerId: string, code: string, redirectUri: string, fetchImpl: FetchImpl = fetch): Promise<ConnectResult> {
-  const cfg = metaConfig();
+  const cfg = instagramConfig();
   if (!cfg) throw new ProviderSyncError("Instagram connect is not switched on yet.");
   let username: string;
   try {
