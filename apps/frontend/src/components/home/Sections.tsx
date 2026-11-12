@@ -788,12 +788,12 @@ export function Footer() {
         {/* Giant Open Caption Bottom Logo matching Image 1 */}
         <div className="pt-10 sm:pt-14 border-t border-[#FFFFEB]/10 flex items-center justify-between overflow-hidden select-none">
           <Link href="/" className="group flex items-center gap-3 sm:gap-5 w-full">
-            {/* Audio Wave Icon Bars with subtle rhythmic bounce */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5 h-12 sm:h-20 md:h-28 lg:h-36 shrink-0" aria-hidden>
-              <span className="w-1.5 sm:w-3 lg:w-4 bg-[#FFFFEB] h-1/2 rounded-full" />
-              <span className="w-1.5 sm:w-3 lg:w-4 bg-[#FFA946] h-full rounded-full" />
-              <span className="w-1.5 sm:w-3 lg:w-4 bg-[#34D399] h-4/5 rounded-full" />
-            </div>
+            {/* Caption-lines mark, same geometry as the logo */}
+            <svg viewBox="0 0 100 100" className="h-12 w-auto shrink-0 sm:h-20 md:h-28 lg:h-36" aria-hidden role="presentation">
+              <rect x="16" y="32" width="46" height="13" rx="6.5" fill="#FFFFEB" />
+              <rect x="16" y="55" width="60" height="13" rx="6.5" fill="#FFFFEB" />
+              <rect x="80" y="55" width="13" height="13" rx="2.5" fill="#FFA946" />
+            </svg>
 
             {/* Giant Open Caption Typography */}
             <span className="font-styled font-black text-4xl sm:text-7xl md:text-8xl lg:text-[130px] leading-none tracking-tighter text-[#FFFFEB]">

@@ -6,7 +6,7 @@
  *   .ce-a-done  the entrance sequence has finished (the loader then exits as soon as the app has hydrated)
  *   .ce-out     exit (added by Loader.tsx after hydration; forced here after a cap so the page is never stuck)
  */
-export const INTRO_A_MS = 1750;
+export const INTRO_A_MS = 2300;
 const CAP_MS = 6000;
 
 export const introScript = (dev: boolean) => `(function(){try{

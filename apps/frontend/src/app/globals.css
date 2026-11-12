@@ -276,14 +276,11 @@ html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused 
   [data-hero] { animation: none !important; }
 }
 
-/* ── logo wave + skeletons (UI chrome only) ──────────────────────
- * The three caption bars from the logo, bouncing: the "something is happening" animation between events.
- * transform/opacity only, so it keeps moving while the page is busy. */
-@keyframes ce-wave { 0%, 100% { transform: scaleY(0.28); } 45% { transform: scaleY(1); } 70% { transform: scaleY(0.6); } }
-.ce-wave { display: inline-flex; align-items: flex-end; }
-.ce-wave > span { display: block; height: 100%; transform-origin: 50% 100%; border-radius: 999px; animation: ce-wave 0.95s cubic-bezier(0.37, 0, 0.63, 1) infinite; }
-.ce-wave > span:nth-child(2) { animation-delay: 0.14s; }
-.ce-wave > span:nth-child(3) { animation-delay: 0.28s; }
+/* ── loading mark + skeletons (UI chrome only) ──────────────────
+ * The loading mark's orange cursor block blinks gently (opacity only);
+ * under reduced motion it is fully static. */
+@keyframes oc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+.oc-cursor-blink { animation: oc-blink 1.2s ease-in-out infinite; }
 @keyframes ce-veil-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ce-veil-pop { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
 .ce-veil { animation: ce-veil-in 0.16s ease-out both; }
@@ -298,7 +295,7 @@ html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused 
 }
 .studio .skel { background-color: var(--color-st-line); }
 @media (prefers-reduced-motion: reduce) {
-  .ce-wave > span { animation: none; transform: scaleY(0.7); }
+  .oc-cursor-blink { animation: none; }
   .skel, .ce-veil, .ce-veil-card { animation: none; }
 }
 

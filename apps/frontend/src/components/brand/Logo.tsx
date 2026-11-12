@@ -3,11 +3,12 @@ import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/br
 
 /**
  * The one Open Caption logo, used everywhere a logo appears.
- * The mark is the generic three-caption-bars icon; the wordmark is live text
- * set in the site fonts (bold lead + serif-italic accent), driven by the
- * central brand config in src/lib/brand.ts — renaming the brand is a
+ * The mark is the caption-lines mark — two horizontal caption lines with an
+ * orange cursor block at the end of the second line (public/brand/opencaption-icon*.svg);
+ * the wordmark is live text set in the site fonts (bold lead + serif-italic accent),
+ * driven by the central brand config in src/lib/brand.ts — renaming the brand is a
  * one-place change there.
- *   variant: "full" = mark + wordmark, "mark" = the three caption bars, "word" = wordmark only
+ *   variant: "full" = mark + wordmark, "mark" = the caption-lines mark, "word" = wordmark only
  *   tone:    "dark" for light backgrounds, "light" for dark backgrounds
  */
 export function Logo({
@@ -21,7 +22,7 @@ export function Logo({
   height?: number;
   className?: string;
 }) {
-  const markSrc = `/brand/captionseasy-icon${tone === "light" ? "-light" : ""}.svg`;
+  const markSrc = `/brand/opencaption-icon${tone === "light" ? "-light" : ""}.svg`;
   return (
     <span className={`inline-flex shrink-0 select-none items-center gap-2 ${className}`} role="img" aria-label={BRAND_NAME}>
       {variant !== "word" && (

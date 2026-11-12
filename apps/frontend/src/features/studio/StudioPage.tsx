@@ -1109,8 +1109,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         <b>Writing your captions… {Math.round(liveView.progress * 100)}%</b>
         <span className="hidden text-st-muted sm:inline"> · {liveView.etaSec != null ? etaText(liveView.etaSec) : "a moment"}. You can pick a template and style now; words unlock when it&apos;s done.</span>
       </span>
-      <div className="hidden h-1.5 w-32 overflow-hidden rounded-full bg-st-line sm:block">
+      <div className="relative hidden h-1.5 w-32 rounded-full bg-st-line sm:block">
         <div className="h-full rounded-full bg-st-em transition-[width] duration-500" style={{ width: `${Math.max(3, liveView.progress * 100)}%` }} />
+        <span aria-hidden className="absolute top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-[2px] bg-[#FFA946] transition-[left] duration-500" style={{ left: `${Math.max(3, liveView.progress * 100)}%` }} />
       </div>
       <Button className="!px-2.5 !py-1 text-xs" onClick={() => getSession(projectId)?.stop()}>Stop</Button>
     </div>

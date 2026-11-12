@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/services/auth/supabaseClient";
 import { isGuestUser } from "@/services/auth/guest";
 import { ChevronLeft } from "@/components/ui/icons";
-import { LogoWave } from "@/components/brand/LogoWave";
+import { LoadingMark } from "@/components/brand/LoadingMark";
 import {
   SURVEY_QUESTIONS,
   destinationForGoal,
@@ -59,7 +59,7 @@ export default function OnboardingPage() {
     return (
       <main id="main-content" className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center">
         <div className="flex flex-col items-center gap-4">
-          <LogoWave height={40} />
+          <LoadingMark height={40} />
           <p className="text-[13px] font-semibold text-[#FFFFEB]/70">Opening…</p>
         </div>
       </main>
@@ -72,7 +72,7 @@ export default function OnboardingPage() {
   return (
     <main id="main-content" className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center">
       <div className="flex w-full max-w-md flex-col items-center gap-5">
-        <LogoWave height={40} />
+        <LoadingMark height={40} />
         <p className="text-[13px] font-semibold text-[#FFFFEB]/55" aria-label={`Question ${step + 1} of ${total}`}>
           {step + 1} of {total}
         </p>
