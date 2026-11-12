@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
 import { modeFromSearch, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
+import { isOnboardingDone } from "@/features/onboarding/survey";
 import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, startGuestSession, takeAfterSignIn } from "@/services/auth/guest";
 import type { Project } from "@/services/types";
 import { LogoWave } from "@/components/brand/LogoWave";
@@ -88,7 +89,12 @@ export default function StartPage() {
       let session = await waitForSession(fromAuth ? 6000 : 400);
       if (session && !isGuestUser(session.user)) {
         await claimPendingGuest();
-        return router.replace(takeAfterSignIn() ?? "/dashboard");
+        const after = takeAfterSignIn();
+        if (after) return router.replace(after);
+        // First visit after sign-up: the one-time onboarding survey, before
+        // the doors. An explicit after-sign-in destination wins over it.
+        if (!isOnboardingDone()) return router.replace("/onboarding");
+        return router.replace("/dashboard");
       }
       // still a guest after a Google round trip (they cancelled, or Google/Supabase refused): back to the project
       // they came from, without reopening the sign-up box, so nothing loops
