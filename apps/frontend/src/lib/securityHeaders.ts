@@ -89,6 +89,13 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
       "connect-src",
       [
         "'self'",
+        // Browser MP4 export: @remotion/media's frame extraction fetch()es the
+        // blob: video URL (the preview's <video> tag is covered by media-src's
+        // blob: instead). Without blob: here the export aborts with "Network
+        // error while fetching the video (possibly CORS)" while the preview
+        // still plays — the 2026-11-13 export failure. blob: URLs are
+        // same-origin by construction, so this cannot reach third parties.
+        "blob:",
         "https://*.supabase.co",
         "wss://*.supabase.co",
         "https://huggingface.co",

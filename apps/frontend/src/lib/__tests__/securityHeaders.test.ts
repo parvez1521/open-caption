@@ -73,6 +73,15 @@ describe("securityHeaders", () => {
     expect(buildContentSecurityPolicy(true)).toContain("'unsafe-eval'");
   });
 
+  it("lets the in-browser export fetch the blob: video URL (2026-11-13 export failure)", () => {
+    // The preview plays via <video> (media-src blob:) but the browser MP4
+    // export's Remotion media engine fetch()es the same blob: URL — fetch is
+    // governed by connect-src, so both must allow blob: or the export aborts
+    // with "Network error while fetching the video (possibly CORS)".
+    expect(directive("connect-src")).toContain("blob:");
+    expect(directive("media-src")).toContain("blob:");
+  });
+
   it("allows the Pixabay stock imports (deep-audit B2: search API + CDN media)", () => {
     const connect = directive("connect-src");
     expect(connect).toContain("https://api.pixabay.com");
