@@ -143,6 +143,11 @@ export const supabaseAuthProvider: AuthProvider = {
   },
 
   async loginWithGoogle() {
+    // FALLBACK flow, kept deliberately: the login page and SignupGate prefer the Google
+    // Identity Services button (services/auth/googleIdToken.ts — the chooser says
+    // captionit.in, no client secret needed) and use this OAuth redirect only when the
+    // GIS client ID is unset or its script fails to load. Do not delete: it is the only
+    // sign-in path until a live login proves the GIS chooser text.
     const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/start` : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

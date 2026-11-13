@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { rememberGuestForClaim, signInWithGoogleKeepingWork } from "@/services/auth/guest";
+import { renderGoogleSignInButton } from "@/services/auth/googleIdToken";
 import { isGoogleAuthEnabled, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { friendlyAuthError } from "@/components/auth/AuthShell";
 import { Button } from "./controls";
@@ -14,6 +15,43 @@ import { Button } from "./controls";
 export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; notice?: string | null }> = ({ onDone, onClose, notice }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Google Identity Services button (captionit.in chooser) vs the old OAuth button —
+  // same "checking" → "gis" | "oauth" swap as the login page. The guest claim stash
+  // MUST be written before the GIS button can complete a sign-in: the button lives in
+  // Google's iframe, so there is no click hook — stash at render time, not on click.
+  // (The old `google()` handler below still stashes before the OAuth fallback too.)
+  const gisContainerRef = useRef<HTMLDivElement>(null);
+  const gisAttemptedRef = useRef(false);
+  const [gisMode, setGisMode] = useState<"checking" | "gis" | "oauth">("checking");
+  useEffect(() => {
+    if (!isSupabaseConfigured() || !isGoogleAuthEnabled() || gisAttemptedRef.current) return;
+    gisAttemptedRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      const container = gisContainerRef.current;
+      if (!container) {
+        if (!cancelled) setGisMode("oauth");
+        return;
+      }
+      const back = new URL(window.location.href);
+      back.searchParams.set("export", "1"); // reopen the export dialog after sign-in
+      await rememberGuestForClaim(back.pathname + back.search);
+      const result = await renderGoogleSignInButton(container, {
+        // same /start target as the OAuth flow: /start claims the guest work
+        // (stashed above) and returns to the export URL.
+        onSignedIn: () => window.location.assign("/start"),
+        onError: (err) => {
+          setBusy(false);
+          setError(friendlyAuthError(err.message || "Google sign-up didn't start."));
+        },
+      });
+      if (!cancelled) setGisMode(result === "gis" ? "gis" : "oauth");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   /** They already have an account: sign in to it; this project moves over and the export dialog reopens. */
   const signInInstead = async () => {
@@ -81,9 +119,12 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
       <div role="dialog" aria-label="Create your free account" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
         <h2 className="text-lg font-semibold">Create a free account to export</h2>
         <p className="mt-1 text-sm text-st-muted">One tap with Google. Everything you&apos;ve made stays exactly as it is.</p>
-        <Button tone="primary" className="mt-5 w-full !py-3" disabled={busy} onClick={() => void google()}>
-          {busy ? "Opening Google…" : "Continue with Google"}
-        </Button>
+        <div ref={gisContainerRef} className="mt-5 w-full" aria-label="Continue with Google" />
+        {gisMode !== "gis" ? (
+          <Button tone="primary" className="mt-5 w-full !py-3" disabled={busy} onClick={() => void google()}>
+            {busy ? "Opening Google…" : "Continue with Google"}
+          </Button>
+        ) : null}
         {notice && !error ? <p role="status" className="mt-3 rounded-lg border border-st-line bg-st-raised px-3 py-2 text-sm text-st-text">{notice}</p> : null}
         {error ? <p role="alert" className="mt-3 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">{error}</p> : null}
         <p className="mt-4 text-center text-sm text-st-muted">Already have an account? <button type="button" className="font-semibold text-st-text underline" onClick={() => void signInInstead()}>Sign in</button>. This project comes with you.</p>
