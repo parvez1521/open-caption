@@ -29,6 +29,7 @@ interface BillingState {
   guest: boolean;
   payments: PaymentRow[];
   dbPending: boolean;
+  videoQuota: { plan: PlanId; limit: number; used: number; remaining: number; windowStart: string; windowEnd: string } | null;
 }
 
 interface CheckoutResponse {
@@ -170,6 +171,11 @@ export default function BillingPage() {
                   {Math.round(PLANS[state.plan].maxDurationSec / 60)} minutes · exports kept{" "}
                   {PLANS[state.plan].exportRetentionDays} days.
                 </p>
+                {state.videoQuota ? (
+                  <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
+                    {state.videoQuota.remaining} of {state.videoQuota.limit} videos left this month.
+                  </p>
+                ) : null}
                 {state.storedPlan !== state.plan ? (
                   <p className="mt-2 text-[13px] text-sand-600">
                     Your {pricingFor((state.storedPlan as PlanId) in PLANS ? (state.storedPlan as PlanId) : "free").name} pass

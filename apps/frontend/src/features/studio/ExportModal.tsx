@@ -1,6 +1,7 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
+import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import type { CaptionedVideoInput } from "@capseasy/compositions";
 import {
@@ -191,6 +192,14 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       }
       const name = `${(title || "captionit").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "captionit"}.mp4`;
       saveBlob(blob, name);
+      // Count the finished video: the render happened on this device, so the
+      // Studio reports it once, keyed by a fresh export id. Fire-and-forget
+      // — the file is already saved, so a failed record just means this video
+      // was not counted.
+      void studioService
+        .recordBrowserExport(projectId, { exportId: crypto.randomUUID(), kind: "mp4" })
+        .catch(() => {})
+        .finally(() => void qc.invalidateQueries({ queryKey: ["video-quota", projectId] }));
       setWebDone(`${fmtBytes(blob.size)} · made in ${fmtTime(clock() - started)}`);
       setMade({ blob, name });
       setShowReady(true);
@@ -225,6 +234,14 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     refetchInterval: (q) => ((q.state.data as ExportRow[] | undefined)?.some((e) => e.status_v2 === "queued" || e.status_v2 === "rendering") ? 2500 : false),
   });
 
+  /** Monthly video quota: 1 video = 1 finished export. Text files never count. */
+  const quotaQ = useQuery({
+    queryKey: ["video-quota", projectId],
+    queryFn: () => studioService.videoQuota(),
+    staleTime: 60_000,
+  });
+  const quota = quotaQ.data?.videoQuota ?? null;
+
   const download = async (id: string) => {
     try {
       triggerDownload(await studioService.exportDownloadUrl(id));
@@ -238,6 +255,15 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       // MP4 is made in the browser only; a click while the support check is still running waits for it
       if (mp4Block) {
         setError(mp4Block.reason);
+        return;
+      }
+      // Quota gate: the render happens on this device, so the server only
+      // counts it after the fact — check the fresh count first, so a render
+      // at the limit never starts. (Server renders are gated by the API.)
+      const fresh = await quotaQ.refetch();
+      const freshQuota = fresh.data?.videoQuota ?? null;
+      if (freshQuota && freshQuota.remaining <= 0) {
+        setError("Monthly limit reached — upgrade for more videos.");
         return;
       }
       let w = web;
@@ -381,6 +407,19 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             <Button tone="primary" className="mt-3 w-full !py-3 text-sm font-semibold" disabled={renderDisabled} onClick={() => void start(selected)}>
               {busyKind === optionKey(selected) ? "Working…" : renderLabel(selected)}
             </Button>
+          ) : null}
+          {quota ? (
+            <p className="mt-2 text-xs text-st-muted">
+              {quota.remaining} of {quota.limit} videos left this month.
+              {quota.remaining <= 0 ? (
+                <>
+                  {" "}
+                  <Link href="/settings/billing" className="font-semibold text-st-text underline">
+                    Upgrade
+                  </Link>
+                </>
+              ) : null}
+            </p>
           ) : null}
           {webProgress !== null ? (
             <div className="mt-3 rounded-xl border border-st-line bg-st-raised/60 p-3">

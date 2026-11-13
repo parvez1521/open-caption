@@ -2,6 +2,8 @@ import { effectivePlanId } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ok, route } from "@/lib/api/http";
 import { cashfreeConfig, currencyForCountry } from "@/lib/billing/cashfree";
+import { getAdmin } from "@/lib/supabase/admin";
+import { getVideoQuotaUsage, type VideoQuotaUsage } from "@/lib/billing/videoQuota";
 
 /**
  * The billing page's data: the caller's effective plan (an expired paid
@@ -28,6 +30,15 @@ export const GET = route(async (req: Request) => {
     .order("created_at", { ascending: false })
     .limit(50);
 
+  // Monthly video quota: null when the quota table has not been applied
+  // yet — the billing page hides the line instead of breaking.
+  let videoQuota: VideoQuotaUsage | null = null;
+  try {
+    videoQuota = await getVideoQuotaUsage(getAdmin(), user.id, effectivePlanId(storedPlan, expiresAt), expiresAt);
+  } catch {
+    videoQuota = null;
+  }
+
   return ok({
     configured: cfg.configured,
     env: cfg.env,
@@ -38,5 +49,6 @@ export const GET = route(async (req: Request) => {
     guest: user.guest,
     payments: error ? [] : (payments ?? []),
     dbPending: !!error,
+    videoQuota,
   });
 });

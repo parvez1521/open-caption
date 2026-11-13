@@ -8,6 +8,7 @@ import { applyFillerFilter, applyProfanity, derivePages, toAss, toJson, toSrt, t
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
+import { checkVideoQuota, recordVideoQuotaEvent, type VideoQuotaKind } from "@/lib/billing/videoQuota";
 import { putObject, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 
@@ -115,7 +116,14 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const format = body.kind as RenderJob["format"];
 
   const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
-  const retentionDays = planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at)).exportRetentionDays;
+  const effectivePlan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
+  const retentionDays = planFor(effectivePlan).exportRetentionDays;
+
+  // Monthly video quota: a video export consumes one of the month's videos.
+  // Text caption files never count, so this check runs for video kinds only.
+  // A failed or cancelled render keeps its slot (the event is keyed by
+  // export_id), so retrying it is free.
+  await checkVideoQuota(admin, user.id, effectivePlan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null);
 
   const { error: exErr } = await admin.from("exports").insert({
     id: exportId, project_id: projectId, owner_id: user.id, kind: body.kind, status_v2: "queued", status: "queued",
@@ -144,5 +152,14 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     idempotencyKey: `render:${exportId}`,
   });
   await admin.from("exports").update({ job_id: job.id }).eq("id", exportId);
+  // Count the video: the quota event is written after the job exists, so a
+  // failed queue never consumes a slot. If recording fails the export still
+  // renders — the user keeps the video and the miss is logged, not charged
+  // twice or blocked after the fact.
+  try {
+    await recordVideoQuotaEvent(admin, { exportId, ownerId: user.id, projectId, kind: format as VideoQuotaKind });
+  } catch (e) {
+    console.error(JSON.stringify({ level: "error", msg: "video quota record failed", exportId, err: e instanceof Error ? e.message : String(e) }));
+  }
   return ok({ exportId, jobId: job.id, ready: false, companionOnline: await hasOnlineCompanion(user.id) }, 202);
 });
