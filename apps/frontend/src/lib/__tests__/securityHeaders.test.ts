@@ -133,6 +133,15 @@ describe("securityHeaders", () => {
     expect(pp).toContain("payment=()");
   });
 
+  it("allows the PWA: same-origin manifest and service worker (2026-11-13)", () => {
+    // The manifest is served same-origin (/manifest.webmanifest) and the
+    // worker is a same-origin script (/sw.js): manifest-src 'self' lets the
+    // browser fetch the manifest, script-src 'self' lets it register the
+    // worker. No new origin was added for the PWA.
+    expect(directive("manifest-src")).toBe("'self'");
+    expect(directive("script-src")).toContain("'self'");
+  });
+
   it("the deliberate-error Sentry debug route no longer exists in the app", () => {
     const routeFile = fileURLToPath(new URL("../../app/api/cron/sentry-test/route.ts", import.meta.url));
     expect(existsSync(routeFile)).toBe(false);

@@ -27,6 +27,7 @@ function homeMotionItem(templateId: OverlaySocialVariant): OverlayItem {
   };
 }
 import { Logo as BrandLogo } from "@/components/brand/Logo";
+import { InstallApp } from "@/components/pwa/InstallApp";
 import { LEGAL, LEGAL_PAGES } from "@/lib/legal";
 import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/brand";
 
@@ -744,9 +745,12 @@ export function ClosingCta() {
             <h2 className="font-styled text-4xl font-bold tracking-tight sm:text-5xl">Start with one clip.</h2>
             <p className="mt-4 max-w-lg text-base leading-relaxed text-[#FFFFEB]/70 sm:text-lg">Upload a video and see your words on screen in under a minute. Free, no watermark.</p>
           </div>
-          <Link href="/start?choose=1" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:text-lg">
-            Create free captions <span aria-hidden>→</span>
-          </Link>
+          <div className="flex shrink-0 flex-col items-start gap-2">
+            <Link href="/start?choose=1" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:text-lg">
+              Create free captions <span aria-hidden>→</span>
+            </Link>
+            <InstallApp />
+          </div>
         </div>
       </div>
     </section>
