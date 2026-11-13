@@ -120,6 +120,65 @@ describe("generateEmphasisSuggestions — routing (mocked)", () => {
     const out = await generateEmphasisSuggestions(empty, { runCloud: goodCloud, modelEnabled: false });
     expect(out.status).toBe("unavailable");
   });
+
+  it("a rate limit says so and is NOT retryable — retrying now cannot help", async () => {
+    const limited = new Error("You're doing that too often.") as Error & { code: string };
+    limited.code = "RATE_LIMITED";
+    const down: ModelRunner = async () => { throw limited; };
+    const out = await generateEmphasisSuggestions(doc, { runCloud: down, modelEnabled: false });
+    expect(out.status).toBe("unavailable");
+    if (out.status !== "unavailable") return;
+    expect(out.reason).toContain("hit its limit");
+    expect(out.reason).toContain("30 requests an hour");
+    expect(out.retryable).toBe(false);
+  });
+
+  it("a rate-limited cloud outranks a failed local model: the limit is the reason to wait", async () => {
+    const limited = new Error("limited") as Error & { code: string };
+    limited.code = "RATE_LIMITED";
+    const down: ModelRunner = async () => { throw limited; };
+    const localDown: ModelRunner = async () => { throw new Error("local down"); };
+    const out = await generateEmphasisSuggestions(doc, { runCloud: down, modelEnabled: true, runModel: localDown });
+    expect(out.status).toBe("unavailable");
+    if (out.status !== "unavailable") return;
+    expect(out.reason).toContain("hit its limit");
+    expect(out.retryable).toBe(false);
+  });
+
+  it("a too-long transcript (VALIDATION) says so and is NOT retryable", async () => {
+    const tooLong = new Error("Invalid request body") as Error & { code: string };
+    tooLong.code = "VALIDATION";
+    const down: ModelRunner = async () => { throw tooLong; };
+    const out = await generateEmphasisSuggestions(doc, { runCloud: down, modelEnabled: false });
+    expect(out.status).toBe("unavailable");
+    if (out.status !== "unavailable") return;
+    expect(out.reason).toContain("too long for one AI request");
+    expect(out.retryable).toBe(false);
+  });
+
+  it("a transient failure IS retryable — and keeps the 'try again in a moment' wording", async () => {
+    const down: ModelRunner = async () => { throw new Error("upstream down"); };
+    const out = await generateEmphasisSuggestions(doc, { runCloud: down, modelEnabled: false });
+    expect(out.status).toBe("unavailable");
+    if (out.status !== "unavailable") return;
+    expect(out.reason).toContain("try again in a moment");
+    expect(out.retryable).toBe(true);
+  });
+
+  it("the prompt for a 600-word transcript fits the generate route's 12,000-char cap", () => {
+    // A 4,000 cap rejected every transcript over ~250–365 words with VALIDATION, reported
+    // as "the free AI service was not available" — a failure no retry could fix.
+    const longDoc = CaptionDocSchema.parse({
+      version: 2,
+      language: "en",
+      words: Array.from({ length: 600 }, (_, i) => ({
+        id: `w${i}`, text: "important", startMs: i * 300, endMs: i * 300 + 250,
+      })),
+    });
+    const prompt = buildEmphasisPrompt(longDoc);
+    expect(prompt.user.length).toBeLessThan(12000);
+    expect(prompt.user.length).toBeGreaterThan(4000);
+  });
 });
 
 describe("parseEmphasisOutput — strict, item-by-item", () => {

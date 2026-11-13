@@ -28,6 +28,9 @@ import { Button, fmtTime } from "../controls";
  *   reports unavailable instead of degrading to a heuristic.
  * - The batch is badged with the existing SourceBadge — local-model
  *   suggestions are labelled as the local model's.
+ * - A transient failure says so and offers a Try again button that re-runs the same generation;
+ *   a rate limit or a too-long transcript says so instead, with no retry button — retrying
+ *   those now would fail the same way.
  * - NOTHING mutates the doc while reviewing. Accepting (per item or all)
  *   applies the accepted set through ONE `edit()` call — one undo step.
  *   Discarding closes the review and leaves the doc untouched.
@@ -71,7 +74,7 @@ export const EmphasisSuggestions: React.FC<{
   const [busy, setBusy] = useState(false);
   const [review, setReview] = useState<Review | null>(null);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
-  const [unavailable, setUnavailable] = useState<string | null>(null);
+  const [unavailable, setUnavailable] = useState<Extract<EmphasisOutcome, { status: "unavailable" }> | null>(null);
 
   const applicable = (s: EmphasisSuggestion) => s.action !== "supersize" || heroSupported;
 
@@ -82,7 +85,7 @@ export const EmphasisSuggestions: React.FC<{
       const outcome = await generateEmphasisSuggestions(doc, deps);
       if (outcome.status === "unavailable") {
         setReview(null);
-        setUnavailable(outcome.reason);
+        setUnavailable(outcome);
         return;
       }
       setReview(outcome);
@@ -136,7 +139,14 @@ export const EmphasisSuggestions: React.FC<{
             <p className="text-xs text-st-faint" role="note">{EMPHASIS_NO_ROUTE_REASON}</p>
           ) : null}
           {unavailable ? (
-            <p className="text-xs text-st-text" role="alert">{unavailable}</p>
+            <div className="space-y-1.5">
+              <p className="text-xs text-st-text" role="alert">{unavailable.reason}</p>
+              {unavailable.retryable ? (
+                <Button disabled={busy} onClick={() => void generate()} className="!py-1 text-xs">
+                  {busy ? "Asking for suggestions…" : "Try again"}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </>
       ) : review.suggestions.length === 0 ? (

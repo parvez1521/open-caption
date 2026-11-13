@@ -56,6 +56,35 @@ describe("EmphasisSuggestions — availability honesty", () => {
     expect(edit).not.toHaveBeenCalled();
   });
 
+  it("a transient failure offers Try again, which re-runs the generation and succeeds", async () => {
+    let calls = 0;
+    const flaky: ModelRunner = async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("upstream down");
+      return GOOD_JSON;
+    };
+    const edit = vi.fn();
+    render(<EmphasisSuggestions doc={doc} edit={edit} heroSupported deps={{ runCloud: flaky, modelEnabled: false }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Suggest emphasis" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Try again" })).toBeTruthy());
+    expect(screen.getByRole("alert").textContent).toContain("try again in a moment");
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() => expect(screen.getByText("Apply accepted (3)")).toBeTruthy());
+    expect(calls).toBe(2);
+    expect(edit).not.toHaveBeenCalled();
+  });
+
+  it("a rate limit offers NO Try again button — retrying now would fail the same way", async () => {
+    const limited = new Error("limited") as Error & { code: string };
+    limited.code = "RATE_LIMITED";
+    const down: ModelRunner = async () => { throw limited; };
+    render(<EmphasisSuggestions doc={doc} edit={vi.fn()} heroSupported deps={{ runCloud: down, modelEnabled: false }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Suggest emphasis" }));
+    await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
+    expect(screen.getByRole("alert").textContent).toContain("hit its limit");
+    expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+  });
+
   it("an empty valid result shows 'no suggestions', not an error — with the source badge", async () => {
     const empty: ModelRunner = async () => "[]";
     render(<EmphasisSuggestions doc={doc} edit={vi.fn()} heroSupported deps={{ runCloud: empty, modelEnabled: false }} />);
