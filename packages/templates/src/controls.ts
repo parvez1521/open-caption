@@ -89,7 +89,8 @@ export function controlVisible(id: ControlId, t: TemplateDefinition, s: CaptionS
     case "glowColor": case "glowSize": return s.glow.enabled;
     case "backgroundPadding": return c.background && s.background.type !== "none";
     case "backgroundRadius": return c.background && s.background.type !== "none" && s.background.type !== "pill";
-    case "backgroundBlur": return c.background && (s.background.type === "pill" || s.background.type === "box") && t.layout !== "bar" && t.layout !== "bubble";
+    // the Difference template paints on canvas (no DOM backdrop to blur), so its Frosted blur slider would be a lie
+    case "backgroundBlur": return c.background && (s.background.type === "pill" || s.background.type === "box") && t.layout !== "bar" && t.layout !== "bubble" && t.layout !== "pack-difference";
     case "dimUnspoken": return DIM_LAYOUTS.has(t.layout) || (t.layout === "sentence" && s.templateOptions.reveal === "all");
     case "exitSpeed": return s.exit.type !== "none";
     case "reveal": return t.layout === "sentence";

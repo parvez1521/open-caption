@@ -10,7 +10,7 @@ import {
 
 /** Capabilities: one text colour (fill), the accent colour (highlight), hero font/scale where a line is drawn big. */
 const caps = (over: Partial<TemplateCapabilities> = {}): TemplateCapabilities => ({
-  hero: true, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: false, emoji: false,
+  hero: true, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: true, emoji: false,
   activeEffects: ["none"], entrances: STOCK_ENTRANCES, ...over,
 });
 /** styles whose motion is built in (WhiteStair locks their Transitions tab) */

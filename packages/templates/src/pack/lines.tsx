@@ -133,7 +133,7 @@ export const LINES_TEMPLATES: TemplateDefinition[] = [
       templateOptions: { defaultBorder: "#F5C451", defaultFill: "rgba(247,213,137,0.35)", delayMs: 50, expandMs: 1000 },
     },
     settingsDefaults: { maxWordsPerCard: 3, maxLines: 1 },
-    capabilities: lineCaps({ hero: true, background: false }), fonts: ["Montserrat"], Page: SelectHighlightLayout,
+    capabilities: lineCaps({ hero: true }), fonts: ["Montserrat"], Page: SelectHighlightLayout,
   },
   {
     id: "pack_bloom", name: "Soft Bloom", description: "Bold words in a soft layered bloom of their own colour", layout: "pack-bloom",

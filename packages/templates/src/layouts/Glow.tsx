@@ -3,7 +3,7 @@ import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
 import { applyCasing, darken, lighten, withAlpha } from "@motion-ai/caption-engine/core";
 import { combineMotion, effectiveIntensity, exitStyle, progress, showAt, SPRINGS, springMs } from "../motion";
-import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 
 /*
@@ -261,7 +261,7 @@ export const GlowFlowLayout: React.FC<PageRenderProps> = ({ page, timeMs, style,
   return (
     <div style={combineMotion(containerCss(box, style.rotation), exitStyle(style, page.endMs - timeMs, settled, style.fontSize * sc))}>
       {halo > 0 ? <Halo width={Math.min(box.width, widest * (size / base)) * 0.95} height={size * (lines.length + 2) * style.lineHeight} color={style.glow.color} strength={halo * haloIn} sc={sc} /> : null}
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", rowGap: (style.lineHeight - 1) * size * 0.6 }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", rowGap: (style.lineHeight - 1) * size * 0.6, ...backgroundCss(style, sc) }}>
         {lines.map((l, li) => (
           <div key={li} style={{ display: "flex", alignItems: "baseline", justifyContent: "center", whiteSpace: "pre" }}>
             {l.map((pc, i) => (
@@ -319,7 +319,7 @@ export const GlowDuoLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, 
   const accRow = (mt: number) => row(acc, accSize, accentLook(style, sc), "accent", 2, mt);
   return (
     <div style={combineMotion(containerCss(box, style.rotation), exitStyle(style, page.endMs - timeMs, settled, style.fontSize * sc))}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", ...backgroundCss(style, sc) }}>
         {accentFirst ? [accRow(0), capsRow(-overlap)] : [capsRow(0), accRow(-overlap)]}
       </div>
     </div>
@@ -379,7 +379,7 @@ export const GlowBehindLayout: React.FC<PageRenderProps> = ({ page, timeMs, styl
             blur={heroBlur}
           />
         </div>
-        <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "baseline", justifyContent: "center", whiteSpace: "pre", transform: `translateY(${(heroSize * 0.08).toFixed(2)}px)` }}>
+        <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "baseline", justifyContent: "center", whiteSpace: "pre", transform: `translateY(${(heroSize * 0.08).toFixed(2)}px)`, ...backgroundCss(style, sc) }}>
           {small.map((pc, i) => (
             <GlowWord key={pc.word.id} piece={pc} style={style} look={accentLook({ ...style, hero: { ...style.hero, fill: style.fill } }, sc)} size={smallSize} sc={sc} timeMs={timeMs} fps={canvas.fps} intensity={intensity} settled={settled} last={i === small.length - 1} />
           ))}

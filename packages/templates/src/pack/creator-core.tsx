@@ -9,7 +9,7 @@ import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, easeFn, effectiveIntensity, exitStyle } from "../motion";
-import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 import { applyCasing } from "@motion-ai/caption-engine/core";
 import { keyframes, keyWordIndex, withAlpha } from "./kit";
@@ -386,7 +386,7 @@ export const Stack: React.FC<{ ctx: Ctx; rows: RowSpec[]; wrap?: React.CSSProper
   const { style, page, timeMs, settled, sc } = ctx;
   return (
     <div style={combineMotion(containerCss(ctx.box, style.rotation), exitStyle(style, page.endMs - timeMs, settled, style.fontSize * sc))}>
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "stretch", ...(wrap ?? {}) }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "stretch", ...(wrap ?? {}), ...backgroundCss(style, sc) }}>
         {rows.filter((r) => r.items.length).map((r) => <RowView key={r.key} r={r} ctx={ctx} />)}
         {children}
       </div>

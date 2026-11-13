@@ -2,7 +2,7 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, entranceStyle, exitStyle, staggerUnit } from "../motion";
-import { baseTextCss, containerCss, displayText, famCss, fillCss, layoutBox, lineWidth, scaleOf } from "../text";
+import { backgroundCss, baseTextCss, containerCss, displayText, famCss, fillCss, layoutBox, lineWidth, scaleOf } from "../text";
 import type { PageRenderProps } from "../types";
 import { WordSpan, staggerPlan } from "../layouts/WordSpan";
 import { EASE, fillColor, hash, keyWordIndex, keyframes, linear01, rand, ringShadow } from "./kit";
@@ -110,7 +110,7 @@ export const StickerLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, 
     ) : null;
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", filter: dropFilter({ ...style, glow: { ...style.glow, enabled: false } }, sc), ...exitStyle(style, page.endMs - timeMs, settled, hero) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", filter: dropFilter({ ...style, glow: { ...style.glow, enabled: false } }, sc), ...backgroundCss(style, sc), ...exitStyle(style, page.endMs - timeMs, settled, hero) }}>
         {row(0, key, small)}
         {row(key, key + 1, hero)}
         {row(key + 1, page.words.length, small)}
@@ -160,6 +160,7 @@ export const TornPaperLayout: React.FC<PageRenderProps> = ({ page, timeMs, style
     <div style={containerCss(box, style.rotation)}>
       <div style={{
         display: "grid", filter: `drop-shadow(0 ${px(0.07 * size)} ${px(0.05 * size)} rgba(0,0,0,0.30))`,
+        ...backgroundCss(style, sc),
         ...combineMotion(staggerUnit(style) === "none" ? entranceStyle(style, timeMs - page.startMs, canvas.fps, intensity, settled, size) : {}, exitStyle(style, page.endMs - timeMs, settled, size)),
       }}>
         {copy(true)}
@@ -257,7 +258,7 @@ export const RansomLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, c
   let n = 0;
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", rowGap: (style.lineHeight - 1) * size * 0.5 + 0.12 * size, ...exitStyle(style, page.endMs - timeMs, settled, size) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", rowGap: (style.lineHeight - 1) * size * 0.5 + 0.12 * size, ...backgroundCss(style, sc), ...exitStyle(style, page.endMs - timeMs, settled, size) }}>
         {rows.map((line, li) => (
           <div key={li} style={{ display: "flex", flexWrap: "nowrap", justifyContent: "center", columnGap: wordGap(size) }}>
             {line.map((w, wi) => (

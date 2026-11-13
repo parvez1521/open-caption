@@ -9,7 +9,7 @@
 import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, exitStyle, showAt } from "../motion";
-import { containerCss, displayText, famCss, fillCss, layoutBox, scaleOf, shadowCss, strokeCss } from "../text";
+import { backgroundCss, containerCss, displayText, famCss, fillCss, layoutBox, scaleOf, shadowCss, strokeCss } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 import { ringShadow, withAlpha } from "./kit";
 
@@ -421,7 +421,7 @@ export const CompositionView: React.FC<PageRenderProps & { build: Rendered }> = 
   const exit = style.exit.type === "none" && build.ownExit ? (settled ? {} : build.ownExit(until, g.unit)) : exitStyle(style, until, settled, g.unit);
   return (
     <div style={combineMotion(containerCss(box, style.rotation), exit)}>
-      <div style={{ position: "relative", width: g.width, height: g.height, wordSpacing: style.wordSpacing * sc, lineHeight: style.lineHeight }}>
+      <div style={{ position: "relative", width: g.width, height: g.height, wordSpacing: style.wordSpacing * sc, lineHeight: style.lineHeight, ...backgroundCss(style, sc) }}>
         {g.boxes.map((b) => {
           const m = settled || !b.spec.motion ? {} : b.spec.motion({ t: timeMs - b.at, k, size: b.size });
           return (

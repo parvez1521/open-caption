@@ -5,7 +5,7 @@
  */
 import React from "react";
 import type { CaptionStyleV2 } from "@capseasy/shared";
-import { backgroundCss, displayText, strokeCss } from "../text";
+import { displayText, strokeCss } from "../text";
 import type { PageRenderProps } from "../types";
 import { EASE, bezier, shade } from "./kit";
 import { Row, cellsOf, fitCells, gapPx, justifyOf, restFill, solid, typeCss } from "./lines-engine";
@@ -44,7 +44,7 @@ export const TriKeywordsLayout: React.FC<PageRenderProps> = (p) => {
   const shadow = joinLayers([...shadowsAt(style, sc, ratio), ...glowAt(style, sc)]);
 
   return (
-    <TFrame p={p} box={fit.box} size={size} align={justifyOf(style.align)} inner={backgroundCss(style, sc)} motion={{ transform: `scale(${scale.toFixed(4)})` }}>
+    <TFrame p={p} box={fit.box} size={size} align={justifyOf(style.align)} motion={{ transform: `scale(${scale.toFixed(4)})` }}>
       {cells.map((line, li) => (
         <Row key={li} style={style}>
           {line.map((c, wi) => {
@@ -99,7 +99,7 @@ export const GoldBevelLayout: React.FC<PageRenderProps> = (p) => {
   const motion = { transform: `translateY(${(rise * RISE_EM * size * k).toFixed(2)}px) scale(${(1 + (s - 1) * k).toFixed(4)})` };
 
   return (
-    <TFrame p={p} box={fit.box} size={size} align={justifyOf(style.align)} inner={backgroundCss(style, sc)} motion={motion}>
+    <TFrame p={p} box={fit.box} size={size} align={justifyOf(style.align)} motion={motion}>
       {cells.map((line, li) => (
         <Row key={li} style={style}>
           {line.map((c, wi) => {
@@ -162,7 +162,7 @@ export const LightBoldLayout: React.FC<PageRenderProps> = (p) => {
   const lineSpan = (li: number) => ({ start: lines[li]![0]!.startMs, end: lines[li]![lines[li]!.length - 1]!.endMs });
 
   return (
-    <TFrame p={p} box={fit.box} size={size} align={justifyOf(style.align)} inner={backgroundCss(style, sc)} motion={motion}>
+    <TFrame p={p} box={fit.box} size={size} align={justifyOf(style.align)} motion={motion}>
       {cells.map((line, li) => {
         const { start, end } = lineSpan(li);
         const spoken = timeMs >= start && timeMs < end;

@@ -44,14 +44,14 @@ export function translatedTextOptions(tracks: { lang: string; label: string }[])
       kind: "srt" as const,
       language: lang,
       title: `${label} subtitles (.srt)`,
-      desc: `The ${label} translation of your captions as an SRT file, with the same timings.`,
+      desc: `${label} captions as an SRT file, same timings.`,
       usesRange: false,
     },
     {
       kind: "vtt" as const,
       language: lang,
       title: `${label} subtitles (.vtt)`,
-      desc: `The ${label} translation of your captions as a WebVTT file, with the same timings.`,
+      desc: `${label} captions as a WebVTT file, same timings.`,
       usesRange: false,
     },
   ]);
@@ -60,7 +60,7 @@ export function translatedTextOptions(tracks: { lang: string; label: string }[])
 const META: Record<CreatableExportKind, Omit<ExportOption, "kind">> = {
   mp4: {
     title: "Video with captions (MP4)",
-    desc: "Ready to post on Reels, Shorts and TikTok. Made right here in your browser.",
+    desc: "Ready for Reels, Shorts and TikTok. Made in your browser.",
     usesRange: true,
     popular: true,
   },
@@ -76,27 +76,27 @@ const META: Record<CreatableExportKind, Omit<ExportOption, "kind">> = {
   },
   ass: {
     title: "Styled subtitles file (.ass)",
-    desc: "Subtitles with your caption style in them — font, colours and position — for editors and players that support ASS.",
+    desc: "Styled subtitles with your font, colours and position.",
     usesRange: false,
   },
   txt: {
     title: "Transcript (.txt)",
-    desc: "Just the words as plain text, with no timings. Handy for notes, show notes and blog posts.",
+    desc: "Plain text, no timings. Handy for notes and blog posts.",
     usesRange: false,
   },
   json: {
     title: "Caption data (.json)",
-    desc: "The full caption document as JSON — every word and its timing — for other tools and developers.",
+    desc: "Every word and timing as JSON, for other tools.",
     usesRange: false,
   },
   mov_alpha: {
     title: "Caption overlay — ProRes (.mov)",
-    desc: "Captions and overlays (including motion graphics) on a transparent background, to lay over your footage in Premiere, Final Cut or DaVinci Resolve. The paired desktop app renders it — if no computer is paired and online, it stays queued.",
+    desc: "ProRes transparent overlay; stays queued until your paired desktop app is online.",
     usesRange: true,
   },
   webm_alpha: {
     title: "Caption overlay — WebM (.webm)",
-    desc: "Captions and overlays (including motion graphics) on a transparent background, to lay over your footage in editors that take WebM. The paired desktop app renders it — if no computer is paired and online, it stays queued.",
+    desc: "WebM transparent overlay; stays queued until your paired desktop app is online.",
     usesRange: true,
   },
 };

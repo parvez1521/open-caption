@@ -18,7 +18,7 @@ export const NO_EXIT = { type: "none", durationMs: 0 } as const;
 
 /** capabilities of a plates layout: only what the layout really honours (controls.test proves each one) */
 export const platesCaps = (over: Partial<TemplateCapabilities> = {}): TemplateCapabilities => ({
-  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: false, emoji: false,
+  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: true, emoji: false,
   activeEffects: ["none"], entrances: ["none"], ...over,
 });
 

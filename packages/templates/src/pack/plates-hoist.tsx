@@ -9,7 +9,7 @@
 import React from "react";
 import type { Word } from "@capseasy/shared";
 import { effectiveIntensity, exitStyle, showAt } from "../motion";
-import { containerCss, displayText, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, layoutBox, scaleOf } from "../text";
 import type { PageRenderProps } from "../types";
 import { optStr, px, specOf } from "./graphic-common";
 import { EASES, clamp, keyIndex, letterCount, ord, riseIn, runCss, seg, solidOf, wordFill } from "./plates-kit";
@@ -94,7 +94,7 @@ export const StampHoistLayout: React.FC<PageRenderProps> = ({ page, timeMs, styl
 
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", ...backgroundCss(style, sc), ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
         {key >= 0 && hit ? (
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 0.32 * base }}>
             {/* the whole lockup (plate + letters) tilts and squashes as one, about its centre */}
@@ -174,7 +174,7 @@ export const BlockCutInLayout: React.FC<PageRenderProps> = ({ page, timeMs, styl
 
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: justify, rowGap, width: "100%", ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: justify, rowGap, width: "100%", ...backgroundCss(style, sc), ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
         {flow(before)}
         {key >= 0 && open ? (
           <div style={{ display: "flex", justifyContent: justify, width: "100%" }}>

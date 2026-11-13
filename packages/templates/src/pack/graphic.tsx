@@ -42,7 +42,9 @@ export const GRAPHIC_TEMPLATES: TemplateDefinition[] = [
       active: NO_EFFECT, stroke: { enabled: true, width: 2, color: "#FFFFFF" }, templateOptions: { matte: "#000000" },
     },
     settingsDefaults: { maxWordsPerCard: 1 },
-    capabilities: capsOwn(), fonts: ["Archivo Black"], fixedWordsPerCard: 1, Page: CookLayout,
+    // the one template with no Background control: the whole frame IS its background (a black matte with the
+    // word cut out of it), so a pill/box behind the text would fill the knockout hole and kill the effect
+    capabilities: capsOwn({ background: false }), fonts: ["Archivo Black"], fixedWordsPerCard: 1, Page: CookLayout,
   },
   {
     id: "pack_sticker", name: "Die-Cut Sticker", description: "A hatched slab-serif key word on a die-cut paper sticker, small words above and below", layout: "pack-sticker",

@@ -85,6 +85,8 @@ export interface DiffSpec {
   barColor: string;
   /** the letters' fill when it is a gradient (solid fills are per glyph) */
   fill: DFill | null;
+  /** the Style panel background, painted as a plate behind the text in the plain layer (null = none/word-box) */
+  background: { round: boolean; color: string; padX: number; padY: number; radius: number } | null;
   /** the plain (normal blend) layer: the style's shadows, glow and outline */
   plain: { shadows: { x: number; y: number; blur: number; color: string }[]; glow: { r: number; color: string } | null; stroke: { w: number; color: string } | null } | null;
 }
@@ -232,6 +234,11 @@ export function buildDiffSpec(p: PageRenderProps): DiffSpec {
   const glow = style.glow.enabled ? { r: style.glow.radius * sc, color: withAlpha(style.glow.color, style.glow.intensity) } : null;
   const stroke = style.stroke.enabled && style.stroke.width > 0 ? { w: style.stroke.width * sc, color: style.stroke.color } : null;
   const fill: DFill | null = style.fill.type === "gradient" ? { type: "gradient", stops: style.fill.stops, angle: style.fill.angle } : null;
+  // the background plate: same padding proportions as backgroundCss (0.6 vertical, 1.4 horizontal), radius in px
+  const bg = style.background;
+  const background = bg.type === "pill" || bg.type === "box"
+    ? { round: bg.type === "pill", color: withAlpha(bg.color, bg.opacity), padX: bg.padding * sc * 1.4, padY: bg.padding * sc * 0.6, radius: bg.radius * sc }
+    : null;
 
   return {
     w: Math.round(canvas.width), h: Math.round(canvas.height),
@@ -240,7 +247,7 @@ export function buildDiffSpec(p: PageRenderProps): DiffSpec {
     exitT: typeof ex.transform === "string" ? ex.transform : "", alpha: ex.opacity === undefined ? 1 : +Number(ex.opacity).toFixed(4), filter: typeof ex.filter === "string" ? ex.filter : "",
     padY: 0.13, lines: outLines.map((l) => ({ ...l, y: +l.y.toFixed(2), x0: +l.x0.toFixed(2), x1: +l.x1.toFixed(2) })),
     glyphs: glyphs.map((g) => ({ ...g, x: +g.x.toFixed(2), y: +g.y.toFixed(2), dy: +g.dy.toFixed(4), sy: +g.sy.toFixed(4), blur: +g.blur.toFixed(2), s: +g.s.toFixed(4), ox: +g.ox.toFixed(2), oy: +g.oy.toFixed(2), w: +g.w.toFixed(2) })),
-    bars, barColor: style.active.boxColor ?? "#FFFFFF", fill,
+    bars, barColor: style.active.boxColor ?? "#FFFFFF", fill, background,
     plain: shadows.length || glow || stroke ? { shadows, glow, stroke } : null,
   };
 }
@@ -361,6 +368,27 @@ export function paintGroup(ctx: CanvasRenderingContext2D, s: DiffSpec) {
 /** the plain layer under it: the style's drop shadows, glow and outline, in normal blend */
 export function paintPlain(ctx: CanvasRenderingContext2D, s: DiffSpec) {
   reset(ctx, s);
+  // the background plate first, behind everything else in this layer (it is painted even when there are no
+  // shadows/glow/stroke, so the plain canvas exists whenever a background is set)
+  if (s.background) {
+    const m = metricsOf(ctx);
+    const base = cardMatrix(s);
+    const x0 = Math.min(...s.lines.map((l) => l.x0)) - s.background.padX;
+    const x1 = Math.max(...s.lines.map((l) => l.x1)) + s.background.padX;
+    const top = Math.min(...s.lines.map((l) => band(s, l, m).top)) - s.background.padY;
+    const bottom = Math.max(...s.lines.map((l) => band(s, l, m).bottom)) + s.background.padY;
+    const h = bottom - top;
+    const r = s.background.round ? h / 2 : Math.min(s.background.radius, h / 2);
+    ctx.save();
+    ctx.setTransform(base);
+    ctx.globalAlpha = clamp01(s.alpha);
+    ctx.filter = s.filter || "none";
+    ctx.fillStyle = s.background.color;
+    ctx.beginPath();
+    ctx.roundRect(x0, top, x1 - x0, h, Math.max(0, r));
+    ctx.fill();
+    ctx.restore();
+  }
   if (!s.plain) return;
   const m = metricsOf(ctx);
   const base = cardMatrix(s);
@@ -530,7 +558,7 @@ const DiffSurface: React.FC<{ spec: DiffSpec; timeMs: number }> = ({ spec, timeM
   const fill: React.CSSProperties = { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" };
   return (
     <>
-      {spec.plain ? (
+      {spec.plain || spec.background ? (
         <div style={layer}>
           <canvas ref={plainRef} width={spec.w} height={spec.h} style={fill} />
         </div>

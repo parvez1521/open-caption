@@ -1,7 +1,7 @@
 /** Overlay layouts: a neon frame whose border lines run across the whole video, an iOS-style notification, a pop-up chat bubble. */
 import React from "react";
 import { effectiveIntensity, exitStyle, combineMotion } from "../motion";
-import { containerCss, displayText, famCss, fillCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, famCss, fillCss, layoutBox, scaleOf } from "../text";
 import type { PageRenderProps } from "../types";
 import { EASE, keyframes, linear01, tween, withAlpha } from "./kit";
 import { dropFilter, fitScale, glowLayers, optStr, px, rowWidth, shadowLayers, specOf, strokeOf } from "./graphic-common";
@@ -59,7 +59,7 @@ export const BoxedLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, ca
   const bigFill = style.hero.fill ? fillCss(style.hero.fill) : fillCss({ type: "gradient", angle: 180, stops: [{ color: "#FFFFFF", at: 0.2 }, { color: line, at: 1 }] });
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ position: "relative", ...combineMotion({ opacity: pBox, transform: `scale(${(1 - 0.05 * k * (1 - pBox)).toFixed(4)})` }, exitStyle(style, page.endMs - timeMs, settled, big)) }}>
+      <div style={{ position: "relative", ...backgroundCss(style, sc), ...combineMotion({ opacity: pBox, transform: `scale(${(1 - 0.05 * k * (1 - pBox)).toFixed(4)})` }, exitStyle(style, page.endMs - timeMs, settled, big)) }}>
         {/* the frame's lines, run out across the video (templateOptions.guideLines: false hides them) */}
         {style.templateOptions.guideLines !== false ? (
           <>
@@ -153,7 +153,7 @@ export const NotificationLayout: React.FC<PageRenderProps> = ({ page, timeMs, st
   const font = { fontFamily: famCss(style.fontId), letterSpacing: style.letterSpacing * sc, lineHeight: style.lineHeight };
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ ...combineMotion(notifMotion(optStr(style, "motion", "slide-down"), timeMs, page.startMs, k, size, settled), exitStyle(style, page.endMs - timeMs, settled, size)), filter: dropFilter(style, sc) }}>
+      <div style={{ ...backgroundCss(style, sc), ...combineMotion(notifMotion(optStr(style, "motion", "slide-down"), timeMs, page.startMs, k, size, settled), exitStyle(style, page.endMs - timeMs, settled, size)), filter: dropFilter(style, sc) }}>
         <div style={{
           width, boxSizing: "border-box", display: "flex", textAlign: "left", alignItems: "center", columnGap: 0.7 * size, padding: `${px(0.62 * size)} ${px(0.8 * size)}`,
           // the frosted banner, faked with near-opaque white (backdrop blur can't be exported)
@@ -207,7 +207,7 @@ export const PopupChatLayout: React.FC<PageRenderProps> = ({ page, timeMs, style
   const layers = [...shadowLayers(style, sc), ...glowLayers(style, sc)];
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ position: "relative", transformOrigin: "50% 100%", ...combineMotion(pop, exitStyle(style, page.endMs - timeMs, settled, size)) }}>
+      <div style={{ position: "relative", transformOrigin: "50% 100%", ...backgroundCss(style, sc), ...combineMotion(pop, exitStyle(style, page.endMs - timeMs, settled, size)) }}>
         <svg width={0.62 * size} height={0.56 * size} viewBox="0 0 24 22" style={{ position: "absolute", bottom: -0.08 * size, [left ? "left" : "right"]: -0.14 * size, transform: left ? "scaleX(-1)" : undefined, overflow: "visible" }}>
           <path d="M0 2 C 5 9, 12 17, 24 21 C 17 15, 14 8, 13 0 Z" fill={bubble} />
         </svg>

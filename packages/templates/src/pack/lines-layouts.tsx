@@ -434,7 +434,7 @@ export const SelectHighlightLayout: React.FC<PageRenderProps> = (p) => {
   const dot = 0.17 * size;
   const ext = 0.2 * size;
   return (
-    <Frame p={p} fit={fit} background={false}>
+    <Frame p={p} fit={fit}>
       {cells.map((line, li) => {
         const half = fit.lineWidths[li]! / 2 + padX * size;
         const slide = (1 - sx) * half;

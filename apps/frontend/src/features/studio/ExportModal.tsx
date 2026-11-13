@@ -76,6 +76,15 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const allOptions: ExportOption[] = [...EXPORT_OPTIONS, ...translatedTextOptions(translationTracks)];
   /** busy identity is the option KEY (kind, or kind:language for translated rows), not just the kind */
   const [busyKind, setBusyKind] = useState<string | null>(null);
+  /** picked option KEY: choosing an option only selects it — rendering starts from the Render button below */
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const selected = allOptions.find((o) => optionKey(o) === selectedKey) ?? null;
+  /** the selected option's Render button label: video renders "Render", text files "Export" */
+  const renderLabel = (o: ExportOption): string => {
+    if (o.language) return `Export ${o.title}`;
+    const verb = o.kind === "mp4" || o.kind === "mov_alpha" || o.kind === "webm_alpha" ? "Render" : "Export";
+    return `${verb} ${KIND_LABEL[o.kind] ?? o.kind}`;
+  };
   const [error, setError] = useState<string | null>(null);
   /** set when a companion render (alpha overlay) was queued instead of made right away */
   const [queuedNote, setQueuedNote] = useState<string | null>(null);
@@ -119,6 +128,9 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outDims.width, outDims.height]);
   const webReady = !!web?.ok && !!renderInput?.src;
+  /** the Render button stays off while the picked option can't run (MP4 blocked, or a bad trim range) */
+  const selectedUnavailable = selected?.kind === "mp4" && (!!mp4Block || (web !== null && !webReady));
+  const renderDisabled = busyKind !== null || webProgress !== null || !selected || !!selectedUnavailable || (selected.usesRange && !trimValid);
 
   const [restarted, setRestarted] = useState(false);
   /**
@@ -347,21 +359,29 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           <div className="grid gap-2">
             {allOptions.map((o) => {
               const unavailable = o.kind === "mp4" && (!!mp4Block || (web !== null && !webReady));
+              const key = optionKey(o);
+              const isSelected = selectedKey === key;
               return (
                 <button
-                  key={optionKey(o)}
+                  key={key}
                   disabled={busyKind !== null || webProgress !== null || unavailable || (o.usesRange && !trimValid)}
-                  onClick={() => void start(o)}
-                  className={`relative rounded-xl border p-4 text-left transition disabled:opacity-50 ${o.popular ? "border-st-ink bg-st-lav/40 hover:bg-st-lav/60" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
+                  aria-pressed={isSelected}
+                  onClick={() => setSelectedKey(key)}
+                  className={`relative rounded-xl border p-4 text-left transition disabled:opacity-50 ${isSelected ? "border-st-em bg-st-em/10" : o.popular ? "border-st-ink bg-st-lav/40 hover:bg-st-lav/60" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
                 >
                   {o.popular ? <span className="absolute -top-2.5 right-3 rounded-full bg-st-or px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Most popular</span> : null}
-                  <div className={`text-sm ${o.popular ? "font-semibold" : "font-medium"} text-st-text`}>{busyKind === optionKey(o) ? "Working…" : o.title}</div>
+                  <div className={`text-sm ${o.popular ? "font-semibold" : "font-medium"} text-st-text`}>{busyKind === key ? "Working…" : o.title}</div>
                   <div className="mt-0.5 text-xs text-st-muted">{unavailable ? mp4Block?.reason ?? web?.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari." : o.desc}</div>
                   {o.kind === "mp4" && audioMix ? <div className="mt-0.5 text-xs text-st-muted">{audioMix.note}</div> : null}
                 </button>
               );
             })}
           </div>
+          {selected ? (
+            <Button tone="primary" className="mt-3 w-full !py-3 text-sm font-semibold" disabled={renderDisabled} onClick={() => void start(selected)}>
+              {busyKind === optionKey(selected) ? "Working…" : renderLabel(selected)}
+            </Button>
+          ) : null}
           {webProgress !== null ? (
             <div className="mt-3 rounded-xl border border-st-line bg-st-raised/60 p-3">
               <div className="flex items-center justify-between text-sm">

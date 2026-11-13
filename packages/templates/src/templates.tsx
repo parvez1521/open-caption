@@ -130,7 +130,7 @@ export const TEMPLATES: TemplateDefinition[] = [
       glow: { enabled: true, color: "#FFFFFF", radius: 14, intensity: 0.75 }, active: { effect: "glow", color: "#FFFFFF", scale: 1, boxRadius: 12 }, templateOptions: { depth: 0.12, glare: 0.3 },
     },
     settingsDefaults: { maxWordsPerCard: 4 },
-    capabilities: caps({ alignment: false, background: false, activeEffects: ["glow"], entrances: OWN_MOTION }), fonts: ["Nunito"], Page: GlowFlowLayout,
+    capabilities: caps({ alignment: false, activeEffects: ["glow"], entrances: OWN_MOTION }), fonts: ["Nunito"], Page: GlowFlowLayout,
   },
   {
     id: "glow_duo", name: "Glow Duo", description: "Glowing caps overlapped by an italic accent line", layout: "glow-duo",
@@ -141,7 +141,7 @@ export const TEMPLATES: TemplateDefinition[] = [
       active: { effect: "glow", color: "#FF5A4A", scale: 1, boxRadius: 12 }, templateOptions: { duoOrder: "caps-first", depth: 0.5, overlap: 0.32 },
     },
     settingsDefaults: { maxWordsPerCard: 4 },
-    capabilities: caps({ alignment: false, background: false, activeEffects: ["glow"], entrances: OWN_MOTION }), fonts: ["Anton", "Instrument Serif"], Page: GlowDuoLayout,
+    capabilities: caps({ alignment: false, activeEffects: ["glow"], entrances: OWN_MOTION }), fonts: ["Anton", "Instrument Serif"], Page: GlowDuoLayout,
   },
   {
     id: "glow_behind", name: "Giant Word Behind", description: "The key word glows huge behind the line", layout: "glow-behind",
@@ -152,7 +152,7 @@ export const TEMPLATES: TemplateDefinition[] = [
       active: { effect: "glow", color: "#FF6A5A", scale: 1, boxRadius: 12 }, templateOptions: { depth: 0.6, glare: 0.25 },
     },
     settingsDefaults: { maxWordsPerCard: 4 },
-    capabilities: caps({ alignment: false, background: false, activeEffects: ["glow"], entrances: OWN_MOTION }), fonts: ["Playfair Display", "Bodoni Moda"], Page: GlowBehindLayout,
+    capabilities: caps({ alignment: false, activeEffects: ["glow"], entrances: OWN_MOTION }), fonts: ["Playfair Display", "Bodoni Moda"], Page: GlowBehindLayout,
   },
   {
     // the CaptionsEasy title lockup as captions: metal caps slam in letter by letter, the key word is written on in script
@@ -167,7 +167,7 @@ export const TEMPLATES: TemplateDefinition[] = [
       active: { effect: "none", color: "#FFFFFF", scale: 1, boxRadius: 12 }, templateOptions: { overlap: 0.38 },
     },
     settingsDefaults: { maxWordsPerCard: 3 },
-    capabilities: caps({ alignment: false, weight: false, background: false, activeEffects: ["none"], entrances: OWN_MOTION }), fonts: ["Anton", "Pacifico"], Page: MetalScriptLayout,
+    capabilities: caps({ alignment: false, weight: false, activeEffects: ["none"], entrances: OWN_MOTION }), fonts: ["Anton", "Pacifico"], Page: MetalScriptLayout,
   },
   // the pack: 64 more looks, with their own layouts (src/pack)
   ...PACK_TEMPLATES,

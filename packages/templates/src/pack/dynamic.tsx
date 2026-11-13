@@ -9,7 +9,7 @@ import { CompositionView, mix, bodyFace, currentWord, cut, enter, heroFace, type
 // ---------------------------------------------------------------------------------------------------------- shared
 
 const caps = (over: Partial<TemplateCapabilities>): TemplateCapabilities => ({
-  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: false, emoji: false,
+  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: true, emoji: false,
   activeEffects: ["none"], entrances: ["none"], ...over,
 });
 

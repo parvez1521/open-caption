@@ -8,7 +8,7 @@ import { withAlpha } from "./kit";
 
 /** capabilities for a layout that draws itself: only what each template opts into is shown in the Style panel */
 export const capsOwn = (over: Partial<TemplateCapabilities> = {}): TemplateCapabilities => ({
-  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: false, color: false, background: false, emoji: false,
+  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: false, color: false, background: true, emoji: false,
   activeEffects: ["none"], entrances: ["none"], ...over,
 });
 export const ALL_ACTIVE = ACTIVE_EFFECTS;

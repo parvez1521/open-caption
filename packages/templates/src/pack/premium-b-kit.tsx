@@ -20,7 +20,7 @@ import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, exitStyle, showAt } from "../motion";
-import { containerCss, famCss, fillCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, famCss, fillCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps, TemplateCapabilities } from "../types";
 import { bezier, withAlpha } from "./kit";
 
@@ -32,7 +32,7 @@ export const NO_EXIT = { type: "none", durationMs: 0 } as const;
 
 /** only the controls these layouts honour (controls.test proves each one changes the render) */
 export const premiumCaps = (over: Partial<TemplateCapabilities> = {}): TemplateCapabilities => ({
-  hero: true, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: false, emoji: false,
+  hero: true, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: true, emoji: false,
   activeEffects: ["none"], entrances: ["none"], ...over,
 });
 
@@ -246,7 +246,13 @@ export function letterCenters(text: string, spec: FontSpec, size: number, measur
  */
 export const Frame: React.FC<{ p: PageRenderProps; size: number; css?: React.CSSProperties; children: React.ReactNode }> = ({ p, size, css, children }) => {
   const box = layoutBox(p.style, p.canvas, p.page.position);
-  return <div style={combineMotion(containerCss(box, p.style.rotation), exitStyle(p.style, p.page.endMs - p.timeMs, p.settled, size), css ?? {})}>{children}</div>;
+  return (
+    <div style={combineMotion(containerCss(box, p.style.rotation), exitStyle(p.style, p.page.endMs - p.timeMs, p.settled, size), css ?? {})}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", ...backgroundCss(p.style, scaleOf(p.canvas)) }}>
+        {children}
+      </div>
+    </div>
+  );
 };
 
 /** everything a layout needs from its props */

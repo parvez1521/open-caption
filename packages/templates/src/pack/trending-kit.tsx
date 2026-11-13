@@ -8,7 +8,7 @@ import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, exitStyle, showAt } from "../motion";
-import { containerCss } from "../text";
+import { backgroundCss, containerCss, scaleOf } from "../text";
 import type { PageRenderProps, TemplateCapabilities } from "../types";
 import { keyWordIndex, rand } from "./kit";
 import { alphaMul } from "./lines-engine";
@@ -33,7 +33,7 @@ export const opt = <T,>(style: CaptionStyleV2, key: string, fallback: T): T => {
 
 /** capabilities of a Trending layout: its own motion (no generic card entrance), only what the layout honours */
 export const trendCaps = (over: Partial<TemplateCapabilities>): TemplateCapabilities => ({
-  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: false, emoji: false,
+  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: true, emoji: false,
   activeEffects: ["none"], entrances: ["none"], ...over,
 });
 
@@ -198,7 +198,7 @@ export const TFrame: React.FC<{
   const { page, timeMs, style, settled } = p;
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: align, position: "relative", ...inner, ...combineMotion(motion ?? {}, exitStyle(style, page.endMs - timeMs, settled, size)) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: align, position: "relative", ...backgroundCss(p.style, scaleOf(p.canvas)), ...inner, ...combineMotion(motion ?? {}, exitStyle(style, page.endMs - timeMs, settled, size)) }}>
         {children}
       </div>
     </div>

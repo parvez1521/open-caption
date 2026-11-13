@@ -8,7 +8,7 @@ import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, exitStyle } from "../motion";
-import { containerCss, famCss, fillCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, famCss, fillCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps, TemplateCapabilities } from "../types";
 import { bezier, rand, withAlpha } from "./kit";
 
@@ -40,7 +40,7 @@ export const AE = {
 
 /** capabilities of a premium layout: it animates itself (no generic card entrance); only what it honours is listed */
 export const premiumCaps = (over: Partial<TemplateCapabilities> = {}): TemplateCapabilities => ({
-  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: false, emoji: false,
+  hero: false, alignment: false, stagger: false, accentPeriod: false, weight: true, color: true, background: true, emoji: false,
   activeEffects: ["none"], entrances: ["none"], ...over,
 });
 export const OWN_ENTRANCE = { type: "none", durationMs: 0, stagger: "none", easing: "outExpo" } as const;
@@ -241,7 +241,7 @@ export const Shell: React.FC<{ p: PageRenderProps; box: { width: number; cx: num
   const justify = style.align === "left" ? "flex-start" : style.align === "right" ? "flex-end" : "center";
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: justify, position: "relative", ...inner, ...combineMotion(motion ?? {}, exitStyle(style, page.endMs - timeMs, settled, size)) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: justify, position: "relative", ...backgroundCss(style, scaleOf(p.canvas)), ...inner, ...combineMotion(motion ?? {}, exitStyle(style, page.endMs - timeMs, settled, size)) }}>
         {children}
       </div>
     </div>

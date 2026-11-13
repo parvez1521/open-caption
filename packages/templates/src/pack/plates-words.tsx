@@ -9,7 +9,7 @@
 import React from "react";
 import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
 import { effectiveIntensity, exitStyle, showAt } from "../motion";
-import { containerCss, displayText, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 import { glowLayers, optNum, optStr, px, specOf } from "./graphic-common";
 import { EASES, boxShadowOf, keyIndex, riseIn, runCss, seg, solidOf, wordFill } from "./plates-kit";
@@ -120,7 +120,7 @@ export const PlateTickerLayout: React.FC<PageRenderProps> = ({ page, timeMs, sty
   const base = style.fontSize * sc;
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: justify, width: "100%", ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: justify, width: "100%", ...backgroundCss(style, sc), ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
         <PlateFlow
           page={page} style={style} sc={sc} measure={measure} boxWidth={box.width} timeMs={timeMs} settled={settled}
           padX={0.26} lean={style.fontStyle === "italic" ? 0.12 : 0} radius={0} plateHeight={style.lineHeight} gapEm={0.12} rowGapEm={0} keyAt={key} spec={spec} justify={justify} fill={0.88}
@@ -158,7 +158,7 @@ export const SandTilesLayout: React.FC<PageRenderProps> = ({ page, timeMs, style
   const base = style.fontSize * sc;
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", ...backgroundCss(style, sc), ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
         <PlateFlow
           page={page} style={style} sc={sc} measure={measure} boxWidth={box.width} timeMs={timeMs} settled={settled}
           padX={0.3} lean={0} radius={0.26} plateHeight={tile} gapEm={0.16} rowGapEm={Math.max(0, style.lineHeight - tile)} keyAt={key} spec={spec} justify="center" fill={1}

@@ -4,7 +4,7 @@ import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
 import { applyCasing, withAlpha } from "@motion-ai/caption-engine/core";
 import { combineMotion, easeFn, effectiveIntensity, exitStyle, progress, showAt } from "../motion";
-import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 import { clipTextCss, innerFill } from "./Glow";
 
@@ -257,7 +257,7 @@ export const MetalScriptLayout: React.FC<PageRenderProps> = ({ page, timeMs, sty
   return (
     <div style={combineMotion(containerCss(box, style.rotation), exitStyle(style, page.endMs - timeMs, settled, style.fontSize * sc))}>
       <Crescent style={style} diameter={Math.max(capsW, sW) * 1.25 + capsSize} sc={sc} timeMs={timeMs} fadeIn={fadeIn} />
-      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", transform: kick > 0.0002 ? `scale(${(1 + kick).toFixed(4)})` : undefined }}>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", ...backgroundCss(style, sc), transform: kick > 0.0002 ? `scale(${(1 + kick).toFixed(4)})` : undefined }}>
         {caps.length ? <CapsRow words={caps} style={style} size={capsSize} sc={sc} timeMs={timeMs} k={k} settled={settled} /> : null}
         {script.length ? (
           <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "baseline", justifyContent: "center", whiteSpace: "pre", marginTop: caps.length ? -overlap : 0, transform: dx ? `translateX(${dx.toFixed(2)}px)` : undefined }}>

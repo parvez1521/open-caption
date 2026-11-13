@@ -8,13 +8,13 @@ import React from "react";
 import type { CaptionStyleV2, Page } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, effectiveIntensity, exitStyle } from "../motion";
-import { containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps, TemplateCapabilities } from "../types";
 import { withAlpha } from "./kit";
 
 /** capabilities for a composition that animates itself: only the controls it honours */
 export const typoCaps = (over: Partial<TemplateCapabilities>): TemplateCapabilities => ({
-  hero: true, alignment: false, stagger: false, accentPeriod: false, weight: false, color: true, background: false, emoji: false,
+  hero: true, alignment: false, stagger: false, accentPeriod: false, weight: false, color: true, background: true, emoji: false,
   activeEffects: ["none"], entrances: ["none"], ...over,
 });
 
@@ -130,7 +130,9 @@ export const Frame: React.FC<{ p: PageRenderProps; sizePx: number; align?: React
   const box = layoutBox(p.style, p.canvas, p.page.position);
   return (
     <div style={combineMotion(containerCss(box, p.style.rotation), exitStyle(p.style, p.page.endMs - p.timeMs, p.settled, sizePx), align ? { alignItems: align } : {})}>
-      {children}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: align ?? "center", ...backgroundCss(p.style, scaleOf(p.canvas)) }}>
+        {children}
+      </div>
     </div>
   );
 };

@@ -10,7 +10,7 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { effectiveIntensity, exitStyle } from "../motion";
-import { containerCss, displayText, layoutBox, lineWidth, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, layoutBox, lineWidth, scaleOf } from "../text";
 import type { PageRenderProps } from "../types";
 import { px } from "./graphic-common";
 import { EASES, clamp, runCss, seg, wordFill } from "./plates-kit";
@@ -75,7 +75,7 @@ export const BlurWhipLayout: React.FC<PageRenderProps> = ({ page, timeMs, style,
   }
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "grid", placeItems: "center", width: "100%", opacity: alpha, ...exitStyle(style, page.endMs - timeMs, settled, size) }}>
+      <div style={{ display: "grid", placeItems: "center", width: "100%", opacity: alpha, ...backgroundCss(style, sc), ...exitStyle(style, page.endMs - timeMs, settled, size) }}>
         {ghosts}
         <div style={{ gridArea: "1 / 1", transform: a > 0.004 ? `scaleX(${sx.toFixed(4)})` : undefined, filter: a > 0.004 ? `blur(${px(0.045 * size * a)})` : undefined }}>
           {block(true)}
@@ -108,7 +108,7 @@ export const FatBarLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, c
   const barH = (20 / 56) * base;
   return (
     <div style={containerCss(box, style.rotation)}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: justify, rowGap: (lh - 1) * base * 0.5, ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: justify, rowGap: (lh - 1) * base * 0.5, ...backgroundCss(style, sc), ...exitStyle(style, page.endMs - timeMs, settled, base) }}>
         {lines.map((line, li) => (
           <div key={li} style={{ display: "flex", flexWrap: "nowrap", justifyContent: justify, alignItems: "baseline", columnGap: gap }}>
             {line.map((w, wi) => {
