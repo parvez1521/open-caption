@@ -19,15 +19,48 @@ export interface CloudAiStatus {
 
 let statusPromise: Promise<CloudAiStatus | null> | null = null;
 
+/**
+ * What runCloudModel throws when the generate route answers with an error: the server's error
+ * code (RATE_LIMITED, UPSTREAM_FAILED, VALIDATION …) survives the throw, so a caller can tell
+ * "the free AI is at its limit, wait a while" apart from "Groq blipped, retry now" apart from
+ * "this request can never succeed". Duck-typed off the thrown value's `code` — the real
+ * ApiError carries it, and the api-client mock in tests does not export the class.
+ */
+export class CloudModelError extends Error {
+  readonly code?: string;
+  readonly status?: number;
+  constructor(message: string, code?: string, status?: number) {
+    super(message);
+    this.name = "CloudModelError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
 /** Session-cached status probe; resolves null when the route cannot be reached at all. */
 export function fetchCloudAiStatus(): Promise<CloudAiStatus | null> {
   statusPromise ??= apiClient.get<CloudAiStatus>("/create/generate").catch(() => null);
   return statusPromise;
 }
 
-/** A ModelRunner (service.ts): sends the built prompt to our server route, resolves with raw text. */
+/**
+ * A ModelRunner (service.ts): sends the built prompt to our server route, resolves with raw text.
+ * Route errors keep their server code on the throw (see CloudModelError); an empty completion
+ * is a plain Error with no code, i.e. a transient-looking failure.
+ */
 export async function runCloudModel(prompt: ChatPrompt): Promise<string> {
-  const data = await apiClient.post<{ text: string }>("/create/generate", { json: prompt });
+  let data: { text: string };
+  try {
+    data = await apiClient.post<{ text: string }>("/create/generate", { json: prompt });
+  } catch (err) {
+    const code = (err as { code?: unknown })?.code;
+    const status = (err as { status?: unknown })?.status;
+    throw new CloudModelError(
+      err instanceof Error ? err.message : "The free AI service could not be reached.",
+      typeof code === "string" ? code : undefined,
+      typeof status === "number" ? status : undefined,
+    );
+  }
   if (!data?.text?.trim()) throw new Error("The free AI service returned nothing.");
   return data.text;
 }

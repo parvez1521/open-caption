@@ -89,6 +89,11 @@ interface ChatCompletionBody {
  * throws CloudAiError on any failure (HTTP error, timeout, malformed or empty completion) —
  * callers treat every throw the same way: the generation falls back to another honest source.
  * `fetchImpl`/`config` are injectable so tests never touch the network or a real key.
+ *
+ * Transient upstream failures (Groq 429 on the free tier, 5xx, a network blip, a timeout) get
+ * exactly ONE retry after a short delay — a single-attempt call turned every free-tier hiccup
+ * into a dead feature. Deterministic failures (other 4xx, an empty or malformed completion)
+ * are never retried: a second attempt would fail the same way.
  */
 export async function runCloudChat(
   prompt: { system: string; user: string },
@@ -101,10 +106,37 @@ export async function runCloudChat(
     maxTokens?: number;
     /** defaults to 0.8 (creative batches). The clipper passes 0.4 (editorial judgment). */
     temperature?: number;
+    /** delay before the single transient retry; defaults to 1000ms. Tests pass 0. */
+    retryDelayMs?: number;
   } = {},
 ): Promise<string> {
   const config = opts.config !== undefined ? opts.config : cloudAiConfig();
   if (!config) throw new CloudAiError("The free AI service is not configured (GROQ_API_KEY is unset).");
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await attemptCloudChat(prompt, config, opts);
+    } catch (err) {
+      lastError = err;
+      // Retryable: a free-tier 429 / 5xx from Groq, or a fetch-level throw (network blip,
+      // timeout abort). Not retryable: any other HTTP status, or an empty/malformed completion.
+      const retryable =
+        (err instanceof CloudAiError && (err.status === 429 || (err.status !== undefined && err.status >= 500))) ||
+        !(err instanceof CloudAiError);
+      if (!retryable || attempt === 1) throw err;
+      await sleep(opts.retryDelayMs ?? 1000);
+    }
+  }
+  throw lastError;
+}
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function attemptCloudChat(
+  prompt: { system: string; user: string },
+  config: CloudAiConfig,
+  opts: { fetchImpl?: typeof fetch; timeoutMs?: number; maxTokens?: number; temperature?: number },
+): Promise<string> {
   const doFetch = opts.fetchImpl ?? fetch;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? TIMEOUT_MS);

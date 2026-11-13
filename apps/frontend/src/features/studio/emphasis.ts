@@ -19,6 +19,15 @@
  * configured at all. A batch that succeeds always names its source
  * ("cloud" | "model") for the existing SourceBadge.
  *
+ * The reason is classified, not one blanket message: a rate limit says so
+ * (retrying now cannot help — the limit is 30/hour per person, 600/day for
+ * the whole site, shared with every other free-AI feature), a too-long
+ * transcript says so, and only a genuinely transient failure says "try again
+ * in a moment" — with `retryable: true`, which the panel turns into a working
+ * Try again button. The runner's error code survives into this module via
+ * CloudModelError (features/create/cloudAi.ts); a runner that throws without
+ * a code is treated as transient.
+ *
  * Nothing in this module mutates a document. `applyEmphasisSuggestions` is a
  * pure doc transform built ONLY from the existing caption ops
  * (setEmphasis / setWordEmoji in the caption engine); the panel passes it to
@@ -57,7 +66,14 @@ export type EmphasisOutcome =
       fellBack: boolean;
       note?: string;
     }
-  | { status: "unavailable"; reason: string };
+  | {
+      status: "unavailable";
+      reason: string;
+      /** True only when an immediate retry could succeed (a transient failure). False for a
+       *  rate limit, a too-long transcript, no route, and no words — retrying those now fails
+       *  the same way. The panel shows a Try again button only when this is true. */
+      retryable?: boolean;
+    };
 
 /** Caps so a runaway model cannot wallpaper the captions; excess items are dropped in order. */
 export const EMPHASIS_LIMITS = { emphasise: 12, supersize: 3, emoji: 8 } as const;
@@ -67,6 +83,20 @@ export const EMPHASIS_NO_ROUTE_REASON =
 
 const CLOUD_TO_LOCAL_NOTE =
   "The free AI service was not available for this batch, so the local model wrote these suggestions instead.";
+
+/** The free-AI limit is shared with every other AI feature, so a limit hit here is a wait, not a retry. */
+const RATE_LIMITED_REASON =
+  "The free AI has hit its limit for now — 30 requests an hour per person, 600 a day for the whole site, shared with every other AI feature. Try again later; nothing was applied.";
+/** A VALIDATION failure from the generate route: the prompt (numbered transcript) exceeded the route cap. */
+const TOO_LONG_REASON =
+  "These captions are too long for one AI request, so no suggestions were made. Split the video (or shorten the captions) and try again.";
+/** Genuinely transient: an upstream blip, a timeout, an empty completion, or unusable output. */
+const TRANSIENT_REASON =
+  "The free AI service was not available for this batch. Emphasis suggestions have no template fallback, so none are shown — try again in a moment.";
+const BOTH_UNAVAILABLE_REASON =
+  "The free AI service and the local model were both unavailable for this batch. Emphasis suggestions have no template fallback, so none are shown — try again in a moment.";
+const LOCAL_UNAVAILABLE_REASON =
+  "The local model did not return usable suggestions for this batch. Emphasis suggestions have no template fallback, so none are shown.";
 
 /** True when at least one real AI route is configured — the panel disables the action otherwise. */
 export function emphasisRouteAvailable(deps: GenerationDeps): boolean {
@@ -179,12 +209,21 @@ export function parseEmphasisOutput(raw: string, doc: CaptionDoc): EmphasisSugge
 // Routing — same shape as generateContent / generateScriptContent, minus the
 // template floor: a failed route is an unavailable feature, never a fake batch.
 
-async function tryRunner(runner: ModelRunner, doc: CaptionDoc): Promise<EmphasisSuggestion[] | null> {
+type RunnerResult =
+  | { ok: true; suggestions: EmphasisSuggestion[] }
+  | { ok: false; code?: string };
+
+/** Run one runner; a failure keeps the runner's error code (RATE_LIMITED, VALIDATION, …)
+ *  so the caller can classify the outcome instead of reporting every failure identically.
+ *  Unparseable output is a failure with no code — transient, retryable. */
+async function tryRunner(runner: ModelRunner, doc: CaptionDoc): Promise<RunnerResult> {
   try {
     const raw = await runner(buildEmphasisPrompt(doc));
-    return parseEmphasisOutput(raw, doc);
-  } catch {
-    return null;
+    const parsed = parseEmphasisOutput(raw, doc);
+    return parsed ? { ok: true, suggestions: parsed } : { ok: false };
+  } catch (err) {
+    const code = (err as { code?: unknown })?.code;
+    return { ok: false, code: typeof code === "string" ? code : undefined };
   }
 }
 
@@ -193,36 +232,43 @@ export async function generateEmphasisSuggestions(
   deps: GenerationDeps,
 ): Promise<EmphasisOutcome> {
   if (!doc.words.some((w) => !w.hidden)) {
-    return { status: "unavailable", reason: "There are no caption words to suggest emphasis for yet." };
+    return { status: "unavailable", reason: "There are no caption words to suggest emphasis for yet.", retryable: false };
   }
   if (!emphasisRouteAvailable(deps)) {
-    return { status: "unavailable", reason: EMPHASIS_NO_ROUTE_REASON };
+    return { status: "unavailable", reason: EMPHASIS_NO_ROUTE_REASON, retryable: false };
   }
   let cloudFailed = false;
+  let cloudCode: string | undefined;
   if (deps.runCloud) {
-    const suggestions = await tryRunner(deps.runCloud, doc);
-    if (suggestions) return { status: "ok", suggestions, source: "cloud", fellBack: false };
+    const result = await tryRunner(deps.runCloud, doc);
+    if (result.ok) return { status: "ok", suggestions: result.suggestions, source: "cloud", fellBack: false };
     cloudFailed = true;
+    cloudCode = result.code;
   }
   if (deps.modelEnabled && deps.runModel) {
-    const suggestions = await tryRunner(deps.runModel, doc);
-    if (suggestions) {
+    const result = await tryRunner(deps.runModel, doc);
+    if (result.ok) {
       return cloudFailed
-        ? { status: "ok", suggestions, source: "model", fellBack: true, note: CLOUD_TO_LOCAL_NOTE }
-        : { status: "ok", suggestions, source: "model", fellBack: false };
+        ? { status: "ok", suggestions: result.suggestions, source: "model", fellBack: true, note: CLOUD_TO_LOCAL_NOTE }
+        : { status: "ok", suggestions: result.suggestions, source: "model", fellBack: false };
+    }
+    // a cloud rate limit outranks the local failure: the limit is the reason to wait
+    if (cloudCode === "RATE_LIMITED") {
+      return { status: "unavailable", reason: RATE_LIMITED_REASON, retryable: false };
     }
     return {
       status: "unavailable",
-      reason: cloudFailed
-        ? "The free AI service and the local model were both unavailable for this batch. Emphasis suggestions have no template fallback, so none are shown — try again in a moment."
-        : "The local model did not return usable suggestions for this batch. Emphasis suggestions have no template fallback, so none are shown.",
+      reason: cloudFailed ? BOTH_UNAVAILABLE_REASON : LOCAL_UNAVAILABLE_REASON,
+      retryable: true,
     };
   }
-  return {
-    status: "unavailable",
-    reason:
-      "The free AI service was not available for this batch. Emphasis suggestions have no template fallback, so none are shown — try again in a moment.",
-  };
+  if (cloudCode === "RATE_LIMITED") {
+    return { status: "unavailable", reason: RATE_LIMITED_REASON, retryable: false };
+  }
+  if (cloudCode === "VALIDATION") {
+    return { status: "unavailable", reason: TOO_LONG_REASON, retryable: false };
+  }
+  return { status: "unavailable", reason: TRANSIENT_REASON, retryable: true };
 }
 
 // ---------------------------------------------------------------------------

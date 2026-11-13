@@ -27,6 +27,26 @@ describe("runCloudModel (client runner for the free AI route)", () => {
     postMock.mockRejectedValue(new Error("RATE_LIMITED"));
     await expect(runCloudModel({ system: "s", user: "u" })).rejects.toThrow("RATE_LIMITED");
   });
+
+  it("keeps the server error code on the throw, so callers can tell a rate limit from a blip", async () => {
+    const limited = new Error("You're doing that too often.") as Error & { code: string; status: number };
+    limited.code = "RATE_LIMITED";
+    limited.status = 429;
+    postMock.mockRejectedValue(limited);
+    await expect(runCloudModel({ system: "s", user: "u" })).rejects.toMatchObject({
+      name: "CloudModelError",
+      code: "RATE_LIMITED",
+      status: 429,
+    });
+  });
+
+  it("a code-less throw stays code-less (a transient-looking failure)", async () => {
+    postMock.mockRejectedValue(new Error("boom"));
+    await expect(runCloudModel({ system: "s", user: "u" })).rejects.toMatchObject({
+      name: "CloudModelError",
+      code: undefined,
+    });
+  });
 });
 
 describe("fetchCloudAiStatus", () => {

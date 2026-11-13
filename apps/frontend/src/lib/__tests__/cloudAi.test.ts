@@ -66,6 +66,65 @@ describe("runCloudChat", () => {
     });
   });
 
+  it("retries ONCE on a free-tier 429, then returns the completion", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return calls === 1 ? jsonResponse(false, 429, {}) : jsonResponse(true, 200, { choices: [{ message: { content: "hook line" } }] });
+    }) as unknown as typeof fetch;
+    const text = await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, retryDelayMs: 0 });
+    expect(text).toBe("hook line");
+    expect(calls).toBe(2);
+  });
+
+  it("retries ONCE on a 5xx, and gives up after the second failure", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return jsonResponse(false, 503, {});
+    }) as unknown as typeof fetch;
+    await expect(
+      runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, retryDelayMs: 0 }),
+    ).rejects.toMatchObject({ name: "CloudAiError", status: 503 });
+    expect(calls).toBe(2);
+  });
+
+  it("does NOT retry a deterministic 4xx (a second attempt would fail the same way)", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return jsonResponse(false, 400, {});
+    }) as unknown as typeof fetch;
+    await expect(
+      runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, retryDelayMs: 0 }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(calls).toBe(1);
+  });
+
+  it("does NOT retry an empty completion (deterministic, not transient)", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return jsonResponse(true, 200, { choices: [{ message: { content: "  " } }] });
+    }) as unknown as typeof fetch;
+    await expect(
+      runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, retryDelayMs: 0 }),
+    ).rejects.toBeInstanceOf(CloudAiError);
+    expect(calls).toBe(1);
+  });
+
+  it("retries ONCE on a network blip, then returns the completion", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls === 1) throw new Error("ECONNRESET");
+      return jsonResponse(true, 200, { choices: [{ message: { content: "hook line" } }] });
+    }) as unknown as typeof fetch;
+    const text = await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, retryDelayMs: 0 });
+    expect(text).toBe("hook line");
+    expect(calls).toBe(2);
+  });
+
   it("throws on an empty or malformed completion", async () => {
     const empty = (async () =>
       jsonResponse(true, 200, { choices: [{ message: { content: "  " } }] })) as unknown as typeof fetch;
