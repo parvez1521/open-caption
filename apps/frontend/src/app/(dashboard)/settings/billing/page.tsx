@@ -255,7 +255,7 @@ export default function BillingPage() {
               <h2 className="font-sora text-[15px] font-bold text-ink">Payments</h2>
               {state.payments.length === 0 ? (
                 <p className="mt-4 rounded-xl border border-sand-200 bg-sand-100 p-5 text-[13.5px] text-sand-700">
-                  No payments yet — when you buy a plan, each payment and the period it covers will be listed here.
+                  No payments yet. When you buy a plan, each payment and the period it covers will be listed here.
                 </p>
               ) : (
                 <div className="mt-4 overflow-x-auto rounded-xl border border-sand-200">

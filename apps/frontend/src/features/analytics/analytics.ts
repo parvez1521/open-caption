@@ -163,7 +163,7 @@ export function computeTotals(posts: ReadonlyArray<GrowthPost>): TotalsSection {
     status: posts.length > 0 && anyReported ? "ok" : "insufficient",
     basis:
       posts.length === 0
-        ? "Based on 0 posts — add or import posts in Growth Studio and their totals will appear here"
+        ? "Based on 0 posts. Add or import posts in Growth Studio. Their totals will appear here."
         : anyReported
           ? `${sourceFootnote(posts)}. Totals sum only the figures that were entered; the coverage line under each metric says how many posts reported it`
           : `${sourceFootnote(posts)}, but no post has any metric figure entered — totals need at least one entered figure`,

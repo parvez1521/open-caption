@@ -165,8 +165,8 @@ export const MotionTemplateFields: React.FC<MotionTemplateFieldsProps> = ({
             {image.error ? <p role="alert" className="mt-1.5 text-[12px] font-normal text-orange-accent">{image.error}</p> : null}
             <span className={hintCls}>
               {image.note ?? (field.role === "avatar"
-                ? "Shows the default photo until you upload your own. When you add the graphic to a project, the image is copied into that project's media bin."
-                : "Kept in this browser. When you add the graphic to a project, the image is copied into that project's media bin.")}
+                ? "Shows the default photo until you upload your own. Adding the graphic to a project copies the image in.'s media bin."
+                : "Kept in this browser. Adding the graphic to a project copies the image in.'s media bin.")}
             </span>
           </div>
         );

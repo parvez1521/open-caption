@@ -281,7 +281,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
           <Button onClick={() => onAutoZooms(zoomIntensity)} disabled={!autoZoomCount}>
             Add auto zooms{autoZoomCount ? ` (${autoZoomCount})` : ""}
           </Button>
-          {!autoZoomCount ? <p className="text-xs text-st-faint">No zoom points found — mark a key word in your captions, or check back once the waveform is ready.</p> : null}
+          {!autoZoomCount ? <p className="text-xs text-st-faint">No zoom points found. Mark a key word in your captions. Or check back once the waveform is ready.</p> : null}
         </Section>
       ) : null}
 

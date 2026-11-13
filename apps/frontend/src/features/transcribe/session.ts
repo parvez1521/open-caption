@@ -473,7 +473,7 @@ export class TranscriptionSession {
       detail: message.slice(0, 200),
       phase: "failed",
       error: /memory|allocat|oom|array buffer/.test(m)
-        ? "This device ran out of memory while listening. Close other apps and tabs, then try again, or use a shorter clip."
+        ? "This device ran out of memory while listening. Close other apps and tabs, then try again. Or use a shorter clip."
         : /network|fetch|load failed|failed to fetch/.test(m)
           ? "Setup didn't finish because the connection dropped. Check your internet and try again."
           : "Something interrupted the captions. Try again: it continues from where it stopped, so it's faster now.",

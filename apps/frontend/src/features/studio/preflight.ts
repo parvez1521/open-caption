@@ -23,7 +23,7 @@ export function fourKBlockReason(): string | null {
   if (!isConstrainedDevice()) return null;
   const mem = deviceMemoryGb();
   if (mem !== null) return `4K is off on this device — it reports ${mem} GB of memory and a 4K export needs more. 2K is the highest available here.`;
-  return "4K is off on phones — a 4K export needs more memory than a phone tab can rely on. 2K is the highest available here.";
+  return "4K is off on phones. A 4K export needs more memory than a phone tab has.. 2K is the highest available here.";
 }
 
 /** A clip longer than this gets a warning before transcription starts on a constrained device. */

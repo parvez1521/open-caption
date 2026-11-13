@@ -10,7 +10,7 @@ import { pageMetadata, productJsonLd } from "@/lib/seo";
 export const metadata: Metadata = pageMetadata({
   title: "Pricing",
   description:
-    "Captionit pricing: a free plan with the full editor, and 30-day paid passes for more projects, bigger uploads and longer videos. One price, shown in your currency — no auto-renewal, no surprise charges.",
+    "Captionit pricing: a free plan with the full editor. 30-day paid passes for more projects, bigger uploads and longer videos. One price, in your currency. No auto-renewal. No surprise charges.",
   path: "/pricing",
 });
 

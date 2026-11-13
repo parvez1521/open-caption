@@ -174,7 +174,7 @@ export async function fetchInstagramAccount(
     after = next;
   }
   if (found.size === 0) {
-    throw new Error("Instagram did not share a professional account for this sign-in — the account must be a Business or Creator account shared with the app");
+    throw new Error("Instagram did not share a professional account for this sign-in. The account must be a Business or Creator account. Shared with the app..");
   }
   if (found.size === 1) return [...found.values()][0]!;
   if (existingAccountId && found.has(existingAccountId)) return found.get(existingAccountId)!;

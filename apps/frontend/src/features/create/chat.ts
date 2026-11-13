@@ -340,10 +340,10 @@ export function templateChatPayload(
 /* ---------------------------------- routing ---------------------------------- */
 
 // Fallback notes in service.ts's voice, reworded for a chat answer.
-const FALLBACK_NOTE = "The local model could not run on this device, so this answer came from the template engine instead.";
-const CLOUD_FALLBACK_NOTE = "The free AI service was not available for this answer, so it came from the template engine instead.";
-const CLOUD_TO_LOCAL_NOTE = "The free AI service was not available for this answer, so the local model wrote it instead.";
-const CLOUD_AND_LOCAL_NOTE = "The free AI service and the local model were both unavailable for this answer, so it came from the template engine instead.";
+const FALLBACK_NOTE = "The local model could not run on this device. This answer came from the template engine instead.";
+const CLOUD_FALLBACK_NOTE = "The free AI service was not available for this answer. So it came from the template engine instead.";
+const CLOUD_TO_LOCAL_NOTE = "The free AI service was not available for this answer. So the local model wrote it instead.";
+const CLOUD_AND_LOCAL_NOTE = "The free AI service and the local model were both unavailable. So this answer came from the template engine instead.";
 
 async function tryRunner(
   runner: GenerationDeps["runCloud"],

@@ -114,7 +114,7 @@ export const ASSISTANT_INTENTS: readonly AssistantIntentDef[] = [
     id: "add-title-card",
     label: "Add a title card",
     example: "Add a title card saying “My morning routine”",
-    description: "Place a title card at the start, with the exact text you give.",
+    description: "Place a title card at the start, using your exact text.",
     manualPath: "the Text panel — Title card",
     promptSpec: 'params: {"title": "<the exact title text the user gave, 1–120 characters>"} — only when the user actually gave the title text',
   },
@@ -138,7 +138,7 @@ export const ASSISTANT_INTENTS: readonly AssistantIntentDef[] = [
     id: "duck-music",
     label: "Duck the music under the voice",
     example: "Duck the music by 12 dB",
-    description: "Turn on ducking on the music track that is already placed, so it dips under speech.",
+    description: "Turn on ducking on the music track that is already placed. So it dips under speech.",
     manualPath: "the Audio panel — the music track's ducking controls",
     promptSpec: 'params: {"amountDb": <number 1–24; 12 when the user gives no amount>}',
   },
@@ -224,7 +224,7 @@ const refusal = (reason: AssistantRefusalReason, message: string, manualPath: st
   refusal: { reason, message, manualPath },
 });
 
-const CANT_DO_THAT = "I can't do that one yet — it's outside the list of edits I know how to make, so nothing was changed.";
+const CANT_DO_THAT = "I can't do that one yet. It's outside the list of edits I know how to make. So nothing was changed.";
 
 const invalidParams = (def: AssistantIntentDef, detail: string): AssistantParseResult =>
   refusal(
@@ -379,7 +379,7 @@ const MALFORMED_REFUSAL: AssistantRefusal = {
   manualPath: ASSISTANT_GENERIC_MANUAL_PATH,
 };
 
-const CLOUD_TO_LOCAL_NOTE = "The free AI service was not available for this request, so the local model read it instead.";
+const CLOUD_TO_LOCAL_NOTE = "The free AI service was not available for this request. So the local model read it instead.";
 
 async function tryRunner(
   runner: ModelRunner,
@@ -474,7 +474,7 @@ export function buildAssistantPlan(
         words: doc.words, peaks: input.peaks, hopMs: input.hopMs, durationMs: comp.durationMs,
       }).filter((p) => p.kind === "filler");
       if (proposals.length === 0) {
-        return { plan: { steps: [] }, emptyReason: "No filler words were found in the transcript, so there is nothing to trim." };
+        return { plan: { steps: [] }, emptyReason: "No filler words were found in the transcript. So there is nothing to trim." };
       }
       const totalMs = proposals.reduce((s, p) => s + p.durationMs, 0);
       return {
@@ -561,7 +561,7 @@ export function buildAssistantPlan(
       const existing = comp.audioBleeps ?? [];
       const ranges = all.filter((r) => !existing.some((b) => b.startMs === r.startMs && b.endMs === r.endMs));
       if (ranges.length === 0) {
-        return { plan: { steps: [] }, emptyReason: "Every listed word found in the transcript is already bleeped, so nothing would change." };
+        return { plan: { steps: [] }, emptyReason: "Every listed word found in the transcript is already bleeped. So nothing would change." };
       }
       const wordsList = [...new Set(ranges.map((r) => r.wordText))].join(", ");
       return {

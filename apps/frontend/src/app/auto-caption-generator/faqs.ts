@@ -5,11 +5,11 @@
 export const AUTO_CAPTION_FAQS = [
   {
     q: "Is the automatic caption generator free?",
-    a: "Yes. Captions, every look, the full editor and MP4 and SRT exports are free, with no watermark. Free videos can be up to 5 minutes long. Paid 30-day passes raise the limits — see Pricing.",
+    a: "Yes. Captions, every look, the full editor, MP4 and SRT exports are free.. No watermark. Free videos can be up to 5 minutes long. Paid 30-day passes raise the limits. See Pricing.",
   },
   {
     q: "Do I have to upload my video anywhere?",
-    a: "For transcription and the normal MP4 export, no. Speech recognition and rendering run inside your browser, so the video file is not sent anywhere for those. The file name, size, length and format are stored with your project, and your captions and transcripts are saved so you can reopen the project later. One exception: transparent overlay exports are rendered by the optional desktop Companion app, and that render does use the video from your project.",
+    a: "For transcription and the normal MP4 export, no. Speech recognition and rendering run inside your browser. The video file is not sent anywhere for those. The file name, size, length and format are stored with your project. Your captions and transcripts are saved. So you can reopen the project later.. One exception: transparent overlay exports are rendered by the desktop Companion app. That render does use the video from your project.",
   },
   {
     q: "Which languages can it caption?",
@@ -17,7 +17,7 @@ export const AUTO_CAPTION_FAQS = [
   },
   {
     q: "Can I fix a word it heard wrong?",
-    a: "Yes. Every word is timed to the speech and every word is editable. Click a word, type the correction, and the timing stays. You can also shift all captions at once if the whole track is early or late.",
+    a: "Yes. Every word is timed to the speech, and every word is editable. Click a word and type the correction. The timing stays. You can also shift all captions at once. If the whole track is early or late..",
   },
   {
     q: "What can I export?",
@@ -25,6 +25,6 @@ export const AUTO_CAPTION_FAQS = [
   },
   {
     q: "What can it not do?",
-    a: "It transcribes what was actually said, so it cannot invent captions for silent video, and it will make mistakes on heavy background noise, overlapping speakers or very quiet speech. Fix those by editing the words. It is built for short video: free videos can be up to 5 minutes long, and the longest paid plan allows videos up to 3 hours.",
+    a: "It transcribes what was actually said. So it cannot invent captions for silent video. It will make mistakes on heavy background noise. Overlapping speakers. Or very quiet speech.. Fix those by editing the words. It is built for short video. Free videos can be up to 5 minutes long. The longest paid plan allows videos up to 3 hours.",
   },
 ] as const;

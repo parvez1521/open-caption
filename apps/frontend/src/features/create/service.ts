@@ -36,10 +36,10 @@ export interface GenerationOutcome {
   note?: string;
 }
 
-const FALLBACK_NOTE = "The local model could not run on this device, so this batch came from the template engine instead.";
-const CLOUD_FALLBACK_NOTE = "The free AI service was not available for this batch, so it came from the template engine instead.";
-const CLOUD_TO_LOCAL_NOTE = "The free AI service was not available for this batch, so the local model wrote it instead.";
-const CLOUD_AND_LOCAL_NOTE = "The free AI service and the local model were both unavailable for this batch, so it came from the template engine instead.";
+const FALLBACK_NOTE = "The local model could not run on this device. This batch came from the template engine instead.";
+const CLOUD_FALLBACK_NOTE = "The free AI service was not available for this batch. So it came from the template engine instead.";
+const CLOUD_TO_LOCAL_NOTE = "The free AI service was not available for this batch. So the local model wrote it instead.";
+const CLOUD_AND_LOCAL_NOTE = "The free AI service and the local model were both unavailable. So this batch came from the template engine instead.";
 
 /**
  * Attach the written mechanism explanation for the requested hook style. The mechanism is our

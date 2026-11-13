@@ -703,8 +703,7 @@ export default function PlannerPage() {
               {importError ? <p role="alert" className="mt-3 text-[13px] font-medium text-obsidian">{importError}</p> : null}
               {weeklyPlans.length === 0 ? (
                 <p className="mt-4 text-[14px] text-sand-700">
-                  No saved weekly plans yet. Draft one in Growth Studio and it will appear here,
-                  ready to import.
+                  No saved weekly plans yet. Draft one in Growth Studio. It will appear here, ready to import.
                 </p>
               ) : (
                 <ul className="mt-4 space-y-3">

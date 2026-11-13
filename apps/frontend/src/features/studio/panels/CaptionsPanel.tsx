@@ -321,7 +321,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
             ) : (
               <>
                 <p className="font-semibold text-st-text">No spoken words found</p>
-                <p className="mt-1">This video has no speech we could hear. Add captions with <b>Import SRT / VTT</b> above, or double-click the captions track in the timeline to type a word at the playhead.</p>
+                <p className="mt-1">This video has no speech we could hear. Add captions with <b>Import SRT / VTT</b> above. Or double-click the captions track in the timeline. To type a word at the playhead.</p>
               </>
             )}
           </div> : null}

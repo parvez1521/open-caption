@@ -249,7 +249,7 @@ export default function LoginPage() {
         subtitle={
           <p className="text-[13.5px] text-sand-600">
             {signupIntent
-              ? "One tap with Google — free, no card. You can also make captions as a guest first and add an account when you export."
+              ? "One tap with Google. Free, no card. Or make captions as a guest first. Add an account when you export."
               : "New here? Continue with Google and your free account is ready in one tap."}
           </p>
         }

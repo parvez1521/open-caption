@@ -102,7 +102,7 @@ function ClipperPageInner() {
           ) : projects.length === 0 ? (
             <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
               <p className="font-serif text-2xl font-semibold text-ink">No long video <em className="italic text-sand-600">yet.</em></p>
-              <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">Start with a new long video above: upload it in the studio, let the captions finish, and the suggestions will appear here.</p>
+              <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">Start with a new long video above. Upload it in the studio. Let the captions finish. The suggestions will appear here.</p>
             </div>
           ) : (
             <>

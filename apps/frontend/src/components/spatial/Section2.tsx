@@ -31,7 +31,7 @@ export function Section2() {
       wash="radial-gradient(70% 110% at 82% 45%, rgba(240,215,255,0.14) 0%, rgba(240,215,255,0.05) 45%, transparent 78%)"
       title="150 looks,"
       titleAccent="one click."
-      body="Viral boxes, karaoke fills, glowing neon, three-line stacks. Every look is a complete, tuned style: font, colour, motion and the spoken-word effect. Your words and timing never change."
+      body="Viral boxes, karaoke fills, glowing neon, three-line stacks. Every look is a complete, tuned style. Font, colour, motion and the spoken-word effect. Your words and timing never change."
       points={[
         { k: "Switch any time:", v: "edits, splits and positions stay put." },
         { k: "Tweak everything:", v: "font, size, stroke, shadow, motion speed." },

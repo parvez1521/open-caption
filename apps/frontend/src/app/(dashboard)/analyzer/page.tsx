@@ -306,9 +306,7 @@ export default function AnalyzerPage() {
             from a project that already has captions. Pick a project below, or start with a new video.
           </p>
           <p className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
-            The Analyzer measures the video itself on this device — the spoken transcript and the
-            picture cuts. It does not access Instagram or YouTube analytics, retention, or any other
-            private platform data. Every figure shows how it was measured, and there is no overall score.
+            The Analyzer measures the video itself, on this device. The spoken transcript and the picture cuts. It does not access Instagram or YouTube analytics, retention, or any other private platform data. Every figure shows how it was measured. There is no overall score.
           </p>
           <button
             onClick={() => void startNew()}
@@ -318,8 +316,7 @@ export default function AnalyzerPage() {
             {creating ? "Creating project…" : "Start with a new video"}
           </button>
           <p className="mt-3 max-w-2xl text-[13px] text-sand-700">
-            Captions are made in the studio: the new project opens there so you can upload the video
-            and let transcription finish, then return here and pick the project below.
+            Captions are made in the studio. The new project opens there. Upload the video and let transcription finish. Then return here and pick the project below.
           </p>
           {createError ? <p role="alert" className="mt-3 text-[13px] font-medium text-obsidian">{createError}</p> : null}
         </div>
@@ -336,7 +333,7 @@ export default function AnalyzerPage() {
           ) : projects.length === 0 ? (
             <div className="mt-4 rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
               <p className="font-serif text-2xl font-semibold text-ink">No projects <em className="italic text-sand-600">yet.</em></p>
-              <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">Start with a new video above: upload it in the studio and let the captions finish, then it can be analysed here.</p>
+              <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">Start with a new video above. Upload it in the studio and let the captions finish. Then it can be analysed here.</p>
             </div>
           ) : (
             <ul className="mt-4 space-y-2">
@@ -362,7 +359,7 @@ export default function AnalyzerPage() {
             <div className="mt-6 rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-12 text-center">
               <p className="font-serif text-2xl font-semibold text-ink">No captions <em className="italic text-sand-600">yet.</em></p>
               <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">
-                This project has no captions yet — open it in the studio and let transcription finish, then analyse it here.
+                This project has no captions yet. Open it in the studio and let transcription finish. Then analyse it here.
               </p>
               <Link href={`/projects/${studio.project.id}`} className="mt-6 inline-block rounded-full bg-ink px-6 py-2.5 font-sora text-[13px] font-semibold text-dune-white transition hover:opacity-85">
                 Open in the studio
@@ -379,7 +376,7 @@ export default function AnalyzerPage() {
               ) : null}
               {sceneUnavailable ? (
                 <p role="status" className="rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] text-sand-800">
-                  Scene cuts could not be measured for this file on this device, so cut-based figures read zero.
+                  Scene cuts could not be measured for this file on this device. So cut-based figures read zero.
                 </p>
               ) : null}
             </div>

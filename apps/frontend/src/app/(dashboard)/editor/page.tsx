@@ -44,7 +44,7 @@ export default function VideoEditorPage() {
           <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-[-0.015em] text-ink">
             Video <em className="italic text-sand-600">Editor</em>
           </h1>
-          <p className="mt-2 text-[14px] text-sand-800">The editor opens per project — captions, templates, overlays and adjust, all in one studio.</p>
+          <p className="mt-2 text-[14px] text-sand-800">The editor opens per project. Captions, templates, overlays and adjust, all in one studio.</p>
         </div>
 
         <div className="pt-8">
@@ -58,7 +58,7 @@ export default function VideoEditorPage() {
           ) : projects.length === 0 ? (
             <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
               <p className="font-serif text-2xl font-semibold text-ink">No project to edit <em className="italic text-sand-600">yet.</em></p>
-              <p className="mx-auto mt-3 max-w-[42ch] text-[14px] leading-relaxed text-sand-800">Create a project first — the editor opens as soon as it exists.</p>
+              <p className="mx-auto mt-3 max-w-[42ch] text-[14px] leading-relaxed text-sand-800">Create a project first. The editor opens as soon as it exists.</p>
               <Link href="/captions" className="mt-7 inline-block rounded-full bg-ink px-7 py-3 font-sora text-[13px] font-semibold text-dune-white hover:bg-sand-800 transition-all">Go to Captions</Link>
             </div>
           ) : (

@@ -935,7 +935,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       }
     : null;
   const mp4Block = captionsOnly
-    ? { reason: "This browser couldn't show this video's picture, so an MP4 can't be made here. Download the captions as an SRT file, or open this project in Chrome, Edge or Safari for the MP4." }
+    ? { reason: "This browser couldn't show this video's picture. So an MP4 can't be made here. Download the captions as an SRT file. Or open this project in Chrome, Edge or Safari for the MP4." }
     : data?.video?.needsCompat && compat.state !== "ready"
       ? compat.state === "failed"
         ? { reason: "This browser can play this video but can't copy its picture for export. Download the captions as an SRT file instead." }

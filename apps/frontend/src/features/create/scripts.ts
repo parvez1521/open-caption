@@ -181,15 +181,15 @@ export const DEFAULT_SCRIPT_CTAS: string[] = [
 
 /** Concrete B-roll suggestion per beat label. Template-y by design, but specific to the beat's job. */
 const BROLL_BY_LABEL: Record<string, string> = {
-  Hook: "Close-up of you speaking straight to camera, topic keyword appearing as a title card",
-  Setup: "Wide shot of the workspace or setting, then a screen recording of the starting point",
-  "Main point": "Close-up demonstration of the key step, with the keyword step labelled on screen",
-  Example: "Screen recording or over-the-shoulder shot of the example being done in real time",
-  Proof: "Before-and-after shots side by side, with the result held on screen for two seconds",
-  Context: "Slow pan across the setting, archive photos or a simple diagram of the topic",
-  Chapter: "Demonstration footage for this chapter, cut with a close-up of the detail being explained",
+  Hook: "Close-up of you speaking to camera. Topic keyword as a title card.",
+  Setup: "Wide shot of the workspace or setting. Then a screen recording of the starting point.",
+  "Main point": "Close-up of the key step. Keyword step labelled on screen.",
+  Example: "Screen recording or over-the-shoulder shot. The example done in real time.",
+  Proof: "Before-and-after shots side by side. Result held on screen for two seconds.",
+  Context: "Slow pan across the setting. Archive photos or a simple diagram of the topic.",
+  Chapter: "Demonstration footage for this chapter. Cut with a close-up of the detail explained.",
   Recap: "Quick montage replaying one short clip from each earlier beat",
-  Payoff: "Close-up of the finished result, held steady, with the takeaway as a title card",
+  Payoff: "Close-up of the finished result, held steady. Takeaway as a title card.",
   CTA: "You speaking to camera, with the next video's thumbnail or title shown beside you",
 };
 

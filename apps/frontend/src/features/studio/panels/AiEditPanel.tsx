@@ -320,7 +320,7 @@ export const AiEditPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
             ) : null}
             {plan && plan.steps.length === 0 ? (
               <p className="text-sm text-st-muted">
-                Nothing to change for this style: no fillers or long pauses to cut, no zoom signals, and nothing else the style would add.
+                Nothing to change for this style. No fillers or long pauses to cut. No zoom signals. Nothing else the style would add.
               </p>
             ) : (
               plan?.steps.map((step) => {

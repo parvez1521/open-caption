@@ -120,7 +120,7 @@ export const AiClipperWorkspace: React.FC<{ projectId: string }> = ({ projectId 
   if (!s.doc) {
     return (
       <div className="text-sm text-[#FFFFEB]/70">
-        <p>No captions yet — clips are ranked from the transcript, so this video needs its captions first.</p>
+        <p>No captions yet. Clips are ranked from the transcript. So this video needs its captions first.</p>
         <Link href={`/projects/${projectId}`} className="mt-2 inline-block font-semibold text-[#FFFFEB] underline decoration-[#34D399] decoration-2 underline-offset-4">
           Open the project to caption it
         </Link>
@@ -284,7 +284,7 @@ export const AiClipperWorkspace: React.FC<{ projectId: string }> = ({ projectId 
           <p className="text-sm font-semibold text-[#FFFFEB]">
             Run interrupted at section {interrupted.windowsDone} of {interrupted.windowsTotal}.
           </p>
-          <p className="mt-1 text-[13px] text-[#FFFFEB]/70">Resume picks up where it stopped — finished sections are not read again.</p>
+          <p className="mt-1 text-[13px] text-[#FFFFEB]/70">Resume picks up where it stopped. Finished sections are not read again.</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" onClick={() => void startRun(interrupted)} className="rounded-full bg-[#34D399] px-4 py-2 text-sm font-bold text-[#141412]">
               Resume run

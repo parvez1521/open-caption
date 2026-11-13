@@ -38,7 +38,7 @@ export const ClipperWorkspace: React.FC<{ projectId: string }> = ({ projectId })
   if (!s.doc) {
     return (
       <div className="text-sm text-sand-700">
-        <p>No captions yet — clip suggestions are measured from the transcript, so this video needs its captions first.</p>
+        <p>No captions yet. Clip suggestions are measured from the transcript. So this video needs its captions first.</p>
         <Link href={`/projects/${projectId}`} className="mt-2 inline-block font-semibold text-ink underline decoration-emerald-accent decoration-2 underline-offset-4">
           Open the project to caption it
         </Link>

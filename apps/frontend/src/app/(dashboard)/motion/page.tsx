@@ -58,9 +58,7 @@ export default function MotionDiscoveryPage() {
             Motion <em className="italic text-sand-600">Studio</em>
           </h1>
           <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-sand-800">
-            Animated graphics for your videos — subscribe pills, follow cards, counters, titles and more.
-            Pick one, make it yours, and add it to a project. Every preview below is the real graphic, playing.
-            Motion templates are separate from the 150 caption looks, and both are included.
+            Animated graphics for your videos: subscribe pills, follow cards, counters, titles and more. Pick one, make it yours, and add it to a project. Every preview below is the real graphic, playing. Motion templates are separate from the 150 caption looks. Both are included.
           </p>
         </div>
 
@@ -118,7 +116,7 @@ export default function MotionDiscoveryPage() {
         {results.length === 0 ? (
           <div className="mt-8 rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
             <p className="font-serif text-2xl font-semibold text-ink">No templates match that search.</p>
-            <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">Try a different word, or clear the search and browse the full set.</p>
+            <p className="mx-auto mt-2 max-w-md text-[14px] text-sand-800">Try a different word. Or clear the search and browse the full set.</p>
             <button
               type="button"
               onClick={clearFilters}

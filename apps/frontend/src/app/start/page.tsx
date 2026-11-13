@@ -171,7 +171,7 @@ export default function StartPage() {
               </button>
             ))}
           </div>
-          <p className="text-[13px] text-[#FFFFEB]/55">You can switch later — this only sets how the first project opens.</p>
+          <p className="text-[13px] text-[#FFFFEB]/55">You can switch later. This only sets how the first project opens.</p>
           {chooser.existing ? (
             <button
               onClick={() => router.replace(`/projects/${chooser.existing!.id}`)}

@@ -408,7 +408,7 @@ export function computeNiche(inputs: NicheInputs): NicheSection {
     status: ok ? "ok" : "insufficient",
     basis: ok
       ? `Based on ${competitorAnalyses.length} competitor breakdowns you saved from the Reel Analyzer (${inputs.competitors.length} competitor profiles)`
-      : "Based on 0 competitor breakdowns — analyse a competitor video in the Reel Analyzer and save it to fill this section",
+      : "Based on 0 competitor breakdowns. Analyse a competitor video in the Reel Analyzer. Save it to fill this section.",
     perCompetitor,
     commonCtas,
     ownAvgWordsPerMin,

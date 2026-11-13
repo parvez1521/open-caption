@@ -2,27 +2,27 @@
 export const FAQS = [
   {
     q: "Is Captionit really free?",
-    a: "Yes. Captions, every look, the full editor and MP4 and SRT exports are free, with no watermark. Free videos can be up to 5 minutes long. Paid 30-day passes raise the limits — see Pricing.",
+    a: "Yes. Captions, every look, the full editor, MP4 and SRT exports are free.. No watermark. Free videos can be up to 5 minutes long. Paid 30-day passes raise the limits. See Pricing.",
   },
   {
     q: "Is my video uploaded anywhere?",
-    a: "For transcription and the normal MP4 export, no — speech recognition and rendering run inside your browser, so the video file is not sent anywhere for those. The file name, size, length and format of each video are stored with your project, and your captions and full transcripts are saved so you can reopen the project later. One exception: transparent overlay exports are rendered by the optional desktop Companion app, and that render does use the video from your project.",
+    a: "For transcription and the normal MP4 export, no. Speech recognition and rendering run inside your browser. The video file is not sent anywhere for those. The file name, size, length and format are stored with your project. Your captions and transcripts are saved. So you can reopen the project later.. One exception: transparent overlay exports are rendered by the desktop Companion app. That render does use the video from your project.",
   },
   {
     q: "Will Captionit work with vertical 9:16 Shorts, Reels, and TikToks?",
-    a: "Yes. Vertical 9:16 is what Captionit is built for, and 16:9 widescreen works the same way. You can drag the caption box anywhere in the frame, clear of faces and platform buttons.",
+    a: "Yes. Vertical 9:16 is what Captionit is built for. 16:9 widescreen works the same way. Drag the caption box anywhere in the frame. Clear of faces and platform buttons..",
   },
   {
     q: "How is Captionit different from basic CapCut or Premiere captions?",
-    a: "CapCut and Premiere captions are plain timed text. Here every word is timed to the speech, the key word on each line gets its own colour, box or motion, and you start from 150 animated looks. No watermark, nothing to install.",
+    a: "CapCut and Premiere captions are plain timed text. Here every word is timed to the speech. The key word on each line gets its own look. Colour, box or motion.. You start from 150 animated looks. No watermark, nothing to install.",
   },
   {
     q: "Do I need to install anything?",
-    a: "No. Transcription, editing and MP4 export all run in your browser, on desktop or phone.",
+    a: "No. Transcription, editing and MP4 export run in your browser. On desktop or phone.",
   },
   {
     q: "Can I customize the font, colors, and animations?",
-    a: "Yes. Start from a look, such as the Hormozi-style box, Karaoke Fill, Beast Bounce, Luxe Serif, Neon, Comic or Retro 3D, then change fonts, colours, outlines, position and motion. Save your colours and font as a brand kit and reuse it on every project.",
+    a: "Yes. Start from a look. Like the Hormozi-style box, Karaoke Fill or Beast Bounce. Or Luxe Serif, Neon, Comic or Retro 3D.. Then change fonts, colours, outlines, position and motion. Save your colours and font as a brand kit. Reuse it on every project.",
   },
   {
     q: "Does it support Hindi and Hinglish?",

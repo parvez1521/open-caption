@@ -40,7 +40,7 @@ export function Section4() {
       wash="radial-gradient(70% 110% at 82% 45%, rgba(228,228,208,0.14) 0%, rgba(228,228,208,0.05) 50%, transparent 80%)"
       title="Captions only,"
       titleAccent="zero re-encode."
-      body="Editing in Premiere, Resolve or Final Cut? Export just the animated captions on a transparent background and lay them over your own grade. Your footage is never recompressed. Transparent exports are rendered by the free desktop Companion app."
+      body="Editing in Premiere, Resolve or Final Cut? Export just the animated captions on a transparent background. Lay them over your own grade. Your footage is never recompressed. Transparent exports are rendered by the free desktop Companion app."
       points={[
         { k: "ProRes 4444 or WebM", v: "with a real alpha channel." },
         { k: "MP4 made in your browser,", v: "at full quality, no watermark." },

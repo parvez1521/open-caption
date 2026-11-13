@@ -33,7 +33,7 @@ export const AdjustPanel: React.FC<{
         <Slider label="Shadows" value={a.shadows * 100} min={-100} max={100} step={1} onChange={(v) => set({ shadows: v / 100 })} />
         <Slider label="Temperature (warm →)" value={a.temperature * 100} min={-100} max={100} step={1} onChange={(v) => set({ temperature: v / 100 })} />
         <Slider label="Tint" value={a.tint * 100} min={-100} max={100} step={1} onChange={(v) => set({ tint: v / 100 })} />
-        <p className="text-xs text-st-faint">Highlights, shadows, temperature and tint are approximations of the photographic controls, matched between preview and export.</p>
+        <p className="text-xs text-st-faint">Highlights, shadows, temperature and tint are approximations of the photographic controls. Matched between preview and export.</p>
         <Button onClick={() => patch({ videoAdjust: { ...NEUTRAL_VIDEO_ADJUST } })} disabled={neutral} className="w-full">Reset adjustments</Button>
       </Section>
       {/* A14 scopes: mounted with NO props on purpose — the section is display-only

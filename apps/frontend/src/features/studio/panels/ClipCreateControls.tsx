@@ -88,8 +88,7 @@ export const ClipTitleControl: React.FC<{
           {busy ? "Writing title…" : "Generate a title for this clip"}
         </Button>
         <p className="mt-1.5 text-[11px] leading-snug text-st-faint">
-          Uses the same generation as Creator Studio — the free AI when it is on, the on-device model when enabled,
-          otherwise the template engine. The title shows its source before you create the clip.
+          Uses the same generation as Creator Studio. The free AI when it is on. The on-device model when enabled. Otherwise the template engine. The title shows its source before you create the clip.
         </p>
         {error ? <p role="alert" className="mt-2 text-xs text-st-text">{error}</p> : null}
       </div>
@@ -268,7 +267,7 @@ export const ReframeControl: React.FC<{
               }}
             />
           </div>
-          <p className="mt-1 text-[11px] text-st-faint">Drag on the frame to move the window, or use the sliders below.</p>
+          <p className="mt-1 text-[11px] text-st-faint">Drag on the frame to move the window. Or use the sliders below.</p>
           <div className="mt-2 grid grid-cols-2 gap-2">
             <label className="block">
               <span className={labelCls}>Horizontal position</span>

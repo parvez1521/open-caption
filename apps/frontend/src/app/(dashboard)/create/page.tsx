@@ -405,7 +405,7 @@ export default function GeneratorsPage() {
   const saveScriptToLibrary = async () => {
     if (!scriptDoc) return;
     if (!libraryReady) {
-      setScriptSaveNote("Your content library is pending a database update on the server, so this script cannot be saved there yet. Copy the script to keep it for now.");
+      setScriptSaveNote("Your content library is pending a database update on the server. So this script cannot be saved there yet. Copy the script to keep it for now.");
       return;
     }
     try {
@@ -605,7 +605,7 @@ export default function GeneratorsPage() {
               </label>
             </div>
             {!useProfile ? (
-              <p className="mt-3 text-[12px] text-sand-600">Paused for this session — generations below will not use your profile. Turn it back on at any time.</p>
+              <p className="mt-3 text-[12px] text-sand-600">Paused for this session. Generations below will not use your profile. Turn it back on at any time.</p>
             ) : null}
           </section>
         ) : null}
@@ -684,7 +684,7 @@ export default function GeneratorsPage() {
                       <label className={labelCls} htmlFor="g-sdisclosure">Disclosure text — goes in every caption</label>
                       <input id="g-sdisclosure" className={inputCls} value={sponsoredDisclosure} onChange={(e) => setSponsoredDisclosure(e.target.value)} placeholder="#ad" />
                       {!sponsoredDisclosure.trim() ? (
-                        <p className="mt-1.5 text-[12px] font-medium text-obsidian">Sponsored mode is on but the disclosure is empty — generation will stop until you add one.</p>
+                        <p className="mt-1.5 text-[12px] font-medium text-obsidian">Sponsored mode is on, but the disclosure is empty. Generation will stop until you add one.</p>
                       ) : null}
                     </div>
                   </div>
@@ -766,7 +766,7 @@ export default function GeneratorsPage() {
               <p className="rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-3 py-2 text-[12px] text-obsidian">{batch.note}</p>
             ) : null}
             {batch.kind === "captions" && !libraryReady ? (
-              <p className="text-[12px] text-sand-600">Hashtag groups need your content library — a database update is pending on the server.</p>
+              <p className="text-[12px] text-sand-600">Hashtag groups need your content library. A database update is pending on the server.</p>
             ) : null}
             {batch.items.map((item, i) => {
               const key = `${batch.kind}-${i}`;
@@ -859,11 +859,10 @@ export default function GeneratorsPage() {
           ) : (
             <>
               <p className="mt-1 text-[13px] text-sand-700">
-                Drafts are stored on this device only, in this browser. They are not uploaded or synced, and there is no
-                shared library yet.
+                Drafts are stored on this device only, in this browser. They are not uploaded or synced. There is no shared library yet.
               </p>
               <p className="mt-1 text-[13px] text-sand-700">
-                Your server library is pending a database update — once it is applied, saved items will live in your library instead of only on this device.
+                Your server library is pending a database update. Once it is applied, saved items will live in your library. Not only on this device.
               </p>
               {drafts.length ? (
                 <div className="mt-4 space-y-3">

@@ -150,7 +150,7 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
     <section aria-label="Export this animation" className="border-t border-sand-200 pt-6">
       <h2 className="font-sora text-[13px] font-bold uppercase tracking-wider text-sand-600">Export this animation</h2>
       <p className="mt-1.5 text-[12px] text-sand-600">
-        Make a video of just this animation on the background you choose below, ready to drop into any editor. It is rendered in this browser — no project is created.
+        Make a video of just this animation. On the background you choose below. Ready to drop into any editor. It is rendered in this browser. No project is created.
       </p>
 
       <div className="mt-4 space-y-4">
@@ -179,7 +179,7 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
                 className="h-8 w-12 cursor-pointer rounded border border-sand-200 bg-sand-50 p-0.5"
               />
               <span className="text-[12px] tabular-nums text-sand-600">{selection.chromaColor.toUpperCase()}</span>
-              <span className="text-[12px] text-sand-600">Key this colour out in your editor to place the animation over your own footage.</span>
+              <span className="text-[12px] text-sand-600">Key this colour out in your editor. Place the animation over your own footage.</span>
             </div>
           ) : null}
         </div>

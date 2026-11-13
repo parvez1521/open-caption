@@ -24,7 +24,7 @@ export function Section3() {
       wash="radial-gradient(70% 110% at 82% 45%, rgba(255,169,70,0.22) 0%, rgba(255,169,70,0.07) 45%, transparent 78%)"
       title="Keywords"
       titleAccent="that pop."
-      body="On every card the engine picks the word that carries the meaning and gives it the look's hero treatment: bigger, bolder, its own colour or box. Swipe-stopping, with no manual keyframes."
+      body="On every card, the engine picks the word that carries the meaning. It gives that word the look.'s hero treatment: bigger, bolder, its own colour or box. Swipe-stopping, with no manual keyframes."
       points={[
         { k: "Picked automatically,", v: "favouring numbers, names and strong words." },
         { k: "Always yours:", v: "click any word to make it the hero." },

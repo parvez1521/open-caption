@@ -262,7 +262,7 @@ export default function PrompterPage() {
     if (!item) return;
     const imported = prompterTextForScriptItem(item);
     if (imported === null) {
-      setSourceError("That saved item could not be read as a script, so nothing was loaded.");
+      setSourceError("That saved item could not be read as a script. So nothing was loaded.");
       return;
     }
     loadText(imported, `Loaded from Script Studio: ${item.title}`);
@@ -355,15 +355,12 @@ export default function PrompterPage() {
             Tele<em className="italic text-sand-600">prompter</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Read a script at your pace: bring one in from Script Studio or paste your own text,
-            then set the scroll speed, size and position and press play.
+            Read a script at your pace. Bring one in from Script Studio, or paste your own text. Then set the scroll speed, size and position, and press play.
           </p>
           <details className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
             <summary className="cursor-pointer font-semibold">About the optional record mode</summary>
             <p className="mt-1.5">
-              The Teleprompter itself only displays your text and scrolls it. If you want to film
-              yourself reading, the optional record mode uses your camera entirely on this
-              device — nothing is uploaded.
+              The Teleprompter only displays your text and scrolls it. To film yourself reading, the optional record mode uses your camera entirely on this device. Nothing is uploaded.
             </p>
           </details>
         </div>
@@ -579,7 +576,7 @@ export default function PrompterPage() {
                   className={ghostBtn}
                   aria-pressed={settings.mirror}
                   onClick={() => updateSettings({ mirror: !settings.mirror })}
-                  title="Flip the script text left-right, for reading through a mirror or teleprompter glass"
+                  title="Flip the script text left-right. For reading through a mirror or teleprompter glass."
                 >
                   Flip text {settings.mirror ? "on" : "off"}
                 </button>
@@ -620,8 +617,7 @@ export default function PrompterPage() {
               ))}
             </ul>
             <p className="mt-3 text-[12px] leading-relaxed text-sand-600">
-              Shortcuts pause while you are typing in a text box or using a slider or the script
-              picker, so those keep working as normal.
+              Shortcuts pause while you type in a text box, or use a slider or the script picker. So those keep working as normal.
             </p>
           </div>
         </section>

@@ -79,7 +79,7 @@ describe("analyzeReel — 45 s fixture", () => {
     for (const beat of breakdown.beats) {
       expect(beat.method).toContain(`${BEAT_PAUSE_MS} ms`);
       expect(beat.method).toContain("structural positions only");
-      expect(beat.method).toContain("not quality judgements");
+      expect(beat.method).toContain("Not quality judgements");
     }
   });
 
