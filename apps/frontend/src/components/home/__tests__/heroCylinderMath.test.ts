@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AUTO_DEG_PER_MS, RESUME_AFTER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, facingOpacity, stepDeg } from "../heroCylinderMath";
+import { AUTO_DEG_PER_MS, RESUME_AFTER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, facingOpacity, shouldResumeAutoRotate, stepDeg } from "../heroCylinderMath";
 
 describe("hero cylinder geometry", () => {
   it("spaces 10 trending cards evenly around the ring", () => {
@@ -37,5 +37,20 @@ describe("hero cylinder geometry", () => {
     expect(dragDeltaDeg(100)).toBeCloseTo(22);
     expect(AUTO_DEG_PER_MS * 72_000).toBeCloseTo(360);
     expect(RESUME_AFTER_MS).toBe(2500);
+  });
+
+  it("auto-rotation resumes only after the post-drag pause (and never while dragging)", () => {
+    // mid-drag: never resumes, however long the drag lasts
+    expect(shouldResumeAutoRotate(true, 10_000, 0)).toBe(false);
+    expect(shouldResumeAutoRotate(true, 100_000, 0)).toBe(false);
+    // drag just ended: still paused inside the 2.5s window (boundary is strict)
+    expect(shouldResumeAutoRotate(false, 10_000, 9_000)).toBe(false);
+    expect(shouldResumeAutoRotate(false, 10_000, 7_500)).toBe(false);
+    // past the window: resumes
+    expect(shouldResumeAutoRotate(false, 10_000, 7_499)).toBe(true);
+    expect(shouldResumeAutoRotate(false, 10_000, 0)).toBe(true);
+    // never dragged at all: resumes once the page is older than the window
+    expect(shouldResumeAutoRotate(false, 2_500, 0)).toBe(false);
+    expect(shouldResumeAutoRotate(false, 2_501, 0)).toBe(true);
   });
 });
