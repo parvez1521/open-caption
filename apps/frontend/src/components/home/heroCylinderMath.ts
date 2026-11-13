@@ -39,3 +39,12 @@ export const AUTO_DEG_PER_MS = 360 / 72_000;
 
 /** Auto-rotation stays paused this long after the visitor last dragged. */
 export const RESUME_AFTER_MS = 2_500;
+
+/**
+ * The resume gate for the rotation loop: auto-rotation runs only when nobody is dragging and
+ * the last drag ended over RESUME_AFTER_MS ago. Kept pure so the resume rule is unit-tested:
+ * a drag that never ends (its up/cancel lost) must be the only way this stays false, which is
+ * why the component also ends the drag on lostpointercapture.
+ */
+export const shouldResumeAutoRotate = (dragging: boolean, nowMs: number, lastDragEndMs: number): boolean =>
+  !dragging && nowMs - lastDragEndMs > RESUME_AFTER_MS;

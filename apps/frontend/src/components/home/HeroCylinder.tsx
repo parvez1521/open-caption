@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { TRENDING_LOOKS, fontStack, loadFontFamily, type LookDefinition } from "@capseasy/templates";
 import { AnimatedTemplatePreview } from "@/features/studio/panels/AnimatedTemplatePreview";
-import { AUTO_DEG_PER_MS, RESUME_AFTER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, facingOpacity } from "./heroCylinderMath";
+import { AUTO_DEG_PER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, facingOpacity, shouldResumeAutoRotate } from "./heroCylinderMath";
 
 /**
  * Hero visual: the curated Trending templates on a slowly rotating 3D cylinder.
@@ -12,7 +12,10 @@ import { AUTO_DEG_PER_MS, RESUME_AFTER_MS, cardTransform, cylinderRadius, dragDe
  * - Auto-rotation is SLOW (one turn / 72s), driven by direct DOM writes (no React re-render per
  *   frame), and pauses while the hero is off-screen, the tab is hidden, the visitor is dragging,
  *   or for 2.5s after a drag. prefers-reduced-motion disables auto-rotation entirely.
- * - Drag / swipe (pointer events, touch-action none) spins the ring manually.
+ * - Drag / swipe (pointer events, touch-action none) spins the ring manually. The drag ends on
+ *   pointerup, pointercancel, or lostpointercapture: the last one is the safety net — if the
+ *   gesture's up/cancel never arrives (interrupted drag, capture taken elsewhere), the drag
+ *   state would otherwise stay set forever and auto-rotation would never resume.
  * - Every card's preview is the studio picker's AnimatedTemplatePreview — the template's own Page
  *   through PageView over the same synthetic page — so hero motion is the real template motion.
  *   That component's shared FIFO budget caps live previews at 6 across the page, and each preview
@@ -114,7 +117,7 @@ export function HeroCylinder() {
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
-      const idle = !dragRef.current && now - lastDragEndRef.current > RESUME_AFTER_MS;
+      const idle = shouldResumeAutoRotate(!!dragRef.current, now, lastDragEndRef.current);
       if (!reducedRef.current && visibleRef.current && !document.hidden && idle) {
         angleRef.current = (angleRef.current + AUTO_DEG_PER_MS * dt) % 360;
         apply();
@@ -160,6 +163,7 @@ export function HeroCylinder() {
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
       >
         <div ref={ringRef} className="absolute inset-0" style={{ transformStyle: "preserve-3d" }}>
           {looks.map((look, i) => (
