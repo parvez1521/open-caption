@@ -1,13 +1,33 @@
 # Overnight QA — RESUME checkpoint
 
-Last updated: 2026-11-14 ~03:35 IST. Coordinator: RECOVERY coordinator (second coordinator; first coordinator completed Phases 1 + planning, then ended without a final answer after an approval card timed out — owner asleep, no approvals overnight).
-Branch: `qa/captionit-full-audit-fixes` (worktree `~/workspace/oc-overnight-qa`, base origin/main @ b32c36a).
-Live site under test: https://www.captionit.in (www primary; apex 308→www). NO deploy, NO merge to main.
-RULE: never wait on an approval card. If an action triggers one, stop it, route around it, record it here + in the morning handoff. Do not re-trigger it.
+Last updated: 2026-11-14 ~08:30 IST. **MISSION COMPLETE.** Coordinator: RECOVERY coordinator.
+Branch: `qa/captionit-full-audit-fixes` — **committed cb57f63, PUSHED to origin** (325 files).
+Base origin/main @ b32c36a. NO deploy, NO merge. Morning handoff: `qa/overnight-audit/MORNING-HANDOFF.md`.
 
-## Wait gate (from the task brief) — RECHECKED 2026-11-14 ~03:30 IST
-- Checkout branch LANDED: `feature/checkout-error-surface-2026-11-14` @ e39e30e. Quota branch DONE: 2d4d140. Copy branch READY: `feature/short-copy-2026-11-14` @ e2ef3b4 (gates 2139/2139, per MEMORY.md — parent's job, do NOT touch). **Previews branch STILL not on origin** (`feature/caption-template-previews-2026-11-14` — builder 97163cb3 status unknown; do NOT block the mission on it).
-- 2 vitest/next-build processes seen ~03:30 IST (other builders gating) — light CDP work only while they run; heavy gates run when quiet.
+## Final counts
+- Matrix (60 cases): 16 pass, 21 partial, 1 partial-blocked, 1 fail (M19 previews),
+  1 known-open (M43 checkout), 6 blocked-env, 2 partial-env, 12 not run.
+- Bugs: 11 filed. Fixed on this branch: 4 (BUG-007, 008, 010, 011). Fix on another
+  branch: 2 (BUG-009 previews @ 699b259, Cashfree checkout). Not fixed: 5
+  (BUG-001, 002, 004, 005, 006 as recommendations; BUG-003 excluded by owner).
+- Final gates: **2155/2155 tests (193 files), typecheck rc=0, build rc=0.**
+  (First final run failed 2 edge-resize tests — BUG-011 handle change removed the
+  aria-label locators; updated to `title`, same assertions, green on re-run.)
+
+## Environment notes (for any follow-up work)
+- Dev server MUST run with `NODE_USE_ENV_PROXY=1` or server-side API calls hang
+  (Node fetch ignores proxy env vars by default). The proxy credential rotates —
+  if API calls start hanging, restart the dev server from a fresh exec.
+- Local Chromium cannot reach ANY external site (direct + proxy both fail).
+  Guest sessions are seeded via shell curl to Supabase's anonymous signup
+  (the app's own mechanism); sessions expire after 1h — use fresh profiles
+  per session, never reuse a profile across an expired session.
+- `DOM.setFileInputFiles` returns success but leaves `input.files` empty in
+  chrome-headless-shell — use `tests/e2e/upload-file.mjs` (DataTransfer +
+  same-origin fetch). Assets must be served same-origin (temp copy into
+  `apps/frontend/public/qa-assets/`, deleted at mission end — NOT in the commit).
+- Single-file vitest: `pnpm --filter frontend exec vitest run <path>` from the
+  worktree root (fast). Full suite ~4-10 min; run gates serially on a quiet machine.
 
 ## Discovery — VERIFIED by recovery coordinator 2026-11-14 ~02:15 IST
 - 39 pages ✓ (`find app -name page.tsx`), 60 API routes ✓, 14 languages ✓ (en, hinglish, hindi, tamil, telugu, bengali, marathi, punjabi, urdu, spanish, french, german, arabic, portuguese).
