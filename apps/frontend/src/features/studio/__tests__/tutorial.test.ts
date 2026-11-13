@@ -22,7 +22,7 @@ describe("tutorial seen flag", () => {
   it("shows the tour only when the flag is unset", () => {
     expect(shouldShowTutorial(fakeStorage())).toBe(true);
     expect(shouldShowTutorial(fakeStorage({ [TUTORIAL_SEEN_KEY]: "1" }))).toBe(false);
-    expect(TUTORIAL_SEEN_KEY).toBe("ce:tutorial-seen:v1");
+    expect(TUTORIAL_SEEN_KEY).toBe("ce:tutorial-seen:v2");
   });
 
   it("marking seen sets the versioned flag so it never shows again", () => {
@@ -41,7 +41,12 @@ describe("tutorial seen flag", () => {
 describe("tutorial steps", () => {
   it("has six steps in the brief's order with the studio anchors", () => {
     expect(TUTORIAL_STEPS).toHaveLength(6);
-    expect(TUTORIAL_STEPS.map((s) => s.anchor)).toEqual(["captions", "captions", "templates", "captions", "style", "export"]);
+    expect(TUTORIAL_STEPS.map((s) => s.anchor)).toEqual(["captions", "captions", "templates", "shift-all", "style", "export"]);
+    // the timing step spotlights the shift-all block and covers both ways to retime
+    const timing = TUTORIAL_STEPS.find((s) => s.id === "timing")!;
+    expect(timing.anchor).toBe("shift-all");
+    expect(timing.body).toMatch(/shift every caption at once/i);
+    expect(timing.body).toMatch(/drag/i);
     expect(TUTORIAL_STEPS.map((s) => s.title)).toEqual([
       "Your captions are ready",
       "Fix any word",

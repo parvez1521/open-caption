@@ -4,7 +4,9 @@
  * the flag is set when the user finishes OR skips, and never unset.
  */
 
-export const TUTORIAL_SEEN_KEY = "ce:tutorial-seen:v1";
+// v2 (2026-11-13): the timing step was re-anchored to the shift-all block, so the updated
+// tour shows once more for existing users (v1 holders have the old flag, never this one).
+export const TUTORIAL_SEEN_KEY = "ce:tutorial-seen:v2";
 
 export interface TutorialStep {
   id: string;
@@ -35,9 +37,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: "timing",
-    anchor: "captions",
+    anchor: "shift-all",
     title: "Nudge the timing",
-    body: "Drag across words to select them, then drag the selection left or right to retime it — or shift all captions at once from the top of this panel.",
+    body: "Drag across words to select them, then drag the selection left or right to retime it. Or shift every caption at once here — tap a quick nudge, or type the seconds and Apply shift.",
   },
   {
     id: "style",

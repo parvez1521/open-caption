@@ -208,11 +208,9 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           </div>
         ) : null}
         {doc.words.length > 0 ? (
-          <details className="space-y-1.5">
-            <summary className="cursor-pointer text-xs font-semibold text-st-text">
-              Shift all captions
-            </summary>
-            <div className="flex flex-wrap gap-1.5 pt-1">
+          <div data-tour="shift-all" className="space-y-1.5 rounded-xl border border-st-em/60 bg-st-em/10 p-2.5">
+            <p className="text-xs font-semibold text-st-text">Shift all captions</p>
+            <div className="flex flex-wrap gap-1.5">
               {[-1000, -500, -100, 100, 500, 1000].map((ms) => (
                 <Button key={ms} disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => shiftAllWords(d, ms))}>
                   {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
@@ -233,7 +231,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
               />
               <Button disabled={locked} className="!py-1 text-xs" onClick={applyShiftInput}>Apply shift</Button>
             </div>
-          </details>
+          </div>
         ) : null}
       </div>
 
