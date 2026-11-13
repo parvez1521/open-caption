@@ -15,7 +15,7 @@ import { pipeline, env, StoppingCriteria, type AutomaticSpeechRecognitionPipelin
 import { MODELS, isConstrainedDevice, pickRuntime, runtimeFor, type Device, type SpeechLanguage } from "./runtime";
 import { useBundledOnnxWasm } from "./onnxWasm";
 import { Resampler, downmix } from "./resample";
-import { SR, TimelineAligner, capWordEnd, dropRepeatedRuns, isLooping, planWindows, renderWindow, toOriginalSeconds, type PackedWindow } from "./speech";
+import { SR, TimelineAligner, capWordEnd, dropRepeatedRuns, isLooping, planWindows, refineWordTimings, renderWindow, toOriginalSeconds, type PackedWindow } from "./speech";
 
 env.allowLocalModels = false;
 // OC-003: self-hosted ONNX WASM (bundled assets) instead of the jsDelivr CDN
@@ -237,7 +237,10 @@ async function runWindow(audio: Float32Array, w: PackedWindow, language: string 
     const end = capWordEnd(c.text, a, b ?? a + 0.3, seconds);
     words.push({ text: c.text, startMs: toOriginalSeconds(w, a) * 1000, endMs: toOriginalSeconds(w, end) * 1000 });
   }
-  return dropRepeatedRuns(words);
+  // Whisper's word times lag the sound (DTW over cross-attention: starts 160–290 ms late on the
+  // measured test clip): anchor each word's edges to the speech burst it belongs to.
+  // Mid-burst words keep Whisper's times — see refineWordTimings in speech.ts.
+  return dropRepeatedRuns(refineWordTimings(words, audio));
 }
 
 self.onmessage = async (e: MessageEvent<In>) => {
