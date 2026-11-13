@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth";
 import { supabase, isGoogleAuthEnabled, isSupabaseConfigured } from "@/services/auth/supabaseClient";
+import { renderGoogleSignInButton } from "@/services/auth/googleIdToken";
 import { setAfterSignIn } from "@/services/auth/guest";
 import AuthShell, { Field, PasswordField, SubmitButton, ErrorNote, friendlyAuthError, validEmail } from "@/components/auth/AuthShell";
 import { BRAND_NAME } from "@/lib/brand";
@@ -52,6 +53,61 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Google Identity Services button (captionit.in chooser) vs the old OAuth button:
+  // "checking" shows the old button until GIS proves itself; "gis" swaps in Google's
+  // own button; "oauth" keeps the old button (client ID unset or GIS failed to load).
+  // The old flow is never removed — it is the fallback, and the only way back if the
+  // live test ever shows the chooser still naming the Supabase host.
+  //
+  // googleButton renders in BOTH modes (the google branch, and below the email form),
+  // so a mode toggle unmounts the container the GIS button lives in. Track which
+  // container the button is rendered (or being rendered) into, and re-render into a
+  // new container after a toggle — otherwise the toggle leaves an empty container
+  // with gisMode "gis" and no Google button at all. A failed GIS setup is remembered
+  // so toggles do not retry a dead load (a page reload re-attempts).
+  const gisContainerRef = useRef<HTMLDivElement>(null);
+  const gisRenderedForRef = useRef<HTMLDivElement | null>(null);
+  const gisAttemptForRef = useRef<HTMLDivElement | null>(null);
+  const gisUnavailableRef = useRef(false);
+  const [gisMode, setGisMode] = useState<"checking" | "gis" | "oauth">("checking");
+  useEffect(() => {
+    if (!googleEnabled) return;
+    const container = gisContainerRef.current;
+    if (!container) {
+      setGisMode("oauth");
+      return;
+    }
+    if (gisRenderedForRef.current === container || gisAttemptForRef.current === container) return;
+    if (gisUnavailableRef.current) {
+      setGisMode("oauth");
+      return;
+    }
+    gisAttemptForRef.current = container;
+    let cancelled = false;
+    void (async () => {
+      const result = await renderGoogleSignInButton(container, {
+        // the onAuthStateChange listener below also redirects on SIGNED_IN; this
+        // is the deterministic path (same /start target as the OAuth flow).
+        onSignedIn: () => router.replace("/start"),
+        onError: (err) => {
+          setError(friendlyAuthError(err.message || "Google sign-in failed."));
+          setLoading(false);
+        },
+      });
+      if (cancelled) return;
+      if (result === "gis") {
+        gisRenderedForRef.current = container;
+        setGisMode("gis");
+      } else {
+        gisUnavailableRef.current = true;
+        setGisMode("oauth");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [googleEnabled, mode, router]);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
   // on a slow phone people type before the page script has loaded: keep what they typed, and keep the
   // button off until then (pressing Enter earlier would reload the page and wipe the form)
@@ -134,22 +190,30 @@ export default function LoginPage() {
     setFieldErrors({});
   };
 
+  // The old OAuth button (fallback): shown while GIS is still loading and whenever
+  // GIS is unavailable. The GIS container sits above it and replaces it once Google's
+  // own button renders — an empty container takes no space, so nothing shifts.
   const googleButton = (
-    <button
-      type="button"
-      onClick={handleGoogle}
-      disabled={loading}
-      className={`w-full rounded-xl py-3 px-3 font-semibold text-[14px] transition duration-150 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2.5 ${
-        mode === "google"
-          ? "bg-[#FFFFEB] text-[#141412] hover:bg-[#E4E4D6] shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]"
-          : "border border-sand-200 bg-[#1E1E1B] text-sand-700 hover:bg-[#232320] hover:border-sand-300 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-      }`}
-    >
-      <span className={mode === "google" ? "rounded-full bg-[#FFFFEB] p-1" : ""}>
-        <GoogleIcon />
-      </span>
-      <span className="truncate">Continue with Google</span>
-    </button>
+    <>
+      <div ref={gisContainerRef} className="w-full" aria-label="Sign in with Google" />
+      {gisMode !== "gis" ? (
+        <button
+          type="button"
+          onClick={handleGoogle}
+          disabled={loading}
+          className={`w-full rounded-xl py-3 px-3 font-semibold text-[14px] transition duration-150 cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2.5 ${
+            mode === "google"
+              ? "bg-[#FFFFEB] text-[#141412] hover:bg-[#E4E4D6] shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]"
+              : "border border-sand-200 bg-[#1E1E1B] text-sand-700 hover:bg-[#232320] hover:border-sand-300 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+          }`}
+        >
+          <span className={mode === "google" ? "rounded-full bg-[#FFFFEB] p-1" : ""}>
+            <GoogleIcon />
+          </span>
+          <span className="truncate">Continue with Google</span>
+        </button>
+      ) : null}
+    </>
   );
 
   // No Supabase backend is connected yet, so Google/email sign-in cannot work —

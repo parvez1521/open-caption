@@ -35,6 +35,11 @@
  * - Camera/microphone: the Teleprompter recorder (A13) uses getUserMedia on this origin,
  *   so Permissions-Policy must allow (self) — camera=()/microphone=() silently disables
  *   recording site-wide (deep-audit finding B1, 2026-11-11).
+ * - Google Identity Services (2026-11-13 sign-in branding fix): the GIS script, button
+ *   iframe and token calls all use accounts.google.com (script-src / frame-src /
+ *   connect-src). Permissions-Policy lists no `identity-credentials-get` directive, so
+ *   FedCM is allowed by default — deliberately NOT added as `()` (that would block the
+ *   FedCM chooser the GIS button uses with `use_fedcm_for_prompt: true`).
  *
  * Known trade-off, deliberate: `script-src` keeps `'unsafe-inline'` because the Next.js App Router
  * emits inline bootstrap scripts and the root layout ships two small constant inline scripts;
@@ -53,6 +58,11 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     // Cashfree checkout: the JS SDK that opens the hosted payment modal
     // (billing, Phase B). Only the SDK origin — no other third-party scripts.
     "https://sdk.cashfree.com",
+    // Google Identity Services: the pre-built "Sign in with Google" button
+    // (services/auth/googleIdToken.ts) loads its client library from here.
+    // The chooser then says "to continue to captionit.in" instead of the
+    // Supabase auth host — the 2026-11-13 Google sign-in branding fix.
+    "https://accounts.google.com",
   ];
   const directives: Array<[string, string[]]> = [
     ["default-src", ["'self'"]],
@@ -117,6 +127,9 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         // OC-003: Google Fonts css2 stylesheet fetched at runtime by
         // @remotion/google-fonts (template/caption fonts).
         "https://fonts.googleapis.com",
+        // Google Identity Services: the button's token exchange + FedCM
+        // identity calls go to accounts.google.com.
+        "https://accounts.google.com",
       ],
     ],
     ["worker-src", ["'self'", "blob:"]],
@@ -126,8 +139,10 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     ["base-uri", ["'self'"]],
     ["form-action", ["'self'"]],
     // The only framed third-party content on the site: Cashfree's hosted
-    // checkout modal (billing). Everything else stays unframable.
-    ["frame-src", ["https://sdk.cashfree.com", "https://payments.cashfree.com"]],
+    // checkout modal (billing), and Google's pre-built sign-in button iframe
+    // (accounts.google.com renders the button; the chooser itself is a
+    // top-level Google navigation, not a frame). Everything else stays unframable.
+    ["frame-src", ["https://sdk.cashfree.com", "https://payments.cashfree.com", "https://accounts.google.com"]],
     ["frame-ancestors", ["'none'"]],
   ];
   return directives.map(([name, values]) => `${name} ${values.join(" ")}`).join("; ");

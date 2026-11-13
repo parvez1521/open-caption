@@ -33,9 +33,12 @@ describe("securityHeaders", () => {
     expect(directive("default-src")).toBe("'self'");
     expect(directive("object-src")).toBe("'none'");
     expect(directive("frame-ancestors")).toBe("'none'");
-    // frame-src names exactly the Cashfree checkout hosts (billing) — no
-    // wildcard, no 'self', nothing else may be framed.
-    expect(directive("frame-src")).toBe("https://sdk.cashfree.com https://payments.cashfree.com");
+    // frame-src names exactly the framed hosts — Cashfree checkout (billing)
+    // plus Google's pre-built sign-in button iframe (2026-11-13 branding fix).
+    // No wildcard, no 'self', nothing else may be framed.
+    expect(directive("frame-src")).toBe(
+      "https://sdk.cashfree.com https://payments.cashfree.com https://accounts.google.com",
+    );
     expect(directive("base-uri")).toBe("'self'");
     expect(directive("form-action")).toBe("'self'");
   });
@@ -101,6 +104,25 @@ describe("securityHeaders", () => {
     expect(csp).not.toContain("cdn.jsdelivr.net/npm/onnxruntime-web");
     expect(directive("script-src")).not.toContain("jsdelivr");
     expect(directive("connect-src")).not.toContain("jsdelivr");
+  });
+
+  it("allows Google Identity Services (2026-11-13 sign-in branding fix)", () => {
+    // The GIS client library (script-src), the pre-built button iframe
+    // (frame-src) and the token/FedCM calls (connect-src) all live on
+    // accounts.google.com — without all three the button cannot render and
+    // the sign-in falls back to the OAuth flow (which shows the Supabase host
+    // in Google's chooser). frame-ancestors stays 'none': the site itself is
+    // never framable.
+    expect(directive("script-src")).toContain("https://accounts.google.com");
+    expect(directive("frame-src")).toContain("https://accounts.google.com");
+    expect(directive("connect-src")).toContain("https://accounts.google.com");
+    expect(directive("frame-ancestors")).toBe("'none'");
+    // Permissions-Policy must NOT block FedCM: the GIS button initialises with
+    // use_fedcm_for_prompt, and identity-credentials-get=() would silently
+    // disable the browser-mediated chooser. (No such directive is listed, so
+    // it is allowed by default — assert the absence, not a value.)
+    const pp = securityHeaders.find((h) => h.key === "Permissions-Policy")?.value ?? "";
+    expect(pp).not.toContain("identity-credentials-get");
   });
 
   it("lets the Teleprompter recorder use this origin's camera/mic (deep-audit B1)", () => {
