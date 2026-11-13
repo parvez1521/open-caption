@@ -4,9 +4,20 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/seo";
-import { cashfreeConfig, createCashfreeOrder, currencyForCountry, newOrderId } from "@/lib/billing/cashfree";
+import { cashfreeConfig, createCashfreeOrder, currencyForCountry, newOrderId, type CashfreeConfig } from "@/lib/billing/cashfree";
 
 const Body = z.object({ plan: z.string().min(1).max(20) });
+
+/**
+ * Cashfree's order error is a status + their message only — it never
+ * contains a credential — but redact any configured credential value that
+ * somehow got into it before it reaches the client, so a checkout failure
+ * can be diagnosed from the UI without ever leaking a key.
+ */
+function redactCredentials(message: string, cfg: CashfreeConfig): string {
+  const secrets = [cfg.appId, cfg.secret, cfg.webhookSecret].filter((v): v is string => v !== null);
+  return secrets.reduce((m, v) => m.split(v).join("[redacted]"), message);
+}
 
 /**
  * Start a plan purchase: price comes from the plan config (never the
@@ -55,17 +66,27 @@ export const POST = route(async (req: Request) => {
   }
 
   const origin = SITE_URL;
-  const order = await createCashfreeOrder({
-    orderId,
-    amount,
-    currency,
-    customerId: user.id,
-    customerEmail: user.email ?? "",
-    customerPhone: "",
-    returnUrl: `${origin}/settings/billing?order_id=${orderId}`,
-    notifyUrl: `${origin}/api/v1/billing/webhook`,
-    planId,
-  });
+  // A Cashfree order failure used to throw a plain Error, which the route
+  // wrapper answers with the generic "Something went wrong" — the real
+  // reason (e.g. bad credentials, a rejected order) was invisible in the
+  // UI and only in the server log. Surface it so the failure can be
+  // diagnosed from the billing page itself.
+  let order;
+  try {
+    order = await createCashfreeOrder({
+      orderId,
+      amount,
+      currency,
+      customerId: user.id,
+      customerEmail: user.email ?? "",
+      customerPhone: "",
+      returnUrl: `${origin}/settings/billing?order_id=${orderId}`,
+      notifyUrl: `${origin}/api/v1/billing/webhook`,
+      planId,
+    });
+  } catch (e) {
+    throw new ApiFailure("INTERNAL", redactCredentials(e instanceof Error ? e.message : "Checkout could not be started.", cfg));
+  }
 
   return ok({
     configured: true as const,
