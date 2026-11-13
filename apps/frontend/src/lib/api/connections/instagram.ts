@@ -3,66 +3,92 @@ import type { InstagramConfig } from "./config";
 import { asArray, asRecord, clampTitle, fetchJson, parseCount, type FetchImpl, type SyncedPost } from "./posts";
 
 /**
- * Instagram connect: Instagram API with Instagram Login (Business Login
- * for Instagram) — NOT the Facebook Login variant.
+ * Instagram connect: Instagram API with Unified Login (Facebook Login for
+ * Business) — the ONLY setup Meta offers for this app.
  *
- * Why this flow: the app is Instagram-first and its Instagram account has
- * no Facebook Page behind it, and the Facebook Login variant cannot work
- * here at all. That variant discovers the account through
- * `GET /me/accounts?fields=instagram_business_account`, which needs the
- * `pages_show_list` permission — a permission this app cannot request
- * (Meta rejects it as an invalid scope: it belongs to the Facebook Login /
- * Page use case, which this app does not have). So the old code failed at
- * the account lookup even after a fully completed OAuth. Instagram Login
- * needs no Page and no Page permission: the token IS an Instagram User
- * token, and the token's own `/me` is the account (id + username).
+ * Why this flow: the app is newer than the Instagram Login setup. Meta's
+ * dashboard has NO "API setup with Instagram login" page for it ("API
+ * setup with Instagram login is not available for newer apps. Your app
+ * uses API setup with Unified login instead."). The previous Instagram
+ * Login code therefore failed at the authorize step with Meta's
+ * "Invalid platform app" — Instagram never showed a consent screen.
+ * Unified Login removes the linked-Page dependency of the classic
+ * Facebook Login flow while keeping the Facebook Graph host.
  *
- * Flow (Meta's Business Login for Instagram):
- *  1. Authorize at https://www.instagram.com/oauth/authorize — the user
- *     signs in with Instagram, not Facebook. Code valid 1 hour, one use.
- *  2. POST https://api.instagram.com/oauth/access_token (form-encoded)
- *     → short-lived token (~1 hour) + the user's IG id.
- *  3. GET https://graph.instagram.com/access_token
- *     ?grant_type=ig_exchange_token → long-lived token (~60 days).
- *  4. Identity + data on https://graph.instagram.com: `GET /me` is the
- *     account, `GET /{ig-user-id}/media` its posts.
- *  Refresh: GET https://graph.instagram.com/refresh_access_token
- *  ?grant_type=ig_refresh_token (token must be ≥24h old and still valid).
+ * Flow (Meta's Instagram API with Unified Login):
+ *  0. DASHBOARD PREREQUISITE — a Facebook Login for Business
+ *     configuration must exist (Use cases → Manage messaging & content
+ *     on Instagram → API setup with Unified login): token type
+ *     "System-user access token" + its lifetime, assets (Instagram
+ *     accounts only, Asset Required), and permissions (the instagram_*
+ *     family — instagram_basic for profile + media,
+ *     instagram_manage_insights for per-media views/reach/shares/saves).
+ *     The configuration has an ID (`config_id`); the dashboard's
+ *     "No compatible configurations found" means no configuration has
+ *     been created yet. The redirect URI must be saved on that same
+ *     setup (it already is: the callback URI is registered under
+ *     Unified login / Facebook Login for Business).
+ *  1. Authorize at https://www.facebook.com/dialog/oauth — the user
+ *     signs in with Instagram or Facebook. The URL carries `config_id`
+ *     and NO scope parameter: the configuration selects the permissions
+ *     and assets. `prompt=login` shows both sign-in choices even when
+ *     the browser is already signed into Facebook. Code valid 1 hour,
+ *     one use.
+ *  2. GET https://graph.facebook.com/v21.0/oauth/access_token
+ *     ?client_id&client_secret&redirect_uri&code → a Business
+ *     Integration System User Access Token, owned by the customer's
+ *     business portfolio. There is NO second exchange hop (no
+ *     ig_exchange_token, no fb_exchange_token). A non-expiring
+ *     configuration returns no expires_in — that means no expiry, not
+ *     an error.
+ *  3. Discover the shared accounts: GET
+ *     https://graph.facebook.com/v21.0/me/assigned_instagram_accounts
+ *     ?fields=id,username — under Unified Login `/me` is the system
+ *     user, NOT the Instagram account, so the account must be read
+ *     from this edge (paginated). An empty list is a KNOWN failure mode
+ *     (developer-community reports, Oct–Nov 2026, no confirmed
+ *     resolution): the connect fails honestly and stores nothing —
+ *     never invent an account id.
+ *  4. Data on https://graph.facebook.com: `GET /{ig-user-id}/media`
+ *     its posts, `GET /{media-id}/insights` its metrics.
  *
- * Credentials are the Instagram App ID + Secret from Instagram → API setup
- * with Instagram login — DIFFERENT from the Meta App ID/Secret in
- * Settings > Basic. The OAuth redirect URI must be registered in that
- * same Instagram Login setup (the Facebook Login for Business redirect
- * URI list does not cover this flow).
+ * There is NO refresh grant in this flow. A token that expires is
+ * reconnected (the sync surfaces "sign-in has expired — disconnect and
+ * connect again"). Do NOT call ig_refresh_token or fb_exchange_token
+ * here — neither applies to a system-user token.
  *
- * Scopes: instagram_business_basic (profile + media) and
- * instagram_business_manage_insights (per-media views/reach/shares/saves)
- * — the insights permission is the one Meta gates behind App Review, which
- * is why the UI says plainly that insights stay unavailable until Meta
- * approves the app. When insights calls fail (permission not yet
- * granted), the sync degrades honestly: those metrics land as null
- * (missing data), never as invented numbers, and the basic counts still
- * sync.
+ * Credentials are the Meta App ID + Secret from Settings > Basic plus
+ * the Unified Login `config_id` (env INSTAGRAM_CONFIG_ID). There are NO
+ * separate Instagram App ID/Secret values for this app — the Instagram
+ * Login credentials the old code expected do not exist.
+ *
+ * Scopes: none in code. The permissions live in the dashboard
+ * configuration (instagram_basic + instagram_manage_insights for what
+ * this product reads). The insights permission is the one Meta gates
+ * behind App Review, which is why the UI says plainly that insights
+ * stay unavailable until Meta approves the app. When insights calls
+ * fail (permission not yet granted), the sync degrades honestly: those
+ * metrics land as null (missing data), never as invented numbers, and
+ * the basic counts still sync.
  */
 
 export const GRAPH_VERSION = "v21.0";
-const IG_GRAPH_BASE = `https://graph.instagram.com/${GRAPH_VERSION}`;
-const IG_AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize";
-const IG_TOKEN_URL = "https://api.instagram.com/oauth/access_token";
-
-export const INSTAGRAM_SCOPES = ["instagram_business_basic", "instagram_business_manage_insights"] as const;
+const FB_GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
+const FB_AUTHORIZE_URL = "https://www.facebook.com/dialog/oauth";
 
 export const INSTAGRAM_SYNC_LIMIT = 50;
 
+/** The Unified Login authorize URL: config_id selects the consent flow — no scope parameter. */
 export function instagramAuthUrl(args: { config: InstagramConfig; redirectUri: string; state: string }): string {
   const params = new URLSearchParams({
     client_id: args.config.appId,
+    config_id: args.config.configId,
     redirect_uri: args.redirectUri,
     response_type: "code",
-    scope: INSTAGRAM_SCOPES.join(","),
+    prompt: "login",
     state: args.state,
   });
-  return `${IG_AUTHORIZE_URL}?${params.toString()}`;
+  return `${FB_AUTHORIZE_URL}?${params.toString()}`;
 }
 
 export interface InstagramTokens {
@@ -70,7 +96,7 @@ export interface InstagramTokens {
   expiresAt: string | null;
 }
 
-function longLivedFrom(body: Record<string, unknown>): InstagramTokens {
+function tokensFrom(body: Record<string, unknown>): InstagramTokens {
   const accessToken = typeof body.access_token === "string" ? body.access_token : null;
   if (!accessToken) throw new Error("Meta did not return an access token");
   const expiresIn = typeof body.expires_in === "number" ? body.expires_in : null;
@@ -78,9 +104,9 @@ function longLivedFrom(body: Record<string, unknown>): InstagramTokens {
 }
 
 /**
- * Code → short-lived token → long-lived (~60 day) token. The code exchange
- * is a form POST to api.instagram.com; the long-lived exchange is a GET on
- * graph.instagram.com.
+ * Code → Business Integration System User Access Token, in ONE exchange on
+ * graph.facebook.com. A non-expiring configuration returns no expires_in
+ * (expiresAt null) — that is a valid token, not a failure.
  */
 export async function exchangeInstagramCode(args: {
   config: InstagramConfig;
@@ -88,43 +114,11 @@ export async function exchangeInstagramCode(args: {
   redirectUri: string;
   fetchImpl?: FetchImpl;
 }): Promise<InstagramTokens> {
-  const fetchImpl = args.fetchImpl ?? fetch;
-  const form = new URLSearchParams({
-    client_id: args.config.appId,
-    client_secret: args.config.appSecret,
-    grant_type: "authorization_code",
-    redirect_uri: args.redirectUri,
-    code: args.code,
-  });
-  const short = await fetchJson(fetchImpl, IG_TOKEN_URL, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: form.toString(),
-  });
-  const shortToken = typeof short.access_token === "string" ? short.access_token : null;
-  if (!shortToken) throw new Error("Meta did not return an access token");
-  const long = await fetchJson(
-    fetchImpl,
-    `${IG_GRAPH_BASE}/access_token?grant_type=ig_exchange_token&client_secret=${encodeURIComponent(args.config.appSecret)}&access_token=${encodeURIComponent(shortToken)}`,
-  );
-  return longLivedFrom(long);
-}
-
-/**
- * Long-lived tokens refresh by exchanging the current one (must be at least
- * 24 hours old and still valid — an expired token cannot be refreshed and
- * the owner has to sign in again).
- */
-export async function refreshInstagramToken(args: {
-  config: InstagramConfig;
-  accessToken: string;
-  fetchImpl?: FetchImpl;
-}): Promise<InstagramTokens> {
   const body = await fetchJson(
     args.fetchImpl ?? fetch,
-    `${IG_GRAPH_BASE}/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(args.accessToken)}`,
+    `${FB_GRAPH_BASE}/oauth/access_token?client_id=${encodeURIComponent(args.config.appId)}&client_secret=${encodeURIComponent(args.config.appSecret)}&redirect_uri=${encodeURIComponent(args.redirectUri)}&code=${encodeURIComponent(args.code)}`,
   );
-  return longLivedFrom(body);
+  return tokensFrom(body);
 }
 
 export interface InstagramAccount {
@@ -132,21 +126,59 @@ export interface InstagramAccount {
   username: string;
 }
 
-/**
- * The token's own /me — with Instagram Login the access token belongs to
- * the Instagram professional account itself, so no Page lookup is needed
- * (and none is possible: there is no Page behind this login).
- */
-export async function fetchInstagramAccount(accessToken: string, fetchImpl: FetchImpl = fetch): Promise<InstagramAccount> {
-  const body = await fetchJson(
-    fetchImpl,
-    `${IG_GRAPH_BASE}/me?fields=id,username&access_token=${encodeURIComponent(accessToken)}`,
-  );
-  const id = typeof body.id === "string" && body.id ? body.id : null;
-  if (!id) {
-    throw new Error("Instagram did not return a professional account for this sign-in — the account must be a Business or Creator account");
+/** One page of the assigned-accounts edge. */
+function parseAssignedAccounts(body: unknown): { accounts: InstagramAccount[]; after: string | null } {
+  const accounts: InstagramAccount[] = [];
+  for (const item of asArray(asRecord(body)?.data)) {
+    const rec = asRecord(item);
+    if (rec && typeof rec.id === "string" && rec.id) {
+      accounts.push({ igUserId: rec.id, username: typeof rec.username === "string" && rec.username ? rec.username : "Instagram account" });
+    }
   }
-  return { igUserId: id, username: typeof body.username === "string" && body.username ? body.username : "Instagram account" };
+  const after = asRecord(asRecord(asRecord(body)?.paging)?.cursors)?.after;
+  return { accounts, after: typeof after === "string" && after ? after : null };
+}
+
+/**
+ * Discover the Instagram accounts the system-user token can access.
+ * `/me` is the system user under Unified Login, so the account comes
+ * from the assigned-accounts edge (paginated, with a safety cap and a
+ * repeated-cursor guard — never page forever).
+ *
+ * Selection: exactly one shared account → it. Several → keep the
+ * already-connected one when it is among them (a reconnect); otherwise
+ * fail honestly — never silently pick one of several. Zero → fail
+ * honestly: no account was shared, so there is nothing to connect.
+ */
+export async function fetchInstagramAccount(
+  accessToken: string,
+  fetchImpl: FetchImpl = fetch,
+  existingAccountId: string | null = null,
+): Promise<InstagramAccount> {
+  const found = new Map<string, InstagramAccount>();
+  const seenCursors = new Set<string>();
+  let after: string | null = null;
+  for (let page = 0; page < 100; page++) {
+    const url = new URL(`${FB_GRAPH_BASE}/me/assigned_instagram_accounts`);
+    url.searchParams.set("fields", "id,username");
+    url.searchParams.set("limit", "100");
+    if (after) url.searchParams.set("after", after);
+    const body = await fetchJson(fetchImpl, url.toString(), {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    const { accounts, after: next } = parseAssignedAccounts(body);
+    for (const account of accounts) found.set(account.igUserId, account);
+    if (!next || next === after) break;
+    if (seenCursors.has(next)) throw new Error("Instagram account discovery stopped on a repeated page cursor");
+    seenCursors.add(next);
+    after = next;
+  }
+  if (found.size === 0) {
+    throw new Error("Instagram did not share a professional account for this sign-in — the account must be a Business or Creator account shared with the app");
+  }
+  if (found.size === 1) return [...found.values()][0]!;
+  if (existingAccountId && found.has(existingAccountId)) return found.get(existingAccountId)!;
+  throw new Error("Several Instagram accounts were shared — share only the intended account with the app, then connect again");
 }
 
 export interface InstagramInsights {
@@ -197,9 +229,10 @@ export function mapInstagramMedia(item: unknown, insights: InstagramInsights = N
 }
 
 /**
- * Recent media with per-media insights where Meta grants them. An insights
- * failure (typically: App Review still pending) degrades that post's
- * insight metrics to null — the sync itself never fails over it.
+ * Recent media with per-media insights where Meta grants them, on the
+ * Facebook Graph host. An insights failure (typically: App Review still
+ * pending) degrades that post's insight metrics to null — the sync
+ * itself never fails over it.
  */
 export async function fetchInstagramMedia(
   accessToken: string,
@@ -207,9 +240,11 @@ export async function fetchInstagramMedia(
   fetchImpl: FetchImpl = fetch,
   limit: number = INSTAGRAM_SYNC_LIMIT,
 ): Promise<SyncedPost[]> {
+  const auth = { authorization: `Bearer ${accessToken}` };
   const body = await fetchJson(
     fetchImpl,
-    `${IG_GRAPH_BASE}/${encodeURIComponent(igUserId)}/media?fields=id,caption,timestamp,permalink,media_type,like_count,comments_count&limit=${limit}&access_token=${encodeURIComponent(accessToken)}`,
+    `${FB_GRAPH_BASE}/${encodeURIComponent(igUserId)}/media?fields=id,caption,timestamp,permalink,media_type,like_count,comments_count&limit=${limit}`,
+    { headers: auth },
   );
   const posts: SyncedPost[] = [];
   for (const item of asArray(body.data)) {
@@ -219,7 +254,8 @@ export async function fetchInstagramMedia(
       try {
         const insightsBody: Record<string, unknown> = await fetchJson(
           fetchImpl,
-          `${IG_GRAPH_BASE}/${encodeURIComponent(rec.id)}/insights?metric=views,reach,shares,saved&access_token=${encodeURIComponent(accessToken)}`,
+          `${FB_GRAPH_BASE}/${encodeURIComponent(rec.id)}/insights?metric=views,reach,shares,saved`,
+          { headers: auth },
         );
         insights = parseInstagramInsights(insightsBody);
       } catch {

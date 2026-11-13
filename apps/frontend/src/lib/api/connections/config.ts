@@ -23,10 +23,12 @@ export interface YoutubeConfig {
 }
 
 export interface InstagramConfig {
-  /** The Instagram App ID from Instagram → API setup with Instagram login (NOT the Meta App ID). */
+  /** The Meta App ID from Settings > Basic (NOT a separate Instagram App ID — none exists for this app). */
   appId: string;
-  /** The Instagram App Secret from the same setup — server-only, never in a client bundle. */
+  /** The Meta App Secret from Settings > Basic — server-only, never in a client bundle. */
   appSecret: string;
+  /** The Unified Login configuration ID (Facebook Login for Business config, API setup with Unified login). */
+  configId: string;
 }
 
 export function youtubeConfig(): YoutubeConfig | null {
@@ -36,17 +38,20 @@ export function youtubeConfig(): YoutubeConfig | null {
 }
 
 /**
- * Instagram Login credentials (Business Login for Instagram): the Instagram
- * App ID + Secret shown under Instagram → API setup with Instagram login →
- * "Set up Instagram business login". They DIFFER from the Meta App ID and
- * App Secret in Settings > Basic — those belong to the Facebook Login flow
- * and cannot be used here. Until these two vars exist, Instagram reads
- * "not switched on".
+ * Instagram connect credentials (Unified Login): the Meta App ID + Secret
+ * from Settings > Basic, plus the Unified Login configuration ID from
+ * Use cases → Instagram → API setup with Unified login ("No compatible
+ * configurations found" in the dashboard means no configuration has been
+ * created yet — its ID is what goes in INSTAGRAM_CONFIG_ID). All three
+ * must exist; until they do, Instagram reads "not switched on". The old
+ * Instagram Login credentials (a separate Instagram App ID/Secret) do
+ * not exist for this app — Meta does not offer that setup to it.
  */
 export function instagramConfig(): InstagramConfig | null {
   const appId = process.env.INSTAGRAM_APP_ID;
   const appSecret = process.env.INSTAGRAM_APP_SECRET;
-  return appId && appSecret ? { appId, appSecret } : null;
+  const configId = process.env.INSTAGRAM_CONFIG_ID;
+  return appId && appSecret && configId ? { appId, appSecret, configId } : null;
 }
 
 export function platformConfigured(platform: ConnectPlatform): boolean {

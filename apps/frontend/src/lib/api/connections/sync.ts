@@ -11,7 +11,7 @@ import {
   type ConnectionRow,
 } from "./store";
 import { exchangeYoutubeCode, fetchYoutubeChannel, fetchYoutubeUploads, refreshYoutubeToken } from "./youtube";
-import { exchangeInstagramCode, fetchInstagramAccount, fetchInstagramMedia, refreshInstagramToken } from "./instagram";
+import { exchangeInstagramCode, fetchInstagramAccount, fetchInstagramMedia } from "./instagram";
 import type { FetchImpl, SyncedPost } from "./posts";
 
 /**
@@ -56,10 +56,15 @@ async function ensureFreshToken(ownerId: string, conn: ConnectionRow, fetchImpl:
     }
     const cfg = instagramConfig();
     if (!cfg) return conn;
-    const tokens = await refreshInstagramToken({ config: cfg, accessToken: conn.accessToken, fetchImpl });
-    const next: ConnectionRow = { ...conn, accessToken: tokens.accessToken, expiresAt: tokens.expiresAt };
-    await upsertConnection(ownerId, next);
-    return next;
+    // Unified Login tokens have NO refresh grant (no ig_refresh_token, no
+    // fb_exchange_token): a token past its expiry is reconnected, and a
+    // token still inside its life is used as-is — the read surfaces any
+    // real failure. A non-expiring configuration never reaches this
+    // branch (expiresAt null is never "stale").
+    if (expiresAtMs !== null && expiresAtMs < Date.now()) {
+      throw new ProviderSyncError("The saved sign-in has expired — disconnect and connect the account again.");
+    }
+    return conn;
   } catch (err) {
     if (err instanceof ConnectionStoreNotReady) throw err;
     if (expiresAtMs !== null && expiresAtMs < Date.now()) {
@@ -235,14 +240,17 @@ export async function connectInstagram(ownerId: string, code: string, redirectUr
   let username: string;
   try {
     const tokens = await exchangeInstagramCode({ config: cfg, code, redirectUri, fetchImpl });
-    const account = await fetchInstagramAccount(tokens.accessToken, fetchImpl);
+    // A reconnect keeps the already-connected account when several were
+    // shared; a first connect has no stored account to prefer.
+    const existing = await getConnection(ownerId, "instagram");
+    const account = await fetchInstagramAccount(tokens.accessToken, fetchImpl, existing?.accountId ?? null);
     username = account.username;
     await upsertConnection(ownerId, {
       platform: "instagram",
       accountId: account.igUserId,
       accountName: account.username,
       accessToken: tokens.accessToken,
-      refreshToken: null, // Meta long-lived user tokens refresh by exchange, not a refresh token
+      refreshToken: null, // Unified Login system-user tokens have no refresh token or refresh grant
       expiresAt: tokens.expiresAt,
     });
   } catch (err) {
