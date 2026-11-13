@@ -486,6 +486,16 @@ export function MotionStudioSection() {
               </span>
             </Link>
           ))}
+          <Link
+            href="/motion"
+            className="flex w-[280px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border border-[#FFFFEB]/10 bg-[#1C1C1A] px-4 py-3 transition hover:border-[#FFFFEB]/25 sm:w-[320px]"
+            aria-label="Explore more motion templates"
+          >
+            <span className="font-styled text-[15px] font-bold text-[#FFFFEB]">
+              Explore more <span aria-hidden>→</span>
+            </span>
+            <span className="text-[13px] leading-snug text-[#FFFFEB]/65">See all motion templates</span>
+          </Link>
         </div>
       </div>
     </section>

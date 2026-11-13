@@ -205,4 +205,15 @@ describe("homepage Motion Studio section", () => {
     }
     view.unmount();
   });
+
+  it("ends the template row with an Explore more link to /motion", () => {
+    const view = render(<MotionStudioSection />);
+    const explore = screen.getByRole("link", { name: /Explore more/ });
+    expect(explore.getAttribute("href")).toBe("/motion");
+    const row = view.container.querySelector("#motion .overflow-x-auto");
+    const links = [...(row?.querySelectorAll("a") ?? [])];
+    expect(links.length).toBeGreaterThan(4);
+    expect(links[links.length - 1]).toBe(explore);
+    view.unmount();
+  });
 });
