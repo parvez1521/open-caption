@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, Plus_Jakarta_Sans } from "next/font/google";
 import QueryProvider from "@/providers/QueryProvider";
 import { introScript } from "@/components/home/intro";
@@ -7,6 +7,7 @@ import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE, BRAND_TITLE } from "@/lib
 import { SITE_URL, adsensePublisherId, googleSiteVerification } from "@/lib/seo";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import "./globals.css";
 
 /**
@@ -43,6 +44,13 @@ export const metadata: Metadata = {
   title: { default: BRAND_TITLE, template: `%s · ${BRAND_NAME}` },
   description: SITE_DESCRIPTION,
   applicationName: BRAND_NAME,
+  // PWA: the Apple touch icon comes from src/app/apple-icon.png (180x180,
+  // served automatically as /apple-icon.png by Next.js).
+  appleWebApp: {
+    capable: true,
+    title: BRAND_NAME,
+    statusBarStyle: "black-translucent",
+  },
   ...(googleVerification ? { verification: { google: googleVerification } } : {}),
   openGraph: {
     type: "website",
@@ -57,6 +65,10 @@ export const metadata: Metadata = {
     title: BRAND_TAGLINE,
     description: SITE_DESCRIPTION,
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#141412",
 };
 
 export default function RootLayout({
@@ -84,6 +96,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <a href="#main-content" className="skip-link">Skip to main content</a>
+        <ServiceWorkerRegister />
         <QueryProvider>{children}</QueryProvider>
         <Analytics />
         <SpeedInsights />
