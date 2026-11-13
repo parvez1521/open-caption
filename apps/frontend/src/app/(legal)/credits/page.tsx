@@ -5,7 +5,7 @@ import { LegalDoc, Sec } from "@/components/legal/Doc";
 import credits from "../../../../public/hero/credits.json";
 import stockManifest from "../../../../public/stock-sfx/manifest.json";
 
-export const metadata: Metadata = pageMetadata({ title: "Credits", description: "Sources and licences of the footage and the on-device translation models used by Open Caption.", path: "/credits" });
+export const metadata: Metadata = pageMetadata({ title: "Credits", description: "Sources and licences of the footage and the on-device translation models used by Captionit.", path: "/credits" });
 
 type Credit = { title: string; license: string; source: string; lookName: string };
 type StockCredit = { title: string; author: string; sourceUrl: string; licence: string; retrievedAt: string; originalFile: string };
@@ -15,7 +15,7 @@ export default function CreditsPage() {
     <LegalDoc
       title="Footage"
       accent="credits"
-      intro={<>The talking-head clips on the home page come from Wikimedia Commons under the licences below. Each was trimmed, cropped, transcribed and captioned with Open Caption; the captions are our addition and are shared under the same licence as the clip.</>}
+      intro={<>The talking-head clips on the home page come from Wikimedia Commons under the licences below. Each was trimmed, cropped, transcribed and captioned with Captionit; the captions are our addition and are shared under the same licence as the clip.</>}
     >
       <Sec id="hero" title="Home page clips">
         <ul className="space-y-3">

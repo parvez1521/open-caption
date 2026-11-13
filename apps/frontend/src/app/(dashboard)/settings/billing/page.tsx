@@ -120,7 +120,7 @@ export default function BillingPage() {
     try {
       const res = await apiClient.post<CheckoutResponse>("/billing/checkout", { json: { plan } });
       if (!res.configured || !res.paymentSessionId) {
-        setNotice("Payments aren't switched on for Open Caption yet — plans can't be bought right now. Your current plan and limits are unchanged.");
+        setNotice("Payments aren't switched on for Captionit yet — plans can't be bought right now. Your current plan and limits are unchanged.");
         return;
       }
       const cashfree = await loadCashfreeSdk();

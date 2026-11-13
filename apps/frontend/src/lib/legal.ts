@@ -8,8 +8,8 @@ import { BRAND_NAME } from "./brand";
 export const LEGAL = {
   product: BRAND_NAME,
   /** Run by one person (no company yet): "<Full legal name>, an individual (sole proprietor) trading as
-   *  Open Caption". Swap for the company name if one is registered later. */
-  operator: "Parvez Achhan Ali Siddiqui, an individual (sole proprietor) trading as Open Caption",
+   *  Captionit". Swap for the company name if one is registered later. */
+  operator: "Parvez Achhan Ali Siddiqui, an individual (sole proprietor) trading as Captionit",
   /** Country only: an individual doesn't need to publish a home address. */
   address: "India",
   /** public support / privacy inbox */
@@ -25,7 +25,7 @@ export const LEGAL = {
 } as const;
 
 /** Opens the visitor's mail app with a feedback email to the public inbox. */
-export const FEEDBACK_MAILTO = `mailto:${LEGAL.email}?subject=${encodeURIComponent("Open Caption feedback")}`;
+export const FEEDBACK_MAILTO = `mailto:${LEGAL.email}?subject=${encodeURIComponent("Captionit feedback")}`;
 
 export const LEGAL_PAGES = [
   { href: "/about", title: "About" },

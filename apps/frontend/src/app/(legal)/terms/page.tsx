@@ -6,7 +6,7 @@ import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = pageMetadata({ title: "Terms of Service", description: "The agreement that governs your use of Open Caption.", path: "/terms" });
+export const metadata: Metadata = pageMetadata({ title: "Terms of Service", description: "The agreement that governs your use of Captionit.", path: "/terms" });
 
 export default function TermsPage() {
   const free = PLANS.free;
@@ -14,7 +14,7 @@ export default function TermsPage() {
     <LegalDoc
       title="Terms of"
       accent="Service"
-      intro={<>These terms are the agreement between you and {LEGAL.operator} (&ldquo;we&rdquo;, &ldquo;us&rdquo;) for using {LEGAL.product}: the website, the web studio, the Open Caption Companion app and everything they produce. By creating an account or using the service you accept them. If you use {LEGAL.product} for an organisation, you accept them on its behalf.</>}
+      intro={<>These terms are the agreement between you and {LEGAL.operator} (&ldquo;we&rdquo;, &ldquo;us&rdquo;) for using {LEGAL.product}: the website, the web studio, the Captionit Companion app and everything they produce. By creating an account or using the service you accept them. If you use {LEGAL.product} for an organisation, you accept them on its behalf.</>}
     >
       <Sec id="service" title="1. The service">
         <p>{LEGAL.product} turns your videos into captioned videos and subtitle files. You upload a video, captions are transcribed, you style and edit them in the studio, and you export the result.</p>

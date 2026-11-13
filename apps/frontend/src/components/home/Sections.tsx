@@ -132,7 +132,7 @@ export function Hero() {
           {PH_POST_ID ? (
             <a href={`https://www.producthunt.com/posts/${PH_SLUG}?utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-${PH_SLUG}`} target="_blank" rel="noopener noreferrer">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=${PH_POST_ID}&theme=light`} alt="Open Caption on Product Hunt" width={194} height={42} className="h-[42px] w-auto" />
+              <img src={`https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=${PH_POST_ID}&theme=light`} alt="Captionit on Product Hunt" width={194} height={42} className="h-[42px] w-auto" />
             </a>
           ) : null}
         </div>
@@ -143,7 +143,7 @@ export function Hero() {
         </h1>
 
         <p data-hero="sub" className="mt-5 max-w-lg text-[15px] leading-relaxed text-[#FFFFEB]/70 sm:text-[17px] font-medium">
-          Open Caption turns speech into animated, word-timed captions for Shorts, Reels and TikTok. 150 looks and 14 languages, no watermark, all in the tab you already have open.
+          Captionit turns speech into animated, word-timed captions for Shorts, Reels and TikTok. 150 looks and 14 languages, no watermark, all in the tab you already have open.
         </p>
 
         <div data-hero="cta" className="mt-7 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -754,7 +754,7 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Giant Open Caption Bottom Logo matching Image 1 */}
+        {/* Giant Captionit Bottom Logo matching Image 1 */}
         <div className="pt-10 sm:pt-14 border-t border-[#FFFFEB]/10 flex items-center justify-between overflow-hidden select-none">
           <Link href="/" className="group flex items-center gap-3 sm:gap-5 w-full">
             {/* Caption-lines mark, same geometry as the logo */}
@@ -764,7 +764,7 @@ export function Footer() {
               <rect x="80" y="55" width="13" height="13" rx="2.5" fill="#FFA946" />
             </svg>
 
-            {/* Giant Open Caption Typography */}
+            {/* Giant Captionit Typography */}
             <span className="font-styled font-black text-4xl sm:text-7xl md:text-8xl lg:text-[130px] leading-none tracking-tighter text-[#FFFFEB]">
               {BRAND_WORDMARK_LEAD}<span className="font-serif font-normal italic text-[#FFFFEB]">{BRAND_WORDMARK_ACCENT}</span>
             </span>

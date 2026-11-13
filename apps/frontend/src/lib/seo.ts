@@ -11,7 +11,7 @@ import { LEGAL_PAGES } from "@/lib/legal";
  * nothing from that project is deployed here.
  *
  * The production origin today is the Vercel deployment URL. NEXT_PUBLIC_APP_URL
- * overrides it (set it to the custom domain when Open Caption gets one). The
+ * overrides it (set it to the custom domain when Captionit gets one). The
  * fallback is deliberately the production URL, never localhost: before this
  * module existed the live site shipped canonical and og:image URLs pointing at
  * http://localhost:3000 because the env var was unset in Vercel.
@@ -80,7 +80,7 @@ export function adsensePublisherId(): string | undefined {
  * Metadata for one route. Indexable pages get a canonical URL plus matching
  * Open Graph / Twitter cards; app pages get robots noindex instead (a
  * canonical on a noindex page would contradict it, so it is omitted).
- * The document <title> picks up the "· Open Caption" suffix from the root
+ * The document <title> picks up the "· Captionit" suffix from the root
  * layout title template; the OG/Twitter titles spell it out here because
  * those fields do not go through the template.
  */

@@ -103,7 +103,7 @@ export default function StudioShell({ children }: { children: React.ReactNode })
     <div className="min-h-screen bg-dune-white md:flex">
       {/* Mobile top bar (sidebar is hidden below md) — solid surface, no blur */}
       <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-sand-200 bg-sand-50 px-4 py-3 md:hidden">
-        <Link href="/dashboard" aria-label="Open Caption projects">
+        <Link href="/dashboard" aria-label="Captionit projects">
           <Logo height={24} />
         </Link>
         <nav className="flex max-w-[62vw] items-center gap-1 overflow-x-auto">
@@ -127,7 +127,7 @@ export default function StudioShell({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sand-200 bg-sand-50 md:flex">
         <div className="px-5 py-6">
-          <Link href="/dashboard" aria-label="Open Caption projects">
+          <Link href="/dashboard" aria-label="Captionit projects">
             <Logo height={26} />
           </Link>
         </div>

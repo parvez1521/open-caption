@@ -10,7 +10,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata: Metadata = pageMetadata({
   title: "Pricing",
   description:
-    "Open Caption pricing: a free plan with the full editor, and 30-day paid passes for more projects, bigger uploads and longer videos. One price, shown in your currency — no auto-renewal, no surprise charges.",
+    "Captionit pricing: a free plan with the full editor, and 30-day paid passes for more projects, bigger uploads and longer videos. One price, shown in your currency — no auto-renewal, no surprise charges.",
   path: "/pricing",
 });
 

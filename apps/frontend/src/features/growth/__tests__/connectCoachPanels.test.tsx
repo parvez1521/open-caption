@@ -78,7 +78,7 @@ describe("AccountsBar", () => {
       }),
     );
     render(<AccountsBar />);
-    expect(await screen.findAllByText(/isn't switched on for Open Caption yet/)).toHaveLength(2);
+    expect(await screen.findAllByText(/isn't switched on for Captionit yet/)).toHaveLength(2);
     expect(screen.queryByRole("link", { name: /Connect/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Connect/ })).toBeNull();
     expectEveryCallAuthed();

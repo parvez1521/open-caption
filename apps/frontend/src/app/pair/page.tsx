@@ -88,7 +88,7 @@ function PairConfirmContent() {
           <div className="mt-6">
             <p className="text-[14px] text-sand-800">
               This computer is now connected. You can close this tab and go back to your
-              terminal, then return to Open Caption to process a project.
+              terminal, then return to Captionit to process a project.
             </p>
             <a
               href="/settings"
@@ -107,7 +107,7 @@ function PairConfirmContent() {
           <div className="mt-6">
             <p className="text-[14px] leading-relaxed text-sand-800">
               <strong className="text-ink">{pairing.workerName}</strong> wants to connect to
-              your Open Caption account and process videos on your behalf. Only confirm this
+              your Captionit account and process videos on your behalf. Only confirm this
               if you just ran the install command yourself.
             </p>
             <div className="mt-6 flex items-center gap-3">

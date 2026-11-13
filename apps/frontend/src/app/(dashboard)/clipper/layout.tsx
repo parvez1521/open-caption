@@ -4,7 +4,7 @@ import { pageMetadata } from "@/lib/seo";
 /** App page behind sign-in: unique title, never indexed. The page itself is a client component, so metadata lives here. */
 export const metadata: Metadata = pageMetadata({
   title: "Clipper",
-  description: "Turn a long video into short captioned clips in your Open Caption workspace.",
+  description: "Turn a long video into short captioned clips in your Captionit workspace.",
   path: "/clipper",
   index: false,
 });

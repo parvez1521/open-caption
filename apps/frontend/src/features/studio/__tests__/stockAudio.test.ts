@@ -58,7 +58,7 @@ describe("bundled starter SFX pack manifest", () => {
     );
     for (const it of meme) {
       expect(it.licenceSource).toBe("synth");
-      expect(it.author).toBe("Open Caption");
+      expect(it.author).toBe("Captionit");
       expect(it.title).toMatch(/original synthesis/i);
       expect(it.format).toMatch(/synthesis/i);
       expect(it.sourceUrl).not.toMatch(/myinstants|freesound\.org\/people/);

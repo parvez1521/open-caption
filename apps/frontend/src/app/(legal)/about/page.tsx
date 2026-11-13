@@ -7,7 +7,7 @@ import { LEGAL } from "@/lib/legal";
 export const metadata: Metadata = pageMetadata({
   title: "About",
   description:
-    "Open Caption is a browser-based caption and video studio — transcription, animated captions, a multi-track editor and creator tools that run on your own device. Run by Parvez Achhan Ali Siddiqui, a sole proprietor in India.",
+    "Captionit is a browser-based caption and video studio — transcription, animated captions, a multi-track editor and creator tools that run on your own device. Run by Parvez Achhan Ali Siddiqui, a sole proprietor in India.",
   path: "/about",
 });
 
@@ -15,7 +15,7 @@ export default function AboutPage() {
   return (
     <LegalDoc
       title="About"
-      accent="Open Caption"
+      accent="Captionit"
       intro={
         <>
           {LEGAL.product} is a caption and video studio that runs in your browser: it transcribes your videos on

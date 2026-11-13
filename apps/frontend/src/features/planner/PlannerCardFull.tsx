@@ -38,7 +38,7 @@ const smallBtn =
 /**
  * A planner card in full (Week/Day views): summary line, attachment
  * click-through, an honest per-platform text preview, and the copy-out
- * pack. Open Caption never posts — the pack is text for the user to paste
+ * pack. Captionit never posts — the pack is text for the user to paste
  * into the platform themselves.
  */
 export default function PlannerCardFull({

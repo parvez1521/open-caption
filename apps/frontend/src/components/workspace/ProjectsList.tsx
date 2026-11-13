@@ -222,7 +222,7 @@ export default function ProjectsList() {
         ) : isError ? (
           <div className="rounded-xl border border-orange-accent/60 bg-orange-accent/10 p-8 text-center space-y-3">
             <p className="font-sora text-[14px] font-semibold text-obsidian">Couldn&apos;t load your projects.</p>
-            <p className="text-[13px] text-obsidian">We couldn&apos;t reach Open Caption just now. Check your connection, then try again.</p>
+            <p className="text-[13px] text-obsidian">We couldn&apos;t reach Captionit just now. Check your connection, then try again.</p>
             <button onClick={() => refetch()} className="rounded-full border border-orange-accent/60 px-5 py-2 font-sora text-[12px] font-semibold text-obsidian hover:bg-orange-accent/20 transition-colors cursor-pointer">Retry</button>
           </div>
         ) : projects.length === 0 ? (

@@ -7,7 +7,7 @@ import { pageMetadata } from "@/lib/seo";
  */
 export const metadata: Metadata = pageMetadata({
   title: "Opening your studio",
-  description: "Open Caption is opening your studio.",
+  description: "Captionit is opening your studio.",
   path: "/start",
   index: false,
 });

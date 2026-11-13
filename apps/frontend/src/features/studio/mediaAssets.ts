@@ -33,7 +33,7 @@ export interface AssetLicenceRecord {
 
 /** One-line licence summary for an asset row: "Kenney · CC0 1.0" / "Pixabay Content License". */
 export function describeAssetLicence(l: AssetLicenceRecord): string {
-  const who = l.author ?? (l.source === "pixabay" ? "Pixabay" : l.source === "kenney" ? "Kenney" : l.source === "synth" ? "Open Caption" : "Freesound");
+  const who = l.author ?? (l.source === "pixabay" ? "Pixabay" : l.source === "kenney" ? "Kenney" : l.source === "synth" ? "Captionit" : "Freesound");
   return `${who} · ${l.licence}`;
 }
 

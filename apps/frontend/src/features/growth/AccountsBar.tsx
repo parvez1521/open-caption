@@ -126,7 +126,7 @@ export function AccountsBar({ onSynced }: { onSynced?: () => void }) {
       setNotice(`${platformName(failed)} didn't finish connecting — nothing was stored. You can try again from its card.`);
     } else if (off) {
       const platform = off.replace(/-off$/, "");
-      setNotice(`${platformName(platform)} connect isn't switched on for Open Caption yet.`);
+      setNotice(`${platformName(platform)} connect isn't switched on for Captionit yet.`);
     }
     window.history.replaceState({}, "", "/growth");
     // onSynced/load are stable enough for a one-shot mount effect.
@@ -222,7 +222,7 @@ export function AccountsBar({ onSynced }: { onSynced?: () => void }) {
 
             {!row.configured ? (
               <p className="mt-2 text-[12.5px] leading-relaxed text-sand-700">
-                This connection isn&apos;t switched on for Open Caption yet.
+                This connection isn&apos;t switched on for Captionit yet.
               </p>
             ) : row.connected ? (
               <div className="mt-2">

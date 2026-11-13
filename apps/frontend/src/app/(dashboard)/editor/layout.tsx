@@ -4,7 +4,7 @@ import { pageMetadata } from "@/lib/seo";
 /** App page behind sign-in: unique title, never indexed. The page itself is a client component, so metadata lives here. */
 export const metadata: Metadata = pageMetadata({
   title: "Video Editor",
-  description: "The Open Caption video editor.",
+  description: "The Captionit video editor.",
   path: "/editor",
   index: false,
 });

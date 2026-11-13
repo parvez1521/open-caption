@@ -1,7 +1,7 @@
 /**
  * /ads.txt — served ONLY when a real AdSense publisher id is configured.
  *
- * AdSense readiness mechanism, not an application: no ads run on Open Caption
+ * AdSense readiness mechanism, not an application: no ads run on Captionit
  * until the owner connects AdSense, and no publisher id is hardcoded anywhere.
  * The id is read from NEXT_PUBLIC_ADSENSE_PUBLISHER_ID (the same variable that
  * gates the AdSense loader script), with the server-only ADSENSE_PUBLISHER_ID

@@ -107,6 +107,6 @@ describe("runBatchExport", () => {
 describe("clipFileName", () => {
   it("sanitises titles the way the Studio's export does", () => {
     expect(clipFileName("My great clip! (2026)")).toBe("My-great-clip-2026.mp4");
-    expect(clipFileName("")).toBe("open-caption.mp4");
+    expect(clipFileName("")).toBe("captionit.mp4");
   });
 });
