@@ -32,11 +32,11 @@ export const NEW_LOOKS: LookSeed[] = [
       hero: { fontId: "Playfair Display", fontWeight: 700, scale: 0.74, fill: { type: "solid", color: "#FFFFFF" }, rotate: -3 },
       active: { effect: "glow", color: "#D6F1FF", scale: 1, boxRadius: 12 }, templateOptions: { duoOrder: "accent-first", depth: 0.38, overlap: 0.4, accentShadow: 0.75 },
     }, settings: { maxWordsPerCard: 4 } },
-  { id: "serif_accent_glow", name: "Serif Accent Glow", description: "Clean bold words with the key word in italic serif, all in a soft halo of light", category: "Viral", templateId: "glow_flow",
+  { id: "serif_accent_glow", name: "Serif Accent Glow", description: "Clean bold words with the key word in italic serif", category: "Viral", templateId: "glow_flow",
     style: {
       fontId: "Manrope", fontWeight: 800, fontSize: 64, casing: "lower", glow: { enabled: true, color: "#FFFFFF", radius: 16, intensity: 0.6 },
       hero: { fontId: "Instrument Serif", fontWeight: 400, scale: 1.18, fill: { type: "solid", color: "#FFFFFF" }, rotate: 0 },
-      templateOptions: { accentHero: true, halo: 1, depth: 0.1, glare: 0.3 },
+      templateOptions: { accentHero: true, depth: 0.1, glare: 0.3 },
     }, settings: { maxWordsPerCard: 4 } },
 
   { id: "metal_script", name: "Metal Slam + Script", description: "Brushed-metal caps slam in letter by letter with a crack of light, then the key word is written on in a green script", category: "Viral", templateId: "metal_script",

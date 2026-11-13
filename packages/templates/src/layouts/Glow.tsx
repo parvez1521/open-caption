@@ -227,17 +227,6 @@ const GlowWord: React.FC<WordProps> = ({ piece, style, look, size, sc, timeMs, f
   );
 };
 
-/** Soft halo behind the block (a blurred ellipse, not a radial gradient, so exports match). */
-const Halo: React.FC<{ width: number; height: number; color: string; strength: number; sc: number }> = ({ width, height, color, strength, sc }) => (
-  <div
-    aria-hidden
-    style={{
-      position: "absolute", left: "50%", top: "50%", width, height, transform: "translate(-50%, -50%)", borderRadius: "50%",
-      backgroundColor: withAlpha(color, 0.13 * strength), filter: `blur(${(70 * sc).toFixed(1)}px)`, pointerEvents: "none",
-    }}
-  />
-);
-
 /** Lines of glowing words; the key word can switch to the accent face (italic serif) at its own scale. */
 export const GlowFlowLayout: React.FC<PageRenderProps> = ({ page, timeMs, style, canvas, measure, settled }) => {
   const sc = scaleOf(canvas);
@@ -255,12 +244,9 @@ export const GlowFlowLayout: React.FC<PageRenderProps> = ({ page, timeMs, style,
   const size = widest > box.width ? base * (box.width / widest) : base;
   const body = bodyLook(style, sc);
   const accent = accentLook(style, sc);
-  const halo = typeof style.templateOptions.halo === "number" ? (style.templateOptions.halo as number) : 0;
-  const haloIn = settled ? 1 : progress(timeMs - page.startMs, 700);
 
   return (
     <div style={combineMotion(containerCss(box, style.rotation), exitStyle(style, page.endMs - timeMs, settled, style.fontSize * sc))}>
-      {halo > 0 ? <Halo width={Math.min(box.width, widest * (size / base)) * 0.95} height={size * (lines.length + 2) * style.lineHeight} color={style.glow.color} strength={halo * haloIn} sc={sc} /> : null}
       <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", rowGap: (style.lineHeight - 1) * size * 0.6, ...backgroundCss(style, sc) }}>
         {lines.map((l, li) => (
           <div key={li} style={{ display: "flex", alignItems: "baseline", justifyContent: "center", whiteSpace: "pre" }}>
