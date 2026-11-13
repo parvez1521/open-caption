@@ -3,7 +3,7 @@ import { pageMetadata } from "@/lib/seo";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = pageMetadata({ title: "Subprocessors", description: "The service providers that process data for Open Caption.", path: "/subprocessors" });
+export const metadata: Metadata = pageMetadata({ title: "Subprocessors", description: "The service providers that process data for Captionit.", path: "/subprocessors" });
 
 const ROWS: [string, string, string, string][] = [
   ["Supabase", "Database, file storage, sign-in", "Account, projects, captions, exports, and videos sent to Companion exports", "India (Mumbai)"],

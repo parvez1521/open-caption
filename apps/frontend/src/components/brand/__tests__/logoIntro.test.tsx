@@ -14,12 +14,11 @@ import { Logo } from "@/components/brand/Logo";
  * the progress bar shows only a real percent with the cursor at its tip.
  */
 describe("brand rebrand", () => {
-  it("Logo points at the opencaption-* mark, wordmark unchanged", () => {
+  it("Logo points at the opencaption-* mark, wordmark is Captionit", () => {
     const { container } = render(<Logo tone="dark" height={28} />);
     const img = container.querySelector("img")!;
     expect(img.getAttribute("src")).toBe("/brand/opencaption-icon.svg");
-    expect(container.textContent).toContain("Open");
-    expect(container.textContent).toContain("Caption");
+    expect(container.textContent).toBe("Captionit");
     const { container: light } = render(<Logo tone="light" height={28} />);
     expect(light.querySelector("img")!.getAttribute("src")).toBe("/brand/opencaption-icon-light.svg");
   });

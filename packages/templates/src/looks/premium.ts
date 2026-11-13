@@ -1,7 +1,7 @@
 import type { LookSeed } from "./new";
 
 /**
- * Premium Plus: 22 original After-Effects-style looks designed for Open Caption (kinetic type, letter
+ * Premium Plus: 22 original After-Effects-style looks designed for Captionit (kinetic type, letter
  * animators, karaoke sweep, box sweep, blur-focus reveal, broadcast bar, editorial serif, warm gradient).
  * Style-only looks over the core templates, so the studio preview and the Remotion export render them
  * identically. Colours stay inside the house palette (amber / emerald / warm neutrals) — no purple.

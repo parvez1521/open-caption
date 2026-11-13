@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { FEEDBACK_MAILTO, LEGAL } from "../legal";
 
 describe("legal operator identity", () => {
-  it("names the current owner as operator of Open Caption", () => {
+  it("names the current owner as operator of Captionit", () => {
     expect(LEGAL.operator).toBe(
-      "Parvez Achhan Ali Siddiqui, an individual (sole proprietor) trading as Open Caption",
+      "Parvez Achhan Ali Siddiqui, an individual (sole proprietor) trading as Captionit",
     );
   });
 

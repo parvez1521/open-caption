@@ -1,7 +1,7 @@
 /** Homepage FAQ. Shared by the FAQ section and the FAQPage structured data, so the two always match. */
 export const FAQS = [
   {
-    q: "Is Open Caption really free?",
+    q: "Is Captionit really free?",
     a: "Yes. Captions, every look, the full editor and MP4 and SRT exports are free, with no watermark. Free videos can be up to 5 minutes long. Paid 30-day passes raise the limits — see Pricing.",
   },
   {
@@ -9,11 +9,11 @@ export const FAQS = [
     a: "For transcription and the normal MP4 export, no — speech recognition and rendering run inside your browser, so the video file is not sent anywhere for those. The file name, size, length and format of each video are stored with your project, and your captions and full transcripts are saved so you can reopen the project later. One exception: transparent overlay exports are rendered by the optional desktop Companion app, and that render does use the video from your project.",
   },
   {
-    q: "Will Open Caption work with vertical 9:16 Shorts, Reels, and TikToks?",
-    a: "Yes. Vertical 9:16 is what Open Caption is built for, and 16:9 widescreen works the same way. You can drag the caption box anywhere in the frame, clear of faces and platform buttons.",
+    q: "Will Captionit work with vertical 9:16 Shorts, Reels, and TikToks?",
+    a: "Yes. Vertical 9:16 is what Captionit is built for, and 16:9 widescreen works the same way. You can drag the caption box anywhere in the frame, clear of faces and platform buttons.",
   },
   {
-    q: "How is Open Caption different from basic CapCut or Premiere captions?",
+    q: "How is Captionit different from basic CapCut or Premiere captions?",
     a: "CapCut and Premiere captions are plain timed text. Here every word is timed to the speech, the key word on each line gets its own colour, box or motion, and you start from 150 animated looks. No watermark, nothing to install.",
   },
   {

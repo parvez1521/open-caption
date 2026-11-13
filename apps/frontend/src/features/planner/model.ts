@@ -8,7 +8,7 @@
  * the page performs the actual storage calls (createContentItem /
  * updateContentItem) with the values these functions return.
  *
- * Open Caption never posts anything on the user's behalf: previews and
+ * Captionit never posts anything on the user's behalf: previews and
  * the copy pack exist so the user can paste the text into the platform
  * themselves.
  */

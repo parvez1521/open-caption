@@ -4,7 +4,7 @@ import { pageMetadata } from "@/lib/seo";
 /** App page behind sign-in: unique title, never indexed. The page itself is a client component, so metadata lives here. */
 export const metadata: Metadata = pageMetadata({
   title: "Settings",
-  description: "Your Open Caption account settings.",
+  description: "Your Captionit account settings.",
   path: "/settings",
   index: false,
 });

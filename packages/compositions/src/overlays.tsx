@@ -4,7 +4,7 @@ import type { OverlayItem, OverlayShape } from "@capseasy/shared";
 import { SocialOverlayView } from "./social";
 
 /**
- * The app's own overlay shape set: twenty-one simple geometric SVGs drawn for Open Caption (not copied from any
+ * The app's own overlay shape set: twenty-one simple geometric SVGs drawn for Captionit (not copied from any
  * icon library). One definition serves the composition render (preview + MP4 export) and the studio's
  * Elements gallery, so what the gallery shows is exactly what renders. No blend modes anywhere: the
  * in-browser renderer ignores mix-blend-mode, which would make preview and export diverge.

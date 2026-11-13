@@ -394,7 +394,7 @@ export default function PlannerPage() {
             Content <em className="italic text-sand-600">Planner</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Plan what goes out, and when. Open Caption doesn&apos;t post for you — each card
+            Plan what goes out, and when. Captionit doesn&apos;t post for you — each card
             gives you the caption and hashtags to copy into the platform yourself.
           </p>
           <details className="mt-3 max-w-[68ch] rounded-lg border border-sand-200 bg-sand-100 px-4 py-3 text-[13px] leading-relaxed text-sand-800">
@@ -402,7 +402,7 @@ export default function PlannerPage() {
             <div className="mt-1.5 space-y-1.5">
               <p>Weeks start on Monday.</p>
               <p>
-                Reminders live here in the Planner — Open Caption doesn&apos;t send push or email
+                Reminders live here in the Planner — Captionit doesn&apos;t send push or email
                 reminders.
               </p>
             </div>

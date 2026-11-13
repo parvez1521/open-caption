@@ -4,7 +4,7 @@ import Link from "next/link";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = pageMetadata({ title: "Privacy Policy", description: "What Open Caption collects, why, where it is stored and your choices.", path: "/privacy" });
+export const metadata: Metadata = pageMetadata({ title: "Privacy Policy", description: "What Captionit collects, why, where it is stored and your choices.", path: "/privacy" });
 
 export default function PrivacyPage() {
   return (

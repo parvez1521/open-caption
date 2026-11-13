@@ -2,7 +2,7 @@ import React from "react";
 import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/brand";
 
 /**
- * The one Open Caption logo, used everywhere a logo appears.
+ * The one Captionit logo, used everywhere a logo appears.
  * The mark is the caption-lines mark — two horizontal caption lines with an
  * orange cursor block at the end of the second line (public/brand/opencaption-icon*.svg);
  * the wordmark is live text set in the site fonts (bold lead + serif-italic accent),

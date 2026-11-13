@@ -1126,7 +1126,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-st-line bg-st-panel px-3 sm:px-4">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <Link href="/dashboard" onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey) return; e.preventDefault(); nav.go("/dashboard", "Back to your projects"); }} aria-label="Back to projects" className="relative grid h-9 w-9 shrink-0 place-items-center rounded-full text-st-muted transition before:absolute before:-inset-1 before:content-[''] hover:bg-st-raised hover:text-st-text">←</Link>
-        <Link href="/dashboard" aria-label="Open Caption projects" className="hidden sm:block"><Logo height={22} /></Link>
+        <Link href="/dashboard" aria-label="Captionit projects" className="hidden sm:block"><Logo height={22} /></Link>
         <span className="hidden h-5 w-px bg-st-line sm:block" />
         {editingTitle ? (
           <input

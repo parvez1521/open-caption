@@ -32,9 +32,9 @@ describe("StockAudioSection", () => {
     expect(adds.length).toBeGreaterThanOrEqual(8);
     expect(adds.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
     // every row carries its own CC0 licence line — Kenney for the starter
-    // recordings, Open Caption for the synthesized meme sounds (2026-11-11)
+    // recordings, Captionit for the synthesized meme sounds (2026-11-11)
     const kenneyLines = screen.getAllByText(/Kenney · CC0 1\.0/).length;
-    const synthLines = screen.getAllByText(/Open Caption · CC0 1\.0/).length;
+    const synthLines = screen.getAllByText(/Captionit · CC0 1\.0/).length;
     expect(kenneyLines).toBe(12);
     expect(synthLines).toBe(9);
     expect(kenneyLines + synthLines).toBe(adds.length);

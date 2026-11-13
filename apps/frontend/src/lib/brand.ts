@@ -2,15 +2,16 @@
  * Brand — the ONE place the product name and site copy live.
  *
  * Final brand name decided by the owner (2026-11-09): "Open Caption".
+ * Renamed to "Captionit" by the owner (2026-11-13).
  * To rename the product later, change BRAND_NAME here (plus the two-part
  * wordmark split in components/brand/Logo.tsx) and the visible spots that
  * import from this file will follow.
  */
-export const BRAND_NAME = "Open Caption";
+export const BRAND_NAME = "Captionit";
 
 /** Wordmark parts: first part bold, second part in the serif-italic accent. */
-export const BRAND_WORDMARK_LEAD = "Open";
-export const BRAND_WORDMARK_ACCENT = "Caption";
+export const BRAND_WORDMARK_LEAD = "Caption";
+export const BRAND_WORDMARK_ACCENT = "it";
 
 export const BRAND_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 

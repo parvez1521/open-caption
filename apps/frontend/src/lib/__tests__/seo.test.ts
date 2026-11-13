@@ -175,7 +175,7 @@ describe("pageMetadata", () => {
   it("gives indexable pages a canonical and social cards, with no robots restriction", () => {
     const m = pageMetadata({ title: "Sign in", description: "d", path: "/login" });
     expect(m.alternates?.canonical).toBe("/login");
-    expect(m.openGraph).toMatchObject({ title: "Sign in · Open Caption", url: "/login" });
+    expect(m.openGraph).toMatchObject({ title: "Sign in · Captionit", url: "/login" });
     expect(m.robots).toBeUndefined();
   });
 
@@ -190,7 +190,7 @@ describe("per-route metadata (shipped modules)", () => {
   it("/login is indexable with its own title and canonical", () => {
     expect(loginMetadata.title).toBe("Sign in");
     expect(loginMetadata.alternates?.canonical).toBe("/login");
-    expect(loginMetadata.description).toContain("Open Caption");
+    expect(loginMetadata.description).toContain("Captionit");
   });
 
   it("/start and /dashboard are noindex", () => {

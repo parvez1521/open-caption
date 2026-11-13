@@ -26,7 +26,7 @@ import manifest from "../../../public/stock-sfx/manifest.json";
  * Openverse (licence cc0 in the API record), but the Freesound CDN still
  * refuses downloads from this sandbox (HTTP 403), so synthesized originals
  * ship instead, each labelled "original synthesis" in its title, format and
- * UI copy, and dedicated CC0 by Open Caption as author. The validator below
+ * UI copy, and dedicated CC0 by Captionit as author. The validator below
  * pins that labelling so a synth item can never pose as a found recording.
  */
 
@@ -102,9 +102,9 @@ export function validateStockManifest(items: readonly StockSfxItem[]): string[] 
     if (!(it.durationMs > 0 && it.durationMs <= 30_000)) problems.push(`${tag}: duration ${it.durationMs}ms is not a sane SFX length`);
     if (it.group !== "starter" && it.group !== "meme") problems.push(`${tag}: group "${it.group}" is not a bundled group`);
     // A synthesized item must SAY so — it can never pose as a found recording:
-    // author is Open Caption and the title carries the synthesis label.
+    // author is Captionit and the title carries the synthesis label.
     if (it.licenceSource === "synth") {
-      if (it.author !== "Open Caption") problems.push(`${tag}: a synth item's author must be Open Caption`);
+      if (it.author !== "Captionit") problems.push(`${tag}: a synth item's author must be Captionit`);
       if (!/synthesis/i.test(it.title ?? "")) problems.push(`${tag}: a synth item's title must say "original synthesis"`);
       if (!/synthes/i.test(it.format ?? "")) problems.push(`${tag}: a synth item's format must say it was synthesized`);
     }

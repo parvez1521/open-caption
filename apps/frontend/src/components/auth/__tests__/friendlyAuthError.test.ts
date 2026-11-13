@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { friendlyAuthError } from "../AuthShell";
 
-// Persona QA regression (2026-11-10): Google sign-in is NOT enabled on the Open Caption
+// Persona QA regression (2026-11-10): Google sign-in is NOT enabled on the Captionit
 // Supabase project, so clicking "Continue with Google" surfaces Supabase's raw
 // "Unsupported provider" string. That raw string must never reach the user.
 describe("friendlyAuthError — disabled provider (Persona QA)", () => {

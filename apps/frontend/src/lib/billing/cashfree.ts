@@ -105,7 +105,7 @@ export async function createCashfreeOrder(input: {
         ...(input.customerPhone ? { customer_phone: input.customerPhone } : {}),
       },
       order_meta: { return_url: input.returnUrl, notify_url: input.notifyUrl },
-      order_note: `Open Caption ${input.planId} plan — 30 days`,
+      order_note: `Captionit ${input.planId} plan — 30 days`,
       order_tags: { plan: input.planId },
     }),
   })) as { payment_session_id?: string; order_status?: string } | null;

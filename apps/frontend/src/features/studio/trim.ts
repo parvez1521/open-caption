@@ -40,7 +40,7 @@ import type { EditorComposition, EditorVideoClip } from "./compositionDoc";
 
 /**
  * The filler wordlist — authored in-repo for this feature (provenance: written
- * by hand for Open Caption, no external wordlist asset). It is deliberately
+ * by hand for Captionit, no external wordlist asset). It is deliberately
  * SMALL: only pure hesitation sounds whose removal cannot change meaning.
  * Discourse words that merely OFTEN act as fillers are excluded on purpose —
  * English "like" / "well" / "so", and Hinglish "matlab" (it means "meaning /

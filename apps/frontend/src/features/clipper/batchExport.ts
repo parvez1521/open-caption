@@ -180,7 +180,7 @@ export async function loadClipRenderJob(projectId: string): Promise<ClipRenderJo
 }
 
 export const clipFileName = (title: string): string =>
-  `${(title || "open-caption").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "open-caption"}.mp4`;
+  `${(title || "captionit").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "captionit"}.mp4`;
 
 export interface BatchExportDeps {
   loadJob: (projectId: string) => Promise<ClipRenderJob>;

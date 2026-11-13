@@ -189,7 +189,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           return;
         }
       }
-      const name = `${(title || "open-caption").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "open-caption"}.mp4`;
+      const name = `${(title || "captionit").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "captionit"}.mp4`;
       saveBlob(blob, name);
       setWebDone(`${fmtBytes(blob.size)} · made in ${fmtTime(clock() - started)}`);
       setMade({ blob, name });

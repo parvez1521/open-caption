@@ -3,7 +3,7 @@ import { pageMetadata } from "@/lib/seo";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
 
-export const metadata: Metadata = pageMetadata({ title: "Copyright & Takedowns", description: "How to report copyright infringement to Open Caption and how counter-notices work.", path: "/copyright" });
+export const metadata: Metadata = pageMetadata({ title: "Copyright & Takedowns", description: "How to report copyright infringement to Captionit and how counter-notices work.", path: "/copyright" });
 
 export default function CopyrightPage() {
   return (
