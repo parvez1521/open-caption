@@ -22,13 +22,21 @@ const mapWord = (doc: CaptionDoc, id: string, fn: (w: Word) => Word): CaptionDoc
 
 const indexOfWord = (doc: CaptionDoc, id: string) => doc.words.findIndex((w) => w.id === id);
 
-/** Editing a word to empty deletes it from view (timing stays so neighbours don't shift). */
+/**
+ * Editing a word to empty deletes it from view (timing stays so neighbours don't shift).
+ * The text is stored exactly as typed — NOT trimmed — because the caption editor commits
+ * on every keystroke from a controlled input: trimming here ate the space a user had just
+ * typed after a single word ("Dulha" -> "Dulha " snapped back to "Dulha"), so the next
+ * letter landed on it ("DulhaD") and a 2nd word could never be added (owner 2026-11-13).
+ * Every render/export site already trims per word (derive `shown`, exporters, `visibleWords`),
+ * so a trailing space mid-typing is invisible downstream.
+ */
 export function setWordText(doc: CaptionDoc, id: string, text: string): CaptionDoc {
-  const t = text.trim();
+  const blank = text.trim().length === 0;
   return mapWord(doc, id, (w) => ({
     ...w,
-    text: t || w.text,
-    hidden: t ? w.hidden : true,
+    text: blank ? w.text : text,
+    hidden: blank ? true : w.hidden,
     source: { ...w.source, text: "user" },
   }));
 }

@@ -283,6 +283,18 @@ describe("doc ops", () => {
     expect(setWordText(base, "a", "Z").meta.userEdited).toBe(true);
     expect(base.meta.userEdited).toBe(false); // immutable
   });
+  it("single-word edit: a typed space survives, so a 2nd word can be added (owner 2026-11-13)", () => {
+    // Repro of the reported bug: the caption editor is a controlled input that calls
+    // setWordText on every keystroke, and setWordText trimmed the value — typing a
+    // space after a single word ("Dulha" -> "Dulha ") snapped back to "Dulha", so the
+    // next letter landed directly on it ("DulhaD") and a 2nd word could never be added.
+    const afterSpace = setWordText(base, "a", "a ");
+    expect(afterSpace.words[0]!.text).toBe("a ");
+    expect(setWordText(afterSpace, "a", "a b").words[0]!.text).toBe("a b");
+    expect(setWordText(base, "a", "Dulha Dulhan?").words[0]!.text).toBe("Dulha Dulhan?");
+    // whitespace-only still hides the word instead of storing blank text
+    expect(setWordText(base, "a", "   ").words[0]!.text).toBe("a");
+  });
   it("split/merge are mutually exclusive bookkeeping", () => {
     const s = splitCardAt(base, "b");
     expect(s.manualBreaks).toEqual(["b"]);

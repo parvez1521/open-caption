@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import type { CaptionDoc, Page } from "@capseasy/shared";
+import type { CaptionDoc, Page, Word } from "@capseasy/shared";
 import { deleteWordsByIds, findMatches, findReplace, importSubtitles, mergeWithNext, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Button, fmtTime } from "../controls";
 import { EmphasisSuggestions } from "./EmphasisSuggestions";
@@ -56,6 +56,59 @@ interface Props {
 type Gesture =
   | { kind: "select"; anchorId: string; startX: number; startY: number; active: boolean }
   | { kind: "retime"; ids: string[]; startX: number; startY: number; active: boolean; dx: number };
+
+/**
+ * The single-word editor, rendered INLINE under the selected word's own card in the
+ * caption list (owner 2026-11-13: the old editor lived below the list, so he and his
+ * friend could not find where to edit). Same input and same actions as the old bottom
+ * editor — Make key word / Split card here / Join previous / Join next / Hide word —
+ * just surfaced where the word is. The input focuses itself on mount so tapping a word
+ * goes straight to typing; Escape closes it. `select-text` re-enables text selection
+ * inside the list's `select-none` container.
+ */
+const SelectedWordEditor: React.FC<{
+  word: Word;
+  locked: boolean;
+  heroSupported: boolean;
+  edit: Props["edit"];
+  onClose: () => void;
+}> = ({ word, locked, heroSupported, edit, onClose }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus({ preventScroll: true });
+  }, []);
+  return (
+    <div data-testid="inline-word-editor" className="mt-2 select-text space-y-2 rounded-lg border border-st-line bg-st-panel p-2.5">
+      <p className="text-[11px] font-semibold text-st-muted">Edit word</p>
+      <div className="flex items-center gap-2">
+        <input
+          ref={inputRef}
+          value={word.text}
+          disabled={locked}
+          onChange={(e) => edit((d) => setWordText(d, word.id, e.target.value), { coalesceKey: `t-${word.id}` })}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onClose();
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
+          aria-label="Edit word"
+        />
+        <button onClick={onClose} className="text-st-faint hover:text-st-text" aria-label="Close editor">✕</button>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {heroSupported ? (
+          <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => setEmphasis(d, word.id, word.emphasis === "hero" ? "none" : "hero"))}>
+            {word.emphasis === "hero" ? "★ Key word" : "☆ Make key word"}
+          </Button>
+        ) : null}
+        <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => splitCardAt(d, word.id))}>Split card here</Button>
+        <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithPrevious(d, word.id))}>Join previous</Button>
+        <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithNext(d, word.id))}>Join next</Button>
+        <Button tone="danger" disabled={locked} className="!py-1 text-xs" onClick={() => { edit((d) => setHidden(d, word.id, true)); onClose(); }}>Hide word</Button>
+      </div>
+    </div>
+  );
+};
 
 export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, heroSupported, selectedWordIds, onWordSelectionChange, locked = false, onGenerateCaptions, generateBusy = false, generateProgress = 0, generateNote = null }) => {
   // The lock guard lives at this ONE chokepoint: every edit this panel makes (its own
@@ -239,7 +292,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
 
       {pages.length > 0 ? (
         <p className="shrink-0 border-b border-st-line px-3 py-2 text-xs text-st-muted">
-          Drag across words to select; drag the selection to retime.
+          Click a word to edit it here; drag across words to select; drag the selection to retime.
         </p>
       ) : null}
 
@@ -298,6 +351,9 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                 );
               })}
             </div>
+            {selected && page.words.some((w) => w.id === selected.id) ? (
+              <SelectedWordEditor word={selected} locked={locked} heroSupported={heroSupported} edit={edit} onClose={() => onSelect(null)} />
+            ) : null}
           </div>
         ))}
 
@@ -343,31 +399,6 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         </div>
       ) : null}
 
-      {selected ? (
-        <div className="space-y-2 border-t border-st-line bg-st-lav/30 p-3">
-          <div className="flex items-center gap-2">
-            <input
-              value={selected.text}
-              disabled={locked}
-              onChange={(e) => edit((d) => setWordText(d, selected.id, e.target.value || " "), { coalesceKey: `t-${selected.id}` })}
-              className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
-              aria-label="Edit word"
-            />
-            <button onClick={() => onSelect(null)} className="text-st-faint hover:text-st-text" aria-label="Close editor">✕</button>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {heroSupported ? (
-              <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => setEmphasis(d, selected.id, selected.emphasis === "hero" ? "none" : "hero"))}>
-                {selected.emphasis === "hero" ? "★ Key word" : "☆ Make key word"}
-              </Button>
-            ) : null}
-            <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => splitCardAt(d, selected.id))}>Split card here</Button>
-            <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithPrevious(d, selected.id))}>Join previous</Button>
-            <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithNext(d, selected.id))}>Join next</Button>
-            <Button tone="danger" disabled={locked} className="!py-1 text-xs" onClick={() => { edit((d) => setHidden(d, selected.id, true)); onSelect(null); }}>Hide word</Button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 };
