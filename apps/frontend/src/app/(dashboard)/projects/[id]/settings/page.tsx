@@ -179,7 +179,7 @@ export default function ProjectSettingsPage() {
           <h1 className="mt-3 font-serif text-3xl sm:text-4xl font-semibold tracking-[-0.015em] text-ink">
             Project <em className="italic text-sand-600">settings</em>
           </h1>
-          <p className="mt-2 text-[14px] text-sand-800">The controls for this one project, in one place — each one saves to the same place the rest of the app already reads.</p>
+          <p className="mt-2 text-[14px] text-sand-800">The controls for this one project, in one place. Each one saves where the rest of the app already reads.</p>
         </div>
 
         {loading ? (

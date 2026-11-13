@@ -351,21 +351,21 @@ export const HOOK_FRAMES: Record<HookStyle, string[]> = {
  */
 export const HOOK_MECHANISMS: Record<HookStyle, string> = {
   curiosity:
-    "Curiosity works through the information gap: the line names something the viewer does not yet know, and the mind wants to close that gap. The payoff has to arrive in the video, or the gap feels like a trick.",
+    "Curiosity works through the information gap. The line names something the viewer does not yet know. The mind wants to close that gap. The payoff has to arrive in the video. Or the gap feels like a trick.",
   "problem-solution":
-    "This style starts from pain-point recognition: the viewer sees their own frustration named accurately in the first seconds. Naming the problem clearly also opens a resolution, which gives them a reason to stay for the fix.",
+    "This style starts from pain-point recognition. The viewer sees their own frustration named in the first seconds. Naming the problem clearly also opens a resolution. That gives them a reason to stay for the fix.",
   story:
-    "Story hooks use narrative transportation: once a viewer is following a person through a sequence of events, attention follows the outcome. An unfinished personal story is harder to abandon than a list of facts.",
+    "Story hooks use narrative transportation. Once a viewer follows a person through events, attention follows the outcome. An unfinished personal story is harder to abandon. Harder than a list of facts.",
   controversial:
-    "A strong opinion creates opinion arousal: viewers who agree feel recognised and viewers who disagree feel a pull to respond. That tension holds attention, as long as the position is one you can actually defend.",
+    "A strong opinion creates opinion arousal. Viewers who agree feel recognised. Viewers who disagree feel a pull to respond. That tension holds attention. As long as the position is one you can defend.",
   "pattern-interrupt":
-    "A pattern interrupt violates a prediction: the opening does not match what the viewer expected this kind of video to do. The mismatch forces a brief re-evaluation, and that pause is the moment attention resets.",
+    "A pattern interrupt violates a prediction. The opening does not match what the viewer expected. The mismatch forces a brief re-evaluation. That pause is the moment attention resets.",
   contrarian:
-    "Contrarian hooks challenge a belief the viewer already holds, which touches identity as well as information. Defending or revising a belief takes mental work, and that work keeps the viewer engaged with the argument.",
+    "Contrarian hooks challenge a belief the viewer already holds. That touches identity as well as information. Defending or revising a belief takes mental work. That work keeps the viewer engaged.",
   numbers:
-    "Specific numbers make a claim feel concrete and checkable rather than vague. A stated count also sets an expectation the viewer can track, which gives the rest of the video a simple structure to follow.",
+    "Specific numbers make a claim feel concrete and checkable. Not vague. A stated count sets an expectation the viewer can track. That gives the rest of the video a simple structure.",
   "open-loop":
-    "An open loop leaves a question deliberately unanswered, and the Zeigarnik effect means unfinished tasks stay active in memory. The viewer keeps watching to close the loop, provided the video actually closes it.",
+    "An open loop leaves a question deliberately unanswered. The Zeigarnik effect keeps unfinished tasks active in memory. The viewer keeps watching to close the loop. Provided the video actually closes it.",
   unexpected:
     "An unexpected statement creates novelty and surprise: it does not fit the viewer's existing picture of the topic. Surprise signals that there may be something new to learn, which earns a few more seconds of attention.",
 };

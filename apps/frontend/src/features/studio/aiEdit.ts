@@ -88,14 +88,14 @@ export const AI_EDIT_STYLES: readonly AiEditStyle[] = [
   },
   {
     id: "punchy", name: "Punchy",
-    description: "Bold look, strong zooms, tight 0.8 s pacing, a couple of graphic pops.",
+    description: "Bold look. Strong zooms. Tight 0.8 s pacing. A couple of graphic pops.",
     lookId: "beast_bounce",
     pacing: { silenceThresholdMs: 800, zoomIntensity: "strong", trimFillers: true },
     toggles: { emphasis: true, elements: "light", ducking: false, title: false },
   },
   {
     id: "explainer", name: "Explainer",
-    description: "Clear look, medium zooms, a hook at the start and a lower third with the title.",
+    description: "Clear look. Medium zooms. A hook at the start. A lower third with the title.",
     lookId: "explainer",
     pacing: { silenceThresholdMs: 1000, zoomIntensity: "medium", trimFillers: true },
     toggles: { emphasis: true, elements: "standard", ducking: false, title: true },
@@ -109,7 +109,7 @@ export const AI_EDIT_STYLES: readonly AiEditStyle[] = [
   },
   {
     id: "podcast", name: "Podcast",
-    description: "Plain subtitle look, fillers cut at a tight 0.7 s pace, music ducked.",
+    description: "Plain subtitle look. Fillers cut at a tight 0.7 s pace. Music ducked.",
     lookId: "netflix_sub",
     pacing: { silenceThresholdMs: 700, zoomIntensity: null, trimFillers: true },
     toggles: { emphasis: false, elements: "none", ducking: true, title: false },
@@ -483,7 +483,7 @@ export interface AiEditRouteOutcome {
 }
 
 const CLOUD_TO_LOCAL_NOTE =
-  "The free AI service was not available for this plan, so the local model wrote the intent instead.";
+  "The free AI service was not available for this plan. So the local model wrote the intent instead.";
 
 async function tryIntentRunner(
   runner: ModelRunner,

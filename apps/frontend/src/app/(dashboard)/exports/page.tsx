@@ -110,7 +110,7 @@ export default function ExportsPage() {
           ) : exports.length === 0 ? (
             <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
               <p className="font-serif text-2xl font-semibold text-ink">No exports <em className="italic text-sand-600">yet.</em></p>
-              <p className="mx-auto mt-3 max-w-[42ch] text-[14px] leading-relaxed text-sand-800">Open a project, style its captions, and export — the file will show up here.</p>
+              <p className="mx-auto mt-3 max-w-[42ch] text-[14px] leading-relaxed text-sand-800">Open a project, style its captions, and export. The file will show up here.</p>
               <Link href="/captions" className="mt-7 inline-block rounded-full bg-ink px-7 py-3 font-sora text-[13px] font-semibold text-dune-white hover:bg-sand-800 transition-all">Go to your projects</Link>
             </div>
           ) : (

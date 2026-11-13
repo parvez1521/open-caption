@@ -44,7 +44,7 @@ describe("generateClipTitle with generateContent mocked", () => {
       items: [{ title: "A template hook title" }],
       source: "template",
       fellBack: true,
-      note: "The free AI service was not available for this batch, so it came from the template engine instead.",
+      note: "The free AI service was not available for this batch. So it came from the template engine instead.",
     };
     const out = await generateClipTitle(
       { sourceTitle: "Source", segmentText: "words", startMs: 0, endMs: 30_000 },

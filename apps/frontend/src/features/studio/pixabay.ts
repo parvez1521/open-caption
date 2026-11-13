@@ -232,7 +232,7 @@ export function pixabayLicenceRecord(track: PixabayTrack, retrievedAt: string): 
  */
 export function contentIdWarningFor(track: Pick<PixabayTrack, "contentIdRegistered" | "title">): string {
   if (track.contentIdRegistered === true) {
-    return `“${track.title}” is marked Content-ID registered in Pixabay's data. You can still use it in a project, but expect a possible claim on platforms like YouTube — keep this licence record and check the track's Pixabay page for its licence proof before publishing.`;
+    return `“${track.title}” is marked Content-ID registered in Pixabay's data. You can still use it in a project. But expect a possible claim on platforms like YouTube. Keep this licence record. Check the track's Pixabay page for its licence proof before publishing.`;
   }
   return PIXABAY_CONTENT_ID_NOTE;
 }

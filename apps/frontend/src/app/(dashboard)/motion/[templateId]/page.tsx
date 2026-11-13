@@ -128,7 +128,7 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
     const name = presetName.trim();
     if (!name) return;
     const ok = saveMotionPreset(template.id, { name, text, color, durationMs });
-    setPresetNote(ok ? `Saved “${name}”.` : "Couldn't save the preset — check the colour and duration are valid, or this browser's storage is unavailable or full.");
+    setPresetNote(ok ? `Saved “${name}”.` : "Could not save the preset. Check the colour and duration are valid. Or this browser's storage is unavailable or full.");
     if (ok) {
       setPresetName("");
       setSavingPreset(false);
@@ -301,7 +301,7 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
 
             <section aria-label="Presets" className="border-t border-sand-200 pt-6">
               <h2 className="font-sora text-[13px] font-bold uppercase tracking-wider text-sand-600">Presets</h2>
-              <p className="mt-1.5 text-[12px] text-sand-600">Saved on this device. A preset keeps the text, colour and duration — not the image.</p>
+              <p className="mt-1.5 text-[12px] text-sand-600">Saved on this device. A preset keeps the text, colour and duration. Not the image.</p>
               {presets.length ? (
                 <ul className="mt-3 space-y-1.5">
                   {presets.map((p) => (
@@ -363,7 +363,7 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
                       </button>
                     </>
                   ) : (
-                    <p className="text-[13px] text-sand-700">No projects yet — create one and the graphic goes straight into it.</p>
+                    <p className="text-[13px] text-sand-700">No projects yet. Create one and the graphic goes straight into it.</p>
                   )}
                   <button type="button" onClick={() => void onNewProject()} disabled={adding || !configValid} className="w-full rounded-full border border-sand-200 bg-sand-50 px-5 py-2.5 font-sora text-[13px] font-semibold text-ink transition hover:border-sand-300 disabled:opacity-50 cursor-pointer">
                     New project

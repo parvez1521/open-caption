@@ -739,7 +739,7 @@ export const ClipperPanel: React.FC<Props> = ({ projectId, sourceTitle, sourceVi
         <div className="mt-3">
           <span className="mb-1.5 block text-[11px] font-medium text-st-faint">B-roll suggestions</span>
           {!brollKey ? (
-            <p className="text-xs text-st-faint">Add your free Pixabay key in the Sound Effects panel to get B-roll suggestions here.</p>
+            <p className="text-xs text-st-faint">Add your free Pixabay key in the Sound Effects panel. Then B-roll suggestions show here.</p>
           ) : !brollState[k] || brollState[k]!.status === "idle" ? (
             <Button onClick={() => void findBroll(p)} className="!py-1 text-xs">Find B-roll for this clip</Button>
           ) : brollState[k]!.status === "loading" ? (

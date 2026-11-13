@@ -160,8 +160,7 @@ export default function SettingsPage() {
           <h2 className="font-sora text-[15px] font-bold text-ink">Plan &amp; billing</h2>
           <div className="mt-4 flex flex-wrap items-center gap-4 rounded-xl border border-sand-200 bg-sand-100 p-6">
             <p className="max-w-[52ch] flex-1 text-[14px] leading-relaxed text-sand-800">
-              Your current plan, its limits, and your payment history live on the billing page. Paid plans are 30-day
-              passes — no auto-renewal.
+              Your current plan, its limits, and your payment history live on the billing page. Paid plans are 30-day passes. No auto-renewal.
             </p>
             <Link
               href="/settings/billing"

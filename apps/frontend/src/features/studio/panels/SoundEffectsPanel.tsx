@@ -22,7 +22,7 @@ export const SoundEffectsPanel: React.FC<SoundEffectsPanelProps> = ({ projectId,
   <div className="h-full overflow-y-auto">
     <Section
       title="Sound effects"
-      more="The starter pack is CC0 — free for any use. Pixabay imports use your own free Pixabay key and are stored on this device only, each with its licence record."
+      more="The starter pack is CC0. Free for any use. Pixabay imports use your own free Pixabay key. They are stored on this device only. Each with its licence record."
     >
       <StockAudioSection projectId={projectId} onAdded={onAdded} tone="studio" />
     </Section>

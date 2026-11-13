@@ -209,7 +209,7 @@ export default function LibraryPage() {
       }
       setDeleteTarget(asset);
     } catch {
-      setDeleteBlocked("Couldn't check whether that file is still used by its project, so it wasn't deleted. Check your connection and try again.");
+      setDeleteBlocked("Could not check if that file is still used. It was not deleted. Check your connection and try again.");
     } finally {
       setDeleteCheckingId(null);
     }
@@ -290,10 +290,7 @@ export default function LibraryPage() {
                   <p className="text-[12px] tabular-nums text-sand-600">{formatBytes(derived.totalBytes)} across all projects</p>
                 </div>
                 <p className="mt-1.5 max-w-[72ch] text-[12px] leading-relaxed text-sand-700">
-                  Copies the editor made from your media on this device — reversed or
-                  noise-cleaned versions, freeze-frame stills, thumbnails. Clearing them never
-                  touches your originals, and a copy a timeline still uses is kept and named
-                  first.
+                  Copies the editor made from your media on this device: reversed or noise-cleaned versions, freeze-frame stills, thumbnails. Clearing them never touches your originals. A copy a timeline still uses is kept and named first.
                 </p>
                 {cleanupNotice && <p role="status" className="mt-2 text-[12px] font-semibold text-sand-800">{cleanupNotice}</p>}
                 <ul className="mt-3 divide-y divide-sand-200">

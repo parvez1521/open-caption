@@ -67,8 +67,7 @@ function AiClipperPageInner() {
           <div className="pb-8 border-b border-[#FFFFEB]/10">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#FFFFEB]">AI Clipper</h1>
             <p className="mt-2 text-[14px] leading-relaxed text-[#FFFFEB]/70 max-w-2xl">
-              Long-form video in, ranked short clips out. Moments are scored across the whole video, runs
-              resume where they stopped, and scores are editorial estimates — never performance predictions.
+              Long-form video in, ranked short clips out. Moments are scored across the whole video. Runs resume where they stopped. Scores are editorial estimates, never performance predictions.
             </p>
             <button
               onClick={() => void startNew()}
@@ -92,7 +91,7 @@ function AiClipperPageInner() {
             ) : projects.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[#FFFFEB]/20 bg-[#1C1C1A] px-8 py-16 text-center">
                 <p className="text-2xl font-bold text-[#FFFFEB]">No long video yet.</p>
-                <p className="mx-auto mt-2 max-w-md text-[14px] text-[#FFFFEB]/70">Start with a new long video above: upload it in the studio, let the captions finish, and the ranked clips will appear here.</p>
+                <p className="mx-auto mt-2 max-w-md text-[14px] text-[#FFFFEB]/70">Start with a new long video above. Upload it in the studio. Let the captions finish. The ranked clips will appear here.</p>
               </div>
             ) : (
               <>

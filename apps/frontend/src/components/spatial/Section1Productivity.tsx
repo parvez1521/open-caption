@@ -23,7 +23,7 @@ export function Section1Productivity() {
       wash="radial-gradient(70% 110% at 82% 45%, rgba(52,211,153,0.16) 0%, rgba(52,211,153,0.05) 45%, transparent 75%)"
       title="Word-perfect"
       titleAccent="timing."
-      body="Speech recognition runs right in your browser and stamps every single word with its start and end, so captions land on the syllable instead of drifting a beat behind."
+      body="Speech recognition runs right in your browser. It stamps every word with its start and end. So captions land on the syllable, instead of drifting a beat behind."
       points={[
         { k: "Word-level timestamps,", v: "not sentence blocks." },
         { k: "Nothing to install:", v: "it runs in the tab you already have open." },

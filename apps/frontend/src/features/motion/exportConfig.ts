@@ -82,7 +82,7 @@ export const MOTION_EXPORT_SHORT_EDGES: MotionExportShortEdge[] = [720, 1080];
  */
 export const MOTION_EXPORT_FPS_OPTIONS: { fps: 30 | 60; hint: string }[] = [
   { fps: 30, hint: "Standard frame rate." },
-  { fps: 60, hint: "Smoother motion — the animation is drawn fresh at every frame, so 60 fps adds real in-between frames." },
+  { fps: 60, hint: "Smoother motion. The animation is drawn fresh at every frame. So 60 fps adds real in-between frames." },
 ];
 
 export type MotionExportFormatId = "mp4" | "webm" | "webm-alpha";

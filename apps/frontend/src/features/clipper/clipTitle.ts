@@ -71,7 +71,7 @@ export async function generateClipTitle(
       title: clipProjectTitle(input.sourceTitle, input.startMs, input.endMs),
       source: "template",
       fellBack: true,
-      note: "No title could be generated for this clip, so the plain range title is used instead.",
+      note: "No title could be generated for this clip. So the plain range title is used instead.",
     };
   }
   return { title: generated, source: outcome.source, fellBack: outcome.fellBack, note: outcome.note };

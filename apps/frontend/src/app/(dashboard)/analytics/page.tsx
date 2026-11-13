@@ -138,9 +138,7 @@ export default function AnalyticsPage() {
           </div>
         ) : view === "not-ready" ? (
           <p role="alert" className="mt-8 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] leading-relaxed text-obsidian">
-            Creator Analytics reads the Growth Studio store, which is not set up on the server
-            yet — a database update is pending. Nothing can be shown until then, and nothing is
-            stored on this device as a substitute.
+            Creator Analytics reads the Growth Studio store. It is not set up on the server yet. A database update is pending. Nothing can be shown until then. Nothing is stored on this device as a substitute.
           </p>
         ) : view === "empty" ? (
           <div className="mt-8 rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-12">
@@ -183,8 +181,7 @@ export default function AnalyticsPage() {
               <div className={`${cardCls} mt-4`}>
                 {analytics.totals.status === "insufficient" ? (
                   <p className="text-[13px] text-sand-700">
-                    Not enough data yet — add figures to a post in Growth Studio and its totals
-                    will appear here.
+                    Not enough data yet. Add figures to a post in Growth Studio. Its totals will appear here.
                   </p>
                 ) : (
                   <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -253,8 +250,7 @@ export default function AnalyticsPage() {
               <div className={`${cardCls} mt-4`}>
                 {analytics.bestContent.status === "insufficient" ? (
                   <p className="text-[13px] text-sand-700">
-                    Not enough data yet — no post has all four engagement figures entered, so
-                    there is no honest ranking yet.
+                    Not enough data yet. No post has all four engagement figures entered. So there is no honest ranking yet.
                   </p>
                 ) : (
                   <ol className="divide-y divide-sand-200">

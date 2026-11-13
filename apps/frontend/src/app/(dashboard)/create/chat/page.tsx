@@ -231,7 +231,7 @@ export default function StudioChatPage() {
         prev.map((t) => (t.id === selectedThread.id ? { ...t, updatedAt: assistantMsg.createdAt || t.updatedAt } : t)),
       );
     } catch {
-      setError("That message could not be sent. Your text is still in the box below — try again.");
+      setError("That message could not be sent. Your text is still in the box below. Try again.");
       setDraft((d) => d || text);
     } finally {
       setSending(false);
@@ -283,9 +283,7 @@ export default function StudioChatPage() {
             AI Studio <em className="italic text-sand-600">Chat</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800 max-w-2xl">
-            Ask in plain words and get a structured answer — ideas, hooks, a script, a shot list, a calendar, a
-            carousel or captions, never a wall of prose. Every answer shows which source wrote it, and chats save
-            to your library so you can pick them up later.
+            Ask in plain words. Get a structured answer: ideas, hooks, a script, a shot list, a calendar, a carousel or captions. Never a wall of prose. Every answer shows which source wrote it. Chats save to your library, so you can pick them up later.
           </p>
           {profile ? (
             <p className="mt-3 inline-flex rounded-full border border-sand-300 bg-sand-100 px-3 py-1 font-sora text-[11px] font-semibold text-sand-800">
@@ -298,8 +296,7 @@ export default function StudioChatPage() {
           <section className="mt-8 rounded-xl border border-sand-200 bg-white p-6">
             <h2 className="font-sora text-[15px] font-bold text-ink">Chat is not set up yet</h2>
             <p className="mt-1 text-[13px] text-sand-700 max-w-xl">
-              Studio Chat saves your conversations in your content library, and the library needs a database
-              update on the server first. Your generators on the Creator Studio page keep working as normal.
+              Studio Chat saves your conversations in your content library. The library needs a database update on the server first. Your generators on the Creator Studio page keep working as normal.
             </p>
             <Link href="/create" className={`${ghostBtn} mt-4 inline-block`}>Back to Creator Studio</Link>
           </section>
@@ -411,8 +408,7 @@ export default function StudioChatPage() {
                   <div className="mt-4 space-y-4" aria-live="polite">
                     {messages.length === 0 ? (
                       <p className="rounded-xl border border-sand-200 bg-white p-5 text-[13px] text-sand-700">
-                        No messages yet. Ask for hook ideas about your next video, a week of content planned out,
-                        or a script for the idea you keep putting off.
+                        No messages yet. Ask for hook ideas about your next video. Or a week of content planned out. Or a script for the idea you keep putting off.
                       </p>
                     ) : (
                       messages.map((message) => {

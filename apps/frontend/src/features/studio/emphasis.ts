@@ -82,7 +82,7 @@ export const EMPHASIS_NO_ROUTE_REASON =
   "No AI route is available for emphasis suggestions: the site's free AI is not configured and the on-device model is not enabled. This feature has no template or heuristic fallback, so it stays off — you can enable the on-device model in Creator Studio.";
 
 const CLOUD_TO_LOCAL_NOTE =
-  "The free AI service was not available for this batch, so the local model wrote these suggestions instead.";
+  "The free AI service was not available for this batch. So the local model wrote these suggestions instead.";
 
 /** The free-AI limit is shared with every other AI feature, so a limit hit here is a wait, not a retry. */
 const RATE_LIMITED_REASON =
@@ -94,7 +94,7 @@ const TOO_LONG_REASON =
 const TRANSIENT_REASON =
   "The free AI service was not available for this batch. Emphasis suggestions have no template fallback, so none are shown — try again in a moment.";
 const BOTH_UNAVAILABLE_REASON =
-  "The free AI service and the local model were both unavailable for this batch. Emphasis suggestions have no template fallback, so none are shown — try again in a moment.";
+  "The free AI service and the local model were both unavailable. For this batch, emphasis suggestions have no template fallback. So none are shown. Try again in a moment.";
 const LOCAL_UNAVAILABLE_REASON =
   "The local model did not return usable suggestions for this batch. Emphasis suggestions have no template fallback, so none are shown.";
 

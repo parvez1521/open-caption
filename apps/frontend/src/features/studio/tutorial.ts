@@ -27,19 +27,19 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "fix-word",
     anchor: "captions",
     title: "Fix any word",
-    body: "Tap a word to correct it, make it the key word, or change its timing. Nothing is locked in.",
+    body: "Tap a word to correct it. Make it the key word. Or change its timing. Nothing is locked in.",
   },
   {
     id: "template",
     anchor: "templates",
     title: "Pick a template",
-    body: "Templates are animated, not static. Tap one in the Templates tab and watch it play on your words.",
+    body: "Templates are animated, not static. Tap one in the Templates tab. Watch it play on your words.",
   },
   {
     id: "timing",
     anchor: "shift-all",
     title: "Nudge the timing",
-    body: "Drag across words to select them, then drag the selection left or right to retime it. Or shift every caption at once here — tap a quick nudge, or type the seconds and Apply shift.",
+    body: "Drag across words to select them. Then drag the selection left or right to retime it. Or shift every caption at once here. Tap a quick nudge. Or type the seconds and Apply shift.",
   },
   {
     id: "style",
@@ -51,7 +51,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "export",
     anchor: "export",
     title: "Export",
-    body: "Export an MP4 with the captions burned in, or download an SRT file. Your edits are saved automatically.",
+    body: "Export an MP4 with the captions burned in. Or download an SRT file. Your edits are saved automatically.",
   },
 ];
 

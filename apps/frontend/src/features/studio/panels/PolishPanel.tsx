@@ -129,8 +129,7 @@ export const PolishPanel: React.FC<Props> = ({ state, sourceTitle, peaks, hopMs,
           <div className="space-y-2">
             {plan.steps.length === 0 ? (
               <p className="text-sm text-st-muted">
-                Nothing to polish: no fillers or long pauses to cut, no zoom signals, no other caption look to
-                apply, and no music track to duck.
+                Nothing to polish. No fillers or long pauses to cut. No zoom signals. No other caption look to apply. No music track to duck.
               </p>
             ) : (
               plan.steps.map((step) => {

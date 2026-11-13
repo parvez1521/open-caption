@@ -78,7 +78,7 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
       </Section>
       <Section
         title="Media bin"
-        more="Another browser shows an empty bin. Audio can be dragged onto the timeline or placed from the Audio panel."
+        more="Another browser shows an empty bin. Audio can be dragged onto the timeline. Or placed from the Audio panel."
       >
         <Button disabled={importing} onClick={() => binRef.current?.click()} className="w-full">{importing ? "Importing…" : "Import media"}</Button>
         <input
@@ -116,7 +116,7 @@ export const MediaPanel: React.FC<MediaPanelProps> = ({ video, composition, onRe
             ))}
           </div>
         ) : (
-          <p className="text-xs text-st-faint">Nothing imported yet. Add B-roll, music or a logo image and it stays here for this project.</p>
+          <p className="text-xs text-st-faint">Nothing imported yet. Add B-roll, music or a logo image. It stays here for this project.</p>
         )}
       </Section>
       <Section

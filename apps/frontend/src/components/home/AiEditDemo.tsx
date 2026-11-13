@@ -250,7 +250,7 @@ export function AiEditDemo() {
             ))}
           </ul>
           <p className="mt-3 text-xs leading-relaxed text-[#FFFFEB]/55" aria-live="polite">
-            {pass === "after" ? "The same clip with the plan applied." : "AI Edit reads the transcript and drafts the plan — you approve every step."}
+            {pass === "after" ? "The same clip with the plan applied." : "AI Edit reads the transcript and drafts the plan. You approve every step."}
           </p>
         </div>
       </div>

@@ -27,10 +27,7 @@ export default function AutoCaptionGeneratorPage() {
           Automatic video caption generator
         </h1>
         <p className="mt-5 text-[16px] leading-relaxed text-[#FFFFEB]/80">
-          Drop in a short video and get captions timed to every word, in minutes, free and in your browser. Pick one
-          of 150 animated looks, fix any word it heard wrong, and export an MP4 ready to post or a subtitle file for
-          YouTube. Nothing to install, no watermark, and for transcription and the normal MP4 export your video file
-          is never uploaded anywhere.
+          Drop in a short video. Get captions timed to every word, in minutes, free and in your browser. Pick one of 150 animated looks. Fix any word it heard wrong. Export an MP4 ready to post, or a subtitle file for YouTube. Nothing to install, no watermark. For transcription and the normal MP4 export, your video file is never uploaded anywhere.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
@@ -80,8 +77,7 @@ export default function AutoCaptionGeneratorPage() {
             <li>
               <h3 className="font-sora text-[16px] font-bold">4. Fix any word</h3>
               <p className="mt-1 text-[15px] leading-relaxed text-[#FFFFEB]/70">
-                Click a word and type the correction. The timing stays. If the whole track is early or late, shift all
-                captions at once instead of dragging them one by one.
+                Click a word and type the correction. The timing stays. If the whole track is early or late, shift all captions at once. No dragging one by one.
               </p>
             </li>
             <li>
@@ -99,12 +95,12 @@ export default function AutoCaptionGeneratorPage() {
             What you get
           </h2>
           <ul className="mt-6 space-y-3 text-[15px] leading-relaxed text-[#FFFFEB]/80">
-            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Word-timed captions. Every word lands on the frame where it is spoken, and the key word on each line gets its own colour, box or motion.</span></li>
-            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>150 animated looks, the largest style count we verified among rival tools in this research, and every look is in the free plan.</span></li>
+            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Word-timed captions. Every word lands on the frame where it is spoken. The key word on each line gets its own colour, box or motion.</span></li>
+            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>150 animated looks. The largest style count we verified among rival tools. Every look is in the free plan.</span></li>
             <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>14 languages, including Hindi and Hinglish. Hindi and Hinglish come out in Roman script, the way most creators type; Devanagari Hindi is a separate option.</span></li>
             <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>MP4 and subtitle export from one workflow. Most tools do one or the other; here you get both.</span></li>
-            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>No watermark, nothing to install. Transcription, editing and MP4 export all run in your browser, on desktop or phone.</span></li>
-            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Built for vertical video. 9:16 Reels, Shorts and TikTok first, with 16:9 widescreen working the same way.</span></li>
+            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>No watermark, nothing to install. Transcription, editing and MP4 export run in your browser. On desktop or phone.</span></li>
+            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Built for vertical video. 9:16 Reels, Shorts and TikTok first. 16:9 widescreen works the same way.</span></li>
           </ul>
         </section>
 
@@ -113,9 +109,7 @@ export default function AutoCaptionGeneratorPage() {
             Captions in your language
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed text-[#FFFFEB]/70">
-            English, Hindi, Hinglish, Tamil, Telugu, Bengali, Marathi, Punjabi, Urdu, Spanish, French, German, Arabic
-            and Portuguese. Hinglish captions use a Whisper model fine-tuned for Hindi-English speech, so mixed
-            Hindi-English talking comes out as the Roman-script Hinglish creators actually post, not as a translation.
+            English, Hindi, Hinglish, Tamil, Telugu, Bengali, Marathi, Punjabi, Urdu, Spanish, French, German, Arabic and Portuguese. Hinglish captions use a Whisper model fine-tuned for Hindi-English speech. Mixed Hindi-English talking comes out as the Roman-script Hinglish creators actually post. Not as a translation.
           </p>
         </section>
 

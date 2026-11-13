@@ -193,7 +193,7 @@ export default function ProjectsList() {
       <p className="mt-3 text-[13px] text-sand-600">Signed-in projects are kept and never expire. Guest projects are removed after 30 days without edits.</p>
       {/* A15 organisation filters — only when the folders/tags database update is applied */}
       {data && !orgReady ? (
-        <p role="status" className="mt-3 rounded-lg border border-sand-300 bg-sand-50 px-4 py-3 text-[13px] text-sand-700">Folders and tags are pending a database update — your projects are all here, organising them unlocks once the update is applied.</p>
+        <p role="status" className="mt-3 rounded-lg border border-sand-300 bg-sand-50 px-4 py-3 text-[13px] text-sand-700">Folders and tags are pending a database update. Your projects are all here. Organising them unlocks once the update is applied.</p>
       ) : data ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-[13px] text-sand-700">

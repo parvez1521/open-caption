@@ -10,7 +10,7 @@ import { FontPicker } from "./FontPicker";
 import { MotionPicker } from "./MotionPicker";
 
 const opts = (xs: readonly string[]) => xs.map((x) => ({ value: x, label: x.replace(/-/g, " ") }));
-const LETTERS_ELSEWHERE = "These need a template that shows the whole line, such as Pop-Up Word or Classic Subtitle.";
+const LETTERS_ELSEWHERE = "These need a template that shows the whole line. Such as Pop-Up Word or Classic Subtitle.";
 const solid = (s: CaptionStyleV2) => (s.fill.type === "solid" ? s.fill.color : s.fill.stops[0]!.color);
 
 interface StyleProps {
@@ -35,7 +35,7 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
     { label: "Whole card", types: ["none", ...entrances.filter((e) => e !== "none" && !isLetterAnimator(e))] },
     {
       label: "Letter by letter · After Effects", types: LETTER_ANIMATORS, disabled: !lettersHere,
-      hint: lettersHere ? "Each letter flies in on its own, recreated from After Effects text presets." : LETTERS_ELSEWHERE,
+      hint: lettersHere ? "Each letter flies in on its own. Recreated from After Effects text presets." : LETTERS_ELSEWHERE,
     },
   ];
   const exits = exitsFor(tpl);

@@ -206,7 +206,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       track("export_done", { kind: "mp4", quality, trimmed: trim, resolution: effectiveResolution, fps: outFps });
     } catch (e) {
       if (stalled && attempt < 2) again = true;
-      else if (stalled) setError("The export kept stalling. Keep this tab open and in front while it renders, then try again.");
+      else if (stalled) setError("The export kept stalling. Keep this tab open and in front while it renders. Then try again.");
       else if (!ctrl.signal.aborted) {
         Sentry.captureException(e, { tags: { area: "browser-export" } });
         track("export_failed", { kind: "mp4" });
@@ -298,7 +298,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       if (!created.ready) {
         setQueuedNote(created.companionOnline
           ? "Rendering on your paired computer now. Your file will appear under “Your exports” below when it is ready."
-          : "Queued. No paired computer is online right now, so this will start rendering when your desktop app is next online. It will appear under “Your exports” below.");
+          : "Queued. No paired computer is online right now. This will start rendering when your desktop app is next online. It will appear under “Your exports” below.");
       }
       track("export_done", { kind: o.kind });
       await qc.invalidateQueries({ queryKey: ["exports", projectId] });

@@ -18,7 +18,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
           ))}
         </div>
         <h1 className="text-2xl font-bold tracking-tight">Something went wrong on this page</h1>
-        <p className="mt-2 text-[15px] text-[#FFFFEB]/65">Your projects and captions are safe. Try again, and if it keeps happening, refresh the page.</p>
+        <p className="mt-2 text-[15px] text-[#FFFFEB]/65">Your projects and captions are safe. Try again. If it keeps happening, refresh the page.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button onClick={reset} className="rounded-full bg-[#FFFFEB] px-5 py-2.5 text-sm font-semibold text-[#141412]">Try again</button>
           <Link href="/dashboard" className="rounded-full border border-[#FFFFEB]/15 px-5 py-2.5 text-sm font-semibold">Go to dashboard</Link>

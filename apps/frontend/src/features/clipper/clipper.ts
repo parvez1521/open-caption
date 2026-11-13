@@ -365,7 +365,7 @@ export function explainClip(signals: ClipSignals, rank: number, total: number): 
       `It opens with a ${kindText} in the first 3 seconds${signals.hook.matched ? ` ("${signals.hook.matched}")` : ""} — the hook check looks for a question, a number or a strong claim there.`,
     );
   } else {
-    parts.push("No question, number or strong claim was detected in its first 3 seconds.");
+    parts.push("Nothing detected in the first 3 seconds. No question, number or strong claim.");
   }
   if (signals.alignedBoundaryCount === 2) parts.push("Both edges line up with a measured silence edge or scene cut.");
   else if (signals.alignedBoundaryCount === 1) parts.push("One edge lines up with a measured silence edge or scene cut.");

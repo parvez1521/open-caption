@@ -48,24 +48,24 @@ const HOOK_METHOD =
   "kya / kyun / kaise / kab / kaun); hasNumber is true when any of those tokens contains a digit.";
 
 const ON_SCREEN_TEXT_NOTE =
-  "Text burned into the picture — captions, stickers and graphics — is NOT read: " +
-  "browser text recognition is not reliable enough on typical phones, so this " +
+  "Text burned into the picture — captions, stickers and graphics — is NOT read. " +
+  "Browser text recognition is not reliable enough on typical phones. So this " +
   "breakdown covers the spoken transcript and the picture cuts only.";
 
 const BEAT_METHOD =
-  `Beats are split at pauses of ${BEAT_PAUSE_MS} ms or more between consecutive words and at ` +
-  "scene cuts that fall inside a gap; labels are structural positions only — the first beat " +
-  "is Hook, the beat containing the first call to action is Call to action, the last beat " +
-  "(when it is neither of those) is Close, and every other beat is Story — not quality judgements.";
+  `Beats split at pauses of ${BEAT_PAUSE_MS} ms or more between words. And at scene cuts ` +
+  "inside a gap. Labels are structural positions only. The first beat is Hook. The beat " +
+  "with the first call to action is Call to action. The last beat is Close, unless it is " +
+  "one of those. Every other beat is Story. Not quality judgements.";
 
 const CTA_METHOD = "Matched against a fixed phrase list in the transcript — not a model.";
 
 const PACING_METHOD =
-  "Words per minute and cuts per minute are the counts divided by the duration in minutes, " +
-  "to 1 decimal (0 when the duration is 0); a pause is a gap of " +
-  `${BEAT_PAUSE_MS} ms or more between consecutive words, and the longest pause is the ` +
-  "largest such gap (0 when there is none); average shot length is the duration divided " +
-  "by (scene cuts + 1), rounded to the nearest millisecond.";
+  "Words per minute is the word count divided by minutes. Cuts per minute is the cut " +
+  "count divided by minutes. Both to 1 decimal. 0 when the duration is 0. A pause is " +
+  `a gap of ${BEAT_PAUSE_MS} ms or more between words. The longest pause is the largest ` +
+  "such gap. 0 when there is none. Average shot length is the duration divided " +
+  "by (scene cuts + 1). Rounded to the nearest millisecond.";
 
 /**
  * Call-to-action phrases matched against the normalised word stream
@@ -345,7 +345,7 @@ export function analyzeReel(input: ReelAnalysisInput): ReelBreakdown {
       display: cutCount === null ? "Not measured" : `${cutCount}`,
       method:
         cutCount === null
-          ? "Scene detection has not run for this video yet, so there is no count — this is not a zero."
+          ? "Scene detection has not run for this video yet. So there is no count. This is not a zero."
           : "Count of scene-cut times supplied from frame-difference scene detection.",
     },
     {
@@ -355,7 +355,7 @@ export function analyzeReel(input: ReelAnalysisInput): ReelBreakdown {
       display: cutsPerMin === null ? "Not measured" : `${cutsPerMin.toFixed(1)}`,
       method:
         cutsPerMin === null
-          ? "Scene detection has not run for this video yet, so there is no rate — this is not a zero."
+          ? "Scene detection has not run for this video yet. So there is no rate. This is not a zero."
           : "Scene cuts divided by the duration in minutes, to 1 decimal (0 when the duration is 0).",
     },
     {
@@ -365,7 +365,7 @@ export function analyzeReel(input: ReelAnalysisInput): ReelBreakdown {
       display: avgShotMs === null ? "Not measured" : `${avgShotMs} ms`,
       method:
         avgShotMs === null
-          ? "Needs the scene-cut count, which has not been measured for this video yet."
+          ? "Needs the scene-cut count, not measured for this video yet."
           : "Duration divided by (scene cuts + 1), rounded to the nearest millisecond.",
     },
     {
@@ -404,8 +404,8 @@ export function analyzeReel(input: ReelAnalysisInput): ReelBreakdown {
       value: firstCtaPositionPct,
       display: firstCtaPositionPct !== null ? `${firstCtaPositionPct.toFixed(1)}%` : "none",
       method:
-        "Start time of the first matched CTA phrase divided by the duration, as a percentage " +
-        "to 1 decimal; 'none' when no phrase from the fixed list was matched.",
+        "Start time of the first matched CTA phrase. As a percentage of the duration, " +
+        "to 1 decimal. 'none' when no phrase from the fixed list was matched.",
     },
   ];
 

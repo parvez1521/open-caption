@@ -392,7 +392,7 @@ export function buildPolishChoicePrompt(input: {
   lookCandidates: readonly { id: string; name: string }[];
 }): { system: string; user: string } {
   const user = [
-    "Choose the caption look and the punch-in zoom intensity that best fit this video's transcript.",
+    "Choose the caption look. And the punch-in zoom intensity that best fit this video.'s transcript.",
     `Looks (reply with the id): ${input.lookCandidates.map((l) => `${l.id} = ${l.name}`).join("; ")}`,
     'Zoom intensity: one of "subtle", "medium", "strong".',
     'Output format: {"lookId": "<one look id>", "intensity": "<subtle|medium|strong>"}',
@@ -467,7 +467,7 @@ export async function resolvePolishAiChoices(
     const picked = await tryChoiceRunner(deps.runModel, prompt, ids);
     if (picked) {
       return cloudFailed
-        ? { ...picked, source: "model", fellBack: true, note: "The free AI service was not available for these choices, so the local model made them instead." }
+        ? { ...picked, source: "model", fellBack: true, note: "The free AI service was not available for these choices. So the local model made them instead." }
         : { ...picked, source: "model", fellBack: false };
     }
   }

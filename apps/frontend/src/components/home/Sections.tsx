@@ -208,7 +208,7 @@ export function Hero() {
         </h1>
 
         <p data-hero="sub" className="mt-5 max-w-lg text-[15px] leading-relaxed text-[#FFFFEB]/70 sm:text-[17px] font-medium">
-          Captionit turns speech into animated, word-timed captions for Shorts, Reels and TikTok. 150 looks and 14 languages, no watermark, all in the tab you already have open.
+          Captionit turns speech into animated, word-timed captions. For Shorts, Reels and TikTok. 150 looks and 14 languages. No watermark. All in the tab you already have open.
         </p>
 
         <div data-hero="cta" className="mt-7 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -234,7 +234,7 @@ export function Hero() {
       {/* the captions are the visual: the trending looks on a rotating 3D cylinder */}
       <div className="relative z-0 mt-12 w-full">
         <HeroCylinder />
-        <p className="mt-3 text-center text-xs text-[#FFFFEB]/50">Drag to spin the ring — live previews of the trending caption looks.</p>
+        <p className="mt-3 text-center text-xs text-[#FFFFEB]/50">Drag to spin the ring. Live previews of trending looks.</p>
       </div>
     </section>
   );
@@ -361,19 +361,19 @@ const PIPELINE_STEPS = [
   {
     n: "2",
     title: "Speech becomes timed words",
-    body: "The speech model runs in your browser and stamps every word with its moment. Fix a name or drop a filler before anything is styled.",
+    body: "The speech model runs in your browser. It stamps every word with its moment. Fix a name or drop a filler first.",
     artifact: <TranscriptArtifact />,
   },
   {
     n: "3",
     title: "Choose the look, place the box",
-    body: "Start from 150 animated looks. Drag the caption box clear of faces and buttons, then tune the hero word and the body line apart.",
+    body: "Start from 150 animated looks. Drag the caption box clear of faces and buttons. Then tune the hero word and body line apart.",
     artifact: <StyleArtifact />,
   },
   {
     n: "4",
     title: "Export the finished video",
-    body: "The same renderer that showed you the preview burns the captions into a 1080p vertical MP4. What you saw is what posts.",
+    body: "The same renderer burns the captions into a 1080p vertical MP4. What you saw is what posts.",
     artifact: <RenderArtifact />,
   },
 ];
@@ -466,7 +466,7 @@ export function ClipperSection() {
                 </div>
               ))}
             </div>
-            <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/45">Silences split the runs · short runs merge · long runs split at the biggest pause</p>
+            <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/45">Silences split runs · short runs merge · long runs split on pauses</p>
           </div>
         </div>
       </div>
@@ -500,9 +500,7 @@ export function TranscribeSection() {
               A file in, <em className="font-normal italic text-[#34D399]">a transcript out.</em>
             </h2>
             <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
-              Transcribe turns a video or audio file into a timed transcript, in 14 languages,
-              with the speech model running in your browser. Copy it, or download it as TXT, SRT
-              or VTT.
+              Transcribe turns a video or audio file into a timed transcript. In 14 languages. The speech model runs in your browser. Copy it, or download it as TXT, SRT or VTT.
             </p>
             <Link href="/transcribe" className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-6 py-3.5 text-base font-bold text-[#141412]">
               Open Transcribe <span aria-hidden>→</span>
@@ -536,9 +534,7 @@ export function MotionStudioSection() {
             Motion Studio: graphics that <em className="font-normal italic text-[#34D399]">move.</em>
           </h2>
           <p className="mt-4 text-base leading-relaxed text-[#FFFFEB]/70">
-            Subscribe pills, follow cards, counters and titles — animated graphics you customise with
-            your own words and colour, then drop into a project. These four are playing live, exactly
-            as they render in your video.
+            Subscribe pills, follow cards, counters and titles. Animated graphics with your own words and colour. Drop them into a project. These four play live, exactly as they render.
           </p>
           <Link href="/motion" className="mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-6 py-3.5 text-base font-bold text-[#141412]">
             Open Motion Studio <span aria-hidden>→</span>
@@ -594,9 +590,7 @@ export function AiEditSection() {
               Describe the edit. <em className="font-normal italic text-[#34D399]">Check the plan. Keep what works.</em>
             </h2>
             <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
-              Choose a look, add a line of instruction if you like, and AI Edit drafts the whole
-              edit — the caption look, punch-in zooms, key words and a hook — as a checklist.
-              Nothing is applied until you approve it, and every step can be previewed and undone.
+              Choose a look. Add a line of instruction if you like. AI Edit drafts the whole edit as a checklist: the caption look, punch-in zooms, key words and a hook. Nothing is applied until you approve it. Every step can be previewed and undone.
             </p>
             <Link href="/start?choose=1" className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-6 py-3.5 text-base font-bold text-[#141412]">
               Try AI Edit <span aria-hidden>→</span>
@@ -639,7 +633,7 @@ export function Privacy() {
           <div className="lg:pr-8 lg:order-2">
             <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight sm:text-5xl">Your video <em className="font-normal italic text-[#34D399]">never leaves</em> this tab.</h2>
             <p className="mt-6 text-base sm:text-lg leading-relaxed text-[#FFFFEB]/75">
-              Transcription, styling and the MP4 export all run in the browser tab you already have open, on your phone or your laptop. No app, no plugin, no per-minute bill.
+              Transcription, styling and the MP4 export run in this tab. On your phone or your laptop. No app, no plugin, no per-minute bill.
             </p>
           </div>
         </div>
@@ -652,7 +646,7 @@ const CONTROLS = [
   {
     n: "01",
     title: "Move the caption box",
-    body: "Drag and resize the caption region anywhere in the frame, clear of faces, product shots or platform buttons. The export honours it to the pixel.",
+    body: "Drag and resize the caption region anywhere in the frame. Keep it clear of faces, product shots and buttons. The export honours it to the pixel.",
   },
   {
     n: "02",
@@ -662,12 +656,12 @@ const CONTROLS = [
   {
     n: "03",
     title: "Fix the transcript first",
-    body: "Correct names, drop filler words and merge fragments before styling, so the animation never amplifies a typo.",
+    body: "Correct names, drop filler words and merge fragments first. Then the animation never amplifies a typo.",
   },
   {
     n: "04",
     title: "Style the hero word apart",
-    body: "The emphasized word and the supporting line carry their own fonts, sizes and colours. Tune one without touching the other.",
+    body: "The emphasized word has its own font, size and colour. So does the supporting line. Tune one without touching the other.",
   },
   {
     n: "05",
@@ -689,7 +683,7 @@ export function Control() {
             You stay in charge of <em className="font-normal italic text-[#34D399]">every word.</em>
           </h2>
           <p className="mt-4 text-base leading-relaxed text-[#FFFFEB]/70">
-            The first pass is automatic. After that, every word, break, position and motion curve is yours to change.
+            The first pass is automatic. After that, you can change every word, break, position and motion curve.
           </p>
         </div>
         <div className="mt-12 border-t border-[#FFFFEB]/10">

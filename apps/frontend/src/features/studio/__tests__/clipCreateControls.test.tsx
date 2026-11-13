@@ -119,7 +119,7 @@ describe("ClipTitleControl", () => {
       text: "A template hook",
       source: "template",
       fellBack: true,
-      note: "The free AI service was not available for this batch, so it came from the template engine instead.",
+      note: "The free AI service was not available for this batch. So it came from the template engine instead.",
     };
     const onState = vi.fn();
     render(

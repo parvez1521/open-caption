@@ -107,7 +107,7 @@ export const TranslatePanel: React.FC<{
         <label className="flex cursor-pointer items-center justify-between gap-3 text-sm text-st-text/90">
           <span>
             Bilingual captions
-            <span className="block text-xs text-st-faint">Show the translated line under each caption, in the preview and in exports.</span>
+            <span className="block text-xs text-st-faint">Show the translated line under each caption. In the preview and in exports.</span>
           </span>
           <input
             type="checkbox"

@@ -329,8 +329,7 @@ export default function BrandKitPage() {
               <section className="rounded-xl border border-orange-accent/60 bg-orange-accent/10 p-6">
                 <h2 className="font-sora text-[15px] font-bold text-obsidian">Voice profiles are not available yet</h2>
                 <p className="mt-1 text-[13px] text-obsidian">
-                  Voice profiles need a database update on the server before they can be saved. Until then, your
-                  colours and font still save exactly as before.
+                  Voice profiles need a server database update before they can be saved. Until then, your colours and font still save exactly as before.
                 </p>
               </section>
             ) : null}
@@ -343,8 +342,8 @@ export default function BrandKitPage() {
                   <h2 className="font-sora text-[15px] font-bold text-ink">Brand voice</h2>
                   <p className="mt-1 text-[13px] text-sand-700">
                     {mode === "legacy"
-                      ? "Voice editing unlocks once the server update lands. Your colours and font below still save as before."
-                      : "How this profile sounds. When it is the active profile, the Creator Studio generators write in this voice."}
+                      ? "Voice editing unlocks once the server update lands. Your colours and font below still save."
+                      : "How this profile sounds. When active, the Creator Studio generators write in this voice."}
                   </p>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <div className="sm:col-span-2">
@@ -422,7 +421,7 @@ export default function BrandKitPage() {
 
                 <section className="rounded-xl border border-sand-200 bg-white p-6">
                   <h2 className="font-sora text-[15px] font-bold text-ink">Preferred font</h2>
-                  <p className="mt-1 text-[13px] text-sand-700">Offered in the Style panel as your brand font for new caption styles.</p>
+                  <p className="mt-1 text-[13px] text-sand-700">Offered in the Style panel. Your brand font for new caption styles.</p>
                   <div className="mt-4 rounded-lg border border-sand-200 bg-sand-50 p-4">
                     <FontPicker label="Brand font" value={form.fontId ?? ""} placeholder="No font saved yet" onChange={(f) => patchForm({ fontId: f })} />
                     {!form.fontId ? <p className="mt-2 text-[12px] text-sand-600">No brand font saved yet — pick one above and save.</p> : (
