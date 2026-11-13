@@ -15,9 +15,12 @@ describe("shell nav config", () => {
   });
 
   it("is exactly the approved IA: primary + supporting, in order", () => {
+    // Hidden for now (owner order 2026-11-13, "abhi ke liye"): Creator Studio (/create),
+    // Clipper (/clipper), AI Clipper (/ai-clipper), Reel Analyzer (/analyzer) and
+    // Teleprompter (/prompter) are live routes but NOT in the nav. Their rows are
+    // removed here on purpose; re-add the entry in nav.ts AND its row here to restore one.
     expect(NAV_ITEMS.map((i) => [i.group, i.label, i.href])).toEqual([
       ["primary", "Dashboard", "/dashboard"],
-      ["primary", "Creator Studio", "/create"],
       ["primary", "Caption Studio", "/captions"],
       ["primary", "Video Editor", "/editor"],
       ["primary", "Motion Studio", "/motion"],
@@ -26,11 +29,7 @@ describe("shell nav config", () => {
       ["primary", "Creator Analytics", "/analytics"],
       ["supporting", "Media Library", "/library"],
       ["supporting", "Brand Kit", "/brand"],
-      ["supporting", "Clipper", "/clipper"],
-      ["supporting", "AI Clipper", "/ai-clipper"],
       ["supporting", "Transcribe", "/transcribe"],
-      ["supporting", "Reel Analyzer", "/analyzer"],
-      ["supporting", "Teleprompter", "/prompter"],
       ["supporting", "Export History", "/exports"],
       ["supporting", "Settings", "/settings"],
     ]);
@@ -47,13 +46,14 @@ describe("shell nav config", () => {
   });
 
   it("mentions only sections that exist (the Phase-8 pin: Creator Analytics resolved)", () => {
-    // Every phase-gated section has now shipped: Content Planner + Teleprompter
-    // entered in Phase 7; Creator Analytics — the last honestly-absent entry —
-    // entered in Phase 8 when slice 8.1 shipped. The absence list is empty by
-    // design; this test now pins the positive half: Analytics is present, in
-    // the primary group, and (per the page-existence test above) backed by a
-    // real page. If a future section is ever planned-but-unbuilt, it belongs
-    // on a new absence list here, NOT in the nav.
+    // Every phase-gated section has now shipped: Content Planner entered in Phase 7 and
+    // Creator Analytics — the last honestly-absent entry — entered in Phase 8 when slice
+    // 8.1 shipped. Teleprompter also shipped in Phase 7 but is hidden from the nav for
+    // now (owner order 2026-11-13); it is not a planned-but-unbuilt section, so it does
+    // not belong on an absence list either. This test now pins the positive half:
+    // Analytics is present, in the primary group, and (per the page-existence test
+    // above) backed by a real page. If a future section is ever planned-but-unbuilt, it
+    // belongs on a new absence list here, NOT in the nav.
     const analytics = NAV_ITEMS.find((i) => i.id === "analytics");
     expect(analytics).toMatchObject({ label: "Creator Analytics", href: "/analytics", group: "primary" });
     const forbidden: string[] = [];
@@ -88,6 +88,6 @@ describe("isNavActive", () => {
 
   it("is segment-aware, not a raw string prefix", () => {
     expect(isNavActive("/dashboard-old", byId("dashboard"))).toBe(false);
-    expect(isNavActive("/createx", byId("create"))).toBe(false);
+    expect(isNavActive("/captionsx", byId("captions"))).toBe(false);
   });
 });

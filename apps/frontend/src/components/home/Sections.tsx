@@ -116,6 +116,69 @@ export function Nav() {
   );
 }
 
+/** Motion preference, guarded: jsdom (and very old browsers) have no matchMedia. */
+function prefersReducedMotion(): boolean {
+  try {
+    return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Hinglish claim, in the owner's exact words (2026-11-13): "95% Hinglish caption accurate".
+ * Framed as Captionit's claim for everyday Hindi-English speech — NOT a measured
+ * benchmark: no test, methodology or verification is claimed anywhere in this copy.
+ * The number counts 0 → 95 once the hero entrance has played (the CSS entrance ends
+ * first, so the count is never hidden behind the intro curtain); a 7s fallback covers
+ * reduced-motion and coarse pointers, where the CSS animation is disabled and no
+ * animationend fires. Reduced motion jumps straight to 95.
+ */
+export function HinglishClaim() {
+  const [started, setStarted] = useState(false);
+  const [pct, setPct] = useState(0);
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      setStarted(true);
+      return;
+    }
+    const t = setTimeout(() => setStarted(true), 7000);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    if (!started) return;
+    if (prefersReducedMotion()) {
+      setPct(95);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / 1100);
+      setPct(Math.round(95 * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [started]);
+  return (
+    <p
+      data-hero="claim"
+      aria-label="95% Hinglish caption accurate. Captionit's claim for Hindi-English speech."
+      onAnimationEnd={() => setStarted(true)}
+      className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1"
+    >
+      <span aria-hidden className="font-styled text-2xl font-bold text-[#34D399] sm:text-3xl">
+        {pct}%
+      </span>
+      <span aria-hidden className="text-base font-bold text-[#FFFFEB] sm:text-lg">Hinglish caption accurate</span>
+      <span aria-hidden className="w-full text-xs leading-relaxed text-[#FFFFEB]/50 sm:w-auto">
+        Captionit&rsquo;s claim for Hindi-English speech. Try it on your own clip.
+      </span>
+    </p>
+  );
+}
+
 /**
  * Hero: a split layout, not a centred headline over a strip of clips. The copy sits on
  * the left; below it, the trending caption looks ride a slowly rotating 3D cylinder —
@@ -163,6 +226,7 @@ export function Hero() {
         <p data-hero="points" className="mt-6 font-mono text-xs tracking-wide text-[#FFFFEB]/50">
           150 looks · 14 languages · No watermark
         </p>
+        <HinglishClaim />
       </div>
 
       {/* the captions are the visual: the trending looks on a rotating 3D cylinder */}
@@ -347,6 +411,12 @@ export function HowItWorks() {
   );
 }
 
+/**
+ * HIDDEN for now (owner order 2026-11-13, "abhi ke liye"): the Clipper section is not
+ * rendered on the homepage and neither /clipper nor /ai-clipper is linked from it.
+ * The component, routes and pages stay live and untouched — restore by re-adding
+ * <ClipperSection /> to (home)/page.tsx and the footer links below.
+ */
 export function ClipperSection() {
   const rows = [
     ["0:32–1:05", "the part where the story turns"],
@@ -687,8 +757,6 @@ const FOOTER_COLUMNS = [
     links: [
       { label: "How it works", href: "/#how" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Clipper", href: "/clipper" },
-      { label: "AI Clipper", href: "/ai-clipper" },
       { label: "Transcribe", href: "/transcribe" },
       { label: "Looks gallery", href: "/#looks" },
       { label: "Precision controls", href: "/#control" },
@@ -742,7 +810,6 @@ export function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
-                      {...(link.href === "/clipper" || link.href === "/ai-clipper" ? { target: "_blank", rel: "noopener" } : {})}
                       className="inline-flex min-h-10 items-center transition-colors hover:text-[#34D399] hover:underline underline-offset-4 lg:min-h-0"
                     >
                       {link.label}

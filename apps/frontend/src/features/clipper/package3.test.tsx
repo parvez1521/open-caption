@@ -193,12 +193,14 @@ import { ClipperLaunchCard } from "../studio/panels/ClipperLaunchCard";
 import { NAV_ITEMS } from "@/components/studio/nav";
 
 describe("Clipper launch behaviour (I.1)", () => {
-  it("the main-nav Clipper entries open in a new tab; the other entries do not", () => {
-    const clipper = NAV_ITEMS.find((i) => i.id === "clipper")!;
-    expect(clipper.newTab).toBe(true);
-    const aiClipper = NAV_ITEMS.find((i) => i.id === "ai-clipper")!;
-    expect(aiClipper.newTab).toBe(true);
-    expect(NAV_ITEMS.filter((i) => i.newTab).map((i) => i.id)).toEqual(["clipper", "ai-clipper"]);
+  it("the hidden Clipper entries are not in the main nav; no nav entry opens in a new tab", () => {
+    // Owner order 2026-11-13 ("abhi ke liye"): Clipper (/clipper) and AI Clipper
+    // (/ai-clipper) stay live as routes but are hidden from the nav, so the newTab
+    // entries are gone with them. Re-adding the entries in nav.ts must re-add the
+    // newTab: true flags — and this test must go back to asserting them.
+    expect(NAV_ITEMS.map((i) => i.id)).not.toContain("clipper");
+    expect(NAV_ITEMS.map((i) => i.id)).not.toContain("ai-clipper");
+    expect(NAV_ITEMS.filter((i) => i.newTab)).toEqual([]);
   });
   it("the Studio launch card links to the standalone Clipper for THIS project, in a new tab", () => {
     render(<ClipperLaunchCard projectId="proj-9" />);
