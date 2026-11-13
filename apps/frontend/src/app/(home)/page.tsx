@@ -5,7 +5,7 @@ import Lenis from "lenis";
 import { Loader } from "@/components/home/Loader";
 import { ensureGsap, prefersReducedMotion } from "@/components/home/gsap";
 import dynamic from "next/dynamic";
-import { AiEditSection, ClipperSection, ClosingCta, Control, Faq, Footer, Hero, HowItWorks, MotionStudioSection, Nav, Privacy, ToolDoors, TranscribeSection } from "@/components/home/Sections";
+import { AiEditSection, ClosingCta, Control, Faq, Footer, Hero, HowItWorks, MotionStudioSection, Nav, Privacy, ToolDoors, TranscribeSection } from "@/components/home/Sections";
 
 const SpatialScroll = dynamic(
   () => import("@/components/spatial/SpatialScroll").then((m) => m.SpatialScroll),
@@ -108,7 +108,8 @@ export default function LandingPage() {
       <Hero />
       <ToolDoors />
       <HowItWorks />
-      <ClipperSection />
+      {/* ClipperSection hidden for now (owner order 2026-11-13): component stays live in
+          components/home/Sections.tsx — re-add it here to restore the section. */}
       <TranscribeSection />
       <MotionStudioSection />
       <AiEditSection />

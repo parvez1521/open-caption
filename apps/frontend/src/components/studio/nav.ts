@@ -9,6 +9,12 @@
  * (Growth Studio + Reel Analyzer entered with Phase 6, Content Planner + Teleprompter
  * with Phase 7, Creator Analytics with Phase 8, Motion Studio with the Motion Studio
  * surfaces slice — every entry is backed by a real page.)
+ *
+ * Hidden for now (owner order 2026-11-13, "abhi ke liye"): Creator Studio (/create),
+ * Clipper (/clipper), AI Clipper (/ai-clipper), Reel Analyzer (/analyzer) and
+ * Teleprompter (/prompter) are NOT listed here, but their routes and pages stay live
+ * and unlinked. To restore one, re-add its entry below (and its row in the nav test's
+ * pinned IA list); nothing else needs to change.
  */
 
 export type NavGroupId = "primary" | "supporting";
@@ -33,7 +39,6 @@ export interface NavGroup {
 
 export const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", group: "primary", activeMatch: ["/dashboard"] },
-  { id: "create", label: "Creator Studio", href: "/create", group: "primary", activeMatch: ["/create"] },
   { id: "captions", label: "Caption Studio", href: "/captions", group: "primary", activeMatch: ["/captions"] },
   // The editor itself is per-project at /projects/[id], so the editor entry stays active there too.
   { id: "editor", label: "Video Editor", href: "/editor", group: "primary", activeMatch: ["/editor", "/projects"] },
@@ -43,11 +48,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "analytics", label: "Creator Analytics", href: "/analytics", group: "primary", activeMatch: ["/analytics"] },
   { id: "library", label: "Media Library", href: "/library", group: "supporting", activeMatch: ["/library"] },
   { id: "brand", label: "Brand Kit", href: "/brand", group: "supporting", activeMatch: ["/brand"] },
-  { id: "clipper", label: "Clipper", href: "/clipper", group: "supporting", activeMatch: ["/clipper"], newTab: true },
-  { id: "ai-clipper", label: "AI Clipper", href: "/ai-clipper", group: "supporting", activeMatch: ["/ai-clipper"], newTab: true },
   { id: "transcribe", label: "Transcribe", href: "/transcribe", group: "supporting", activeMatch: ["/transcribe"] },
-  { id: "analyzer", label: "Reel Analyzer", href: "/analyzer", group: "supporting", activeMatch: ["/analyzer"] },
-  { id: "teleprompter", label: "Teleprompter", href: "/prompter", group: "supporting", activeMatch: ["/prompter"] },
   { id: "exports", label: "Export History", href: "/exports", group: "supporting", activeMatch: ["/exports"] },
   { id: "settings", label: "Settings", href: "/settings", group: "supporting", activeMatch: ["/settings"] },
 ];

@@ -193,9 +193,8 @@ export default function PlannerCardEditor({
                 ))}
               </select>
             </label>
-            {scriptItemId && !scriptMissing ? (
-              <p className="mt-1 text-[12px]"><Link href="/create" className={linkCls}>Open in Creator Studio</Link></p>
-            ) : null}
+            {/* Creator Studio hidden for now (owner order 2026-11-13): no link out to /create.
+                The attached script stays selectable above; restore the Link to re-expose it. */}
           </div>
           <div>
             <label className={labelCls}>
@@ -208,9 +207,8 @@ export default function PlannerCardEditor({
                 ))}
               </select>
             </label>
-            {captionItemId && !captionMissing ? (
-              <p className="mt-1 text-[12px]"><Link href="/create" className={linkCls}>Open in Creator Studio</Link></p>
-            ) : null}
+            {/* Creator Studio hidden for now (owner order 2026-11-13): no link out to /create.
+                The attached caption stays selectable above; restore the Link to re-expose it. */}
           </div>
           <div>
             <label className={labelCls}>

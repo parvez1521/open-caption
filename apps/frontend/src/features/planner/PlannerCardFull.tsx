@@ -163,7 +163,8 @@ export default function PlannerCardFull({
           {body.scriptItemId ? (
             <li>
               {scriptItem ? (
-                <Link href="/create" className={linkCls}>Script: {scriptItem.title}</Link>
+                // Creator Studio hidden for now (owner order 2026-11-13): title shown, not linked.
+                <span className="font-semibold text-sand-800">Script: {scriptItem.title}</span>
               ) : (
                 <span className="text-sand-600">Script (no longer in your library)</span>
               )}
@@ -172,7 +173,8 @@ export default function PlannerCardFull({
           {body.captionItemId ? (
             <li>
               {captionItem ? (
-                <Link href="/create" className={linkCls}>Caption: {captionItem.title}</Link>
+                // Creator Studio hidden for now (owner order 2026-11-13): title shown, not linked.
+                <span className="font-semibold text-sand-800">Caption: {captionItem.title}</span>
               ) : (
                 <span className="text-sand-600">Caption (no longer in your library)</span>
               )}
