@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Resampler } from "../resample";
-import { SR, TimelineAligner, capWordEnd, detectSpeech, isLooping, dropRepeatedRuns, planWindows, renderWindow, toOriginalSeconds } from "../speech";
+import { SR, TimelineAligner, capWordEnd, detectSpeech, isLooping, dropRepeatedRuns, planWindows, refineWordTimings, renderWindow, toOriginalSeconds } from "../speech";
 
 /** a "voiced" burst: a 200 Hz tone with an envelope, loud enough to count as speech */
 function tone(seconds: number, amp = 0.2): Float32Array {
@@ -214,6 +214,98 @@ describe("capWordEnd", () => {
   it("never runs past the audio and never ends before it starts", () => {
     expect(capWordEnd(" sanskriti", 8.5, 12, 8.66)).toBe(8.66);
     expect(capWordEnd(" a", 9, 9, 8.66)).toBeCloseTo(9.05, 5);
+  });
+});
+
+describe("refineWordTimings — anchor Whisper's times to the speech bursts", () => {
+  // two synthetic bursts at [280, 1060] and [1660, 2440] ms (the real clip's shape is pinned separately below)
+  const twoBursts = () => clip([["silence", 0.28], ["speech", 0.78], ["silence", 0.6], ["speech", 0.78], ["silence", 0.5]]);
+  const w = (text: string, startMs: number, endMs: number) => ({ text, startMs, endMs });
+
+  it("pulls a late first word back to the burst onset and a hanging last word back to the burst offset", () => {
+    // synthetic error shape: first word 220 ms late, last word 620 ms over the silence
+    const out = refineWordTimings([w("one", 500, 1680), w("two", 1920, 2900)], twoBursts());
+    expect(out[0]).toMatchObject({ startMs: 280, endMs: 1060 });
+    expect(out[1]).toMatchObject({ startMs: 1660, endMs: 2440 });
+  });
+
+  it("matches the real test clip: Whisper's measured words against its envelope bursts", () => {
+    // speech-test.mp3 ("hyperbola / hyperbole / hyperbolic"): envelope bursts [240,1080] [1700,2540]
+    // [3020,3900] ms; the production model (whisper-base_timestamped q8, packed as the worker hears it)
+    // reported [530,1070] [1890,2350] [3180,3480] — starts 160–290 ms late, ends early. The refine
+    // pulls every start onto its burst onset and the first two ends onto their burst offsets; the last
+    // word's end stays at 3480 (the burst tail past it is quiet decay, the audible body ends ~3550).
+    const realClip = clip([["silence", 0.24], ["speech", 0.84], ["silence", 0.62], ["speech", 0.84], ["silence", 0.48], ["speech", 0.88], ["silence", 0.394]]);
+    const out = refineWordTimings([w("Hyperbola.", 530, 1070), w("Hyperbola.", 1890, 2350), w("Hyperbolic.", 3180, 3480)], realClip);
+    expect(out[0]).toMatchObject({ startMs: 240, endMs: 1080 });
+    expect(out[1]).toMatchObject({ startMs: 1700, endMs: 2540 });
+    expect(out[2]).toMatchObject({ startMs: 3020, endMs: 3480 });
+  });
+
+  it("pulls an early word forward to the onset and stretches a lone word to the burst it fills", () => {
+    const out = refineWordTimings([w("one", 100, 900), w("two", 1800, 2300)], twoBursts());
+    expect(out[0]).toMatchObject({ startMs: 280, endMs: 1060 });
+    expect(out[1]).toMatchObject({ startMs: 1660, endMs: 2440 });
+  });
+
+  it("leaves words in the middle of one continuous burst alone", () => {
+    const audio = clip([["speech", 3]]);
+    const out = refineWordTimings([w("a", 200, 600), w("b", 700, 1200), w("c", 2000, 2600)], audio);
+    // only the first word's start may move (to the burst onset) and only the last word's end
+    // (here 400 ms short of the burst end: too far, so it stays) — the middle word is untouched
+    expect(out[0]).toMatchObject({ startMs: 0, endMs: 600 });
+    expect(out[1]).toMatchObject({ startMs: 700, endMs: 1200 });
+    expect(out[2]).toMatchObject({ startMs: 2000, endMs: 2600 });
+  });
+
+  it("pulls a word that starts in silence well before its burst forward to the onset", () => {
+    const out = refineWordTimings([w("two", 1200, 2900)], twoBursts());
+    expect(out[0]).toMatchObject({ startMs: 1660, endMs: 2440 });
+  });
+
+  it("does not pull a word forward when its start sits deep inside the previous burst", () => {
+    // the word overlaps the second burst most, but its start is 260 ms into the first burst's
+    // speech: it belongs to that speech, so the start stays where Whisper put it
+    const out = refineWordTimings([w("two", 800, 2900)], twoBursts());
+    expect(out[0]).toMatchObject({ startMs: 800, endMs: 2440 });
+  });
+
+  it("does not pull a first word's start back when it starts far into a burst", () => {
+    const out = refineWordTimings([w("one", 900, 1000)], twoBursts());
+    // start 620 ms into the burst: no snap. End 60 ms short of the burst end: snaps, as the last word.
+    expect(out[0]).toMatchObject({ startMs: 900, endMs: 1060 });
+  });
+
+  it("does not stretch a last word that ends well before its burst does", () => {
+    const out = refineWordTimings([w("one", 1700, 1900), w("two", 2000, 2050)], twoBursts());
+    expect(out[0]).toMatchObject({ startMs: 1660, endMs: 1900 });
+    expect(out[1]).toMatchObject({ startMs: 2000, endMs: 2050 });
+  });
+
+  it("leaves a word that overlaps no burst untouched", () => {
+    const out = refineWordTimings([w("ghost", 1200, 1500)], twoBursts());
+    expect(out[0]).toMatchObject({ startMs: 1200, endMs: 1500 });
+  });
+
+  it("does nothing on silence or on audio too short to anchor", () => {
+    const words = [w("one", 500, 1680)];
+    expect(refineWordTimings(words, new Float32Array(SR * 4))).toEqual(words);
+    expect(refineWordTimings(words, twoBursts().subarray(0, SR / 4))).toEqual(words);
+  });
+
+  it("keeps words monotonic with at least 40 ms each, even when snaps collide", () => {
+    const out = refineWordTimings([w("one", 500, 900), w("two", 950, 1400)], twoBursts());
+    expect(out[0]).toMatchObject({ startMs: 280, endMs: 900 });
+    expect(out[1]).toMatchObject({ startMs: 950, endMs: 1060 });
+    expect(out[1]!.startMs).toBeGreaterThanOrEqual(out[0]!.endMs);
+    expect(out.every((x) => x.endMs - x.startMs >= 40)).toBe(true);
+  });
+
+  it("does not split a burst at a short dip inside it", () => {
+    // a 60 ms dip mid-burst (a plosive closure) is one burst, not two: the last word still ends at the burst end
+    const audio = clip([["silence", 0.28], ["speech", 0.4], ["silence", 0.06], ["speech", 0.4], ["silence", 0.5]]);
+    const out = refineWordTimings([w("one", 500, 1500)], audio);
+    expect(out[0]).toMatchObject({ startMs: 280, endMs: 1140 });
   });
 });
 

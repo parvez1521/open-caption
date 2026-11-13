@@ -179,6 +179,179 @@ export function toOriginalSeconds(w: PackedWindow, packedSec: number): number {
   return (last.origStart + (last.packedEnd - last.packedStart)) / SR;
 }
 
+/**
+ * Whisper's word timestamps come from a DTW alignment of the model's cross-attention (transformers.js
+ * `return_timestamps: "word"`): the model only predicts timestamps at segment boundaries, so a word's
+ * start/end are the attention mass around it, not the sound itself. Measured on the repo's own test clip
+ * (speech-test.mp3, "hyperbola / hyperbole / hyperbolic", ground truth from the energy envelope —
+ * bursts [240,1080] [1700,2540] [3020,3900] ms; model run 2026-11-13 on whisper-base_timestamped q8,
+ * packed exactly as the worker hears it): Whisper's starts land 160–290 ms LATE ([530,1070] [1890,2350]
+ * [3180,3480] vs the bursts), ends 10–190 ms early on the first two words; the last word's end sits
+ * ~420 ms before the burst tail, but that tail is quiet decay — the audible body ends ~100 ms after
+ * Whisper's end, so there is no "hanging" end to fix there. VAD, packing and the container-offset
+ * aligner were all measured accurate — the model's timestamps are the error.
+ *
+ * refineWordTimings() corrects what the audio itself can prove: each word is assigned to the speech
+ * burst (run of loud frames) it overlaps most, and the FIRST word of a burst gets its start pulled to
+ * the burst's onset, the LAST word its end pulled to the burst's offset — but only when the burst edge
+ * is close (<= NEAR_MS, ordinary DTW jitter) or the word hangs over >= SILENCE_MS of silence past it
+ * (a caption visibly outliving the speech). Words in the middle of a burst keep Whisper's times: the
+ * energy envelope cannot tell one word from the next inside connected speech, and pretending otherwise
+ * would be invented precision. Moves are capped, monotonicity is kept, and a word is never collapsed.
+ * Pure + unit-tested; the worker calls it on every window (see whisper.worker.ts runWindow).
+ */
+
+const REFINE_FRAME = Math.round(SR * 0.02); // 20 ms frames, 320 samples at 16 kHz
+const REFINE_NEAR_MS = 350; // DTW jitter a burst edge may correct
+const REFINE_SILENCE_MS = 300; // a word may not hang this long over silence past its burst
+const REFINE_MAX_MOVE_MS = 1500; // a silence-anchored correction never moves a boundary further
+const REFINE_EDGE_INTRUSION_MS = 100; // a word edge may sit this far inside neighbouring speech and still be a hang-over
+const REFINE_BRIDGE_FRAMES = 5; // quiet dips up to 100 ms inside a burst do not split it
+const REFINE_MIN_OVERLAP_MS = 40; // a word must overlap a burst by this much to belong to it
+
+interface SpeechRun { startMs: number; endMs: number }
+interface RefineData { energies: Float32Array; runs: SpeechRun[]; hi: number }
+
+/** Frame energies + speech runs, cached per audio buffer so each window of a run reuses them. */
+const refineCache = new WeakMap<Float32Array, RefineData>();
+
+function refineData(audio: Float32Array): RefineData {
+  const hit = refineCache.get(audio);
+  if (hit) return hit;
+  const nFrames = Math.floor(audio.length / REFINE_FRAME);
+  const energies = new Float32Array(nFrames);
+  for (let i = 0; i < nFrames; i++) {
+    let sum = 0;
+    for (let k = i * REFINE_FRAME; k < (i + 1) * REFINE_FRAME; k++) sum += audio[k]! * audio[k]!;
+    energies[i] = Math.sqrt(sum / REFINE_FRAME);
+  }
+  const out: RefineData = { energies, runs: [], hi: 0 };
+  if (nFrames < 2) {
+    refineCache.set(audio, out);
+    return out;
+  }
+  const sorted = Float32Array.from(energies).sort();
+  const peak = sorted[Math.floor(nFrames * 0.98)] ?? 0;
+  if (peak < 0.004) {
+    // near-silence: no speech to anchor to (VAD would have found no windows either)
+    refineCache.set(audio, out);
+    return out;
+  }
+  const hi = Math.max(0.004, peak * 0.06);
+  const lo = Math.max(0.002, peak * 0.015);
+  out.hi = hi;
+  const strong = (i: number) => i >= 0 && i < nFrames && energies[i]! >= hi;
+  const loud = (i: number) => i >= 0 && i < nFrames && energies[i]! >= lo;
+  let i = 0;
+  while (i < nFrames) {
+    // a burst starts at two strong frames in a row (one loud frame is a click, not speech)
+    if (!strong(i) || !strong(i + 1)) {
+      i++;
+      continue;
+    }
+    let start = i;
+    while (loud(start - 1)) start--; // the quiet onset ("h", breath) belongs to the burst
+    let lastLoud = i + 1;
+    let j = i + 2;
+    while (j < nFrames) {
+      if (loud(j)) {
+        lastLoud = j;
+        j++;
+        continue;
+      }
+      // a short dip (plosive closure) inside the burst: bridge it when speech resumes soon
+      let found = -1;
+      for (let k = j; k < Math.min(nFrames, j + REFINE_BRIDGE_FRAMES); k++) {
+        if (strong(k)) {
+          found = k;
+          break;
+        }
+      }
+      if (found === -1) break;
+      j = found;
+    }
+    out.runs.push({ startMs: start * 20, endMs: (lastLoud + 1) * 20 });
+    i = lastLoud + 1;
+  }
+  refineCache.set(audio, out);
+  return out;
+}
+
+/**
+ * Snap word boundaries to the speech bursts they belong to (see above). Words are matched to runs by
+ * largest overlap; a word that overlaps no burst keeps Whisper's times. Never moves a boundary by more
+ * than REFINE_MAX_MOVE_MS, never crosses a neighbour, never shrinks a word below 40 ms.
+ */
+export function refineWordTimings<T extends { text: string; startMs: number; endMs: number }>(words: T[], audio: Float32Array): T[] {
+  if (words.length === 0 || audio.length < SR / 2) return words;
+  const { energies, runs, hi } = refineData(audio);
+  if (!runs.length) return words;
+  // Edges of the silence next to a burst: the next strong frame after a burst ends, and the end of
+  // the last strong frame before a burst starts. A word may hang over silence past its burst, but
+  // only when the word's own edge barely intrudes into the neighbouring speech (<= INTRUSION_MS):
+  // a word that starts deep inside the previous burst belongs to that burst, not to this one.
+  const nextStrongMs = (ms: number): number => {
+    for (let i = Math.floor(ms / 20); i < energies.length; i++) if (energies[i]! >= hi) return i * 20;
+    return Infinity; // no more speech: the rest is silence
+  };
+  const prevStrongEndMs = (ms: number): number => {
+    for (let i = Math.ceil(ms / 20) - 1; i >= 0; i--) if (energies[i]! >= hi) return (i + 1) * 20;
+    return -Infinity;
+  };
+  const assigned = words.map((w) => {
+    let best: SpeechRun | null = null;
+    let bestOverlap = 0;
+    for (const r of runs) {
+      const ov = Math.min(w.endMs, r.endMs) - Math.max(w.startMs, r.startMs);
+      if (ov > bestOverlap) {
+        bestOverlap = ov;
+        best = r;
+      }
+    }
+    return bestOverlap >= REFINE_MIN_OVERLAP_MS ? best : null;
+  });
+  const firstOf = new Map<SpeechRun, number>();
+  const lastOf = new Map<SpeechRun, number>();
+  assigned.forEach((r, i) => {
+    if (!r) return;
+    if (!firstOf.has(r)) firstOf.set(r, i);
+    lastOf.set(r, i);
+  });
+  const out = words.map((w) => ({ ...w }));
+  for (let i = 0; i < out.length; i++) {
+    const run = assigned[i];
+    if (!run) continue;
+    const w = out[i]!;
+    let ns = w.startMs;
+    let ne = w.endMs;
+    if (firstOf.get(run) === i) {
+      const d = run.startMs - ns;
+      if (Math.abs(d) <= REFINE_NEAR_MS) ns = run.startMs;
+      else if (d > REFINE_SILENCE_MS && d <= REFINE_MAX_MOVE_MS) {
+        const prevEnd = prevStrongEndMs(run.startMs);
+        if (run.startMs - prevEnd >= REFINE_SILENCE_MS && prevEnd - ns <= REFINE_EDGE_INTRUSION_MS) ns = run.startMs;
+      }
+    }
+    if (lastOf.get(run) === i) {
+      const d = ne - run.endMs;
+      if (Math.abs(d) <= REFINE_NEAR_MS) ne = run.endMs;
+      else if (d > REFINE_SILENCE_MS && d <= REFINE_MAX_MOVE_MS) {
+        const nextStart = nextStrongMs(run.endMs);
+        if (nextStart - run.endMs >= REFINE_SILENCE_MS && ne - nextStart <= REFINE_EDGE_INTRUSION_MS) ne = run.endMs;
+      }
+    }
+    if (ne - ns < 40) continue; // a snap that would collapse the word is not evidence: keep Whisper's span
+    const prevEnd = i > 0 ? out[i - 1]!.endMs : 0;
+    const nextStart = i < out.length - 1 ? out[i + 1]!.startMs : Infinity;
+    ns = Math.max(ns, prevEnd);
+    ne = Math.min(ne, nextStart);
+    if (ne - ns < 40) continue;
+    w.startMs = Math.round(ns);
+    w.endMs = Math.round(ne);
+  }
+  return out;
+}
+
 /** Longest looping phrase (in words) that is searched for. */
 const MAX_LOOP_WORDS = 16;
 

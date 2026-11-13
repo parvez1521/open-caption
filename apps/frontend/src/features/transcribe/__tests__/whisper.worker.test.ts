@@ -75,4 +75,29 @@ describe("whisper worker — multilingual path", () => {
     const partial = posted.find((m) => m.type === "partial");
     expect(partial?.words?.map((w) => w.text.trim())).toEqual(["Hello"]);
   });
+
+  it("anchors a word's start to the speech burst it belongs to (timing refinement runs in the worker)", async () => {
+    pipelineCalls.length = 0;
+    decodeCalls.length = 0;
+    posted.length = 0;
+    // two speech bursts at [0.28, 1.06] and [1.66, 2.44] s; the mocked model reports its one word
+    // at packed [0, 0.4] s, which maps to ~[0.07, 0.47] s on the clip clock — ~210 ms after the
+    // burst actually starts. The worker's refine step pulls the start back to the burst onset.
+    const parts: Float32Array[] = [];
+    for (const [kind, seconds] of [["silence", 0.28], ["speech", 0.78], ["silence", 0.6], ["speech", 0.78], ["silence", 0.5]] as const) {
+      parts.push(kind === "speech" ? tone(seconds) : new Float32Array(Math.round(seconds * 16_000)));
+    }
+    const audio = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+    let o = 0;
+    for (const p of parts) {
+      audio.set(p, o);
+      o += p.length;
+    }
+    await handler({ data: { type: "run", model: "en", file: null, audio, language: "en" } });
+    const partial = posted.find((m) => m.type === "partial");
+    expect(partial?.words).toHaveLength(1);
+    expect(partial!.words![0]!.startMs).toBe(280);
+    expect(partial!.words![0]!.endMs).toBeGreaterThan(280);
+    expect(posted.some((m) => m.type === "done")).toBe(true);
+  });
 });
