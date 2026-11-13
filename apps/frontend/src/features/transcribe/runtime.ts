@@ -464,11 +464,15 @@ export async function isModelSaved(lang: SpeechLanguage = likelySpeechLanguage()
   }
 }
 
-/** Don't spend a user's data or battery when they've asked the browser to save it. */
+/** Don't spend a user's data or battery when they've asked the browser to save it,
+ *  or when the connection is anything slower than 4G. No connection info at all
+ *  (desktop, or a browser that doesn't expose it) still allows the prefetch. */
 export function networkAllowsPrefetch(): boolean {
   const c = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
   if (!c) return true;
-  return !c.saveData && !/^(slow-)?2g$/.test(c.effectiveType ?? "");
+  if (c.saveData) return false;
+  if (c.effectiveType && c.effectiveType !== "4g") return false;
+  return true;
 }
 
 const prefetching = new Map<SpeechLanguage, Promise<void>>();

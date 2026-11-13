@@ -1,4 +1,17 @@
+import type { Metadata } from "next";
 import Link from "next/link";
+
+/**
+ * Own title/description instead of inheriting the homepage's verbatim —
+ * a 404 that reports the homepage title in search results looks like a
+ * soft-404 duplicate. The route still returns a true 404 status (Next
+ * renders not-found.tsx with a 404); metadata only changes the document
+ * head.
+ */
+export const metadata: Metadata = {
+  title: "Page not found",
+  description: "This page doesn't exist on Captionit. The link may be old or mistyped.",
+};
 
 export default function NotFound() {
   return (

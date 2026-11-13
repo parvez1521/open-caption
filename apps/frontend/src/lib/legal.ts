@@ -21,7 +21,7 @@ export const LEGAL = {
   effective: "30 September 2026",
   /** minimum age to hold an account */
   minAge: 13,
-  site: "open-caption-ten.vercel.app",
+  site: "www.captionit.in",
 } as const;
 
 /** Opens the visitor's mail app with a feedback email to the public inbox. */

@@ -24,6 +24,30 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
+      // Long-lived caching for content-stable public assets: look previews,
+      // hero sample clips, brand marks and bundled images are fixed files
+      // (regenerated only when the underlying asset changes, under a new
+      // name or a redeploy). HTML keeps its existing caching untouched, and
+      // /companion + /models are excluded — they are fetched by installers
+      // and the runtime, not the browser, and must always be fresh.
+      // Next merges headers from every matching rule, so the security
+      // headers above still apply to these paths too.
+      {
+        source: "/looks/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/hero/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/brand/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/images/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
       // Cross-origin isolation (COOP/COEP) was tried for multi-threaded WASM and removed: on some Android phones the
       // speech worker failed to start at all (Sentry SENTRY-COPPER-QUEEN-5). Re-enable only after testing on real phones.
     ];

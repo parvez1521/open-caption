@@ -1,10 +1,35 @@
 import type { Metadata } from "next";
 import { FAQS } from "@/components/home/faqs";
-import { faqPageJsonLd, softwareApplicationJsonLd } from "@/lib/seo";
+import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TITLE } from "@/lib/brand";
+import { DEFAULT_OPENGRAPH_IMAGES, DEFAULT_TWITTER_IMAGES, SITE_URL, faqPageJsonLd, softwareApplicationJsonLd } from "@/lib/seo";
 
-// homepage only: other pages keep their own canonical URL
+// Homepage: explicit title + description (the root layout's defaults would
+// otherwise be the only copy), and the OG/Twitter titles spell out the SAME
+// title the <title> tag carries — the root layout's BRAND_TAGLINE differs
+// from it, so the homepage overrides both here. Next REPLACES the whole
+// openGraph/twitter object at this level instead of merging it, so the
+// override must re-state url, siteName, locale, card and the default
+// images — omitting them silently dropped og:url, og:site_name, the
+// twitter card type and both images from the homepage.
 export const metadata: Metadata = {
+  title: { absolute: BRAND_TITLE },
+  description: BRAND_DESCRIPTION,
   alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: BRAND_NAME,
+    title: BRAND_TITLE,
+    description: BRAND_DESCRIPTION,
+    url: SITE_URL,
+    locale: "en_US",
+    images: [...DEFAULT_OPENGRAPH_IMAGES],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: BRAND_TITLE,
+    description: BRAND_DESCRIPTION,
+    images: [...DEFAULT_TWITTER_IMAGES],
+  },
 };
 
 /**

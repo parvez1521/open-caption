@@ -96,7 +96,14 @@ export function validateStockManifest(items: readonly StockSfxItem[]): string[] 
     if (!it.originalFile?.trim()) problems.push(`${tag}: no original file name recorded`);
     if (!it.title?.trim()) problems.push(`${tag}: no source title recorded`);
     if (!it.author?.trim()) problems.push(`${tag}: no author recorded`);
-    if (!/^https:\/\//.test(it.sourceUrl ?? "")) problems.push(`${tag}: source URL missing or not https`);
+    // A source URL must be recorded: an https URL for found recordings, or
+    // the site's own /credits anchor for our synthesized originals (their
+    // source IS this site's credits page — an absolute old-domain URL here
+    // used to leak the retired Vercel host into the live /credits page).
+    const sourceOk =
+      /^https:\/\//.test(it.sourceUrl ?? "") ||
+      (it.licenceSource === "synth" && (it.sourceUrl ?? "").startsWith("/credits#"));
+    if (!sourceOk) problems.push(`${tag}: source URL missing, not https, or not the /credits anchor`);
     if (it.licence !== "CC0 1.0") problems.push(`${tag}: licence is "${it.licence}", not CC0 1.0 — only CC0 ships bundled`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(it.retrievedAt ?? "")) problems.push(`${tag}: retrieval date missing or not an ISO date`);
     if (!(it.durationMs > 0 && it.durationMs <= 30_000)) problems.push(`${tag}: duration ${it.durationMs}ms is not a sane SFX length`);

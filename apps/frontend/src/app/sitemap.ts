@@ -7,8 +7,13 @@ import { INDEXABLE_PATHS, SITE_URL } from "@/lib/seo";
  * noindex, and are disallowed in robots — they never belong in a sitemap.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
+  // lastmod is the build date: this route is statically generated, so the
+  // Date is evaluated once at build time. No per-page dates are invented —
+  // the site has no per-page publish timestamps to source them from.
+  const lastModified = new Date();
   return INDEXABLE_PATHS.map((path) => ({
     url: path === "/" ? `${SITE_URL}/` : `${SITE_URL}${path}`,
+    lastModified,
     changeFrequency:
       path === "/"
         ? ("weekly" as const)

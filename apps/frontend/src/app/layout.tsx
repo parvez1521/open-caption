@@ -4,7 +4,7 @@ import QueryProvider from "@/providers/QueryProvider";
 import { introScript } from "@/components/home/intro";
 import { authReturnScript } from "@/lib/authReturn";
 import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE, BRAND_TITLE } from "@/lib/brand";
-import { SITE_URL, adsensePublisherId, googleSiteVerification } from "@/lib/seo";
+import { DEFAULT_OPENGRAPH_IMAGES, DEFAULT_TWITTER_IMAGES, SITE_URL, adsensePublisherId, gaMeasurementId, googleSiteVerification } from "@/lib/seo";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -38,6 +38,11 @@ const googleVerification = googleSiteVerification();
 // AdSense: the loader renders ONLY when NEXT_PUBLIC_ADSENSE_PUBLISHER_ID holds a
 // valid publisher id — no env, zero ad code on any page (see lib/seo.ts).
 const adsenseId = adsensePublisherId();
+
+// GA4: same env gate as AdSense — the loader renders ONLY when
+// NEXT_PUBLIC_GA_MEASUREMENT_ID holds a valid G- id (see lib/seo.ts).
+// No id exists yet and none is hardcoded; no env, zero analytics code.
+const gaId = gaMeasurementId();
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: BRAND_TITLE, template: `%s · ${BRAND_NAME}` },
@@ -51,11 +56,17 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     url: SITE_URL,
     locale: "en_US",
+    // Sitewide default social image (1200x630): pages that set their own
+    // openGraph fields without images inherit this one. The file also lives
+    // at app/opengraph-image.jpg, but an explicit image here is what every
+    // indexable page actually carries.
+    images: [...DEFAULT_OPENGRAPH_IMAGES],
   },
   twitter: {
     card: "summary_large_image",
     title: BRAND_TAGLINE,
     description: SITE_DESCRIPTION,
+    images: [...DEFAULT_TWITTER_IMAGES],
   },
 };
 
@@ -77,6 +88,17 @@ export default function RootLayout({
         {adsenseId ? (
           // eslint-disable-next-line @next/next/no-sync-scripts
           <script async src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${adsenseId}`} crossOrigin="anonymous" />
+        ) : null}
+        {gaId ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`,
+              }}
+            />
+          </>
         ) : null}
       </head>
       <body

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MODELS, PROJECT_LANGUAGE, SHIPPED_LANGUAGES, isConstrainedDevice, likelySpeechLanguage, modelFiles, runtimeFor, savedSpeechLanguage, speechLanguageOf } from "../runtime";
+import { MODELS, PROJECT_LANGUAGE, SHIPPED_LANGUAGES, isConstrainedDevice, likelySpeechLanguage, modelFiles, networkAllowsPrefetch, runtimeFor, savedSpeechLanguage, speechLanguageOf } from "../runtime";
 
 const PHONE_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36";
 const IPHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
@@ -170,5 +170,29 @@ describe("eleven new languages (2026-11-12: Indian + world)", () => {
     expect(likelySpeechLanguage()).toBe("portuguese");
     setNavigator({ languages: ["xx"] });
     expect(likelySpeechLanguage()).toBe("en");
+  });
+});
+
+describe("prefetch network gate (click/intent only — a hover must never start a multi-MB download)", () => {
+  it("allows the prefetch with no connection info (desktop / unknown browser)", () => {
+    setNavigator({ userAgent: DESKTOP_UA });
+    expect(networkAllowsPrefetch()).toBe(true);
+  });
+
+  it("allows the prefetch on 4G only", () => {
+    setNavigator({ userAgent: DESKTOP_UA, connection: { saveData: false, effectiveType: "4g" } });
+    expect(networkAllowsPrefetch()).toBe(true);
+  });
+
+  it("blocks the prefetch on 3G, 2G and slow-2G", () => {
+    for (const effectiveType of ["3g", "2g", "slow-2g"]) {
+      setNavigator({ userAgent: DESKTOP_UA, connection: { saveData: false, effectiveType } });
+      expect(networkAllowsPrefetch()).toBe(false);
+    }
+  });
+
+  it("blocks the prefetch when Save-Data is on, even on 4G", () => {
+    setNavigator({ userAgent: DESKTOP_UA, connection: { saveData: true, effectiveType: "4g" } });
+    expect(networkAllowsPrefetch()).toBe(false);
   });
 });

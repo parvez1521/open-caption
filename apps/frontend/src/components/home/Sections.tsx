@@ -40,7 +40,8 @@ const INK = "#FFFFEB";
 const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID || "";
 const PH_SLUG = process.env.NEXT_PUBLIC_PRODUCT_HUNT_SLUG || "";
 
-/** Start fetching the speech model the moment someone shows interest in "Start free". */
+/** Start warming the speech model only on a real click (intent): a casual
+ * hover over "Start free" used to kick off a multi-MB model download. */
 const warmModel = () => void import("@/features/transcribe/runtime").then((m) => m.prefetchWhenIdle());
 
 export function Logo({ light = false }: { light?: boolean }) {
@@ -88,7 +89,7 @@ export function Nav() {
         <div className="flex items-center gap-2">
           <Link href={signedIn ? "/dashboard" : "/login"} className="hidden whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-[#FFFFEB]/80 transition hover:text-[#FFFFEB] sm:block">{signedIn ? "Dashboard" : "Sign in"}</Link>
           {/* phones: this moves into the menu */}
-          <Link href="/start?choose=1" onPointerEnter={warmModel} onClick={warmModel} className="hidden items-center gap-1.5 whitespace-nowrap rounded-full bg-[#34D399] px-4 py-2 text-sm font-bold text-[#141412] sm:flex">
+          <Link href="/start?choose=1" onClick={warmModel} className="hidden items-center gap-1.5 whitespace-nowrap rounded-full bg-[#34D399] px-4 py-2 text-sm font-bold text-[#141412] sm:flex">
             Start free <span aria-hidden>→</span>
           </Link>
           <button onClick={() => setOpen((v) => !v)} aria-label="Menu" aria-expanded={open} className="grid h-10 w-10 place-items-center rounded-xl border border-[#FFFFEB]/15 lg:hidden">
@@ -210,7 +211,7 @@ export function Hero() {
         </p>
 
         <div data-hero="cta" className="mt-7 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <Link href="/start?choose=1" onPointerEnter={warmModel} onClick={warmModel} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:w-auto">
+          <Link href="/start?choose=1" onClick={warmModel} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:w-auto">
             Caption your first video free <span aria-hidden>→</span>
           </Link>
           <a href="#looks" className="w-full rounded-full border border-[#FFFFEB]/15 bg-[#1C1C1A] px-7 py-4 text-center text-base font-semibold text-[#FFFFEB]/80 hover:text-[#FFFFEB] sm:w-auto">
@@ -790,6 +791,7 @@ const FOOTER_COLUMNS = [
       { label: "Cookie policy", href: "/cookies" },
       { label: "Acceptable use", href: "/acceptable-use" },
       { label: "Copyright & takedowns", href: "/copyright" },
+      { label: "Subprocessors", href: "/subprocessors" },
       { label: "Credits & licences", href: "/credits" },
     ],
   },

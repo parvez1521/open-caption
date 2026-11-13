@@ -61,6 +61,7 @@ describe("bundled starter SFX pack manifest", () => {
       expect(it.author).toBe("Captionit");
       expect(it.title).toMatch(/original synthesis/i);
       expect(it.format).toMatch(/synthesis/i);
+      expect(it.sourceUrl).toBe("/credits#stock-sfx");
       expect(it.sourceUrl).not.toMatch(/myinstants|freesound\.org\/people/);
       expect(licenceRecordForStockItem(it).source).toBe("synth");
     }

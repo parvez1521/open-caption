@@ -11,13 +11,16 @@ import { LEGAL_PAGES } from "@/lib/legal";
  * canonicals, headings, image alt text, structured data) — reference only,
  * nothing from that project is deployed here.
  *
- * The production origin today is the Vercel deployment URL. NEXT_PUBLIC_APP_URL
- * overrides it (set it to the custom domain when Captionit gets one). The
- * fallback is deliberately the production URL, never localhost: before this
- * module existed the live site shipped canonical and og:image URLs pointing at
- * http://localhost:3000 because the env var was unset in Vercel.
+ * The production origin is the custom domain (www is canonical — the apex
+ * 308-redirects to www). NEXT_PUBLIC_APP_URL overrides it, and the live
+ * Vercel env var MUST be https://www.captionit.in for the live site to emit
+ * www canonicals; an apex value there would keep emitting apex canonicals
+ * even with this fallback correct. The fallback is deliberately the
+ * production URL, never localhost: before this module existed the live site
+ * shipped canonical and og:image URLs pointing at http://localhost:3000
+ * because the env var was unset in Vercel.
  */
-export const PRODUCTION_URL = "https://open-caption-ten.vercel.app";
+export const PRODUCTION_URL = "https://www.captionit.in";
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).replace(/\/$/, "");
 
@@ -52,9 +55,26 @@ export const APP_PATHS = [
   "/settings",
   "/start",
   "/pair",
+  "/onboarding",
+  "/transcribe",
+  "/ai-clipper",
   "/forgot-password",
   "/reset-password",
 ] as const;
+
+/**
+ * Sitewide default social image (1200x630) + Twitter image. Next REPLACES
+ * (does not deep-merge) the openGraph/twitter objects at each segment, so
+ * these must be spelled out in EVERY metadata object that sets openGraph or
+ * twitter (root layout, pageMetadata, home layout) — a level that sets its
+ * own title without images silently drops the image for its whole subtree.
+ * The files also live at app/opengraph-image.jpg / app/twitter-image.jpg,
+ * but the file convention alone does not emit the meta tags.
+ */
+export const DEFAULT_OG_IMAGE_ALT =
+  "Captionit: word-timed captions for Reels, Shorts and TikTok, made entirely in your browser.";
+export const DEFAULT_OPENGRAPH_IMAGES = [{ url: "/opengraph-image.jpg", width: 1200, height: 630, alt: DEFAULT_OG_IMAGE_ALT }] as const;
+export const DEFAULT_TWITTER_IMAGES = ["/twitter-image.jpg"] as const;
 
 /**
  * Google Search Console verification token, from env only. Returns undefined
@@ -77,6 +97,18 @@ export function googleSiteVerification(): string | undefined {
 export function adsensePublisherId(): string | undefined {
   const value = process.env.NEXT_PUBLIC_ADSENSE_PUBLISHER_ID?.trim();
   return value && /^pub-\d+$/.test(value) ? value : undefined;
+}
+
+/**
+ * The GA4 measurement id ("G-XXXXXXXXXX") — read from
+ * NEXT_PUBLIC_GA_MEASUREMENT_ID. Returns undefined while unset or
+ * malformed, and the GA4 loader in the root layout renders only when this
+ * returns a value, so a deployment without the env var ships zero
+ * analytics code. No id is hardcoded anywhere: none exists yet.
+ */
+export function gaMeasurementId(): string | undefined {
+  const value = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim();
+  return value && /^G-[A-Z0-9]+$/.test(value) ? value : undefined;
 }
 
 /**
@@ -103,8 +135,8 @@ export function pageMetadata({
     title,
     description,
     ...(index ? { alternates: { canonical: path } } : {}),
-    openGraph: { type: "website", siteName: BRAND_NAME, title: socialTitle, description, ...(index ? { url: path } : {}) },
-    twitter: { card: "summary_large_image", title: socialTitle, description },
+    openGraph: { type: "website", siteName: BRAND_NAME, title: socialTitle, description, ...(index ? { url: path } : {}), images: [...DEFAULT_OPENGRAPH_IMAGES] },
+    twitter: { card: "summary_large_image", title: socialTitle, description, images: [...DEFAULT_TWITTER_IMAGES] },
     ...(index ? {} : { robots: { index: false, follow: false } }),
   };
 }
