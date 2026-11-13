@@ -109,7 +109,7 @@ describe("timeline edge resize commits on release", () => {
     const onRetimeRun = vi.fn<RetimeRun>();
     const onSeek = vi.fn<(ms: number) => void>();
     renderTimeline(onRetimeRun, onSeek);
-    const handle = screen.getByLabelText(/Move end of hi jagah/);
+    const handle = screen.getByTitle(/Move end of hi jagah/);
     const block = handle.parentElement as HTMLElement;
     // px per ms from the rendered block position (left = x(14400))
     const pxPerMs = parseFloat(block.style.left) / 14400;
@@ -137,7 +137,7 @@ describe("timeline edge resize commits on release", () => {
     const onRetimeRun = vi.fn<RetimeRun>();
     const onSeek = vi.fn<(ms: number) => void>();
     renderTimeline(onRetimeRun, onSeek);
-    const handle = screen.getByLabelText(/Move end of hi jagah/);
+    const handle = screen.getByTitle(/Move end of hi jagah/);
     fireEvent.pointerDown(handle, { clientX: 500, button: 0, pointerId: 1 });
     fireEvent.pointerUp(handle, { clientX: 500, button: 0, pointerId: 1 });
     expect(onRetimeRun).not.toHaveBeenCalled();

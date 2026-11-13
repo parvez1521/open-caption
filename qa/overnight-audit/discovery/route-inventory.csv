@@ -1,0 +1,105 @@
+path,type,group,in_sitemap,in_nav,auth_required,live_status,notes
+/,page,(home),y,y,n,200,Homepage. Nav is anchor links only; Start free -> /start?choose=1.
+/auto-caption-generator,page,top-level,y,y,n,200,SEO landing page. Footer + ToolDoors link. Metadata in layout.tsx.
+/login,page,top-level,y,y,n,200,Header Sign in + footer link. Metadata in login/layout.tsx.
+/pricing,page,top-level,y,y,n,200,Footer Pricing link. Product JSON-LD.
+/about,page,(legal),y,y,n,200,Footer Company.
+/terms,page,(legal),y,y,n,200,Footer Company.
+/privacy,page,(legal),y,y,n,200,Footer Company.
+/cookies,page,(legal),y,y,n,200,Footer Company.
+/acceptable-use,page,(legal),y,y,n,200,Footer Company.
+/copyright,page,(legal),y,y,n,200,Footer Company.
+/subprocessors,page,(legal),y,y,n,200,Footer Company.
+/credits,page,(legal),y,y,n,200,Footer Company.
+/start,page,top-level,n,y,n,200,Login-first router. ?choose=1 door chooser; ?mode= captions/editor/ai-edit.
+/onboarding,page,top-level,n,n,y,200,Two-question survey after sign-up then /dashboard.
+/pair,page,top-level,n,n,y,200,Device-pair approval. Signed-out redirects to /login?redirect=/pair?code=...
+/forgot-password,page,top-level,n,n,n,200,Sends reset email.
+/reset-password,page,top-level,n,n,n,200,Sets new password via recovery link then /login.
+/dashboard,page,(dashboard),n,y,y,200,Studio nav primary. Client-side auth gate; guest bootstrap allowed.
+/captions,page,(dashboard),n,y,y,200,Studio nav primary (Caption Studio).
+/editor,page,(dashboard),n,y,y,200,Studio nav primary (Video Editor). Front door to most recent project.
+/motion,page,(dashboard),n,y,y,200,Studio nav primary (Motion Studio).
+/growth,page,(dashboard),n,y,y,200,Studio nav primary (Growth Studio).
+/planner,page,(dashboard),n,y,y,200,Studio nav primary (Content Planner).
+/analytics,page,(dashboard),n,y,y,200,Studio nav primary (Creator Analytics).
+/library,page,(dashboard),n,y,y,200,Studio nav supporting (Media Library).
+/brand,page,(dashboard),n,y,y,200,Studio nav supporting (Brand Kit).
+/transcribe,page,(dashboard),n,y,y,200,Studio nav supporting (Transcribe). Guest-friendly; dashboard layout boots guest session.
+/exports,page,(dashboard),n,y,y,200,Studio nav supporting (Export History).
+/settings,page,(dashboard),n,y,y,200,Studio nav supporting (Settings). Links to /settings/billing.
+/clipper,page,(dashboard),n,n,y,200,HIDDEN from nav (owner 2026-11-13). Reached via Studio ClipperLaunchCard /clipper?project=<id>. Also linked only from unrendered homepage ClipperSection.
+/ai-clipper,page,(dashboard),n,n,y,200,HIDDEN from nav (owner 2026-11-13). No live link found; direct URL only.
+/analyzer,page,(dashboard),n,n,y,200,HIDDEN from nav (owner 2026-11-13). No live link found; direct URL only.
+/prompter,page,(dashboard),n,n,y,200,HIDDEN from nav (owner 2026-11-13). No live link found; direct URL only.
+/create,page,(dashboard),n,n,y,200,HIDDEN from nav (owner 2026-11-13). Creator Studio. No live link found; direct URL only.
+/create/chat,page,(dashboard),n,n,y,200,HIDDEN from nav (owner 2026-11-13). Sub-page of /create. Direct URL only.
+/projects/[id],page,(dashboard),n,n,y,200,The Studio itself (renders StudioPage). Reached from project lists.
+/projects/[id]/settings,page,(dashboard),n,n,y,200,Per-project settings. Reached from inside the Studio.
+/motion/[templateId],page,(dashboard),n,n,y,200,Per-template customise page. Linked from /motion cards + homepage Motion section.
+/settings/billing,page,(dashboard),n,n,y,200,Billing. Reached from /settings and /pricing paid CTAs.
+/sitemap.xml,special,seo,n,n,n,200,Generated from INDEXABLE_PATHS (12 URLs). Live lastmod 2026-11-13T19:58:46.602Z.
+/robots.txt,special,seo,n,n,n,200,Allow /; disallows /api/ + all app paths. Live copy matches robots.ts.
+/ads.txt,special,seo,n,n,n,404 by design,Returns 404 while no valid AdSense publisher id is configured. Not a bug.
+/health,api,health,n,n,n,200,Returns {"status":"ok"}. No auth.
+/health/ready,api,health,n,n,n,200,DB + job-queue readiness via admin client. 200 ready else 503. No auth.
+/api/cron/cleanup,api,cron,n,n,bearer-secret,not probed,GET. Authorization Bearer CRON_SECRET else 401.
+/api/v1/billing/checkout,api,billing,n,n,y (requireUser; guests forbidden),not probed,POST. Creates Cashfree order. Known live failure: generic Something went wrong (see feature inventory).
+/api/v1/billing/me,api,billing,n,n,y (requireUser),not probed,GET. Current plan + payment state.
+/api/v1/billing/reconcile,api,billing,n,n,y (requireUser),not probed,POST. Confirms a payment with Cashfree after return.
+/api/v1/billing/webhook,api,billing,n,n,signature,not probed,POST. Cashfree webhook; signature verified on raw body; bad signature 401.
+/api/v1/brand/profiles,api,brand,n,n,y (requireUser),not probed,"GET,POST. List/create brand profiles."
+/api/v1/brand/profiles/[id],api,brand,n,n,y (requireUser),not probed,"PUT,DELETE. Update/delete one brand profile."
+/api/v1/brand/profiles/[id]/activate,api,brand,n,n,y (requireUser),not probed,POST. Activate a brand profile.
+/api/v1/brand,api,brand,n,n,y (requireUser),not probed,"GET,PUT. Active brand kit."
+/api/v1/clipper/highlights,api,clipper,n,n,y (requireUser),not probed,"GET,POST. AI highlight suggestions."
+/api/v1/content,api,planner,n,n,y (requireUser),not probed,"GET,POST. Content library items."
+/api/v1/content/[id],api,planner,n,n,y (requireUser),not probed,"PATCH,DELETE. One content item."
+/api/v1/content/threads,api,create-chat,n,n,y (requireUser),not probed,"GET,POST. Chat threads."
+/api/v1/content/threads/[id],api,create-chat,n,n,y (requireUser),not probed,"GET,PATCH,DELETE. One thread."
+/api/v1/content/threads/[id]/messages,api,create-chat,n,n,y (requireUser),not probed,POST. Post a message to a thread.
+/api/v1/create/generate,api,create,n,n,y (requireUser),not probed,"GET,POST. GET is the Free-AI status probe; POST generates."
+/api/v1/device/approve,api,companion,n,n,y (requireUser + companions flag),not probed,"GET,POST. Approve a device pairing."
+/api/v1/device/setup,api,companion,n,n,y (requireUser + companions flag),not probed,POST. Start device setup.
+/api/v1/device/start,api,companion,n,n,flag-only (companions flag; no user session),not probed,POST. Mint a device code (rate-limited).
+/api/v1/device/token,api,companion,n,n,flag-only (companions flag; no user session),not probed,POST. Exchange approved device code for token (shown once; SHA-256 stored).
+/api/v1/exports,api,exports,n,n,y (requireUser),not probed,GET. Export history list.
+/api/v1/exports/[id]/download,api,exports,n,n,y (requireUser),not probed,GET. Mints a fresh 600s download link.
+/api/v1/growth/chat,api,growth,n,n,y (requireUser),not probed,"GET,POST. Growth Coach chat."
+/api/v1/growth/competitors,api,growth,n,n,y (requireUser),not probed,"GET,POST. Competitor list."
+/api/v1/growth/competitors/[id],api,growth,n,n,y (requireUser),not probed,"PATCH,DELETE. One competitor."
+/api/v1/growth/connect/[platform]/start,api,growth,n,n,y (requireUser),not probed,GET. Start YouTube/Instagram OAuth (mints HMAC state).
+/api/v1/growth/connect/[platform]/callback,api,growth,n,n,hmac-state,not probed,GET. OAuth callback; caller identified only by HMAC-signed state. Redirects to /growth.
+/api/v1/growth/connect/[platform]/disconnect,api,growth,n,n,y (requireUser),not probed,POST. Disconnect a platform.
+/api/v1/growth/connect/[platform]/sync,api,growth,n,n,y (requireUser),not probed,POST. Sync posts for a platform.
+/api/v1/growth/connections,api,growth,n,n,y (requireUser),not probed,GET. Connected accounts.
+/api/v1/growth/posts,api,growth,n,n,y (requireUser),not probed,"GET,POST. Growth posts."
+/api/v1/growth/posts/[id],api,growth,n,n,y (requireUser),not probed,"PATCH,DELETE. One post."
+/api/v1/growth/posts/import,api,growth,n,n,y (requireUser),not probed,POST. Import posts.
+/api/v1/guest/claim,api,guest,n,n,y (requireUser),not probed,POST. Move a pending guest project to a signed-in account.
+/api/v1/jobs/[id]/browser,api,jobs,n,n,y (requireUser),not probed,POST. Browser-side job action.
+/api/v1/jobs/[id]/cancel,api,jobs,n,n,y (requireUser),not probed,POST. Cancel a job.
+/api/v1/jobs/[id]/retry,api,jobs,n,n,y (requireUser),not probed,POST. Retry a job.
+/api/v1/looks,api,looks,n,n,y (requireUser),not probed,"GET,POST. Saved user looks."
+/api/v1/looks/[id],api,looks,n,n,y (requireUser),not probed,DELETE. Delete a saved look.
+/api/v1/projects,api,projects,n,n,y (requireUser),not probed,"GET,POST. List/create projects (plan maxProjects enforced server-side)."
+/api/v1/projects/[id],api,projects,n,n,y (requireUser),not probed,"GET,PATCH,DELETE. One project."
+/api/v1/projects/[id]/archive,api,projects,n,n,y (requireUser),not probed,POST. Archive a project.
+/api/v1/projects/[id]/unarchive,api,projects,n,n,y (requireUser),not probed,POST. Unarchive a project.
+/api/v1/projects/[id]/duplicate,api,projects,n,n,y (requireUser),not probed,POST. Duplicate a project.
+/api/v1/projects/[id]/clips,api,projects,n,n,y (requireUser),not probed,POST. Create a clip (range on the same file) as its own project.
+/api/v1/projects/[id]/document,api,projects,n,n,y (requireUser),not probed,"GET,PUT. Caption document."
+/api/v1/projects/[id]/studio,api,projects,n,n,y (requireUser),not probed,GET. Studio state for a project.
+/api/v1/projects/[id]/transcribe,api,projects,n,n,y (requireUser),not probed,POST. Server-side transcribe record (browser Whisper runs client-side).
+/api/v1/projects/[id]/translations,api,projects,n,n,y (requireUser),not probed,"GET,PUT. Caption translations."
+/api/v1/projects/[id]/exports,api,projects,n,n,y (requireUser),not probed,"GET,POST. Exports for a project."
+/api/v1/projects/[id]/videos,api,projects,n,n,y (requireUser),not probed,POST. Attach a video (upload size + duration enforced server-side).
+/api/v1/videos/[id]/complete,api,projects,n,n,y (requireUser),not probed,POST. Mark a video upload complete.
+/api/v1/worker/heartbeat,api,worker,n,n,y (requireWorker),not probed,POST. Worker heartbeat.
+/api/v1/worker/jobs/claim,api,worker,n,n,y (requireWorker),not probed,POST. Claim a queued job.
+/api/v1/worker/jobs/[id]/complete,api,worker,n,n,y (requireWorker + requireHeldJob),not probed,POST. Mark a held job complete.
+/api/v1/worker/jobs/[id]/fail,api,worker,n,n,y (requireWorker + requireHeldJob),not probed,POST. Mark a held job failed.
+/api/v1/worker/jobs/[id]/progress,api,worker,n,n,y (requireWorker + requireHeldJob),not probed,POST. Report job progress.
+/api/v1/worker/jobs/[id]/urls,api,worker,n,n,y (requireWorker + requireHeldJob),not probed,POST. Provide job result URLs.
+/api/v1/workers,api,worker,n,n,y (requireUser),not probed,GET. List workers.
+/api/v1/workers/[id],api,worker,n,n,y (requireUser),not probed,"PATCH,DELETE. Update/delete a worker."

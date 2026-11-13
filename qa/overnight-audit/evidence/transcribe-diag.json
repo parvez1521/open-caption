@@ -1,0 +1,128 @@
+{
+  "guestSessionSeeded": "SEEDED",
+  "pageLoad": {
+    "title": "Transcribe · Captionit",
+    "sidebarGuest": true
+  },
+  "polls": [
+    {
+      "t": "2s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "4s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "6s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "8s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "10s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "12s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "14s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "16s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "18s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    },
+    {
+      "t": "20s",
+      "inputFiles": 0,
+      "inputFileName": null,
+      "fileNameInBody": false,
+      "transcribeDisabled": true,
+      "alert": null,
+      "dropzoneText": "Drop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)"
+    }
+  ],
+  "failedResources": [
+    "http://localhost:3100/_next/static/media/7ebf22b5a21034f8-s.p.3j3877k49yy0l.woff2",
+    "http://localhost:3100/_next/static/media/e41d5df559864f9e-s.p.1g73gv09-xcb6.woff2",
+    "http://localhost:3100/_next/static/media/fba5a26ea33df6a3-s.p.18rizl4rsrl42.woff2",
+    "http://localhost:3100/brand/opencaption-icon-light.svg",
+    "http://localhost:3100/__nextjs_font/geist-latin.woff2",
+    "https://api.dicebear.com/7.x/adventurer/svg?seed=Guest",
+    "https://va.vercel-scripts.com/v1/script.debug.js",
+    "https://va.vercel-scripts.com/v1/speed-insights/script.debug.js",
+    "https://huggingface.co/onnx-community/whisper-base_timestamped/resolve/608c49e61301901684bc36cac8f74b95ff6b5a8e/config.json"
+  ],
+  "allResourceHosts": [
+    "api.dicebear.com",
+    "huggingface.co",
+    "localhost:3100",
+    "va.vercel-scripts.com"
+  ],
+  "console": [
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred."
+  ]
+}

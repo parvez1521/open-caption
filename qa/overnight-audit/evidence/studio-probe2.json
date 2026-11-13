@@ -1,0 +1,82 @@
+{
+  "projectId": "84b14895-98c7-4a69-ae03-6ad4000acbdc",
+  "editorState": {
+    "hasTimeline": false,
+    "hasCaptionsPanel": false,
+    "hasUploadScreen": true,
+    "videoNamed": false,
+    "hasTranscribeError": false
+  },
+  "bodyHead": "Skip to main content\n←\nCaptionit\nUntitled 001\n🗑 Delete\nExport\nCaptions\nWe transcribe it and style the captions\nNormal Editor\nJust the editor — captions later, if wanted\nAI Edit\nCaptions plus a ready-made edit plan you approve\nDrop your video here\n\nor choose one from your device\n\nLanguage spoken in the video\n\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu (తెలుగు)\nBengali (বাংলা)\nMarathi (मराठी)\nPunjabi (ਪੰਜਾਬੀ)\nUrdu (اردو)\nSpanish (Español)\nFrench (Français)\nGerman (Deutsch)\nArabic (العربية)\nPortuguese (Português)\nChoose a video\nVideo file stays on your device\nNo watermark\nMP4",
+  "srtImport": "NO_SRT_INPUT:video/mp4,video/quicktime,video/webm,video/x-matroska,.mp4,.mov,.webm,.mkv",
+  "afterSrtImport": {
+    "hasNoCaptionsYet": false,
+    "hasInlineEditorHint": false,
+    "bodyHasWords": [
+      [
+        "Aapki",
+        false
+      ],
+      [
+        "jaati",
+        false
+      ],
+      [
+        "nahin",
+        false
+      ],
+      [
+        "mute",
+        false
+      ]
+    ],
+    "wordChipCount": 0
+  },
+  "clickWord": "NO_WORD_EL",
+  "inlineEditor": {
+    "present": false,
+    "actions": [
+      [
+        "Make key word",
+        false
+      ],
+      [
+        "Split card here",
+        false
+      ],
+      [
+        "Join previous",
+        false
+      ],
+      [
+        "Join next",
+        false
+      ],
+      [
+        "Hide word",
+        false
+      ]
+    ]
+  },
+  "singleWordEdit": "NO_EDITOR",
+  "afterEdit": {
+    "bodyHasBothWords": false,
+    "inlineEditorStillPresent": false
+  },
+  "console": [
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred."
+  ]
+}

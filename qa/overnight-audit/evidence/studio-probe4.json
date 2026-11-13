@@ -1,0 +1,101 @@
+{
+  "projectId": "84b14895-98c7-4a69-ae03-6ad4000acbdc",
+  "templatesClick": "NOT FOUND",
+  "looksInitial": {
+    "panel": true,
+    "lookCardsWithImg": 29,
+    "canvases": 1,
+    "previewBoxes": 150
+  },
+  "looksSamples": [
+    {
+      "panel": true,
+      "lookCardsWithImg": 29,
+      "canvases": 1,
+      "previewBoxes": 150
+    },
+    {
+      "panel": true,
+      "lookCardsWithImg": 29,
+      "canvases": 1,
+      "previewBoxes": 150
+    },
+    {
+      "panel": true,
+      "lookCardsWithImg": 29,
+      "canvases": 1,
+      "previewBoxes": 150
+    },
+    {
+      "panel": true,
+      "lookCardsWithImg": 29,
+      "canvases": 1,
+      "previewBoxes": 150
+    }
+  ],
+  "looksScreenshot": "/home/hatch/workspace/oc-overnight-qa/qa/overnight-audit/evidence/screenshots/looks-panel.png",
+  "exportClick": "NOT FOUND",
+  "exportModal": {
+    "open": true,
+    "kinds": [
+      [
+        "MP4",
+        false
+      ],
+      [
+        "SRT",
+        true
+      ],
+      [
+        "VTT",
+        true
+      ],
+      [
+        "TXT",
+        false
+      ],
+      [
+        "ASS",
+        false
+      ],
+      [
+        "JSON",
+        false
+      ],
+      [
+        "PNG",
+        false
+      ]
+    ],
+    "bodyHead": "Skip to main content\n←\nCaptionit\nUntitled 001\nSaved\n↶\n↷\n🗑 Delete\nExport\nMedia\nCaptions\nTranslate\nTemplates\nAa\nStyle\nText\nElements\nAdjust\nAudio\nSound FX\nTiming\nClipper\nTrim\nPolish\nAI Edit\nAssistant\nCaptions\n11 cards\nImport SRT / VTT\n\nShift all captions\n\n−1s\n−0.5s\n−0.1s\n+0.1s\n+0.5s\n+1s\nApply shift\n\nEmphasis & emoji suggestions\n\nThe free AI (or the on-device model) picks words to emphasise or pair with an emoji. Nothing changes until you accept.\n\nSuggest emphasis\n\nNo AI route is available for emph"
+  },
+  "srtExport": "NO_SRT_OPTION",
+  "timeline": {
+    "hasShiftAll": true,
+    "hasUndo": false,
+    "hasRedo": false,
+    "hasTimelineWord": false
+  },
+  "console": [
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred."
+  ]
+}

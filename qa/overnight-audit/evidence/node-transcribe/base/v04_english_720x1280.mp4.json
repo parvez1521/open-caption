@@ -1,0 +1,16 @@
+{
+  "file": "v04_english_720x1280.mp4",
+  "model": "onnx-community/whisper-base_timestamped@608c49e6 (stock base, q8)",
+  "languageToken": "en",
+  "ms": 2141,
+  "text": "hyperbolic",
+  "words": [
+    {
+      "w": "hyperbolic",
+      "start": 0.52,
+      "end": 2
+    }
+  ],
+  "reference": null,
+  "overlap": null
+}

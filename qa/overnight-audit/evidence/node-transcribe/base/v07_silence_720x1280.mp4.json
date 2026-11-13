@@ -1,0 +1,20 @@
+{
+  "file": "v07_silence_720x1280.mp4",
+  "model": "onnx-community/whisper-base_timestamped@608c49e6 (stock base, q8)",
+  "languageToken": "en",
+  "ms": 1818,
+  "text": "you",
+  "words": [
+    {
+      "w": "you",
+      "start": 24.36,
+      "end": 24.38
+    }
+  ],
+  "reference": "",
+  "overlap": {
+    "refWords": 0,
+    "matched": 0,
+    "missing": []
+  }
+}

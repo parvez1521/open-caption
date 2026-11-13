@@ -1,0 +1,111 @@
+{
+  "file": "v08_noisy_hinglish_720x1280.mp4",
+  "model": "onnx-community/whisper-base_timestamped@608c49e6 (stock base, q8)",
+  "languageToken": "en",
+  "ms": 3598,
+  "text": "People don't sound like this. Without any captions, your best flying hobby will never be seen.",
+  "words": [
+    {
+      "w": "People",
+      "start": 0.64,
+      "end": 0.92
+    },
+    {
+      "w": "don't",
+      "start": 0.92,
+      "end": 1.2
+    },
+    {
+      "w": "sound",
+      "start": 1.2,
+      "end": 1.86
+    },
+    {
+      "w": "like",
+      "start": 1.86,
+      "end": 1.86
+    },
+    {
+      "w": "this.",
+      "start": 1.86,
+      "end": 2
+    },
+    {
+      "w": "Without",
+      "start": 3.18,
+      "end": 3.44
+    },
+    {
+      "w": "any",
+      "start": 3.44,
+      "end": 3.78
+    },
+    {
+      "w": "captions,",
+      "start": 3.78,
+      "end": 4.46
+    },
+    {
+      "w": "your",
+      "start": 4.84,
+      "end": 5.16
+    },
+    {
+      "w": "best",
+      "start": 5.16,
+      "end": 5.58
+    },
+    {
+      "w": "flying",
+      "start": 5.58,
+      "end": 5.98
+    },
+    {
+      "w": "hobby",
+      "start": 5.98,
+      "end": 6.72
+    },
+    {
+      "w": "will",
+      "start": 6.72,
+      "end": 6.72
+    },
+    {
+      "w": "never",
+      "start": 6.72,
+      "end": 6.9
+    },
+    {
+      "w": "be",
+      "start": 6.9,
+      "end": 6.9
+    },
+    {
+      "w": "seen.",
+      "start": 6.9,
+      "end": 7
+    }
+  ],
+  "reference": "Aadhe log sound on karte hi nahi. Bina captions ke, aapki best line kabhi suni hi nahi jaati.",
+  "overlap": {
+    "refWords": 18,
+    "matched": 3,
+    "missing": [
+      "aadhe",
+      "log",
+      "on",
+      "karte",
+      "hi",
+      "nahi",
+      "bina",
+      "ke",
+      "aapki",
+      "line",
+      "kabhi",
+      "suni",
+      "hi",
+      "nahi",
+      "jaati"
+    ]
+  }
+}

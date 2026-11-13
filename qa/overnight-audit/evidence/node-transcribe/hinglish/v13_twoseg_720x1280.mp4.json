@@ -1,0 +1,105 @@
+{
+  "file": "v13_twoseg_720x1280.mp4",
+  "model": "ishaan-g/whisper-hinglish-swift_timestamped@eb0fe25c (q8)",
+  "languageToken": "en",
+  "ms": 3541,
+  "text": "Aapki re mute par dekhi ja rahi hai. Ek re ke options ek minute mein. Dekho kaise?",
+  "words": [
+    {
+      "w": "Aapki",
+      "start": 0.22,
+      "end": 0.68
+    },
+    {
+      "w": "re",
+      "start": 0.68,
+      "end": 1.12
+    },
+    {
+      "w": "mute",
+      "start": 1.12,
+      "end": 1.32
+    },
+    {
+      "w": "par",
+      "start": 1.32,
+      "end": 1.56
+    },
+    {
+      "w": "dekhi",
+      "start": 1.56,
+      "end": 1.98
+    },
+    {
+      "w": "ja",
+      "start": 1.98,
+      "end": 2.24
+    },
+    {
+      "w": "rahi",
+      "start": 2.24,
+      "end": 2.68
+    },
+    {
+      "w": "hai.",
+      "start": 2.68,
+      "end": 2.8
+    },
+    {
+      "w": "Ek",
+      "start": 3.46,
+      "end": 3.68
+    },
+    {
+      "w": "re",
+      "start": 3.68,
+      "end": 3.98
+    },
+    {
+      "w": "ke",
+      "start": 3.98,
+      "end": 4.54
+    },
+    {
+      "w": "options",
+      "start": 4.54,
+      "end": 5.16
+    },
+    {
+      "w": "ek",
+      "start": 5.16,
+      "end": 5.5
+    },
+    {
+      "w": "minute",
+      "start": 5.5,
+      "end": 5.86
+    },
+    {
+      "w": "mein.",
+      "start": 5.86,
+      "end": 6.3
+    },
+    {
+      "w": "Dekho",
+      "start": 6.58,
+      "end": 7.08
+    },
+    {
+      "w": "kaise?",
+      "start": 7.08,
+      "end": 0
+    }
+  ],
+  "reference": "Aapki reel mute pe dekhi ja rahi hai. Ek Reel ke captions, ek minute mein. Dekho kaise.",
+  "overlap": {
+    "refWords": 17,
+    "matched": 13,
+    "missing": [
+      "reel",
+      "pe",
+      "reel",
+      "captions"
+    ]
+  }
+}

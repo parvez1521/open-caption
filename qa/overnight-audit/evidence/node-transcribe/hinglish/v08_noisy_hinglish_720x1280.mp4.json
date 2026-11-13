@@ -1,0 +1,106 @@
+{
+  "file": "v08_noisy_hinglish_720x1280.mp4",
+  "model": "ishaan-g/whisper-hinglish-swift_timestamped@eb0fe25c (q8)",
+  "languageToken": "en",
+  "ms": 4005,
+  "text": "Aage log sound on karte hi nahin. Bina options ke aapki best line kabhi sunie nahin jaati.",
+  "words": [
+    {
+      "w": "Aage",
+      "start": 0.44,
+      "end": 0.76
+    },
+    {
+      "w": "log",
+      "start": 0.76,
+      "end": 1.2
+    },
+    {
+      "w": "sound",
+      "start": 1.2,
+      "end": 1.42
+    },
+    {
+      "w": "on",
+      "start": 1.42,
+      "end": 1.6
+    },
+    {
+      "w": "karte",
+      "start": 1.6,
+      "end": 1.94
+    },
+    {
+      "w": "hi",
+      "start": 1.94,
+      "end": 2.18
+    },
+    {
+      "w": "nahin.",
+      "start": 2.18,
+      "end": 2.62
+    },
+    {
+      "w": "Bina",
+      "start": 3.06,
+      "end": 3.7
+    },
+    {
+      "w": "options",
+      "start": 3.7,
+      "end": 4.12
+    },
+    {
+      "w": "ke",
+      "start": 4.12,
+      "end": 4.64
+    },
+    {
+      "w": "aapki",
+      "start": 4.64,
+      "end": 5.2
+    },
+    {
+      "w": "best",
+      "start": 5.2,
+      "end": 5.52
+    },
+    {
+      "w": "line",
+      "start": 5.52,
+      "end": 5.92
+    },
+    {
+      "w": "kabhi",
+      "start": 5.92,
+      "end": 6.3
+    },
+    {
+      "w": "sunie",
+      "start": 6.3,
+      "end": 6.72
+    },
+    {
+      "w": "nahin",
+      "start": 6.72,
+      "end": 7.06
+    },
+    {
+      "w": "jaati.",
+      "start": 7.06,
+      "end": 0
+    }
+  ],
+  "reference": "Aadhe log sound on karte hi nahi. Bina captions ke, aapki best line kabhi suni hi nahi jaati.",
+  "overlap": {
+    "refWords": 18,
+    "matched": 13,
+    "missing": [
+      "aadhe",
+      "nahi",
+      "captions",
+      "suni",
+      "nahi"
+    ]
+  }
+}

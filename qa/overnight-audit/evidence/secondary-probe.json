@@ -1,0 +1,130 @@
+{
+  "M40_loggedOutDashboard": {
+    "url": "http://localhost:3100/login?redirect=%2Fdashboard",
+    "title": "Sign in · Captionit",
+    "bodyHead": "Skip to main content\nHome\nCaptionit\n\nCaptions for every video you post — made right in your browser.\n\nAutomatic captions in English, Hindi and Hinglish\n150 animated looks, free to use\nYour video file stays on your device — nothing to install\nSign in with email\n\nFor accounts made with an email and pa"
+  },
+  "guestSessionSeeded": "SEEDED",
+  "M29_motion": {
+    "url": "http://localhost:3100/motion",
+    "title": "Motion Studio · Captionit",
+    "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\n\n46 TEMPLATES · INCLUDED IN EVERY PLAN\n\nMotion Studio\n\nAnimated graphics for your videos — subscribe pills, follow cards, counters, titles and more. Pick one, make it yours, and add it to a project",
+    "bodyLen": 6386,
+    "checks": {
+      "hasTemplates": true,
+      "templateCount": 76
+    }
+  },
+  "M31_aiClipper": {
+    "url": "http://localhost:3100/ai-clipper",
+    "title": "AI Clipper · Captionit",
+    "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\nAI Clipper\n\nLong-form video in, ranked short clips out. Moments are scored across the whole video, runs resume where they stopped, and scores are editorial estimates — never performance predictions",
+    "bodyLen": 740
+  },
+  "M32_analyzer": {
+    "url": "http://localhost:3100/analyzer",
+    "title": "Reel Analyzer · Captionit",
+    "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\nReel Analyzer\n\nA measured breakdown of one reel — its hook, its beats, its call to action and its pacing — from a project that already has captions. Pick a project below, or start with a new video.",
+    "bodyLen": 1408
+  },
+  "M33_prompter": {
+    "url": "http://localhost:3100/prompter",
+    "title": "Teleprompter · Captionit",
+    "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\nTeleprompter\n\nRead a script at your pace: bring one in from Script Studio or paste your own text, then set the scroll speed, size and position and press play.\n\nAbout the optional record mode\nYOUR S",
+    "bodyLen": 1714
+  },
+  "M34_create": {
+    "url": "http://localhost:3100/create",
+    "title": "Creator Studio · Captionit",
+    "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\nCreator Studio\n\nIdeas, opening hooks, full scripts, captions and repurposing. Three writers, and every batch is labelled with the one that wrote it: the free AI (a full-size model on a server), an ",
+    "bodyLen": 1387
+  },
+  "M35_growth": {
+    "url": "http://localhost:3100/growth",
+    "title": "Growth Studio · Captionit",
+    "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\nYO\n\nYouTube\n\nNot switched on\n\nYouTube\n\nThis connection isn't switched on for Captionit yet.\n\nIN\n\nInstagram\n\nNot switched on\n\nInstagram\n\nThis connection isn't switched on for Captionit yet.\n\nThe fre",
+    "bodyLen": 570,
+    "checks": {
+      "hasYouTube": true,
+      "hasInstagram": true,
+      "hasCoach": true
+    }
+  },
+  "M38_login": {
+    "url": "http://localhost:3100/login",
+    "title": "Sign in · Captionit",
+    "bodyHead": "Skip to main content\nHome\nCaptionit\n\nCaptions for every video you post — made right in your browser.\n\nAutomatic captions in English, Hindi and Hinglish\n150 animated looks, free to use\nYour video file stays on your device — nothing to install\nSign in with email\n\nFor accounts made with an email and password.\n\nEmail Address\nPassword\nForgot password?\nSign In",
+    "bodyLen": 356,
+    "checks": {
+      "hasGoogleButton": false,
+      "hasEmailForm": true,
+      "gisScriptPresent": {
+        "error": "SyntaxError: Failed to execute 'querySelector' on 'Document': 'script[src*=accounts.google.com], iframe[src*=accounts.google.com]' is not a valid selector.\n    at <anonymous>:1:12"
+      }
+    }
+  },
+  "M39_wrongCreds": "AFTER:Couldn't reach the sign-in service. Check your connection and try again.",
+  "M42_billing": {
+    "url": "http://localhost:3100/settings/billing",
+    "title": "Billing",
+    "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\nPlan & billing\n\nPaid plans are 30-day passes — pay once, no auto-renewal, no card kept on file.\n\nYour plan\n\nFree\n\nUp to 10 projects · uploads to 52 MB · videos to 5 minutes · exports kept 7 days.\n\n",
+    "bodyLen": 1280,
+    "checks": {
+      "hasStarter299": false,
+      "hasPlus499": false,
+      "hasPro799": false,
+      "hasTestModeBanner": false
+    }
+  },
+  "M42_pricing": {
+    "url": "http://localhost:3100/pricing",
+    "title": "Pricing · Captionit",
+    "bodyHead": "Skip to main content\nCaptionit\nHow it works\nEditor\nLooks\nOn your device\nFAQ\nSign in\nStart free\n→\n\nPRICING\n\nFree while you learn it. Paid when you outgrow it.\n\nEvery plan includes the full editor, all 150 caption templates and every AI tool — paid plans raise the limits, they don’t unlock features. Paid plans are 30-day passes: you pay once, nothing renews or charges you again automatically.\n\nFree\n\nThe full studio, free while you find your feet.\n\n$0forever\n\n10 projects\nVideos up to 5 minutes\nUplo",
+    "bodyLen": 2670,
+    "checks": {
+      "hasPrices": [
+        [
+          "₹299",
+          false
+        ],
+        [
+          "₹499",
+          false
+        ],
+        [
+          "₹799",
+          false
+        ],
+        [
+          "$4",
+          true
+        ],
+        [
+          "$6",
+          true
+        ],
+        [
+          "$10",
+          true
+        ]
+      ]
+    }
+  },
+  "console": [
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred."
+  ]
+}

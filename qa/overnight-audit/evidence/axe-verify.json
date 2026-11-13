@@ -1,0 +1,31 @@
+{
+  "home": [
+    {
+      "id": "color-contrast",
+      "impact": "serious",
+      "nodes": 9
+    }
+  ],
+  "studio": [
+    {
+      "id": "aria-prohibited-attr",
+      "impact": "serious",
+      "nodes": 52
+    },
+    {
+      "id": "aria-required-attr",
+      "impact": "critical",
+      "nodes": 2
+    },
+    {
+      "id": "aria-required-children",
+      "impact": "critical",
+      "nodes": 1
+    },
+    {
+      "id": "region",
+      "impact": "moderate",
+      "nodes": 1
+    }
+  ]
+}

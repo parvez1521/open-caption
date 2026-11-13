@@ -1,0 +1,310 @@
+== about.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== acceptable-use.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== ads_txt.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== ai-clipper.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== analytics.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== analyzer.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== apex.headers ==
+Strict-Transport-Security: max-age=63072000
+== auto-caption-generator.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== brand.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== captions.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== clipper.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== cookies.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== copyright.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== create.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== create_chat.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== credits.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== dashboard.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== editor.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== exports.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== forgot-password.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== growth.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== health.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== health_ready.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== home.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== library.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== login.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== motion.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== motion_counter.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== onboarding.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== pair.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== planner.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== pricing.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== privacy.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== projects_test123.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== projects_test123_settings.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== prompter.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== reset-password.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== robots_txt.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== settings.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== settings_billing.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== sitemap_xml.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== start.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== subprocessors.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== terms.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+== transcribe.headers ==
+CSP: present (truncated)
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY

@@ -1,0 +1,152 @@
+{
+  "file": "v02_normal_hinglish_1080x1920.mp4",
+  "model": "ishaan-g/whisper-hinglish-swift_timestamped@eb0fe25c (q8)",
+  "languageToken": "en",
+  "ms": 6918,
+  "text": "Aapki re mute par dekhi ja rahi hai. Aage log sound on karte hi nahin. Bina options ke aapki best line kabhi suni hi nahin jaati.",
+  "words": [
+    {
+      "w": "Aapki",
+      "start": 0.22,
+      "end": 0.68
+    },
+    {
+      "w": "re",
+      "start": 0.68,
+      "end": 1.1
+    },
+    {
+      "w": "mute",
+      "start": 1.1,
+      "end": 1.34
+    },
+    {
+      "w": "par",
+      "start": 1.34,
+      "end": 1.56
+    },
+    {
+      "w": "dekhi",
+      "start": 1.56,
+      "end": 1.98
+    },
+    {
+      "w": "ja",
+      "start": 1.98,
+      "end": 2.24
+    },
+    {
+      "w": "rahi",
+      "start": 2.24,
+      "end": 2.66
+    },
+    {
+      "w": "hai.",
+      "start": 2.66,
+      "end": 2.78
+    },
+    {
+      "w": "Aage",
+      "start": 3.46,
+      "end": 3.8
+    },
+    {
+      "w": "log",
+      "start": 3.8,
+      "end": 4.22
+    },
+    {
+      "w": "sound",
+      "start": 4.22,
+      "end": 4.52
+    },
+    {
+      "w": "on",
+      "start": 4.52,
+      "end": 4.7
+    },
+    {
+      "w": "karte",
+      "start": 4.7,
+      "end": 5.08
+    },
+    {
+      "w": "hi",
+      "start": 5.08,
+      "end": 5.3
+    },
+    {
+      "w": "nahin.",
+      "start": 5.3,
+      "end": 5.8
+    },
+    {
+      "w": "Bina",
+      "start": 6.16,
+      "end": 6.76
+    },
+    {
+      "w": "options",
+      "start": 6.76,
+      "end": 7.24
+    },
+    {
+      "w": "ke",
+      "start": 7.24,
+      "end": 7.76
+    },
+    {
+      "w": "aapki",
+      "start": 7.76,
+      "end": 8.34
+    },
+    {
+      "w": "best",
+      "start": 8.34,
+      "end": 8.64
+    },
+    {
+      "w": "line",
+      "start": 8.64,
+      "end": 8.96
+    },
+    {
+      "w": "kabhi",
+      "start": 8.96,
+      "end": 9.36
+    },
+    {
+      "w": "suni",
+      "start": 9.36,
+      "end": 9.64
+    },
+    {
+      "w": "hi",
+      "start": 9.64,
+      "end": 9.84
+    },
+    {
+      "w": "nahin",
+      "start": 9.84,
+      "end": 10.14
+    },
+    {
+      "w": "jaati.",
+      "start": 10.14,
+      "end": 0
+    }
+  ],
+  "reference": "Aapki reel mute pe dekhi ja rahi hai. Aadhe log sound on karte hi nahi. Bina captions ke, aapki best line kabhi suni hi nahi jaati.",
+  "overlap": {
+    "refWords": 26,
+    "matched": 20,
+    "missing": [
+      "reel",
+      "pe",
+      "aadhe",
+      "nahi",
+      "captions",
+      "nahi"
+    ]
+  }
+}

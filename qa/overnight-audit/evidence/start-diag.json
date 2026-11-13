@@ -1,0 +1,45 @@
+{
+  "tokenExpiresAt": 1794610294,
+  "tokenExpiresIn": 3600,
+  "nowEpoch": 1794606698,
+  "seeded": "SEEDED",
+  "samples": [
+    {
+      "t": "3s",
+      "url": "http://localhost:3100/start",
+      "bodyHead": "Skip to main content\n\nOpening your studio…",
+      "lsKeys": [
+        "sb-nwqmmvqobjxguvfxeafs-auth-token"
+      ],
+      "sbCalls": [
+        "http://localhost:3100/_next/static/chunks/0aec_%40supabase_postgrest-js_dist_index_mjs_0ottz3b._.js",
+        "http://localhost:3100/_next/static/chunks/06gq_%40supabase_auth-js_dist_module_03lv3m3._.js"
+      ]
+    },
+    {
+      "t": "6s",
+      "url": "http://localhost:3100/projects/ddb90b06-a0e4-4467-9113-fc50924cfee4",
+      "bodyHead": "Skip to main content",
+      "lsKeys": [
+        "oc:project-mode:ddb90b06-a0e4-4467-9113-fc50924cfee4",
+        "sb-nwqmmvqobjxguvfxeafs-auth-token"
+      ],
+      "sbCalls": [
+        "http://localhost:3100/_next/static/chunks/0aec_%40supabase_postgrest-js_dist_index_mjs_0ottz3b._.js",
+        "http://localhost:3100/_next/static/chunks/06gq_%40supabase_auth-js_dist_module_03lv3m3._.js"
+      ]
+    }
+  ],
+  "console": [
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred."
+  ]
+}

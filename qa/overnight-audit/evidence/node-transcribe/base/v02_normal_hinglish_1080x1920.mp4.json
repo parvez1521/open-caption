@@ -1,0 +1,142 @@
+{
+  "file": "v02_normal_hinglish_1080x1920.mp4",
+  "model": "onnx-community/whisper-base_timestamped@608c49e6 (stock base, q8)",
+  "languageToken": "en",
+  "ms": 4350,
+  "text": "Your real mood is going on. People don't sound on the streets. Without the captions, your best line never goes on.",
+  "words": [
+    {
+      "w": "Your",
+      "start": 0.38,
+      "end": 0.68
+    },
+    {
+      "w": "real",
+      "start": 0.68,
+      "end": 1.18
+    },
+    {
+      "w": "mood",
+      "start": 1.18,
+      "end": 1.34
+    },
+    {
+      "w": "is",
+      "start": 1.34,
+      "end": 1.98
+    },
+    {
+      "w": "going",
+      "start": 1.98,
+      "end": 2.38
+    },
+    {
+      "w": "on.",
+      "start": 2.38,
+      "end": 2.86
+    },
+    {
+      "w": "People",
+      "start": 3.58,
+      "end": 4.2
+    },
+    {
+      "w": "don't",
+      "start": 4.2,
+      "end": 4.36
+    },
+    {
+      "w": "sound",
+      "start": 4.36,
+      "end": 4.48
+    },
+    {
+      "w": "on",
+      "start": 4.48,
+      "end": 4.7
+    },
+    {
+      "w": "the",
+      "start": 4.7,
+      "end": 4.84
+    },
+    {
+      "w": "streets.",
+      "start": 4.84,
+      "end": 5.68
+    },
+    {
+      "w": "Without",
+      "start": 6.3,
+      "end": 6.56
+    },
+    {
+      "w": "the",
+      "start": 6.56,
+      "end": 6.9
+    },
+    {
+      "w": "captions,",
+      "start": 6.9,
+      "end": 7.56
+    },
+    {
+      "w": "your",
+      "start": 8,
+      "end": 8.3
+    },
+    {
+      "w": "best",
+      "start": 8.3,
+      "end": 8.7
+    },
+    {
+      "w": "line",
+      "start": 8.7,
+      "end": 9.1
+    },
+    {
+      "w": "never",
+      "start": 9.1,
+      "end": 9.32
+    },
+    {
+      "w": "goes",
+      "start": 9.32,
+      "end": 9.34
+    },
+    {
+      "w": "on.",
+      "start": 9.34,
+      "end": 9.76
+    }
+  ],
+  "reference": "Aapki reel mute pe dekhi ja rahi hai. Aadhe log sound on karte hi nahi. Bina captions ke, aapki best line kabhi suni hi nahi jaati.",
+  "overlap": {
+    "refWords": 26,
+    "matched": 5,
+    "missing": [
+      "aapki",
+      "reel",
+      "mute",
+      "pe",
+      "dekhi",
+      "ja",
+      "rahi",
+      "hai",
+      "aadhe",
+      "log",
+      "karte",
+      "hi",
+      "nahi",
+      "bina",
+      "ke",
+      "aapki",
+      "kabhi",
+      "suni",
+      "hi",
+      "nahi",
+      "jaati"
+    ]
+  }
+}

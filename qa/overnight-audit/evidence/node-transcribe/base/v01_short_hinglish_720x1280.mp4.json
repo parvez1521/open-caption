@@ -1,0 +1,53 @@
+{
+  "file": "v01_short_hinglish_720x1280.mp4",
+  "model": "onnx-community/whisper-base_timestamped@608c49e6 (stock base, q8)",
+  "languageToken": "en",
+  "ms": 3174,
+  "text": "You are watching on real mute.",
+  "words": [
+    {
+      "w": "You",
+      "start": 0.34,
+      "end": 0.58
+    },
+    {
+      "w": "are",
+      "start": 0.58,
+      "end": 0.58
+    },
+    {
+      "w": "watching",
+      "start": 0.58,
+      "end": 0.58
+    },
+    {
+      "w": "on",
+      "start": 0.58,
+      "end": 0.72
+    },
+    {
+      "w": "real",
+      "start": 0.72,
+      "end": 1.2
+    },
+    {
+      "w": "mute.",
+      "start": 1.2,
+      "end": 2.06
+    }
+  ],
+  "reference": "Aapki reel mute pe dekhi ja rahi hai.",
+  "overlap": {
+    "refWords": 8,
+    "matched": 1,
+    "missing": [
+      "aapki",
+      "reel",
+      "pe",
+      "dekhi",
+      "ja",
+      "rahi",
+      "hai"
+    ]
+  }
+}

@@ -1,0 +1,352 @@
+{
+  "file": "v03_long_hinglish_1280x720.mp4",
+  "model": "ishaan-g/whisper-hinglish-swift_timestamped@eb0fe25c (q8)",
+  "languageToken": "en",
+  "ms": 12461,
+  "text": "Aapki real mute par dekhi ja rahi hai. Aage log sound on karte hi nahin. Bina cabsions ke, aapki best line kabhi suni hi nahin jaati. Action is har word ko screen par, time par laata hai. Jo bolte ho vahi dikhata hai, word by word. Free hai, no watermark, try karo, captioning dot n, ek real ke Captions ek minute mein. Dekho kaise?",
+  "words": [
+    {
+      "w": "Aapki",
+      "start": 0.22,
+      "end": 0.76
+    },
+    {
+      "w": "real",
+      "start": 0.76,
+      "end": 1.14
+    },
+    {
+      "w": "mute",
+      "start": 1.14,
+      "end": 1.32
+    },
+    {
+      "w": "par",
+      "start": 1.32,
+      "end": 1.56
+    },
+    {
+      "w": "dekhi",
+      "start": 1.56,
+      "end": 1.98
+    },
+    {
+      "w": "ja",
+      "start": 1.98,
+      "end": 2.24
+    },
+    {
+      "w": "rahi",
+      "start": 2.24,
+      "end": 2.6
+    },
+    {
+      "w": "hai.",
+      "start": 2.6,
+      "end": 2.8
+    },
+    {
+      "w": "Aage",
+      "start": 3.42,
+      "end": 3.8
+    },
+    {
+      "w": "log",
+      "start": 3.8,
+      "end": 4.2
+    },
+    {
+      "w": "sound",
+      "start": 4.2,
+      "end": 4.5
+    },
+    {
+      "w": "on",
+      "start": 4.5,
+      "end": 4.7
+    },
+    {
+      "w": "karte",
+      "start": 4.7,
+      "end": 5.08
+    },
+    {
+      "w": "hi",
+      "start": 5.08,
+      "end": 5.3
+    },
+    {
+      "w": "nahin.",
+      "start": 5.3,
+      "end": 5.76
+    },
+    {
+      "w": "Bina",
+      "start": 6.16,
+      "end": 6.6
+    },
+    {
+      "w": "cabsions",
+      "start": 6.6,
+      "end": 7.26
+    },
+    {
+      "w": "ke,",
+      "start": 7.26,
+      "end": 7.52
+    },
+    {
+      "w": "aapki",
+      "start": 7.76,
+      "end": 8.32
+    },
+    {
+      "w": "best",
+      "start": 8.32,
+      "end": 8.66
+    },
+    {
+      "w": "line",
+      "start": 8.66,
+      "end": 8.98
+    },
+    {
+      "w": "kabhi",
+      "start": 8.98,
+      "end": 9.36
+    },
+    {
+      "w": "suni",
+      "start": 9.36,
+      "end": 9.66
+    },
+    {
+      "w": "hi",
+      "start": 9.66,
+      "end": 9.86
+    },
+    {
+      "w": "nahin",
+      "start": 9.86,
+      "end": 10.16
+    },
+    {
+      "w": "jaati.",
+      "start": 10.16,
+      "end": 10.68
+    },
+    {
+      "w": "Action",
+      "start": 11.82,
+      "end": 12.14
+    },
+    {
+      "w": "is",
+      "start": 12.14,
+      "end": 12.32
+    },
+    {
+      "w": "har",
+      "start": 12.32,
+      "end": 12.6
+    },
+    {
+      "w": "word",
+      "start": 12.6,
+      "end": 12.86
+    },
+    {
+      "w": "ko",
+      "start": 12.86,
+      "end": 13.24
+    },
+    {
+      "w": "screen",
+      "start": 13.24,
+      "end": 13.6
+    },
+    {
+      "w": "par,",
+      "start": 13.6,
+      "end": 13.86
+    },
+    {
+      "w": "time",
+      "start": 14.18,
+      "end": 14.4
+    },
+    {
+      "w": "par",
+      "start": 14.4,
+      "end": 14.6
+    },
+    {
+      "w": "laata",
+      "start": 14.6,
+      "end": 15.06
+    },
+    {
+      "w": "hai.",
+      "start": 15.06,
+      "end": 15.38
+    },
+    {
+      "w": "Jo",
+      "start": 15.8,
+      "end": 16.14
+    },
+    {
+      "w": "bolte",
+      "start": 16.14,
+      "end": 16.56
+    },
+    {
+      "w": "ho",
+      "start": 16.56,
+      "end": 17.08
+    },
+    {
+      "w": "vahi",
+      "start": 17.08,
+      "end": 17.44
+    },
+    {
+      "w": "dikhata",
+      "start": 17.44,
+      "end": 18
+    },
+    {
+      "w": "hai,",
+      "start": 18,
+      "end": 18.18
+    },
+    {
+      "w": "word",
+      "start": 18.54,
+      "end": 18.82
+    },
+    {
+      "w": "by",
+      "start": 18.82,
+      "end": 19.1
+    },
+    {
+      "w": "word.",
+      "start": 19.1,
+      "end": 19.74
+    },
+    {
+      "w": "Free",
+      "start": 20.14,
+      "end": 20.48
+    },
+    {
+      "w": "hai,",
+      "start": 20.48,
+      "end": 20.9
+    },
+    {
+      "w": "no",
+      "start": 21.14,
+      "end": 21.58
+    },
+    {
+      "w": "watermark,",
+      "start": 21.58,
+      "end": 22.36
+    },
+    {
+      "w": "try",
+      "start": 22.6,
+      "end": 22.84
+    },
+    {
+      "w": "karo,",
+      "start": 22.84,
+      "end": 23.3
+    },
+    {
+      "w": "captioning",
+      "start": 23.84,
+      "end": 24.32
+    },
+    {
+      "w": "dot",
+      "start": 24.32,
+      "end": 24.68
+    },
+    {
+      "w": "n,",
+      "start": 25,
+      "end": 25.4
+    },
+    {
+      "w": "ek",
+      "start": 25.72,
+      "end": 26.02
+    },
+    {
+      "w": "real",
+      "start": 26.02,
+      "end": 26.3
+    },
+    {
+      "w": "ke",
+      "start": 26.3,
+      "end": 26.66
+    },
+    {
+      "w": "Captions",
+      "start": 26.66,
+      "end": 27.44
+    },
+    {
+      "w": "ek",
+      "start": 27.44,
+      "end": 27.8
+    },
+    {
+      "w": "minute",
+      "start": 27.8,
+      "end": 28.16
+    },
+    {
+      "w": "mein.",
+      "start": 28.16,
+      "end": 28.58
+    },
+    {
+      "w": "Dekho",
+      "start": 28.88,
+      "end": 29.38
+    },
+    {
+      "w": "kaise?",
+      "start": 29.38,
+      "end": 20
+    }
+  ],
+  "reference": "Aapki reel mute pe dekhi ja rahi hai. Aadhe log sound on karte hi nahi. Bina captions ke, aapki best line kabhi suni hi nahi jaati. Ek Reel ke captions, ek minute mein. Dekho kaise. Step one clip drop karo. Step two har word apne time pe aa jaata hai.",
+  "overlap": {
+    "refWords": 50,
+    "matched": 34,
+    "missing": [
+      "reel",
+      "pe",
+      "aadhe",
+      "nahi",
+      "nahi",
+      "reel",
+      "step",
+      "one",
+      "clip",
+      "drop",
+      "step",
+      "two",
+      "apne",
+      "pe",
+      "aa",
+      "jaata"
+    ]
+  }
+}

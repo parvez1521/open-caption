@@ -1,0 +1,13 @@
+HTTP/1.1 200 Connection Established
+
+HTTP/1.1 308 Permanent Redirect
+Cache-Control: public, max-age=0, must-revalidate
+Content-Type: text/plain
+Date: Fri, 13 Nov 2026 20:48:39 GMT
+Location: https://www.captionit.in/
+Refresh: 0;url=https://www.captionit.in/
+Server: Vercel
+Strict-Transport-Security: max-age=63072000
+X-Vercel-Id: cle1::cpgwc-1794602919898-ad92bb60cab6
+Transfer-Encoding: chunked
+

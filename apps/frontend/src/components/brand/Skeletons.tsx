@@ -47,7 +47,7 @@ export function DashboardSkeleton() {
 /** The whole studio while a project opens: top bar, captions list, preview, properties and timeline. */
 export function StudioSkeleton({ label = "Opening your project" }: { label?: string }) {
   return (
-    <div className="studio flex h-[100dvh] flex-col" role="status" aria-busy aria-label={`${label}…`}>
+    <main id="main-content" className="studio flex h-[100dvh] flex-col" aria-busy aria-label={`${label}…`}>
       <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-st-line bg-st-panel px-3 sm:px-4">
         <div className="flex min-w-0 items-center gap-3">
           <Skel className="h-9 w-9 rounded-full" />
@@ -129,6 +129,6 @@ export function StudioSkeleton({ label = "Opening your project" }: { label?: str
           <Skel key={i} className="mx-auto h-8 w-12 rounded-full" />
         ))}
       </nav>
-    </div>
+    </main>
   );
 }

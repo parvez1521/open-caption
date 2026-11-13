@@ -1,0 +1,105 @@
+{
+  "file": "v05_hinglish_720x1280.mp4",
+  "model": "onnx-community/whisper-base_timestamped@608c49e6 (stock base, q8)",
+  "languageToken": "en",
+  "ms": 3526,
+  "text": "People don't sound like them. Without the captions, your best line never goes to listen.",
+  "words": [
+    {
+      "w": "People",
+      "start": 0.64,
+      "end": 1.1
+    },
+    {
+      "w": "don't",
+      "start": 1.1,
+      "end": 1.76
+    },
+    {
+      "w": "sound",
+      "start": 1.76,
+      "end": 1.98
+    },
+    {
+      "w": "like",
+      "start": 1.98,
+      "end": 1.98
+    },
+    {
+      "w": "them.",
+      "start": 1.98,
+      "end": 2.54
+    },
+    {
+      "w": "Without",
+      "start": 3.18,
+      "end": 3.44
+    },
+    {
+      "w": "the",
+      "start": 3.44,
+      "end": 3.78
+    },
+    {
+      "w": "captions,",
+      "start": 3.78,
+      "end": 4.42
+    },
+    {
+      "w": "your",
+      "start": 4.88,
+      "end": 5.18
+    },
+    {
+      "w": "best",
+      "start": 5.18,
+      "end": 5.58
+    },
+    {
+      "w": "line",
+      "start": 5.58,
+      "end": 5.96
+    },
+    {
+      "w": "never",
+      "start": 5.96,
+      "end": 6.18
+    },
+    {
+      "w": "goes",
+      "start": 6.18,
+      "end": 6.18
+    },
+    {
+      "w": "to",
+      "start": 6.18,
+      "end": 6.22
+    },
+    {
+      "w": "listen.",
+      "start": 6.22,
+      "end": 6.8
+    }
+  ],
+  "reference": "Aadhe log sound on karte hi nahi. Bina captions ke, aapki best line kabhi suni hi nahi jaati.",
+  "overlap": {
+    "refWords": 18,
+    "matched": 4,
+    "missing": [
+      "aadhe",
+      "log",
+      "on",
+      "karte",
+      "hi",
+      "nahi",
+      "bina",
+      "ke",
+      "aapki",
+      "kabhi",
+      "suni",
+      "hi",
+      "nahi",
+      "jaati"
+    ]
+  }
+}

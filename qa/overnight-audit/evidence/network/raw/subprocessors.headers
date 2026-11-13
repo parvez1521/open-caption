@@ -1,0 +1,26 @@
+HTTP/1.1 200 Connection Established
+
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Access-Control-Allow-Origin: *
+Age: 1213
+Cache-Control: public, max-age=0, must-revalidate
+Content-Disposition: inline
+X-Vercel-Id: pdx1::rphdw-1794602876887-b503b44a722e
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://va.vercel-scripts.com https://sdk.cashfree.com https://accounts.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://api.dicebear.com https://api.producthunt.com https://lh3.googleusercontent.com https://avatars.githubusercontent.com https://cdn.pixabay.com; font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; media-src 'self' blob: data: https://*.supabase.co https://cdn.pixabay.com; connect-src 'self' blob: https://*.supabase.co wss://*.supabase.co https://huggingface.co https://*.huggingface.co https://*.hf.co https://va.vercel-scripts.com https://vitals.vercel-insights.com https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://api.cashfree.com https://sandbox-api.cashfree.com https://sdk.cashfree.com https://api.pixabay.com https://cdn.pixabay.com https://fonts.googleapis.com https://accounts.google.com; worker-src 'self' blob:; child-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src https://sdk.cashfree.com https://payments.cashfree.com https://accounts.google.com; frame-ancestors 'none'
+Content-Type: text/html; charset=utf-8
+Date: Fri, 13 Nov 2026 20:47:56 GMT
+Etag: "4319f1c547302ab2e79089c0bf3af238"
+Permissions-Policy: camera=(self), microphone=(self), geolocation=(), payment=()
+Referrer-Policy: strict-origin-when-cross-origin
+Server: Vercel
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Matched-Path: /subprocessors
+X-Nextjs-Prerender: 1
+X-Nextjs-Stale-Time: 300
+X-Vercel-Cache: HIT
+Content-Length: 48032
+

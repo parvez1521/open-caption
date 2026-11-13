@@ -763,8 +763,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   ) : null}
                   {wpx > 10 && renaming !== b.firstId ? (
                     <>
-                      <span onPointerDown={(e) => beginDrag(e, b, "start")} className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize bg-st-ink/10 hover:bg-st-ink/40" aria-label={`Move start of ${b.text}`} />
-                      <span onPointerDown={(e) => beginDrag(e, b, "end")} className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize bg-st-ink/10 hover:bg-st-ink/40" aria-label={`Move end of ${b.text}`} />
+                      <span onPointerDown={(e) => beginDrag(e, b, "start")} className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize bg-st-ink/10 hover:bg-st-ink/40" title={`Move start of ${b.text}`} />
+                      <span onPointerDown={(e) => beginDrag(e, b, "end")} className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize bg-st-ink/10 hover:bg-st-ink/40" title={`Move end of ${b.text}`} />
                     </>
                   ) : null}
                 </div>
@@ -837,6 +837,10 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                         key={`${c.id}-start`}
                         role="slider"
                         aria-label="Trim start of first segment"
+                        aria-valuenow={c.startMs}
+                        aria-valuemin={0}
+                        aria-valuemax={total}
+                        aria-valuetext={fmtTime(c.startMs / 1000)}
                         onPointerDown={(e) => beginVideoEdgeDrag(e, c.id, "start")}
                         className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50"
                         style={{ left: x(c.startMs) - 3 }}
@@ -848,6 +852,10 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                       key={`${c.id}-end`}
                       role="slider"
                       aria-label={`Trim end of segment ${i + 1}`}
+                      aria-valuenow={c.startMs + c.durationMs}
+                      aria-valuemin={0}
+                      aria-valuemax={total}
+                      aria-valuetext={fmtTime((c.startMs + c.durationMs) / 1000)}
                       onPointerDown={(e) => beginVideoEdgeDrag(e, c.id, "end")}
                       className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50"
                       style={{ left: x(c.startMs + c.durationMs) - 3 }}
@@ -881,8 +889,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   {wpx > 24 ? <span className="flex h-full items-center truncate font-medium">{label}</span> : null}
                   {selected && !locked && onTrimOverlayClip && wpx > 10 ? (
                     <>
-                      <span onPointerDown={(e) => beginOverlayTrim(e, c, "start")} className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" aria-label={`Move start of ${label}`} />
-                      <span onPointerDown={(e) => beginOverlayTrim(e, c, "end")} className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" aria-label={`Move end of ${label}`} />
+                      <span onPointerDown={(e) => beginOverlayTrim(e, c, "start")} className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" title={`Move start of ${label}`} />
+                      <span onPointerDown={(e) => beginOverlayTrim(e, c, "end")} className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" title={`Move end of ${label}`} />
                     </>
                   ) : null}
                 </div>

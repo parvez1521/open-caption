@@ -1,0 +1,75 @@
+{
+  "guestSessionSeeded": "SEEDED",
+  "pageLoad": {
+    "title": "Transcribe · Captionit",
+    "hasDropzone": true,
+    "languageOptions": [
+      "en",
+      "hinglish",
+      "hindi",
+      "tamil",
+      "telugu",
+      "bengali",
+      "marathi",
+      "punjabi",
+      "urdu",
+      "spanish",
+      "french",
+      "german",
+      "arabic",
+      "portuguese"
+    ],
+    "transcribeDisabledNoFile": true
+  },
+  "v15_overlimit_60mb.mp4": {
+    "asset": "v15_overlimit_60mb.mp4",
+    "upload": "SET:0:v15_overlimit_60mb.mp4",
+    "afterPick": {
+      "fileNameInBody": false,
+      "alert": "This file is over the 50 MB limit for this tool. Trim it and try again.",
+      "transcribeDisabled": true,
+      "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\nTranscribe\n\nUpload a file. Get its transcript.\n\nDrop a video or audio file here\n\nMP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to 5 min · 50 MB max\n\nChoose a file\nWhat's spoken in the file?\nEnglish\n"
+    }
+  },
+  "v09_noaudio_720x1280.mp4": {
+    "asset": "v09_noaudio_720x1280.mp4",
+    "upload": "SET:0:v09_noaudio_720x1280.mp4",
+    "afterPick": {
+      "fileNameInBody": true,
+      "alert": "This file has no audio track to transcribe.",
+      "transcribeDisabled": true,
+      "bodyHead": "Skip to main content\nCaptionit\nDashboard\nCaption Studio\nVideo Editor\nMotion Studio\nGrowth Studio\nContent Planner\nCreator Analytics\n\nSUPPORTING\n\nMedia Library\nBrand Kit\nTranscribe\nExport History\nSettings\nSend feedback\n\nService status\n\ndatabase\nonline\njob queue\nonline\n\nGuest\n\nGuest session\n\nSign up free\nTranscribe\n\nUpload a file. Get its transcript.\n\nv09_noaudio_720x1280.mp4\n\n0.0 MB\n\nChoose a different file\nWhat's spoken in the file?\nEnglish\nHindi / Hinglish\nHindi (देवनागरी)\nTamil (தமிழ்)\nTelugu ("
+    }
+  },
+  "console": [
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred."
+  ]
+}

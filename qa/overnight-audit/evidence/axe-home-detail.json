@@ -1,0 +1,138 @@
+[
+  {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "help": "Elements must only use supported ARIA attributes",
+    "description": "Ensure an element's role supports its ARIA attributes",
+    "nodes": [
+      {
+        "target": [
+          ".duration-300.border-\\[\\#FFFFEB\\]\\/15.text-\\[\\#FFFFEB\\]\\/60:nth-child(1)"
+        ],
+        "html": "<span aria-pressed=\"false\" class=\"rounded-full border px-3 py-1 text-xs font-semibold transition-colors duration-300 border-[#FFFFEB]/15 text-[#FFFFEB]/60\">Clean</span>",
+        "failureSummary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-pressed=\"false\""
+      },
+      {
+        "target": [
+          ".duration-300.border-\\[\\#FFFFEB\\]\\/15.text-\\[\\#FFFFEB\\]\\/60:nth-child(2)"
+        ],
+        "html": "<span aria-pressed=\"false\" class=\"rounded-full border px-3 py-1 text-xs font-semibold transition-colors duration-300 border-[#FFFFEB]/15 text-[#FFFFEB]/60\">Punchy</span>",
+        "failureSummary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-pressed=\"false\""
+      },
+      {
+        "target": [
+          ".duration-300.border-\\[\\#FFFFEB\\]\\/15.text-\\[\\#FFFFEB\\]\\/60:nth-child(3)"
+        ],
+        "html": "<span aria-pressed=\"false\" class=\"rounded-full border px-3 py-1 text-xs font-semibold transition-colors duration-300 border-[#FFFFEB]/15 text-[#FFFFEB]/60\">Explainer</span>",
+        "failureSummary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-pressed=\"false\""
+      },
+      {
+        "target": [
+          ".duration-300.border-\\[\\#FFFFEB\\]\\/15.text-\\[\\#FFFFEB\\]\\/60:nth-child(4)"
+        ],
+        "html": "<span aria-pressed=\"false\" class=\"rounded-full border px-3 py-1 text-xs font-semibold transition-colors duration-300 border-[#FFFFEB]/15 text-[#FFFFEB]/60\">Calm</span>",
+        "failureSummary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-pressed=\"false\""
+      },
+      {
+        "target": [
+          ".duration-300.border-\\[\\#FFFFEB\\]\\/15.text-\\[\\#FFFFEB\\]\\/60:nth-child(5)"
+        ],
+        "html": "<span aria-pressed=\"false\" class=\"rounded-full border px-3 py-1 text-xs font-semibold transition-colors duration-300 border-[#FFFFEB]/15 text-[#FFFFEB]/60\">Podcast</span>",
+        "failureSummary": "Fix all of the following:\n  ARIA attribute is not allowed: aria-pressed=\"false\""
+      }
+    ]
+  },
+  {
+    "id": "aria-prohibited-attr",
+    "impact": "serious",
+    "help": "Elements must only use permitted ARIA attributes",
+    "description": "Ensure ARIA attributes are not prohibited for an element's role",
+    "nodes": [
+      {
+        "target": [
+          ".gap-x-2"
+        ],
+        "html": "<p data-hero=\"claim\" aria-label=\"95% Hinglish caption accurate. Captionit's claim for Hindi-English speech.\" class=\"mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1\">",
+        "failureSummary": "Fix all of the following:\n  aria-label attribute cannot be used on a p with no valid role attribute."
+      }
+    ]
+  },
+  {
+    "id": "color-contrast",
+    "impact": "serious",
+    "help": "Elements must meet minimum color contrast ratio thresholds",
+    "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+    "nodes": [
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(3) > .pt-2\\.5.gap-2.justify-between > .bg-\\[\\#FFA946\\].tracking-wide.text-\\[10px\\]"
+        ],
+        "html": "<span class=\"shrink-0 rounded-full bg-[#FFA946] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#141412]\">Trending</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.2 (foreground color: #040404, background color: #271a0b, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(3) > .gap-1\\.5.flex-wrap.py-2\\.5 > .bg-\\[\\#232320\\].text-\\[\\#B4B4AA\\].rounded-md:nth-child(1)"
+        ],
+        "html": "<span class=\"rounded-md bg-[#232320] px-2 py-0.5 text-[11px] font-medium text-[#B4B4AA]\">Caps</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.32 (foreground color: #31312e, background color: #1b1b19, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(3) > .gap-1\\.5.flex-wrap.py-2\\.5 > .bg-\\[\\#232320\\].text-\\[\\#B4B4AA\\].rounded-md:nth-child(2)"
+        ],
+        "html": "<span class=\"rounded-md bg-[#232320] px-2 py-0.5 text-[11px] font-medium text-[#B4B4AA]\">Box sweep</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.32 (foreground color: #31312e, background color: #1b1b19, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(4) > .pt-2\\.5.gap-2.justify-between > .truncate.text-\\[13px\\].text-\\[\\#FFFFEB\\]"
+        ],
+        "html": "<span class=\"truncate text-[13px] font-bold text-[#FFFFEB]\">Slice Signal</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.36 (foreground color: #272724, background color: #050505, font size: 9.8pt (13px), font weight: bold). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(4) > .pt-2\\.5.gap-2.justify-between > .bg-\\[\\#FFA946\\].tracking-wide.text-\\[10px\\]"
+        ],
+        "html": "<span class=\"shrink-0 rounded-full bg-[#FFA946] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#141412]\">Trending</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.2 (foreground color: #040404, background color: #271a0b, font size: 7.5pt (10px), font weight: bold). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(4) > .gap-1\\.5.flex-wrap.py-2\\.5 > .bg-\\[\\#232320\\].text-\\[\\#B4B4AA\\].rounded-md:nth-child(1)"
+        ],
+        "html": "<span class=\"rounded-md bg-[#232320] px-2 py-0.5 text-[11px] font-medium text-[#B4B4AA]\">Glitch slice</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.18 (foreground color: #1c1c1a, background color: #060606, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(4) > .gap-1\\.5.flex-wrap.py-2\\.5 > .bg-\\[\\#232320\\].text-\\[\\#B4B4AA\\].rounded-md:nth-child(2)"
+        ],
+        "html": "<span class=\"rounded-md bg-[#232320] px-2 py-0.5 text-[11px] font-medium text-[#B4B4AA]\">Kinetic</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.18 (foreground color: #1c1c1a, background color: #060606, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(5) > .gap-1\\.5.flex-wrap.py-2\\.5 > .bg-\\[\\#232320\\].text-\\[\\#B4B4AA\\].rounded-md:nth-child(1)"
+        ],
+        "html": "<span class=\"rounded-md bg-[#232320] px-2 py-0.5 text-[11px] font-medium text-[#B4B4AA]\">Pill</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.18 (foreground color: #1c1c1a, background color: #060606, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(5) > .gap-1\\.5.flex-wrap.py-2\\.5 > .bg-\\[\\#232320\\].text-\\[\\#B4B4AA\\].rounded-md:nth-child(2)"
+        ],
+        "html": "<span class=\"rounded-md bg-[#232320] px-2 py-0.5 text-[11px] font-medium text-[#B4B4AA]\">Dim until spoken</span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.29 (foreground color: #2c2c29, background color: #161614, font size: 8.3pt (11px), font weight: normal). Expected contrast ratio of 4.5:1"
+      },
+      {
+        "target": [
+          ".left-1\\/2.top-1\\/2.shadow-\\[0_24px_50px_-24px_rgba\\(0\\,0\\,0\\,0\\.7\\)\\]:nth-child(7) > .mt-2 > .aspect-\\[8\\/3\\].relative.bg-black > .text-\\[22px\\].text-center.h-full > span"
+        ],
+        "html": "<span style=\"font-family:'Montserrat', system-ui, sans-serif;font-weight:900;color:#FFFFFF;text-transform:uppercase\">Watch this<!-- --> <span style=\"color:#000000\">now</span></span>",
+        "failureSummary": "Fix any of the following:\n  Element has insufficient color contrast of 1.58 (foreground color: #373736, background color: #11110f, font size: 16.5pt (22px), font weight: bold). Expected contrast ratio of 3:1"
+      }
+    ]
+  }
+]

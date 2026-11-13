@@ -128,7 +128,7 @@ export function Loader({ onDone }: { onDone: () => void }) {
                   {WORDS.map((w, i) => {
                     const last = i === WORDS.length - 1;
                     return (
-                      <span key={w} data-w className="relative inline-block" style={{ animationDelay: `${WORD_AT(i)}ms` }}>
+                      <span key={`${w}-${i}`} data-w className="relative inline-block" style={{ animationDelay: `${WORD_AT(i)}ms` }}>
                         <span
                           data-hl
                           className={`absolute -inset-x-[6px] -inset-y-[4px] rounded-[10px] ${last ? "last bg-[#34D399]" : "bg-[#252B26]"}`}

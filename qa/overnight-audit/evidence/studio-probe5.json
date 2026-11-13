@@ -1,0 +1,54 @@
+{
+  "projectId": "84b14895-98c7-4a69-ae03-6ad4000acbdc",
+  "tourDismiss": "NO_TOUR",
+  "stage": {
+    "hasVideo": true,
+    "videoCount": 1,
+    "canvases": 1
+  },
+  "stageScreenshot": "/home/hatch/workspace/oc-overnight-qa/qa/overnight-audit/evidence/screenshots/studio-stage.png",
+  "exportButtons": [
+    "\"Export\""
+  ],
+  "exportClick": "CLICKED",
+  "exportModal": {
+    "hasSrtOption": true,
+    "hasMp4Option": false,
+    "hasRenderOrExportBtn": true,
+    "snippet": "Export\nMedia\nCaptions\nTranslate\nTemplates\nAa\nStyle\nText\nElements\nAdjust\nAudio\nSound FX\nTiming\nClipper\nTrim\nPolish\nAI Edit\nAssistant\nCaptions\n11 cards\nImport SRT / VTT\n\nShift all captions\n\n−1s\n−0.5s\n−0.1s\n+0.1s\n+0.5s\n+1s\nApply shift\n\nEmphasis & emoji suggestions\n\nThe free AI (or the on-device model) picks words to emphasise or pair with an emoji. Nothing changes until you accept.\n\nSuggest emphasis\n\nNo AI route is available for emphasis suggestions: the site's free AI is not configured and the on-device model is not enabled. This feature has no template or heuristic fallback, so it stays off — y"
+  },
+  "srtExport": "NO_SRT_OPTION",
+  "downloads": [],
+  "editWord": "CLICKED",
+  "editResult": "SET:muteX BODY:true",
+  "undoBtn": "UNDO_CLICKED:Undo",
+  "afterUndo": {
+    "bodyHasMuteX": false,
+    "bodyHasMute": true
+  },
+  "redoBtn": "REDO_CLICKED:Redo",
+  "afterRedo": {
+    "bodyHasMuteX": true
+  },
+  "shiftAll": {
+    "before": "Shift all captions\n\n−1s\n−0.5s\n−0.1s\n+0.1s\n+0.5s\n+1s\nApply shift\n\nEmphasis & emoji suggestions\n\nThe free AI (or the on-device model) picks ",
+    "plus": "CLICKED",
+    "apply": "CLICKED"
+  },
+  "console": [
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred.",
+    "EXCEPTION: NetworkError: A network error occurred."
+  ]
+}

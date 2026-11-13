@@ -1,0 +1,58 @@
+{
+  "file": "v01_short_hinglish_720x1280.mp4",
+  "model": "ishaan-g/whisper-hinglish-swift_timestamped@eb0fe25c (q8)",
+  "languageToken": "en",
+  "ms": 3835,
+  "text": "Aapki re mute par dekhi ja rahi hai.",
+  "words": [
+    {
+      "w": "Aapki",
+      "start": 0.22,
+      "end": 0.68
+    },
+    {
+      "w": "re",
+      "start": 0.68,
+      "end": 1.1
+    },
+    {
+      "w": "mute",
+      "start": 1.1,
+      "end": 1.32
+    },
+    {
+      "w": "par",
+      "start": 1.32,
+      "end": 1.56
+    },
+    {
+      "w": "dekhi",
+      "start": 1.56,
+      "end": 1.98
+    },
+    {
+      "w": "ja",
+      "start": 1.98,
+      "end": 2.24
+    },
+    {
+      "w": "rahi",
+      "start": 2.24,
+      "end": 2.6
+    },
+    {
+      "w": "hai.",
+      "start": 2.6,
+      "end": 0
+    }
+  ],
+  "reference": "Aapki reel mute pe dekhi ja rahi hai.",
+  "overlap": {
+    "refWords": 8,
+    "matched": 6,
+    "missing": [
+      "reel",
+      "pe"
+    ]
+  }
+}

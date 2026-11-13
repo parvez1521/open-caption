@@ -1,0 +1,121 @@
+{
+  "file": "v13_twoseg_720x1280.mp4",
+  "model": "onnx-community/whisper-base_timestamped@608c49e6 (stock base, q8)",
+  "languageToken": "en",
+  "ms": 4208,
+  "text": "Your Rehearsal is going to be seen on your Reheal. 1 Reheal Captions, 1 Minute. How to see?",
+  "words": [
+    {
+      "w": "Your",
+      "start": 0.4,
+      "end": 0.68
+    },
+    {
+      "w": "Rehearsal",
+      "start": 0.68,
+      "end": 1.46
+    },
+    {
+      "w": "is",
+      "start": 1.46,
+      "end": 2.3
+    },
+    {
+      "w": "going",
+      "start": 2.3,
+      "end": 2.4
+    },
+    {
+      "w": "to",
+      "start": 2.4,
+      "end": 2.4
+    },
+    {
+      "w": "be",
+      "start": 2.4,
+      "end": 2.4
+    },
+    {
+      "w": "seen",
+      "start": 2.4,
+      "end": 2.72
+    },
+    {
+      "w": "on",
+      "start": 2.72,
+      "end": 2.72
+    },
+    {
+      "w": "your",
+      "start": 2.72,
+      "end": 2.72
+    },
+    {
+      "w": "Reheal.",
+      "start": 2.72,
+      "end": 2.76
+    },
+    {
+      "w": "1",
+      "start": 3.38,
+      "end": 3.66
+    },
+    {
+      "w": "Reheal",
+      "start": 3.66,
+      "end": 4.24
+    },
+    {
+      "w": "Captions,",
+      "start": 4.24,
+      "end": 4.98
+    },
+    {
+      "w": "1",
+      "start": 5.2,
+      "end": 5.54
+    },
+    {
+      "w": "Minute.",
+      "start": 5.54,
+      "end": 6
+    },
+    {
+      "w": "How",
+      "start": 6.66,
+      "end": 6.88
+    },
+    {
+      "w": "to",
+      "start": 6.88,
+      "end": 6.94
+    },
+    {
+      "w": "see?",
+      "start": 6.94,
+      "end": 7
+    }
+  ],
+  "reference": "Aapki reel mute pe dekhi ja rahi hai. Ek Reel ke captions, ek minute mein. Dekho kaise.",
+  "overlap": {
+    "refWords": 17,
+    "matched": 2,
+    "missing": [
+      "aapki",
+      "reel",
+      "mute",
+      "pe",
+      "dekhi",
+      "ja",
+      "rahi",
+      "hai",
+      "ek",
+      "reel",
+      "ke",
+      "ek",
+      "mein",
+      "dekho",
+      "kaise"
+    ]
+  }
+}

@@ -109,6 +109,32 @@ describe("standalone language token mirrors the session rule", () => {
   });
 });
 
+describe("standalone model-download failure (BUG-008)", () => {
+  beforeEach(() => {
+    FakeWorker.instances.length = 0;
+    vi.stubGlobal("Worker", FakeWorker);
+  });
+
+  const startRun = () => {
+    const run = runStandaloneTranscribe(new Blob(["x"], { type: "video/mp4" }), "en", { onStatus: () => {}, onPartial: () => {} }, { explicitLanguage: true });
+    return { run, worker: FakeWorker.instances[0]! };
+  };
+
+  it("a raw fetch failure becomes a plain-language message, not 'Failed to fetch'", async () => {
+    const { run, worker } = startRun();
+    worker.emit({ type: "error", message: "Failed to fetch" });
+    await expect(run.promise).rejects.toThrow(
+      "Couldn't download the transcription model. Check your connection and try again.",
+    );
+  });
+
+  it("a non-network worker error still passes through unchanged", async () => {
+    const { run, worker } = startRun();
+    worker.emit({ type: "error", message: "Transcription failed." });
+    await expect(run.promise).rejects.toThrow("Transcription failed.");
+  });
+});
+
 describe("standalone decode fallback (worker can't read the audio)", () => {
   beforeEach(() => {
     sent.length = 0;

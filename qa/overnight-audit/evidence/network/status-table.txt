@@ -1,0 +1,46 @@
+URL | nofollow_status | location | final_status | final_url | content_type | size_bytes
+/ | 200 | — | 200  https://www.captionit.in/ text/html; charset=utf-8 83812
+/pricing | 200 | — | 200  https://www.captionit.in/pricing text/html; charset=utf-8 52457
+/login | 200 | — | 200  https://www.captionit.in/login text/html; charset=utf-8 22031
+/transcribe | 200 | — | 200  https://www.captionit.in/transcribe text/html; charset=utf-8 36276
+/dashboard | 200 | — | 200  https://www.captionit.in/dashboard text/html; charset=utf-8 39711
+/editor | 200 | — | 200  https://www.captionit.in/editor text/html; charset=utf-8 35792
+/ai-clipper | 200 | — | 200  https://www.captionit.in/ai-clipper text/html; charset=utf-8 37597
+/analytics | 200 | — | 200  https://www.captionit.in/analytics text/html; charset=utf-8 36160
+/analyzer | 200 | — | 200  https://www.captionit.in/analyzer text/html; charset=utf-8 36053
+/brand | 200 | — | 200  https://www.captionit.in/brand text/html; charset=utf-8 36861
+/captions | 200 | — | 200  https://www.captionit.in/captions text/html; charset=utf-8 36012
+/clipper | 200 | — | 200  https://www.captionit.in/clipper text/html; charset=utf-8 38180
+/create | 200 | — | 200  https://www.captionit.in/create text/html; charset=utf-8 36861
+/create/chat | 200 | — | 200  https://www.captionit.in/create/chat text/html; charset=utf-8 36870
+/exports | 200 | — | 200  https://www.captionit.in/exports text/html; charset=utf-8 36004
+/growth | 200 | — | 200  https://www.captionit.in/growth text/html; charset=utf-8 36044
+/library | 200 | — | 200  https://www.captionit.in/library text/html; charset=utf-8 36408
+/motion | 200 | — | 200  https://www.captionit.in/motion text/html; charset=utf-8 38039
+/motion/counter | 200 | — | 200  https://www.captionit.in/motion/counter text/html; charset=utf-8 37251
+/planner | 200 | — | 200  https://www.captionit.in/planner text/html; charset=utf-8 36525
+/projects/test123 | 200 | — | 200  https://www.captionit.in/projects/test123 text/html; charset=utf-8 42921
+/projects/test123/settings | 200 | — | 200  https://www.captionit.in/projects/test123/settings text/html; charset=utf-8 40307
+/prompter | 200 | — | 200  https://www.captionit.in/prompter text/html; charset=utf-8 36839
+/settings | 200 | — | 200  https://www.captionit.in/settings text/html; charset=utf-8 35802
+/settings/billing | 200 | — | 200  https://www.captionit.in/settings/billing text/html; charset=utf-8 36628
+/about | 200 | — | 200  https://www.captionit.in/about text/html; charset=utf-8 45511
+/acceptable-use | 200 | — | 200  https://www.captionit.in/acceptable-use text/html; charset=utf-8 43232
+/cookies | 200 | — | 200  https://www.captionit.in/cookies text/html; charset=utf-8 49745
+/copyright | 200 | — | 200  https://www.captionit.in/copyright text/html; charset=utf-8 42140
+/credits | 200 | — | 200  https://www.captionit.in/credits text/html; charset=utf-8 73828
+/privacy | 200 | — | 200  https://www.captionit.in/privacy text/html; charset=utf-8 73218
+/subprocessors | 200 | — | 200  https://www.captionit.in/subprocessors text/html; charset=utf-8 48032
+/terms | 200 | — | 200  https://www.captionit.in/terms text/html; charset=utf-8 69371
+/auto-caption-generator | 200 | — | 200  https://www.captionit.in/auto-caption-generator text/html; charset=utf-8 61431
+/forgot-password | 200 | — | 200  https://www.captionit.in/forgot-password text/html; charset=utf-8 21047
+/onboarding | 200 | — | 200  https://www.captionit.in/onboarding text/html; charset=utf-8 17864
+/pair | 200 | — | 200  https://www.captionit.in/pair text/html; charset=utf-8 17532
+/reset-password | 200 | — | 200  https://www.captionit.in/reset-password text/html; charset=utf-8 20154
+/start | 200 | — | 200  https://www.captionit.in/start text/html; charset=utf-8 17776
+/sitemap.xml | 200 | — | 200  https://www.captionit.in/sitemap.xml application/xml 2022
+/robots.txt | 200 | — | 200  https://www.captionit.in/robots.txt text/plain; charset=utf-8 577
+/health | 200 | — | 200  https://www.captionit.in/health application/json 15
+/health/ready | 200 | — | 200  https://www.captionit.in/health/ready application/json 101
+/ads.txt | 404 | — | 404  https://www.captionit.in/ads.txt text/plain; charset=utf-8 9
+APEX: 308 https://www.captionit.in/

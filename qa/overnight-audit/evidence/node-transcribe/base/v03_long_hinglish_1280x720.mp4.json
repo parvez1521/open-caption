@@ -1,0 +1,343 @@
+{
+  "file": "v03_long_hinglish_1280x720.mp4",
+  "model": "onnx-community/whisper-base_timestamped@608c49e6 (stock base, q8)",
+  "languageToken": "en",
+  "ms": 13539,
+  "text": "Your real mood is going on. People don't sound like this. Without the captions, your best line never goes on. Caption it her word on screen, on time. Whatever you say, that's what it looks like, word by word. Free it. No watermark. Try caro. Caption it dot i n. 1.1. 1.1. 1.2..",
+  "words": [
+    {
+      "w": "Your",
+      "start": 0.38,
+      "end": 0.7
+    },
+    {
+      "w": "real",
+      "start": 0.7,
+      "end": 1.16
+    },
+    {
+      "w": "mood",
+      "start": 1.16,
+      "end": 1.4
+    },
+    {
+      "w": "is",
+      "start": 1.4,
+      "end": 1.96
+    },
+    {
+      "w": "going",
+      "start": 1.96,
+      "end": 2.28
+    },
+    {
+      "w": "on.",
+      "start": 2.28,
+      "end": 2.86
+    },
+    {
+      "w": "People",
+      "start": 3.74,
+      "end": 4.2
+    },
+    {
+      "w": "don't",
+      "start": 4.2,
+      "end": 4.34
+    },
+    {
+      "w": "sound",
+      "start": 4.34,
+      "end": 4.68
+    },
+    {
+      "w": "like",
+      "start": 4.68,
+      "end": 4.98
+    },
+    {
+      "w": "this.",
+      "start": 4.98,
+      "end": 5.7
+    },
+    {
+      "w": "Without",
+      "start": 6.3,
+      "end": 6.58
+    },
+    {
+      "w": "the",
+      "start": 6.58,
+      "end": 6.86
+    },
+    {
+      "w": "captions,",
+      "start": 6.86,
+      "end": 7.52
+    },
+    {
+      "w": "your",
+      "start": 8.02,
+      "end": 8.32
+    },
+    {
+      "w": "best",
+      "start": 8.32,
+      "end": 8.7
+    },
+    {
+      "w": "line",
+      "start": 8.7,
+      "end": 9.1
+    },
+    {
+      "w": "never",
+      "start": 9.1,
+      "end": 9.16
+    },
+    {
+      "w": "goes",
+      "start": 9.16,
+      "end": 9.34
+    },
+    {
+      "w": "on.",
+      "start": 9.34,
+      "end": 10.02
+    },
+    {
+      "w": "Caption",
+      "start": 11.68,
+      "end": 12.1
+    },
+    {
+      "w": "it",
+      "start": 12.1,
+      "end": 12.32
+    },
+    {
+      "w": "her",
+      "start": 12.32,
+      "end": 12.68
+    },
+    {
+      "w": "word",
+      "start": 12.68,
+      "end": 12.84
+    },
+    {
+      "w": "on",
+      "start": 12.84,
+      "end": 13.34
+    },
+    {
+      "w": "screen,",
+      "start": 13.34,
+      "end": 13.86
+    },
+    {
+      "w": "on",
+      "start": 13.94,
+      "end": 14.28
+    },
+    {
+      "w": "time.",
+      "start": 14.28,
+      "end": 15
+    },
+    {
+      "w": "Whatever",
+      "start": 15.82,
+      "end": 16.32
+    },
+    {
+      "w": "you",
+      "start": 16.32,
+      "end": 16.34
+    },
+    {
+      "w": "say,",
+      "start": 16.34,
+      "end": 16.88
+    },
+    {
+      "w": "that's",
+      "start": 17.08,
+      "end": 17.26
+    },
+    {
+      "w": "what",
+      "start": 17.26,
+      "end": 17.26
+    },
+    {
+      "w": "it",
+      "start": 17.26,
+      "end": 17.64
+    },
+    {
+      "w": "looks",
+      "start": 17.64,
+      "end": 17.96
+    },
+    {
+      "w": "like,",
+      "start": 17.96,
+      "end": 18.16
+    },
+    {
+      "w": "word",
+      "start": 18.52,
+      "end": 18.82
+    },
+    {
+      "w": "by",
+      "start": 18.82,
+      "end": 19.08
+    },
+    {
+      "w": "word.",
+      "start": 19.08,
+      "end": 19.72
+    },
+    {
+      "w": "Free",
+      "start": 20.18,
+      "end": 20.5
+    },
+    {
+      "w": "it.",
+      "start": 20.5,
+      "end": 20.9
+    },
+    {
+      "w": "No",
+      "start": 21.16,
+      "end": 21.58
+    },
+    {
+      "w": "watermark.",
+      "start": 21.58,
+      "end": 22.28
+    },
+    {
+      "w": "Try",
+      "start": 22.58,
+      "end": 22.92
+    },
+    {
+      "w": "caro.",
+      "start": 22.92,
+      "end": 23
+    },
+    {
+      "w": "Caption",
+      "start": 23.66,
+      "end": 24.08
+    },
+    {
+      "w": "it",
+      "start": 24.08,
+      "end": 24.34
+    },
+    {
+      "w": "dot",
+      "start": 24.34,
+      "end": 24.7
+    },
+    {
+      "w": "i",
+      "start": 24.7,
+      "end": 24.98
+    },
+    {
+      "w": "n.",
+      "start": 24.98,
+      "end": 25.48
+    },
+    {
+      "w": "1",
+      "start": 25.7,
+      "end": 26.06
+    },
+    {
+      "w": ".1.",
+      "start": 26.06,
+      "end": 26.28
+    },
+    {
+      "w": "1",
+      "start": 27.44,
+      "end": 27.82
+    },
+    {
+      "w": ".1.",
+      "start": 27.82,
+      "end": 27.88
+    },
+    {
+      "w": "1",
+      "start": 29.06,
+      "end": 29.06
+    },
+    {
+      "w": ".2",
+      "start": 29.06,
+      "end": 29.24
+    },
+    {
+      "w": "..",
+      "start": 29.24,
+      "end": 29.84
+    }
+  ],
+  "reference": "Aapki reel mute pe dekhi ja rahi hai. Aadhe log sound on karte hi nahi. Bina captions ke, aapki best line kabhi suni hi nahi jaati. Ek Reel ke captions, ek minute mein. Dekho kaise. Step one clip drop karo. Step two har word apne time pe aa jaata hai.",
+  "overlap": {
+    "refWords": 50,
+    "matched": 8,
+    "missing": [
+      "aapki",
+      "reel",
+      "mute",
+      "pe",
+      "dekhi",
+      "ja",
+      "rahi",
+      "hai",
+      "aadhe",
+      "log",
+      "karte",
+      "hi",
+      "nahi",
+      "bina",
+      "ke",
+      "aapki",
+      "kabhi",
+      "suni",
+      "hi",
+      "nahi",
+      "jaati",
+      "ek",
+      "reel",
+      "ke",
+      "ek",
+      "minute",
+      "mein",
+      "dekho",
+      "kaise",
+      "step",
+      "one",
+      "clip",
+      "drop",
+      "karo",
+      "step",
+      "two",
+      "har",
+      "apne",
+      "pe",
+      "aa",
+      "jaata",
+      "hai"
+    ]
+  }
+}
