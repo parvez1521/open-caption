@@ -9,7 +9,13 @@ import { INDEXABLE_PATHS, SITE_URL } from "@/lib/seo";
 export default function sitemap(): MetadataRoute.Sitemap {
   return INDEXABLE_PATHS.map((path) => ({
     url: path === "/" ? `${SITE_URL}/` : `${SITE_URL}${path}`,
-    changeFrequency: path === "/" ? ("weekly" as const) : ("yearly" as const),
-    priority: path === "/" ? 1 : path === "/login" ? 0.5 : 0.3,
+    changeFrequency:
+      path === "/"
+        ? ("weekly" as const)
+        : path === "/auto-caption-generator"
+          ? ("monthly" as const)
+          : ("yearly" as const),
+    // Tool landing pages outrank sign-in/legal: they are the pages built to be found.
+    priority: path === "/" ? 1 : path === "/auto-caption-generator" ? 0.8 : path === "/login" ? 0.5 : 0.3,
   }));
 }

@@ -8,9 +8,12 @@ import {
   googleSiteVerification,
   adsensePublisherId,
   pageMetadata,
+  productJsonLd,
   softwareApplicationJsonLd,
 } from "../seo";
 import { FAQS } from "../../components/home/faqs";
+import { AUTO_CAPTION_FAQS } from "../../app/auto-caption-generator/faqs";
+import { metadata as autoCaptionMetadata } from "../../app/auto-caption-generator/layout";
 import sitemap from "../../app/sitemap";
 import robots from "../../app/robots";
 import { GET as adsTxtGET } from "../../app/ads.txt/route";
@@ -251,5 +254,57 @@ describe("homepage JSON-LD", () => {
       expect(entity.name).toBe(FAQS[i]!.q);
       expect(entity.acceptedAnswer.text).toBe(FAQS[i]!.a);
     });
+  });
+});
+
+describe("competitor-intelligence programme (2026-11-13)", () => {
+  it("/auto-caption-generator is indexable: in the sitemap at priority 0.8, not disallowed by robots", () => {
+    expect(INDEXABLE_PATHS).toContain("/auto-caption-generator");
+    const entries = sitemap();
+    const entry = entries.find((e) => e.url === `${SITE_URL}/auto-caption-generator`);
+    expect(entry).toMatchObject({ priority: 0.8, changeFrequency: "monthly" });
+    const result = robots();
+    const rules = Array.isArray(result.rules) ? result.rules[0] : result.rules;
+    const disallow = rules?.disallow as string[];
+    expect(disallow).not.toContain("/auto-caption-generator");
+  });
+
+  it("/auto-caption-generator has its own title, description and canonical, and is indexable", () => {
+    expect(autoCaptionMetadata.title).toContain("Automatic Video Caption Generator");
+    expect(autoCaptionMetadata.description).toContain("150");
+    expect(autoCaptionMetadata.alternates?.canonical).toBe("/auto-caption-generator");
+    expect(autoCaptionMetadata.robots).toBeUndefined();
+    expect(autoCaptionMetadata.title).not.toBe("Pricing");
+  });
+
+  it("the new page's FAQPage mirrors its visible FAQ copy exactly (same source array)", () => {
+    const ld = faqPageJsonLd(AUTO_CAPTION_FAQS);
+    expect(ld.mainEntity).toHaveLength(AUTO_CAPTION_FAQS.length);
+    expect(new Set(AUTO_CAPTION_FAQS.map((f) => f.q)).size).toBe(AUTO_CAPTION_FAQS.length);
+    ld.mainEntity.forEach((entity, i) => {
+      expect(entity.name).toBe(AUTO_CAPTION_FAQS[i]!.q);
+      expect(entity.acceptedAnswer.text).toBe(AUTO_CAPTION_FAQS[i]!.a);
+    });
+  });
+
+  it("productJsonLd lists every plan price from the same config the pricing page renders", () => {
+    const ld = productJsonLd() as unknown as Record<string, unknown>;
+    expect(ld["@type"]).toBe("Product");
+    expect(ld).not.toHaveProperty("aggregateRating");
+    expect(ld).not.toHaveProperty("review");
+    const offers = ld.offers as Array<Record<string, unknown>>;
+    // Free (one zero offer) + 3 paid plans x 2 currencies = 7 offers.
+    expect(offers).toHaveLength(7);
+    const pairs = offers.map((o) => `${o.priceCurrency}:${o.price}`);
+    for (const expected of ["INR:0", "INR:299", "INR:499", "INR:799", "USD:4", "USD:6", "USD:10"]) {
+      expect(pairs).toContain(expected);
+    }
+    // One currency per Offer: the geo rule is honoured in structured data too.
+    for (const o of offers) {
+      expect(typeof o.priceCurrency).toBe("string");
+      expect(o.url).toBe(`${SITE_URL}/pricing`);
+    }
+    // It serialises cleanly — what the page embeds is what was tested.
+    expect(() => JSON.parse(JSON.stringify(ld))).not.toThrow();
   });
 });

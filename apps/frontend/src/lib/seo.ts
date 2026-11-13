@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { PLAN_PRICING, PLAN_PERIOD_DAYS } from "@capseasy/shared";
 import { BRAND_DESCRIPTION, BRAND_NAME } from "@/lib/brand";
 import { LEGAL_PAGES } from "@/lib/legal";
 
@@ -23,7 +24,9 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).repl
 /** Routes search engines may index: public marketing, auth and legal only. */
 // /credits comes in via LEGAL_PAGES — do not append it again (deep-audit B4:
 // the sitemap listed it twice).
-export const INDEXABLE_PATHS = ["/", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
+// /auto-caption-generator is the first SEO tool landing page (competitor-intelligence
+// programme, 2026-11-13): an indexable public page, not an app route.
+export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
 
 /** App routes behind sign-in: never indexed (metadata noindex + robots disallow).
  *  Covers every (dashboard) route in the shell nav, plus the auth-flow helpers —
@@ -150,5 +153,39 @@ export function faqPageJsonLd(faqs: readonly { q: string; a: string }[]) {
       name: f.q,
       acceptedAnswer: { "@type": "Answer", text: f.a },
     })),
+  };
+}
+
+/**
+ * Product JSON-LD for /pricing, built from the same PLAN_PRICING config the
+ * page renders, so the schema can never diverge from the visible prices.
+ * Prices are numbers straight from the config — no formatting, no invented
+ * values. Each Offer carries exactly ONE currency: the owner's geo rule
+ * (never ₹ and $ together) governs visible display, and JSON-LD is machine
+ * data, not display — but no single Offer ever mixes currencies, and the
+ * visible page still shows one currency per visitor. Paid plans are
+ * 30-day passes with no auto-renewal; the Free offer is price 0. No ratings
+ * or reviews exist, so none are claimed.
+ */
+export function productJsonLd() {
+  const offer = (name: string, price: number, priceCurrency: string) => ({
+    "@type": "Offer",
+    name,
+    price,
+    priceCurrency,
+    availability: "https://schema.org/InStock",
+    url: `${SITE_URL}/pricing`,
+  });
+  return {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: BRAND_NAME,
+    description: BRAND_DESCRIPTION,
+    brand: { "@type": "Brand", name: BRAND_NAME },
+    offers: PLAN_PRICING.flatMap((entry) => {
+      const pass = `${entry.name} — ${PLAN_PERIOD_DAYS}-day pass`;
+      if (entry.id === "free") return [offer("Free — forever", 0, "INR")];
+      return [offer(pass, entry.priceInr, "INR"), offer(pass, entry.priceUsd, "USD")];
+    }),
   };
 }

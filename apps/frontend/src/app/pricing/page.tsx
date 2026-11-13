@@ -5,7 +5,7 @@ import { PLAN_PRICING, PLANS } from "@capseasy/shared";
 import { Footer, Nav } from "@/components/home/Sections";
 import { currencyForCountry } from "@/lib/billing/cashfree";
 import { priceLabel, projectCountLabel, uploadLimitLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
-import { pageMetadata } from "@/lib/seo";
+import { pageMetadata, productJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
   title: "Pricing",
@@ -27,6 +27,11 @@ export default async function PricingPage() {
 
   return (
     <div className="min-h-screen bg-[#141412] text-[#FFFFEB]">
+      {/* Product/Offer structured data from the same PLAN_PRICING config the
+          cards render, so crawlers see the prices even when the visitor's
+          geo currency differs. One currency per Offer; visible display is
+          still one currency per visitor. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd()).replace(/</g, "\\u003c") }} />
       <Nav />
       <main id="main-content" className="mx-auto max-w-6xl px-5 pb-24 pt-16 sm:pt-20">
         <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#34D399]">Pricing</p>
