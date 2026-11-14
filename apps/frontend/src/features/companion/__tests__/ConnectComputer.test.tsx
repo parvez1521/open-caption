@@ -7,7 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * the desktop helper is switched off server-side unless COMPANIONS_ENABLED=1,
  * and POST /device/setup 403s when it is off (proven live). The component asks
  * GET /device/status on mount and, when the helper is off, shows an honest
- * note instead of a dead "Connect this computer" button.
+ * note instead of a dead "Connect this computer" button. While the check is
+ * still pending, neither renders — the button must not flash in before the
+ * check resolves (live-browser finding, 2026-11-15).
  */
 
 const h = vi.hoisted(() => ({
@@ -38,6 +40,17 @@ describe("ConnectComputer companion availability", () => {
     render(<ConnectComputer />);
     expect(await screen.findByText(/desktop helper is turned off/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Connect this computer/ })).toBeNull();
+  });
+
+  it("shows neither the button nor the note while the status check is pending", async () => {
+    h.get.mockImplementation(() => new Promise(() => {}));
+    render(<ConnectComputer />);
+    expect(screen.queryByRole("button", { name: /Connect this computer/ })).toBeNull();
+    expect(screen.queryByText(/desktop helper is turned off/)).toBeNull();
+    // Still nothing after a tick — the button must not flash in while waiting.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryByRole("button", { name: /Connect this computer/ })).toBeNull();
+    expect(screen.queryByText(/desktop helper is turned off/)).toBeNull();
   });
 
   it("falls back to the button when the status check itself fails", async () => {

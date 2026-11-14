@@ -49,7 +49,9 @@ beforeEach(() => {
 describe("PairedComputers", () => {
   it("mounts the ConnectComputer pairing flow and lists the paired computers", async () => {
     render(<PairedComputers />);
-    expect(screen.getByRole("button", { name: /Connect this computer/ })).toBeTruthy();
+    // The button appears only once the async companion-status check resolves
+    // (nothing renders while it is pending — no flash of the button).
+    expect(await screen.findByRole("button", { name: /Connect this computer/ })).toBeTruthy();
     expect(await screen.findByText("Parvez's MacBook")).toBeTruthy();
     expect(screen.getByText("Old Windows PC")).toBeTruthy();
     expect(screen.getByText(/Online · last seen/)).toBeTruthy();

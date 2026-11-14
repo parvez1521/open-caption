@@ -74,14 +74,16 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
   // The desktop helper can be switched off server-side (COMPANIONS_ENABLED):
   // when it is off, POST /device/setup 403s and this button is a dead end
   // (proven live 2026-11-15: the setup route 403s in production). Ask once on
-  // mount and, when off, show an honest note instead of the button. Defaults
-  // to true so a failed check never hides a working button — the setup POST
-  // still reports the real error if the flag flips after this check.
-  const [companionsOn, setCompanionsOn] = useState(true);
+  // mount and, when off, show an honest note instead of the button. Tri-state:
+  // null = check still pending — render nothing, so the button never flashes
+  // before the check resolves. A failed check falls back to true, so a
+  // failed check never hides a working button — the setup POST still reports
+  // the real error if the flag flips after this check.
+  const [companionsOn, setCompanionsOn] = useState<boolean | null>(null);
   useEffect(() => {
     let alive = true;
     void workersService.getCompanionStatus().then((v) => {
-      if (alive && v === false) setCompanionsOn(false);
+      if (alive) setCompanionsOn(v === null ? true : v);
     });
     return () => {
       alive = false;
@@ -155,6 +157,12 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
         </span>
       </div>
     );
+  }
+
+  if (companionsOn === null) {
+    // Status check still pending: render nothing so the button never
+    // flashes before we know whether the helper is on.
+    return null;
   }
 
   if (!companionsOn) {
