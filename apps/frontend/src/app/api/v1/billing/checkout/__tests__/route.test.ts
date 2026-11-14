@@ -137,6 +137,8 @@ describe("billing checkout error surfacing", () => {
     expect(body.error?.message).toBe("Add a valid mobile number to continue.");
     expect(state.inserted).toHaveLength(0);
     expect(state.createArgs).toHaveLength(0);
+  });
+
   it("charges a non-India visitor in INR while USD prices are unset (never a guessed conversion)", async () => {
     // No x-vercel-ip-country header here, so currencyForCountry answers
     // USD — but the new Starter plan has no USD price, so the order must

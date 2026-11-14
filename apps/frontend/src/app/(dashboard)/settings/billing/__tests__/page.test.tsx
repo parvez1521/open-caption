@@ -73,7 +73,7 @@ describe("billing page phone at checkout", () => {
     fireEvent.change(await screen.findByLabelText("Mobile number"), { target: { value: "98765 43210" } });
     fireEvent.click(await screen.findByRole("button", { name: "Get Starter" }));
     await waitFor(() => expect(post).toHaveBeenCalled());
-    expect(post).toHaveBeenCalledWith("/billing/checkout", { json: { plan: "starter", customerPhone: "9876543210" } });
+    expect(post).toHaveBeenCalledWith("/billing/checkout", { json: { plan: "starter", mode: "subscription", customerPhone: "9876543210" } });
   });
 });
 
@@ -118,6 +118,9 @@ describe("billing page Cashfree SDK checkout", () => {
     await startCheckout();
     await waitFor(() => expect(checkoutMock).toHaveBeenCalled());
     expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
 describe("billing page plan display (new minutes model)", () => {
   it("shows the minutes allowance, the real minutes usage, and the Most Popular marker", async () => {
     api.getImpl = async () => ({

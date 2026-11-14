@@ -161,7 +161,6 @@ export default function BillingPage() {
           setNotice(result.error.message || "Checkout didn't start. Please try again.");
         }
       }
-      }
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Checkout didn't start. Please try again.");
     } finally {
