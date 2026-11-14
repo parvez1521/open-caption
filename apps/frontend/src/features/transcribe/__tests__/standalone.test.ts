@@ -47,9 +47,17 @@ describe("standalone transcribe", () => {
     const noType = new File(["x"], "voice.wav", { type: "" });
     expect(validateTranscribeFile(noType)).toBeNull();
     expect(validateTranscribeFile(new File(["x"], "notes.pdf", { type: "application/pdf" }))).toMatch(/video or audio/);
-    const big = new File([new Uint8Array(TRANSCRIBE_LIMITS.maxBytes + 1)], "big.mp4", { type: "video/mp4" });
-    expect(validateTranscribeFile(big)).toMatch(/over the 50 MB limit/);
+    // Oversize without allocating 2 GB in the test: the validator only reads
+    // file.size, so a small file with an oversize size exercises the same path.
+    const big = new File(["x"], "big.mp4", { type: "video/mp4" });
+    Object.defineProperty(big, "size", { value: TRANSCRIBE_LIMITS.maxBytes + 1 });
+    expect(validateTranscribeFile(big)).toMatch(/over the 2 GB limit/);
     expect(validateTranscribeFile(new File([], "empty.mp4", { type: "video/mp4" }))).toMatch(/empty/);
+  });
+
+  it("caps /transcribe at 2 GB and 15 minutes (owner decision 2026-11-14)", () => {
+    expect(TRANSCRIBE_LIMITS.maxBytes).toBe(2 * 1024 * 1024 * 1024);
+    expect(TRANSCRIBE_LIMITS.maxDurationSec).toBe(15 * 60);
   });
 
   it("groups words into timed segments: silence breaks, long runs split", () => {
