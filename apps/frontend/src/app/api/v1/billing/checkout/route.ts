@@ -53,8 +53,11 @@ export const POST = route(async (req: Request) => {
   const cfg = cashfreeConfig();
   if (!cfg.configured) return ok({ configured: false as const });
 
-  const currency = currencyForCountry(req.headers.get("x-vercel-ip-country"));
-  const amount = currency === "INR" ? pricing.priceInr : pricing.priceUsd;
+  // USD prices are not set yet (owner brief gives INR only), so a
+  // non-India visitor pays in INR for now — never a guessed conversion.
+  const geoCurrency = currencyForCountry(req.headers.get("x-vercel-ip-country"));
+  const currency = pricing.priceUsd === null ? "INR" : geoCurrency;
+  const amount = currency === "INR" ? pricing.priceInr : (pricing.priceUsd ?? pricing.priceInr);
   const orderId = newOrderId(user.id);
 
   const admin = getAdmin();

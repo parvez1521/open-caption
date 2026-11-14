@@ -118,5 +118,20 @@ describe("billing page Cashfree SDK checkout", () => {
     await startCheckout();
     await waitFor(() => expect(checkoutMock).toHaveBeenCalled());
     expect(screen.queryByRole("status")).toBeNull();
+describe("billing page plan display (new minutes model)", () => {
+  it("shows the minutes allowance, no faked usage number, and the Most Popular marker", async () => {
+    api.getImpl = async () => ({ ...billingState, plan: "creator", storedPlan: "creator", expiresAt: "2026-12-14T00:00:00.000Z" });
+    render(<BillingPage />);
+    expect((await screen.findAllByText(/100 processing minutes a month/)).length).toBeGreaterThanOrEqual(1);
+    expect(await screen.findByText(/Minutes used: coming with the minutes ledger\./)).toBeTruthy();
+    expect((await screen.findAllByText("Most Popular")).length).toBe(1);
+    expect(screen.queryByText(/Paid plans are 30-day passes/)).toBeNull();
+    expect(screen.queryByText(/adds 30 days to your current period/)).toBeNull();
+  });
+
+  it("shows a live old Plus pass as Creator, honoured to its expiry date", async () => {
+    api.getImpl = async () => ({ ...billingState, plan: "creator", storedPlan: "growth", expiresAt: "2026-12-14T00:00:00.000Z" });
+    render(<BillingPage />);
+    expect(await screen.findByText(/Your Plus pass is honoured until/)).toBeTruthy();
   });
 });

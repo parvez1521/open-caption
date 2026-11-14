@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { PLAN_PERIOD_DAYS, effectivePlanId, planFor, type PlanId } from "@capseasy/shared";
+import { PLAN_PERIOD_DAYS, effectivePlanId, planFor, type LegacyPlanId, type PlanId } from "@capseasy/shared";
 import { ApiFailure } from "@/lib/api/http";
 
 /**
@@ -28,7 +28,7 @@ export const isVideoQuotaKind = (kind: string): kind is VideoQuotaKind =>
   (VIDEO_QUOTA_KINDS as readonly string[]).includes(kind);
 
 export interface VideoQuotaUsage {
-  plan: PlanId;
+  plan: PlanId | LegacyPlanId;
   limit: number;
   used: number;
   remaining: number;
@@ -45,7 +45,9 @@ const DAY_MS = 24 * 3600 * 1000;
  * reads as Free, so it counts the rolling window too.
  */
 export function videoQuotaWindow(
-  plan: PlanId,
+  // Stored plan strings reach here, including the legacy "growth" id
+  // (a live old Plus pass reads as Creator via effectivePlanId).
+  plan: PlanId | LegacyPlanId,
   expiresAt: string | null,
   now: Date = new Date(),
 ): { start: Date; end: Date } {
@@ -68,7 +70,7 @@ export const QUOTA_NOT_SET_UP = "Video limits aren't set up yet — exports are 
 export async function getVideoQuotaUsage(
   db: SupabaseClient,
   ownerId: string,
-  plan: PlanId,
+  plan: PlanId | LegacyPlanId,
   expiresAt: string | null,
   now: Date = new Date(),
 ): Promise<VideoQuotaUsage> {
@@ -103,7 +105,7 @@ export async function getVideoQuotaUsage(
 export async function checkVideoQuota(
   db: SupabaseClient,
   ownerId: string,
-  plan: PlanId,
+  plan: PlanId | LegacyPlanId,
   expiresAt: string | null,
   now: Date = new Date(),
 ): Promise<VideoQuotaUsage> {

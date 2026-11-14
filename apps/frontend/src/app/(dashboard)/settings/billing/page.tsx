@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { PLAN_PRICING, PLANS, pricingFor, type PlanId } from "@capseasy/shared";
-import { priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
+import { PLAN_PRICING, PLANS, isLegacyPlanId, pricingFor, pricingForStoredPlan, type PlanId } from "@capseasy/shared";
+import { USD_PRICE_UNSET_NOTE, hasUsdPrice, minutesLabel, priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import StudioShell from "@/components/studio/StudioShell";
 import { apiClient } from "@/services/api-client";
 import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
@@ -171,7 +171,7 @@ export default function BillingPage() {
             Plan &amp; <em className="italic text-sand-600">billing</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800">
-            Paid plans are 30-day passes — pay once, no auto-renewal, no card kept on file.
+            Paid plans are monthly. Minutes reset each billing cycle. Unused minutes do not roll over.
           </p>
         </div>
 
@@ -201,15 +201,27 @@ export default function BillingPage() {
                   {Math.round(PLANS[state.plan].maxDurationSec / 60)} minutes · exports kept{" "}
                   {PLANS[state.plan].exportRetentionDays} days.
                 </p>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
+                  {minutesLabel(PLANS[state.plan].minutesPerCycle, PLANS[state.plan].minutesOneTime)}.
+                </p>
+                <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
+                  Minutes used: coming with the minutes ledger.
+                </p>
                 {state.videoQuota ? (
                   <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
                     {state.videoQuota.remaining} of {state.videoQuota.limit} videos left this month.
                   </p>
                 ) : null}
-                {state.storedPlan !== state.plan ? (
+                {state.storedPlan !== state.plan && state.plan === "free" ? (
                   <p className="mt-2 text-[13px] text-sand-600">
-                    Your {pricingFor((state.storedPlan as PlanId) in PLANS ? (state.storedPlan as PlanId) : "free").name} pass
-                    has ended, so Free limits apply until you buy a new pass.
+                    Your {pricingForStoredPlan(state.storedPlan).name} pass has ended, so Free limits apply until
+                    you buy a new pass.
+                  </p>
+                ) : null}
+                {isLegacyPlanId(state.storedPlan) && state.plan === "creator" && state.expiresAt ? (
+                  <p className="mt-2 text-[13px] text-sand-600">
+                    Your Plus pass is honoured until {fmtDate(state.expiresAt)}. It reads as Creator until then.
+                    Renewal buys the new plan.
                   </p>
                 ) : null}
                 {state.guest ? (
@@ -279,10 +291,19 @@ export default function BillingPage() {
                     >
                       <div className="min-w-0 flex-1">
                         <p className="font-sora text-[15px] font-bold text-ink">
-                          {entry.name} <span className="ml-2 font-serif text-[18px]">{price}</span>
-                          <span className="ml-1 text-[12.5px] font-medium text-sand-600">/ 30 days</span>
+                          {entry.name}{" "}
+                          {entry.isMostPopular ? (
+                            <span className="ml-1 rounded-full bg-ink px-2 py-0.5 text-[11px] font-bold text-sand-50">
+                              Most Popular
+                            </span>
+                          ) : null}{" "}
+                          <span className="ml-2 font-serif text-[18px]">{price}</span>
+                          <span className="ml-1 text-[12.5px] font-medium text-sand-600">/ month</span>
                         </p>
                         <p className="mt-0.5 text-[13px] text-sand-700">{entry.tagline}</p>
+                        <p className="mt-0.5 text-[13px] text-sand-700">
+                          {minutesLabel(PLANS[entry.id as PlanId].minutesPerCycle, PLANS[entry.id as PlanId].minutesOneTime)}
+                        </p>
                       </div>
                       {isCurrent ? (
                         <span className="rounded-full border border-sand-300 px-4 py-2 text-[13px] font-semibold text-sand-700">
@@ -292,7 +313,7 @@ export default function BillingPage() {
                         <button
                           type="button"
                           disabled={busyPlan !== null || state.guest}
-                          onClick={() => void buy(entry.id)}
+                          onClick={() => void buy(entry.id as PlanId)}
                           className="rounded-full bg-ink px-5 py-2.5 font-sora text-[13.5px] font-semibold text-sand-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {busyPlan === entry.id ? "Opening checkout…" : state.plan === "free" ? `Get ${entry.name}` : `Switch to ${entry.name}`}
@@ -302,10 +323,12 @@ export default function BillingPage() {
                   );
                 })}
               </div>
+              {state.currency === "USD" && PLAN_PRICING.some((p) => !hasUsdPrice(p)) ? (
+                <p className="mt-3 text-[12.5px] leading-relaxed text-sand-600">{USD_PRICE_UNSET_NOTE}</p>
+              ) : null}
               <p className="mt-3 text-[12.5px] leading-relaxed text-sand-600">
-                Buying the plan you already have adds 30 days to your current period. Switching plans starts a fresh
-                30 days on the new plan — the old plan&rsquo;s remaining days don&rsquo;t carry over. Full comparison on
-                the{" "}
+                Minutes reset each billing cycle. Unused minutes do not roll over. Old 30-day passes run to their
+                expiry date. Renewal buys the new plan, not the old one. Full comparison on the{" "}
                 <Link href="/pricing" className="underline">
                   pricing page
                 </Link>
@@ -335,7 +358,7 @@ export default function BillingPage() {
                       {state.payments.map((p) => (
                         <tr key={p.id} className="border-b border-sand-200/60 last:border-0">
                           <td className="px-4 py-3 text-sand-800">{fmtDate(p.created_at)}</td>
-                          <td className="px-4 py-3 text-sand-800">{pricingFor((p.plan as PlanId) in PLANS ? (p.plan as PlanId) : "free").name}</td>
+                          <td className="px-4 py-3 text-sand-800">{pricingForStoredPlan(p.plan).name}</td>
                           <td className="px-4 py-3 text-sand-800">{fmtMoney(p.amount, p.currency)}</td>
                           <td className="px-4 py-3 text-sand-800">
                             {p.status === "paid" ? "Paid" : p.status === "created" ? "Started, not completed" : p.status === "failed" ? "Failed" : "Expired"}

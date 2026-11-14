@@ -108,7 +108,10 @@ describe("settlePaid", () => {
     const settled = await settlePaid(fakeAdmin(tables), payment({ plan: "growth" }), null);
     const end = new Date(settled.period_end!).getTime();
     expect(end).toBeLessThan(before + 31 * 24 * 3600 * 1000);
-    expect(tables.profiles[0]!.plan).toBe("growth");
+    // The payment row keeps the old "growth" id as history, but the
+    // profile is granted the plan it maps to today: Creator (2026-11-14
+    // minutes model — a stored "growth" reads as Creator, never Free).
+    expect(tables.profiles[0]!.plan).toBe("creator");
   });
 
   it("is idempotent: paid and terminal payments never settle again", async () => {

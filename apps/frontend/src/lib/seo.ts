@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PLAN_PRICING, PLAN_PERIOD_DAYS } from "@capseasy/shared";
+import { PLAN_PRICING } from "@capseasy/shared";
 import { BRAND_DESCRIPTION, BRAND_NAME } from "@/lib/brand";
 import { LEGAL_PAGES } from "@/lib/legal";
 
@@ -196,8 +196,9 @@ export function faqPageJsonLd(faqs: readonly { q: string; a: string }[]) {
  * (never ₹ and $ together) governs visible display, and JSON-LD is machine
  * data, not display — but no single Offer ever mixes currencies, and the
  * visible page still shows one currency per visitor. Paid plans are
- * 30-day passes with no auto-renewal; the Free offer is price 0. No ratings
- * or reviews exist, so none are claimed.
+ * monthly minutes plans; the Free offer is price 0. A paid plan with no
+ * USD price set yet gets an INR offer only — no guessed USD price is
+ * emitted. No ratings or reviews exist, so none are claimed.
  */
 export function productJsonLd() {
   const offer = (name: string, price: number, priceCurrency: string) => ({
@@ -215,9 +216,10 @@ export function productJsonLd() {
     description: BRAND_DESCRIPTION,
     brand: { "@type": "Brand", name: BRAND_NAME },
     offers: PLAN_PRICING.flatMap((entry) => {
-      const pass = `${entry.name} — ${PLAN_PERIOD_DAYS}-day pass`;
+      const monthly = `${entry.name} — per month`;
       if (entry.id === "free") return [offer("Free — forever", 0, "INR")];
-      return [offer(pass, entry.priceInr, "INR"), offer(pass, entry.priceUsd, "USD")];
+      const inr = [offer(monthly, entry.priceInr, "INR")];
+      return entry.priceUsd === null ? inr : [...inr, offer(monthly, entry.priceUsd, "USD")];
     }),
   };
 }
