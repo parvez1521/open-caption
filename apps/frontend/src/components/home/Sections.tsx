@@ -166,6 +166,7 @@ export function HinglishClaim() {
   return (
     <p
       data-hero="claim"
+      role="group"
       aria-label="95% Hinglish caption accurate. Captionit's claim for Hindi-English speech."
       onAnimationEnd={() => setStarted(true)}
       className="mt-6 flex flex-wrap items-baseline gap-x-2 gap-y-1"

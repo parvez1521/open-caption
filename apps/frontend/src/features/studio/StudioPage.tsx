@@ -1138,7 +1138,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             className="min-w-0 rounded-lg border border-st-ink/40 bg-st-panel px-2 py-1 text-sm outline-none"
           />
         ) : (
-          <button onClick={() => { setTitle(data.project.title); setEditingTitle(true); }} className="truncate rounded-md px-1.5 py-1.5 text-sm font-semibold transition hover:bg-st-raised" title="Rename">{data.project.title || "Untitled project"}</button>
+          <>
+            <h1 className="sr-only">{data.project.title || "Untitled project"}</h1>
+            <button onClick={() => { setTitle(data.project.title); setEditingTitle(true); }} className="truncate rounded-md px-1.5 py-1.5 text-sm font-semibold transition hover:bg-st-raised" title="Rename">{data.project.title || "Untitled project"}</button>
+          </>
         )}
         {hasEditor ? (
           <span className="hidden items-center gap-1.5 text-xs text-st-muted md:inline-flex" aria-live="polite">
@@ -1574,11 +1577,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // ---------- no editor yet: upload / processing screen, full width
   if (!hasEditor) {
     return (
-      <div className="studio flex h-[100dvh] flex-col">
+      <main id="main-content" className="studio flex h-[100dvh] flex-col">
         {header}
         <div className="st-rise min-h-0 flex-1">{stage}</div>
         {overlays}
-      </div>
+      </main>
     );
   }
 
@@ -1619,7 +1622,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // and landscape video — the player fits the centre area either way.
   if (desktop) {
     return (
-      <div className="studio flex h-[100dvh] flex-col">
+      <main id="main-content" className="studio flex h-[100dvh] flex-col">
         {header}
         <div className="flex min-h-0 flex-1">
           {rail}
@@ -1649,27 +1652,29 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             </aside>
           ) : (
             <aside aria-label="Right panel" className="flex min-h-0 w-[264px] shrink-0 flex-col border-l border-st-line bg-st-panel 2xl:w-[300px]">
-              <div role="tablist" aria-label="Right panel tabs" className="flex shrink-0 items-center gap-1 border-b border-st-line px-2 py-1.5">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={rightTab === "motion"}
-                  onClick={() => setRightTab("motion")}
-                  className={`relative rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
-                >
-                  Motion
-                </button>
-                {segmentInspector ? (
+              <div className="flex shrink-0 items-center gap-1 border-b border-st-line px-2 py-1.5">
+                <div role="tablist" aria-label="Right panel tabs" className="flex items-center gap-1">
                   <button
                     type="button"
                     role="tab"
-                    aria-selected={rightTab === "inspector"}
-                    onClick={() => setRightTab("inspector")}
-                    className={`relative rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                    aria-selected={rightTab === "motion"}
+                    onClick={() => setRightTab("motion")}
+                    className={`relative rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
                   >
-                    Inspector
+                    Motion
                   </button>
-                ) : null}
+                  {segmentInspector ? (
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={rightTab === "inspector"}
+                      onClick={() => setRightTab("inspector")}
+                      className={`relative rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                    >
+                      Inspector
+                    </button>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   aria-label="Collapse right panel"
@@ -1686,14 +1691,14 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           )}
         </div>
         {overlays}
-      </div>
+      </main>
     );
   }
 
   // ---------- phone / tablet: preview on top, one panel at a time, and the rail collapsed to a
   // single-row horizontal icon bar at the bottom (scrolls sideways — never wraps into a second row)
   return (
-    <div className="studio flex h-[100dvh] flex-col">
+    <main id="main-content" className="studio flex h-[100dvh] flex-col">
       {header}
       <section data-tour="preview" aria-label="Preview" className="h-[40dvh] min-h-[250px] shrink-0 border-b border-st-line bg-st-bg">{stage}</section>
       {segmentInspector ? (
@@ -1726,7 +1731,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         </button>
       </nav>
       {overlays}
-    </div>
+    </main>
   );
 }
 
@@ -1739,5 +1744,5 @@ const PanelTitle: React.FC<{ title: string; hint?: string }> = ({ title, hint })
 
 
 const FullScreen: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="studio flex h-[100dvh] items-center justify-center text-st-muted">{children}</div>
+  <main id="main-content" className="studio flex h-[100dvh] items-center justify-center text-st-muted">{children}</main>
 );

@@ -260,7 +260,15 @@ export function runStandaloneTranscribe(
         }
         settled = true;
         worker?.terminate();
-        reject(Object.assign(new Error(m.message), { code: m.code }));
+        // A failed model download surfaces as a raw fetch TypeError ("Failed to fetch").
+        // Say it in plain words, the same way the Studio session does — the raw error
+        // tells an offline user nothing. Only the standalone path maps it here: the
+        // Studio session maps the raw message itself, so changing the shared worker
+        // would break its mapping.
+        const message = /network|fetch|load failed|failed to fetch/i.test(m.message)
+          ? "Couldn't download the transcription model. Check your connection and try again."
+          : m.message;
+        reject(Object.assign(new Error(message), { code: m.code }));
       }
       // "timing" and "gpu-broken" need no action: the worker retries on WASM itself.
     };

@@ -226,7 +226,6 @@ export function AiEditDemo() {
               return (
                 <span
                   key={s.id}
-                  aria-pressed={picked}
                   className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors duration-300 ${picked ? "border-[#34D399] bg-[#34D399] text-[#141412]" : "border-[#FFFFEB]/15 text-[#FFFFEB]/60"}`}
                 >
                   {s.name}
