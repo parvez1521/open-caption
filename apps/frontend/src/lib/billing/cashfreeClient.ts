@@ -5,8 +5,10 @@
  * duplicating the loader.
  */
 
-type CashfreeFactory = (opts: { mode: string }) => {
+export type CashfreeFactory = (opts: { mode: string }) => {
   checkout: (opts: { paymentSessionId: string; returnTarget?: string }) => Promise<unknown>;
+  /** Subscription hosted checkout (Cashfree JS SDK v3). Absent on an old cached SDK. */
+  subscriptionsCheckout?: (opts: { subsSessionId: string; redirectTarget?: string }) => Promise<unknown>;
 };
 
 declare global {
