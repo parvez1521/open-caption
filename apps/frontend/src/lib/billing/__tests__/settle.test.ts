@@ -111,16 +111,49 @@ describe("settlePaid", () => {
     expect(tables.profiles[0]!.plan).toBe("growth");
   });
 
-  it("is idempotent: paid and terminal payments never settle again", async () => {
+  it("is idempotent when the grant already landed: a paid payment is untouched", async () => {
+    const future = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+    const tables: Record<string, Row[]> = {
+      profiles: [{ id: "user-1", plan: "starter", plan_expires_at: future.toISOString() }],
+      payments: [{ ...payment({ status: "paid", period_end: future.toISOString() }) }],
+    };
+    const settled = await settlePaid(fakeAdmin(tables), payment({ status: "paid", period_end: future.toISOString() }), "x");
+    expect(settled.status).toBe("paid");
+    expect(tables.profiles[0]!.plan).toBe("starter");
+    expect(tables.profiles[0]!.plan_expires_at).toBe(future.toISOString());
+  });
+
+  it("C-01: a paid payment whose grant never landed gets the grant repaired", async () => {
+    const future = new Date(Date.now() + 30 * 24 * 3600 * 1000);
     const tables: Record<string, Row[]> = {
       profiles: [{ id: "user-1", plan: "free", plan_expires_at: null }],
+      payments: [{ ...payment({ status: "paid", period_end: future.toISOString() }) }],
+    };
+    const settled = await settlePaid(fakeAdmin(tables), payment({ status: "paid", period_end: future.toISOString() }), "x");
+    expect(settled.status).toBe("paid");
+    expect(tables.profiles[0]!.plan).toBe("starter");
+    expect(tables.profiles[0]!.plan_expires_at).toBe(future.toISOString());
+  });
+
+  it("C-01: the repair never downgrades a later live plan", async () => {
+    const future = new Date(Date.now() + 20 * 24 * 3600 * 1000);
+    const tables: Record<string, Row[]> = {
+      profiles: [{ id: "user-1", plan: "growth", plan_expires_at: future.toISOString() }],
       payments: [{ ...payment({ status: "paid" }) }],
     };
-    const settled = await settlePaid(fakeAdmin(tables), payment({ status: "paid" }), "x");
-    expect(settled.status).toBe("paid");
-    expect(tables.profiles[0]!.plan).toBe("free"); // untouched
+    await settlePaid(fakeAdmin(tables), payment({ status: "paid" }), "x");
+    expect(tables.profiles[0]!.plan).toBe("growth");
+    expect(tables.profiles[0]!.plan_expires_at).toBe(future.toISOString());
+  });
+
+  it("terminal payments never settle again", async () => {
+    const tables: Record<string, Row[]> = {
+      profiles: [{ id: "user-1", plan: "free", plan_expires_at: null }],
+      payments: [{ ...payment({ status: "failed" }) }],
+    };
     const failed = await settlePaid(fakeAdmin(tables), payment({ status: "failed" }), "x");
     expect(failed.status).toBe("failed");
+    expect(tables.profiles[0]!.plan).toBe("free"); // untouched
   });
 });
 

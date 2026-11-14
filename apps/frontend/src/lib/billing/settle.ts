@@ -11,7 +11,9 @@ import { PLAN_PERIOD_DAYS, planIdFor, type PlanId } from "@capseasy/shared";
  *
  * Idempotent by construction: a payment that is already `paid` is never
  * settled twice (Cashfree retries webhooks), and a terminal payment
- * (paid/failed/expired) never changes state again.
+ * (paid/failed/expired) never changes state again. The one exception is
+ * the C-01 repair: a `paid` payment whose profile grant never landed gets
+ * the grant repaired on retry instead of being waved through.
  */
 
 export interface PaymentRow {
@@ -35,7 +37,7 @@ export interface PaymentRow {
  * extends from that period's end so an early renewal never eats paid days.
  */
 export async function settlePaid(admin: SupabaseClient, payment: PaymentRow, cfPaymentId: string | null): Promise<PaymentRow> {
-  if (payment.status === "paid") return payment;
+  if (payment.status === "paid") return repairPaidGrant(admin, payment);
   if (payment.status !== "created") return payment;
   const plan = planIdFor(payment.plan) as PlanId;
   const now = new Date();
@@ -68,6 +70,49 @@ export async function settlePaid(admin: SupabaseClient, payment: PaymentRow, cfP
     .eq("id", payment.owner_id);
   if (profileError) throw new Error(`settlePaid profile update failed: ${profileError.message}`);
   return updated as PaymentRow;
+}
+
+/**
+ * C-01 repair: a payment already marked `paid` whose profile grant never
+ * landed (the old settle wrote the payment row first and the profile second,
+ * so a profile-write failure left money taken with the user still Free — and
+ * the `paid` early-return then skipped the grant on every retry).
+ *
+ * A profile that already reflects this payment (same plan, expiry live and
+ * at or past the payment's period end) is left alone, and a profile holding
+ * a DIFFERENT live paid plan (a later purchase) is never downgraded. Anything
+ * else gets the grant this payment paid for: the payment's own period end
+ * while it is still in the future, otherwise a fresh 30 days from now.
+ */
+export async function repairPaidGrant(admin: SupabaseClient, payment: PaymentRow): Promise<PaymentRow> {
+  const plan = planIdFor(payment.plan) as PlanId;
+  const now = new Date();
+  const { data: profile } = await admin.from("profiles").select("plan, plan_expires_at").eq("id", payment.owner_id).maybeSingle();
+  const expiry = profile?.plan_expires_at ? new Date(profile.plan_expires_at as string) : null;
+  const periodEnd = payment.period_end ? new Date(payment.period_end) : null;
+  const alreadyGranted =
+    profile?.plan === plan &&
+    expiry !== null &&
+    expiry.getTime() > now.getTime() &&
+    (periodEnd === null || expiry.getTime() >= periodEnd.getTime());
+  if (alreadyGranted) return payment;
+  const liveOtherPlan =
+    typeof profile?.plan === "string" &&
+    profile.plan !== "free" &&
+    profile.plan !== plan &&
+    expiry !== null &&
+    expiry.getTime() > now.getTime();
+  if (liveOtherPlan) return payment;
+  const grantEnd =
+    periodEnd && periodEnd.getTime() > now.getTime()
+      ? periodEnd
+      : new Date(now.getTime() + PLAN_PERIOD_DAYS * 24 * 3600 * 1000);
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ plan, plan_expires_at: grantEnd.toISOString() })
+    .eq("id", payment.owner_id);
+  if (profileError) throw new Error(`repairPaidGrant profile update failed: ${profileError.message}`);
+  return payment;
 }
 
 /** Close a payment out as failed/expired (terminal, and never from `paid`). */
