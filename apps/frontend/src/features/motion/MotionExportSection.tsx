@@ -41,16 +41,36 @@ import {
  * checks between frames, so Cancel really stops the render and saves nothing.
  */
 
+import { studioService } from "@/services/studio";
+
+/**
+ * Minutes billing for a standalone Motion export. The default talks to
+ * the server (reserve before render, settle after); tests inject a stub.
+ * A reserve failure blocks the render; a render failure or cancel
+ * refunds the hold.
+ */
+export interface MotionBillingDeps {
+  reserve: (body: { exportId: string; kind: "mp4" | "webm" | "webm_alpha"; minutes: number; source: "motion" }) => Promise<{ minutes: number }>;
+  settle: (body: { exportId: string; outcome: "completed" | "failed"; actualMinutes?: number }) => Promise<unknown>;
+}
+
+const defaultBilling: MotionBillingDeps = {
+  reserve: (body) => studioService.reserveStandaloneExport(body),
+  settle: (body) => studioService.settleStandaloneExport(body),
+};
+
 interface Props {
   config: MotionConfig;
   asset?: MotionAssetRef | null;
   assetSrc?: string;
+  /** Minutes billing (default: the real server reserve/settle). */
+  billing?: MotionBillingDeps;
 }
 
 const pill = (active: boolean) =>
   `relative rounded-full border px-3 py-1.5 text-[12px] font-semibold transition before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${active ? "border-ink bg-ink text-[#141412]" : "border-sand-200 bg-sand-50 text-sand-800 hover:border-sand-300"}`;
 
-export const MotionExportSection: React.FC<Props> = ({ config, asset = null, assetSrc }) => {
+export const MotionExportSection: React.FC<Props> = ({ config, asset = null, assetSrc, billing = defaultBilling }) => {
   const [selection, setSelection] = useState<MotionExportSelection>(DEFAULT_MOTION_EXPORT_SELECTION);
   const [state, dispatch] = useReducer(motionExportReducer, initialMotionExportState);
   const abortRef = useRef<AbortController | null>(null);
@@ -126,19 +146,51 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     dispatch({ type: "start" });
+    // Minutes: this path used to export with zero accounting. The
+    // minutes are reserved BEFORE the render (1 minute per animation,
+    // rounded up from the animation length) and settled after it — a
+    // failed or cancelled render refunds the hold, and a 402 blocks the
+    // render. Honest limit, same as every browser render: the server
+    // cannot observe a render on the device, so a modified client can
+    // skip the reserve call.
+    const built = buildMotionExport(config, selection, asset, assetSrc);
+    const exportId = crypto.randomUUID();
+    const minutes = Math.max(1, Math.ceil(Math.max(0, built.durationMs) / 60_000));
+    let reserved = false;
     try {
-      const built = buildMotionExport(config, selection, asset, assetSrc);
+      await billing.reserve({
+        exportId,
+        kind: format.id === "mp4" ? "mp4" : format.transparent ? "webm_alpha" : "webm",
+        minutes,
+        source: "motion",
+      });
+      reserved = true;
+    } catch (e) {
+      dispatch({ type: "failure", message: e instanceof Error ? e.message : "Could not reserve minutes for this export." });
+      return;
+    }
+    try {
       const outcome = await runStandaloneExport({
         built,
         deps: { render: exportVideoInBrowser, save: saveBlob, verify: verifyAlphaExport },
         signal: ctrl.signal,
         onProgress: (fraction) => dispatch({ type: "progress", fraction }),
       });
-      if (outcome.cancelled) dispatch({ type: "cancelled" });
-      else dispatch({ type: "success", filename: outcome.filename, sizeBytes: outcome.sizeBytes });
+      if (outcome.cancelled) {
+        await billing.settle({ exportId, outcome: "failed" }).catch(() => {});
+        dispatch({ type: "cancelled" });
+      } else {
+        await billing.settle({ exportId, outcome: "completed", actualMinutes: minutes }).catch(() => {});
+        dispatch({ type: "success", filename: outcome.filename, sizeBytes: outcome.sizeBytes });
+      }
     } catch (e) {
-      if (ctrl.signal.aborted) dispatch({ type: "cancelled" });
-      else dispatch({ type: "failure", message: e instanceof Error ? e.message : "The export failed. Try again." });
+      if (ctrl.signal.aborted) {
+        if (reserved) await billing.settle({ exportId, outcome: "failed" }).catch(() => {});
+        dispatch({ type: "cancelled" });
+      } else {
+        if (reserved) await billing.settle({ exportId, outcome: "failed" }).catch(() => {});
+        dispatch({ type: "failure", message: e instanceof Error ? e.message : "The export failed. Try again." });
+      }
     } finally {
       if (abortRef.current === ctrl) abortRef.current = null;
     }

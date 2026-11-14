@@ -8,7 +8,7 @@ import { applyFillerFilter, applyProfanity, derivePages, toAss, toJson, toSrt, t
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
-import { checkVideoQuota, recordVideoQuotaEvent, type VideoQuotaKind } from "@/lib/billing/videoQuota";
+import { billedMinutesForRender, reserveMinutes, settleReservation } from "@/lib/billing/minutes";
 import { putObject, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 
@@ -76,6 +76,9 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   }
 
   // ---- text formats: generated right now ----
+  // Text exports never charge minutes (and never did count toward the old
+  // video quota): there is no video rendered, so there is nothing to bill.
+  // This branch returns before any reserve — by design, not by omission.
   if ((TEXT_EXPORT_KINDS as readonly string[]).includes(body.kind)) {
     let d = requestedTranslation?.doc ?? doc;
     if (settings.removeFillers) d = applyFillerFilter(d, settings.fillerList.length ? settings.fillerList : undefined, true);
@@ -119,47 +122,63 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const effectivePlan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
   const retentionDays = planFor(effectivePlan).exportRetentionDays;
 
-  // Monthly video quota: a video export consumes one of the month's videos.
-  // Text caption files never count, so this check runs for video kinds only.
-  // A failed or cancelled render keeps its slot (the event is keyed by
-  // export_id), so retrying it is free.
-  await checkVideoQuota(admin, user.id, effectivePlan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null);
-
-  const { error: exErr } = await admin.from("exports").insert({
-    id: exportId, project_id: projectId, owner_id: user.id, kind: body.kind, status_v2: "queued", status: "queued",
-    resolution: `${width}x${height}`, quality: `crf${body.crf ?? 21}`, doc_revision: docRow.revision, style: project.look_id,
-    settings: { width, height, fps, crf: body.crf ?? 21, range: body.range ?? null },
-    expires_at: new Date(Date.now() + retentionDays * 86400_000).toISOString(),
+  // Minutes ledger (replaces the old monthly video quota — one meter
+  // only, never two): a video export reserves its whole minutes BEFORE
+  // the job is created. Billed minutes = exported video minutes, rounded
+  // up per export (source duration narrowed by the clip range, the
+  // segment chain, and the trim). The reservation is settled by the
+  // worker complete/fail routes and the job cancel route: completion
+  // charges the actual rendered minutes and refunds the unused hold,
+  // failure or cancellation refunds the whole hold.
+  const billedMinutes = billedMinutesForRender({
+    sourceDurationMs: video.duration_ms,
+    clipRange: settings.clipRange,
+    segments: settings.composition?.videoSegments ?? null,
+    range: body.range ?? null,
   });
-  if (exErr) throw new ApiFailure("INTERNAL", "Could not create the export", exErr.message);
-
-  // bilingual renders carry the translated track for the project's chosen target (slice 5.1);
-  // the composition decides whether to draw it (settings.bilingual), same as the preview
-  const renderTranslation = settings.translateTo
-    ? requestedTranslation?.doc ?? (await loadTranslation(settings.translateTo))?.doc ?? undefined
-    : undefined;
-
-  const job = await enqueueJob({
+  const reservation = await reserveMinutes(admin, {
     ownerId: user.id,
     projectId,
-    kind: "render",
-    payload: {
-      kind: "render", exportId, format, width, height, fps, crf: body.crf ?? 21, range: body.range,
-      docSnapshot: doc,
-      ...(renderTranslation ? { translatedDocSnapshot: renderTranslation } : {}),
-      style, settings, fonts: [], sourceVideoId: video.id,
-    },
-    idempotencyKey: `render:${exportId}`,
+    exportId,
+    minutes: billedMinutes,
+    plan: effectivePlan,
+    expiresAt: (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
   });
-  await admin.from("exports").update({ job_id: job.id }).eq("id", exportId);
-  // Count the video: the quota event is written after the job exists, so a
-  // failed queue never consumes a slot. If recording fails the export still
-  // renders — the user keeps the video and the miss is logged, not charged
-  // twice or blocked after the fact.
+
+  let job;
   try {
-    await recordVideoQuotaEvent(admin, { exportId, ownerId: user.id, projectId, kind: format as VideoQuotaKind });
+    const { error: exErr } = await admin.from("exports").insert({
+      id: exportId, project_id: projectId, owner_id: user.id, kind: body.kind, status_v2: "queued", status: "queued",
+      resolution: `${width}x${height}`, quality: `crf${body.crf ?? 21}`, doc_revision: docRow.revision, style: project.look_id,
+      settings: { width, height, fps, crf: body.crf ?? 21, range: body.range ?? null },
+      expires_at: new Date(Date.now() + retentionDays * 86400_000).toISOString(),
+    });
+    if (exErr) throw new ApiFailure("INTERNAL", "Could not create the export", exErr.message);
+
+    // bilingual renders carry the translated track for the project's chosen target (slice 5.1);
+    // the composition decides whether to draw it (settings.bilingual), same as the preview
+    const renderTranslation = settings.translateTo
+      ? requestedTranslation?.doc ?? (await loadTranslation(settings.translateTo))?.doc ?? undefined
+      : undefined;
+
+    job = await enqueueJob({
+      ownerId: user.id,
+      projectId,
+      kind: "render",
+      payload: {
+        kind: "render", exportId, format, width, height, fps, crf: body.crf ?? 21, range: body.range,
+        docSnapshot: doc,
+        ...(renderTranslation ? { translatedDocSnapshot: renderTranslation } : {}),
+        style, settings, fonts: [], sourceVideoId: video.id,
+      },
+      idempotencyKey: `render:${exportId}`,
+    });
+    await admin.from("exports").update({ job_id: job.id }).eq("id", exportId);
   } catch (e) {
-    console.error(JSON.stringify({ level: "error", msg: "video quota record failed", exportId, err: e instanceof Error ? e.message : String(e) }));
+    // The export never queued, so the hold comes straight back — a failed
+    // queue never consumes minutes.
+    await settleReservation(admin, { ownerId: user.id, exportId, outcome: "failed" }).catch(() => {});
+    throw e;
   }
-  return ok({ exportId, jobId: job.id, ready: false, companionOnline: await hasOnlineCompanion(user.id) }, 202);
+  return ok({ exportId, jobId: job.id, ready: false, companionOnline: await hasOnlineCompanion(user.id), minutesReserved: reservation.minutes }, 202);
 });

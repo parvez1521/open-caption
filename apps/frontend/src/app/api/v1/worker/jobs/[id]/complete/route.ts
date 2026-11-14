@@ -4,6 +4,7 @@ import { ApiFailure, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { logJobEvent, requireHeldJob } from "@/lib/api/jobs";
 import { saveTranscription } from "@/lib/api/transcripts";
 import { objectSize } from "@/lib/api/storage";
+import { billedMinutesForDurationMs, settleReservation } from "@/lib/billing/minutes";
 import { getAdmin } from "@/lib/supabase/admin";
 
 const EXPORT_EXT: Record<string, string> = { mp4: "mp4", mov_alpha: "mov", webm_alpha: "webm", png: "png" };
@@ -45,6 +46,19 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
       render_duration_ms: body.renderMs ? Math.round(body.renderMs) : null, duration_ms: body.durationMs ? Math.round(body.durationMs) : null, updated_at: now,
     }).eq("id", exportId);
     if (body.renderMs) await admin.from("usage_events").insert({ owner_id: job.owner_id, kind: "render_s", amount: Math.round(body.renderMs / 1000), project_id: job.project_id, job_id: id });
+    // Minutes settle: the render happened, so the reservation converts to
+    // a spend of the actual rendered minutes (never more than reserved)
+    // and the unused hold is refunded. A settle that finds no
+    // reservation is logged, not retried — the export is already ready.
+    const settled = await settleReservation(admin, {
+      ownerId: job.owner_id,
+      exportId,
+      outcome: "completed",
+      actualMinutes: body.durationMs ? billedMinutesForDurationMs(body.durationMs) : undefined,
+    });
+    if (!settled.settled) {
+      console.error(JSON.stringify({ level: "warn", msg: "render completed with no minutes reservation", exportId, reason: settled.reason ?? "unknown" }));
+    }
   }
 
   await admin.from("jobs").update({ status: "completed", progress: 100, finished_at: now, result: body as unknown as Record<string, unknown>, lease_expires_at: null }).eq("id", id);

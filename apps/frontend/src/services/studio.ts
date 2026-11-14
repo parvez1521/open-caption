@@ -77,6 +77,17 @@ export interface ExportRow {
 /** The kinds a user can create: the shared API list itself, not a hand-kept copy (png is not creatable). */
 export type ExportKind = CreatableExportKind;
 
+/** Minutes balance as the billing routes return it (see lib/billing/minutes). */
+export interface MinutesUsage {
+  plan: string;
+  granted: number;
+  used: number;
+  remaining: number;
+  cycleStart: string | null;
+  cycleEnd: string | null;
+  freeGranted: boolean;
+}
+
 export class RevisionConflict extends Error {
   constructor(public server: { revision: number; doc: CaptionDoc }) {
     super("This project was changed somewhere else.");
@@ -170,17 +181,37 @@ export const studioService = {
   },
 
   /**
-   * Record a browser-rendered MP4 as one finished video for the monthly
-   * quota. Fire-and-forget: the file is already saved on the user's device,
-   * so a failed record just means that video was not counted.
+   * Reserve minutes for a browser-rendered video BEFORE it renders.
+   * The server computes the minutes from the video row and the project
+   * settings — the client only sends the trim range. A failed reserve
+   * (402 when the minutes are used up) must block the render.
    */
-  recordBrowserExport(projectId: string, body: { exportId: string; kind: "mp4" | "mov_alpha" | "webm_alpha" }) {
-    return apiClient.post<{ recorded: boolean; usage: { limit: number; used: number; remaining: number } | null }>(`/projects/${projectId}/exports/record`, { json: body });
+  reserveBrowserExport(projectId: string, body: { exportId: string; kind: "mp4" | "mov_alpha" | "webm_alpha"; range?: { startMs: number; endMs: number } }) {
+    return apiClient.post<{ reservationKey: string; exportId: string; minutes: number; balance: number; usage: MinutesUsage | null }>(`/projects/${projectId}/exports/reserve`, { json: body });
   },
 
-  /** Monthly video quota for the signed-in user (null when not set up yet). */
-  videoQuota() {
-    return apiClient.get<{ videoQuota: { plan: string; limit: number; used: number; remaining: number; windowStart: string; windowEnd: string } | null; quotaReady: boolean }>("/billing/video-quota");
+  /**
+   * Settle a browser-rendered video's minutes reservation after the file
+   * is saved ('completed') or when the render fails ('failed'). A settle
+   * with no reservation answers settled:false — the file is already saved.
+   */
+  settleBrowserExport(projectId: string, body: { exportId: string; kind: "mp4" | "mov_alpha" | "webm_alpha"; outcome: "completed" | "failed"; actualMinutes?: number }) {
+    return apiClient.post<{ settled: boolean; reason: string | null; minutesCharged: number; refunded: number; usage: MinutesUsage | null }>(`/projects/${projectId}/exports/record`, { json: body });
+  },
+
+  /** Reserve minutes for a project-less browser render (Motion Studio). */
+  reserveStandaloneExport(body: { exportId: string; kind: "mp4" | "webm" | "webm_alpha"; minutes: number; source: "motion" }) {
+    return apiClient.post<{ reservationKey: string; exportId: string; minutes: number; balance: number; usage: MinutesUsage | null }>(`/billing/minutes/reserve`, { json: body });
+  },
+
+  /** Settle a project-less browser render's minutes reservation. */
+  settleStandaloneExport(body: { exportId: string; outcome: "completed" | "failed"; actualMinutes?: number }) {
+    return apiClient.post<{ settled: boolean; reason: string | null; minutesCharged: number; refunded: number; usage: MinutesUsage | null }>(`/billing/minutes/settle`, { json: body });
+  },
+
+  /** Minutes balance for the signed-in user (null when not set up yet). */
+  minutesUsage() {
+    return apiClient.get<{ minutes: MinutesUsage | null; minutesReady: boolean }>(`/billing/minutes`);
   },
 
   async exportDownloadUrl(exportId: string): Promise<string> {
