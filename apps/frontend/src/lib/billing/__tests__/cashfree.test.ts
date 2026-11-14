@@ -32,7 +32,11 @@ describe("cashfree config", () => {
     const cfg = cashfreeConfig();
     expect(cfg.configured).toBe(false);
     expect(cfg.env).toBe("sandbox");
-    expect(cfg.baseUrl).toBe("https://sandbox-api.cashfree.com");
+    // Regression: the sandbox base URL must be Cashfree's documented
+    // endpoint (https://sandbox.cashfree.com/pg). The old host
+    // "sandbox-api.cashfree.com" is dead — it closes connections without
+    // responding — so every sandbox checkout failed with "fetch failed".
+    expect(cfg.baseUrl).toBe("https://sandbox.cashfree.com");
   });
 
   it("configures from env; production only when named", () => {

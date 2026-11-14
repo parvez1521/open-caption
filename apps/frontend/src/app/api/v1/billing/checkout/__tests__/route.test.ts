@@ -39,7 +39,7 @@ vi.mock("@/lib/billing/cashfree", () => ({
     appId: "TEST-APP-ID",
     secret: "TEST-SECRET",
     webhookSecret: "TEST-SECRET",
-    baseUrl: "https://sandbox-api.cashfree.com",
+    baseUrl: "https://sandbox.cashfree.com",
   }),
   createCashfreeOrder: (...args: unknown[]) => {
     if (!state.createImpl) throw new Error("createCashfreeOrder not stubbed");

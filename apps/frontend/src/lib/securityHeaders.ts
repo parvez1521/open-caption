@@ -118,7 +118,7 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         // Cashfree: the checkout SDK talks to the PG API (orders are created
         // server-side; these are the SDK's own session/telemetry calls).
         "https://api.cashfree.com",
-        "https://sandbox-api.cashfree.com",
+        "https://sandbox.cashfree.com",
         "https://sdk.cashfree.com",
         // Pixabay: the search APIs (audio + video) and the media downloads
         // (files are fetched to be stored in the project's on-device bin).

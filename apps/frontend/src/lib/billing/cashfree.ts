@@ -47,7 +47,12 @@ export function cashfreeConfig(): CashfreeConfig {
     appId,
     secret,
     webhookSecret: envOf(CF_HOOK_KEY_ENV) || secret,
-    baseUrl: env === "production" ? "https://api.cashfree.com" : "https://sandbox-api.cashfree.com",
+    // Base URLs are Cashfree's documented PG endpoints (v2023-08-01):
+    // Test https://sandbox.cashfree.com/pg, Production https://api.cashfree.com/pg.
+    // The sandbox host was "sandbox-api.cashfree.com" — a dead host that
+    // closes connections without responding, so every sandbox checkout
+    // failed with a network "fetch failed" and never reached Cashfree.
+    baseUrl: env === "production" ? "https://api.cashfree.com" : "https://sandbox.cashfree.com",
   };
 }
 
