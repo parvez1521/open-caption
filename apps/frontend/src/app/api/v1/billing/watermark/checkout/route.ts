@@ -5,9 +5,10 @@ import { ApiFailure, notFound, ok, parseBody, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/seo";
 import { cashfreeConfig, createCashfreeOrder, newOrderId, type CashfreeConfig } from "@/lib/billing/cashfree";
+import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
 import { getWatermarkStatus, isMissingWatermarkTableError, watermarkRemovalAmount } from "@/lib/billing/watermark";
 
-const Body = z.object({ projectId: z.string().uuid() });
+const Body = z.object({ projectId: z.string().uuid(), customerPhone: z.string().max(20).optional() });
 
 /**
  * Start a ₹69 watermark-removal purchase for ONE video project.
@@ -35,6 +36,14 @@ export const POST = route(async (req: Request) => {
     throw new ApiFailure("FORBIDDEN", "Guests can't remove the watermark — create a free account first, then buy the removal for your video.");
   }
   const body = await parseBody(req, Body);
+
+  // Cashfree's production /pg/orders REQUIRES customer_details.customer_phone
+  // and answers 400 without it. Check before the payments row is written,
+  // so a bad number leaves no orphan row behind.
+  const phone = normalizeCustomerPhone(body.customerPhone);
+  if (!phone) {
+    throw new ApiFailure("VALIDATION", "Add a valid mobile number to continue.");
+  }
 
   const { data: project } = await user.db.from("projects").select("id").eq("id", body.projectId).is("deleted_at", null).maybeSingle();
   if (!project) throw notFound("Project");
@@ -87,7 +96,7 @@ export const POST = route(async (req: Request) => {
       currency,
       customerId: user.id,
       customerEmail: user.email ?? "",
-      customerPhone: "",
+      customerPhone: phone,
       returnUrl: `${origin}/settings/billing?order_id=${orderId}`,
       notifyUrl: `${origin}/api/v1/billing/webhook`,
       planId: "watermark",

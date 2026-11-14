@@ -5,10 +5,21 @@
  * duplicating the loader.
  */
 
+export type CashfreeCheckoutResult = {
+  redirect?: boolean;
+  // The SDK resolves {error} instead of rejecting on validation failures
+  // (e.g. a bad session) — the caller must surface it, or the failure is
+  // silent. The error carries a message string (GeneralError).
+  error?: { message?: string };
+};
+
 export type CashfreeFactory = (opts: { mode: string }) => {
-  checkout: (opts: { paymentSessionId: string; returnTarget?: string }) => Promise<unknown>;
+  // redirectTarget is the SDK's option name (returnTarget does not exist —
+  // the SDK ignores it). It defaults to "_self"; callers pass it
+  // explicitly so a future SDK change cannot silently flip the flow.
+  checkout: (opts: { paymentSessionId: string; redirectTarget?: string }) => Promise<CashfreeCheckoutResult>;
   /** Subscription hosted checkout (Cashfree JS SDK v3). Absent on an old cached SDK. */
-  subscriptionsCheckout?: (opts: { subsSessionId: string; redirectTarget?: string }) => Promise<unknown>;
+  subscriptionsCheckout?: (opts: { subsSessionId: string; redirectTarget?: string }) => Promise<CashfreeCheckoutResult>;
 };
 
 declare global {

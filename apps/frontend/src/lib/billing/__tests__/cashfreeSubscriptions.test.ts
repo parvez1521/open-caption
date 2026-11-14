@@ -73,7 +73,7 @@ describe("createCashfreeSubscription", () => {
       cashfreePlanId: "cf-plan-starter",
       customerId: "user-1",
       customerEmail: "user@example.test",
-      customerPhone: "",
+      customerPhone: "9876543210",
       returnUrl: "https://captionit.in/settings/billing?subscription_id=ocs_user1_x",
       planId: "starter",
     });
@@ -87,7 +87,7 @@ describe("createCashfreeSubscription", () => {
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body.subscription_id).toBe("ocs_user1_x");
     expect(body.subscription_plan_id).toBe("cf-plan-starter");
-    expect(body.customer_details).toEqual({ customer_id: "user-1", customer_email: "user@example.test" });
+    expect(body.customer_details).toEqual({ customer_id: "user-1", customer_email: "user@example.test", customer_phone: "9876543210" });
     expect((body.subscription_meta as Record<string, string>).return_url).toContain("subscription_id=ocs_user1_x");
     expect(body.subscription_tags).toEqual({ plan: "starter" });
   });
@@ -100,7 +100,7 @@ describe("createCashfreeSubscription", () => {
         cashfreePlanId: "cf-plan-starter",
         customerId: "user-1",
         customerEmail: "user@example.test",
-        customerPhone: "",
+        customerPhone: "9876543210",
         returnUrl: "https://captionit.in/settings/billing",
         planId: "starter",
       }),
@@ -117,7 +117,7 @@ describe("createCashfreeSubscription", () => {
         cashfreePlanId: "cf-plan-nope",
         customerId: "user-1",
         customerEmail: "user@example.test",
-        customerPhone: "",
+        customerPhone: "9876543210",
         returnUrl: "https://captionit.in/settings/billing",
         planId: "starter",
       }),
