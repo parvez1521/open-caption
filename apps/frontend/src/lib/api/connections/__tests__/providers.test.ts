@@ -313,4 +313,31 @@ describe("Instagram mappers", () => {
     expect(posts).toHaveLength(1);
     expect(posts[0]).toMatchObject({ views: null, reach: null, shares: null, saves: null, likes: 1 });
   });
+
+  it("C-04: insights run in small concurrent batches and onPosts streams each batch as it lands", async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => `m${i + 1}`);
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes("/insights")) {
+        inFlight += 1;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        inFlight -= 1;
+        return json({ data: [{ name: "views", values: [{ value: 10 }] }] });
+      }
+      return json({
+        data: ids.map((id, i) => ({ id, caption: `Post ${i + 1}`, timestamp: "2026-11-03T08:30:00+0000", like_count: 1, comments_count: 0 })),
+      });
+    }) as unknown as typeof fetch;
+    const handed: string[][] = [];
+    const posts = await fetchInstagramMedia("tok", "ig-1", fetchImpl, 50, (batch) => {
+      handed.push(batch.map((p) => p.externalId));
+    });
+    expect(posts).toHaveLength(12);
+    // 5 at a time: more than one in flight, never the whole list at once.
+    expect(maxInFlight).toBeGreaterThan(1);
+    expect(maxInFlight).toBeLessThanOrEqual(5);
+    expect(handed).toEqual([ids.slice(0, 5), ids.slice(5, 10), ids.slice(10, 12)]);
+  });
 });

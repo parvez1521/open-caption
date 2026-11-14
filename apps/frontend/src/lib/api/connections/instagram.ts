@@ -229,16 +229,32 @@ export function mapInstagramMedia(item: unknown, insights: InstagramInsights = N
 }
 
 /**
+ * How many per-media insights calls run at once (C-04): the old code made
+ * up to 50 of them SEQUENTIALLY, so one slow Graph reply held the whole
+ * sync — and a timeout anywhere lost it entirely, because nothing was
+ * written until fetchInstagramMedia returned. Five at a time keeps the
+ * sync fast without hammering the Graph API.
+ */
+export const INSTAGRAM_INSIGHTS_BATCH_SIZE = 5;
+
+/**
  * Recent media with per-media insights where Meta grants them, on the
  * Facebook Graph host. An insights failure (typically: App Review still
  * pending) degrades that post's insight metrics to null — the sync
  * itself never fails over it.
+ *
+ * `onPosts` fires per insights batch, after that batch's posts are
+ * mapped, so a caller can persist progress as it lands (like the
+ * YouTube walk): if a later batch fails, this throws, but batches
+ * already handed to onPosts are the caller's to keep — a failed sync
+ * never takes back what an earlier batch brought in.
  */
 export async function fetchInstagramMedia(
   accessToken: string,
   igUserId: string,
   fetchImpl: FetchImpl = fetch,
   limit: number = INSTAGRAM_SYNC_LIMIT,
+  onPosts?: (posts: SyncedPost[]) => void | Promise<void>,
 ): Promise<SyncedPost[]> {
   const auth = { authorization: `Bearer ${accessToken}` };
   const body = await fetchJson(
@@ -246,24 +262,32 @@ export async function fetchInstagramMedia(
     `${FB_GRAPH_BASE}/${encodeURIComponent(igUserId)}/media?fields=id,caption,timestamp,permalink,media_type,like_count,comments_count&limit=${limit}`,
     { headers: auth },
   );
+  const items = asArray(body.data);
   const posts: SyncedPost[] = [];
-  for (const item of asArray(body.data)) {
-    const rec = asRecord(item);
-    let insights = NO_INSIGHTS;
-    if (rec && typeof rec.id === "string") {
-      try {
-        const insightsBody: Record<string, unknown> = await fetchJson(
-          fetchImpl,
-          `${FB_GRAPH_BASE}/${encodeURIComponent(rec.id)}/insights?metric=views,reach,shares,saved`,
-          { headers: auth },
-        );
-        insights = parseInstagramInsights(insightsBody);
-      } catch {
-        insights = NO_INSIGHTS; // permission not granted yet — honest nulls, not a failed sync
-      }
-    }
-    const post = mapInstagramMedia(item, insights);
-    if (post) posts.push(post);
+  for (let i = 0; i < items.length; i += INSTAGRAM_INSIGHTS_BATCH_SIZE) {
+    const batch = items.slice(i, i + INSTAGRAM_INSIGHTS_BATCH_SIZE);
+    const mapped = await Promise.all(
+      batch.map(async (item): Promise<SyncedPost | null> => {
+        const rec = asRecord(item);
+        let insights = NO_INSIGHTS;
+        if (rec && typeof rec.id === "string") {
+          try {
+            const insightsBody: Record<string, unknown> = await fetchJson(
+              fetchImpl,
+              `${FB_GRAPH_BASE}/${encodeURIComponent(rec.id)}/insights?metric=views,reach,shares,saved`,
+              { headers: auth },
+            );
+            insights = parseInstagramInsights(insightsBody);
+          } catch {
+            insights = NO_INSIGHTS; // permission not granted yet — honest nulls, not a failed sync
+          }
+        }
+        return mapInstagramMedia(item, insights);
+      }),
+    );
+    const batchPosts = mapped.filter((p): p is SyncedPost => p !== null);
+    posts.push(...batchPosts);
+    if (onPosts && batchPosts.length > 0) await onPosts(batchPosts);
   }
   return posts;
 }

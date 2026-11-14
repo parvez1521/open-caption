@@ -11,7 +11,7 @@ import {
   type ConnectionRow,
 } from "./store";
 import { exchangeYoutubeCode, fetchYoutubeChannel, fetchYoutubeUploads, refreshYoutubeToken } from "./youtube";
-import { exchangeInstagramCode, fetchInstagramAccount, fetchInstagramMedia } from "./instagram";
+import { exchangeInstagramCode, fetchInstagramAccount, fetchInstagramMedia, INSTAGRAM_SYNC_LIMIT } from "./instagram";
 import type { FetchImpl, SyncedPost } from "./posts";
 
 /**
@@ -183,9 +183,18 @@ export async function syncConnection(ownerId: string, platform: ConnectPlatform,
       fetched = result.posts.length;
       channelTotal = result.totalResults;
     } else {
-      const posts = await fetchInstagramMedia(conn.accessToken, conn.accountId, fetchImpl);
+      // Instagram writes each insights batch as it lands (like the
+      // YouTube page-by-page walk): a failure on a later batch leaves
+      // the earlier batches' posts in the list.
+      const posts = await fetchInstagramMedia(conn.accessToken, conn.accountId, fetchImpl, INSTAGRAM_SYNC_LIMIT, async (pagePosts) => {
+        try {
+          synced += await writeSyncedPosts(ownerId, pagePosts);
+        } catch (err) {
+          if (err instanceof ConnectionStoreNotReady) throw err;
+          throw new SyncWriteError(err);
+        }
+      });
       fetched = posts.length;
-      synced = await writeSyncedPosts(ownerId, posts);
     }
   } catch (err) {
     if (err instanceof ConnectionStoreNotReady) throw err;
