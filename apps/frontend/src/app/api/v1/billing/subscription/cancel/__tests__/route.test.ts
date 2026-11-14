@@ -43,8 +43,18 @@ vi.mock("@/lib/supabase/admin", () => ({
   }),
 }));
 
+vi.mock("@/lib/billing/cashfree", () => ({
+  cashfreeConfig: () => ({
+    configured: true,
+    env: "sandbox",
+    appId: "TEST-APP-ID",
+    secret: "TEST-SECRET",
+    webhookSecret: "TEST-SECRET",
+    baseUrl: "https://sandbox-api.cashfree.com",
+  }),
+}));
+
 vi.mock("@/lib/billing/cashfreeSubscriptions", () => ({
-  cashfreeConfig: () => ({ configured: true, env: "sandbox" }),
   cancelCashfreeSubscription: async (id: string) => {
     state.cancelCalls.push(id);
     return { status: "cancelled", rawStatus: "CANCELLED", planId: null, nextChargeAt: null, periodStart: null, periodEnd: null, authorizationPaymentId: null };
