@@ -8,6 +8,8 @@ import StudioShell from "@/components/studio/StudioShell";
 import { apiClient } from "@/services/api-client";
 import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
 
+import { loadCashfreeSdk } from "@/lib/billing/cashfreeClient";
+
 interface PaymentRow {
   id: string;
   cf_order_id: string;
@@ -36,8 +38,12 @@ interface BillingState {
 interface CheckoutResponse {
   configured: boolean;
   dbPending?: boolean;
+  subscriptionPlanMissing?: boolean;
+  mode?: "order" | "subscription";
   orderId?: string;
+  subscriptionId?: string;
   paymentSessionId?: string;
+  subscriptionSessionId?: string;
   env?: "sandbox" | "production";
   amount?: number;
   currency?: DisplayCurrency;
@@ -51,28 +57,6 @@ type CashfreeCheckoutResult = {
   // silent. The error carries a message string (GeneralError).
   error?: { message?: string };
 };
-
-type CashfreeFactory = (opts: { mode: string }) => {
-  checkout: (opts: { paymentSessionId: string; redirectTarget?: string }) => Promise<CashfreeCheckoutResult>;
-};
-
-declare global {
-  interface Window {
-    Cashfree?: CashfreeFactory;
-  }
-}
-
-function loadCashfreeSdk(): Promise<CashfreeFactory> {
-  if (window.Cashfree) return Promise.resolve(window.Cashfree);
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-    script.onload = () => (window.Cashfree ? resolve(window.Cashfree) : reject(new Error("Cashfree SDK did not initialise.")));
-    script.onerror = () => reject(new Error("Could not load the Cashfree checkout. Check your connection and try again."));
-    document.head.appendChild(script);
-  });
-}
-
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
 const fmtMoney = (amount: number, currency: string) =>
@@ -101,25 +85,37 @@ export default function BillingPage() {
     void load();
   }, [load]);
 
-  // Returning from Cashfree: the ?order_id in the URL is only a hint — the
-  // reconcile call asks the server to confirm with Cashfree directly.
+  // Returning from Cashfree: the ?order_id / ?subscription_id in the URL
+  // is only a hint — the reconcile call asks the server to confirm with
+  // Cashfree directly.
   useEffect(() => {
     if (reconciled.current) return;
-    const orderId = new URLSearchParams(window.location.search).get("order_id");
-    if (!orderId) return;
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("order_id");
+    const subscriptionId = params.get("subscription_id");
+    if (!orderId && !subscriptionId) return;
     reconciled.current = true;
     void (async () => {
       try {
-        const res = await apiClient.post<{ payment: PaymentRow }>("/billing/reconcile", { json: { orderId } });
-        setNotice(
-          res.payment.status === "paid" && res.payment.plan === "watermark"
-            ? "Payment confirmed — the watermark is removed from that video. Thank you!"
-            : res.payment.status === "paid"
+        if (subscriptionId) {
+          const res = await apiClient.post<{ subscription: { status: string } }>("/billing/reconcile", { json: { subscriptionId } });
+          setNotice(
+            res.subscription.status === "active"
               ? "Payment confirmed — your new plan is active. Thank you!"
-              : res.payment.status === "failed"
-                ? "That payment didn't go through. No money was taken for a failed payment — you can try again below."
-                : "We're still confirming that payment with Cashfree. Refresh in a moment — your plan updates automatically once it's confirmed.",
-        );
+              : "We're still confirming that payment with Cashfree. Refresh in a moment — your plan updates automatically once it's confirmed.",
+          );
+        } else {
+          const res = await apiClient.post<{ payment: PaymentRow }>("/billing/reconcile", { json: { orderId } });
+          setNotice(
+            res.payment.status === "paid" && res.payment.plan === "watermark"
+              ? "Payment confirmed — the watermark is removed from that video. Thank you!"
+              : res.payment.status === "paid"
+                ? "Payment confirmed — your new plan is active. Thank you!"
+                : res.payment.status === "failed"
+                  ? "That payment didn't go through. No money was taken for a failed payment — you can try again below."
+                  : "We're still confirming that payment with Cashfree. Refresh in a moment — your plan updates automatically once it's confirmed.",
+          );
+        }
       } catch {
         setNotice("We couldn't confirm that payment yet. If money left your account, your plan updates automatically via Cashfree's confirmation — check back in a few minutes.");
       }
@@ -140,8 +136,15 @@ export default function BillingPage() {
     setBusyPlan(plan);
     setNotice(null);
     try {
-      const res = await apiClient.post<CheckoutResponse>("/billing/checkout", { json: { plan, customerPhone: validPhone } });
-      if (!res.configured || !res.paymentSessionId) {
+      // Paid plans are Cashfree subscriptions (monthly, auto-renew).
+      // The one-time order flow stays for the ₹69 watermark product,
+      // which uses its own checkout route.
+      const res = await apiClient.post<CheckoutResponse>("/billing/checkout", { json: { plan, mode: "subscription", customerPhone: validPhone } });
+      if (res.subscriptionPlanMissing) {
+        setNotice("That plan isn't set up for subscriptions yet — check back soon. Your current plan and limits are unchanged.");
+        return;
+      }
+      if (!res.configured || (!res.paymentSessionId && !res.subscriptionSessionId)) {
         setNotice("Payments aren't switched on for Captionit yet — plans can't be bought right now. Your current plan and limits are unchanged.");
         return;
       }
@@ -149,14 +152,22 @@ export default function BillingPage() {
       // redirectTarget is the SDK's option name (returnTarget does not
       // exist — the SDK ignores it). It defaults to "_self"; pass it
       // explicitly so a future SDK change cannot silently flip the flow.
-      const result = await cashfree({ mode: res.env ?? "sandbox" }).checkout({
-        paymentSessionId: res.paymentSessionId,
-        redirectTarget: "_self",
-      });
-      // checkout() resolves {error} on SDK-side failures instead of
-      // rejecting — show it, or the button just reverts with no message.
-      if (result?.error) {
-        setNotice(result.error.message || "Checkout didn't start. Please try again.");
+      if (res.subscriptionSessionId) {
+        if (!cashfree({ mode: res.env ?? "sandbox" }).subscriptionsCheckout) {
+          throw new Error("The subscription checkout did not load. Please try again.");
+        }
+        await cashfree({ mode: res.env ?? "sandbox" }).subscriptionsCheckout!({ subsSessionId: res.subscriptionSessionId, redirectTarget: "_self" });
+      } else {
+        // checkout() resolves {error} on SDK-side failures instead of
+        // rejecting — show it, or the button just reverts with no message.
+        const result = (await cashfree({ mode: res.env ?? "sandbox" }).checkout({
+          paymentSessionId: res.paymentSessionId!,
+          redirectTarget: "_self",
+        })) as CashfreeCheckoutResult | undefined;
+        if (result?.error) {
+          setNotice(result.error.message || "Checkout didn't start. Please try again.");
+        }
+      }
       }
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Checkout didn't start. Please try again.");

@@ -50,7 +50,8 @@ export default async function PricingPage() {
         <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-[#FFFFEB]/70">
           Every plan includes the full editor. Paid plans add processing minutes, all 150 caption looks and
           watermark-free exports. Free gets {FREE_LOOKS_COUNT} looks. Minutes reset each billing cycle. Unused
-          minutes do not roll over.
+          minutes do not roll over. Paid plans bill monthly and renew each month. Cancel anytime — your plan runs
+          to the end of the paid month.
         </p>
         {usdUnset ? (
           <p className="mt-4 max-w-2xl text-[14px] leading-relaxed text-[#FFFFEB]/70">{USD_PRICE_UNSET_NOTE}</p>
