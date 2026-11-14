@@ -9,6 +9,11 @@ import { NextResponse } from "next/server";
  * network path works, while a thrown "fetch failed" proves it does not.
  * No real credentials are used, no order is created, nothing is charged.
  *
+ * Round 2b: the body is an EXACT mirror of the real checkout's
+ * createCashfreeOrder body (same keys, same nesting, dummy values only),
+ * so a 401 here also rules out the request shape as the cause of the
+ * production checkout's "fetch failed".
+ *
  * GET /api/v1/debug/cashfree-probe?host=sandbox (default) | production
  */
 const HOSTS = {
@@ -29,7 +34,21 @@ export async function GET(req: Request) {
         "x-client-id": "TEST",
         "x-client-secret": "TEST",
       },
-      body: JSON.stringify({ order_id: "probe", order_amount: 1, order_currency: "INR" }),
+      body: JSON.stringify({
+        order_id: "probe",
+        order_amount: 1,
+        order_currency: "INR",
+        customer_details: {
+          customer_id: "probe-user",
+          customer_email: "probe@example.com",
+        },
+        order_meta: {
+          return_url: "https://www.captionit.in/settings/billing?order_id=probe",
+          notify_url: "https://www.captionit.in/api/v1/billing/webhook",
+        },
+        order_note: "probe",
+        order_tags: { plan: "starter" },
+      }),
     });
     const text = await res.text().catch(() => "");
     return NextResponse.json({

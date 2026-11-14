@@ -10,14 +10,20 @@ const call = (host?: string) =>
   );
 
 describe("cashfree-probe diagnostic (temporary, never merge)", () => {
+  let lastInit: RequestInit | undefined;
+
   beforeEach(() => {
+    lastInit = undefined;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) => ({
-        status: 401,
-        text: async () => JSON.stringify({ message: "Invalid client id" }),
-        url,
-      })),
+      vi.fn(async (url: string, init?: RequestInit) => {
+        lastInit = init;
+        return {
+          status: 401,
+          text: async () => JSON.stringify({ message: "Invalid client id" }),
+          url,
+        };
+      }),
     );
   });
 
@@ -45,6 +51,32 @@ describe("cashfree-probe diagnostic (temporary, never merge)", () => {
     expect(body.host).toBe("production");
     expect(body.url).toBe("https://api.cashfree.com/pg/orders");
     expect(body.reachable).toBe(true);
+  });
+
+  it("sends the exact full body the real checkout sends (dummy values)", async () => {
+    await call();
+    expect(lastInit?.method).toBe("POST");
+    expect(lastInit?.headers).toEqual({
+      "Content-Type": "application/json",
+      "x-api-version": "2023-08-01",
+      "x-client-id": "TEST",
+      "x-client-secret": "TEST",
+    });
+    expect(JSON.parse(String(lastInit?.body))).toEqual({
+      order_id: "probe",
+      order_amount: 1,
+      order_currency: "INR",
+      customer_details: {
+        customer_id: "probe-user",
+        customer_email: "probe@example.com",
+      },
+      order_meta: {
+        return_url: "https://www.captionit.in/settings/billing?order_id=probe",
+        notify_url: "https://www.captionit.in/api/v1/billing/webhook",
+      },
+      order_note: "probe",
+      order_tags: { plan: "starter" },
+    });
   });
 
   it("reports unreachable with the exact fetch error when the network fails", async () => {
