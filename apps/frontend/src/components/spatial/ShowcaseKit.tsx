@@ -5,15 +5,21 @@ import { useLowEndDevice } from "@/lib/device";
 import { motion } from "framer-motion";
 import { Player, type PlayerRef } from "@remotion/player";
 import { CaptionedVideo, computePages } from "@capseasy/compositions";
-import { getLook, getTemplate, loadFontFamily, resolveStyle } from "@capseasy/templates";
+import { PageView, getLook, getTemplate, loadFontFamily, measure, resolveStyle } from "@capseasy/templates";
 import { CaptionDocSchema, ProjectSettingsSchema, type CaptionDoc, type CaptionStyleV2, type Page, type ProjectSettings } from "@capseasy/shared";
 import { useIsMobile } from "./useIsMobile";
 
 /* ── shared pieces for the four showcase cards ───────────────────
- * Every demo runs the REAL caption renderer (the composition the
- * studio previews and the Companion exports) over real footage and a
+ * Every demo runs the REAL caption renderer over real footage and a
  * real local-whisper transcript (public/hero/<clip>.json, written by
- * packages/compositions/scripts/hero-clips.ts --data).
+ * packages/compositions/scripts/hero-clips.ts --data). The captions are
+ * the same PageView the composition renders — but hosted in the DOM, not
+ * in the Player: the Player's frame loop parks on buffering when the
+ * video stalls (software decode in headless / slow devices), which froze
+ * every showcase caption at ~00:00.42 while the video itself kept
+ * playing. The video element's own clock never stalls, so it drives the
+ * overlay; the Player renders video-only (empty doc) and the overlay
+ * carries the captions — identical output, never drawn twice.
  * ─────────────────────────────────────────────────────────────── */
 
 export const INK = "#FFFFEB";
@@ -58,7 +64,10 @@ export function lookFor(lookId: string, size = 1.35): { style: CaptionStyleV2; s
   };
 }
 
-/** Pages exactly as the renderer lays them out (real font metrics), for the side panels. */
+/** Pages exactly as the renderer lays them out (real font metrics), for the side panels and the DOM overlay.
+ * The last computed pages are kept while a new look's fonts load, so a look change never blanks the
+ * captions (or the panels): the previous look's words stay up until the new look is ready. First
+ * load still starts empty. */
 export function usePages(doc: CaptionDoc | null, style: CaptionStyleV2, settings: ProjectSettings): Page[] {
   const key = [style.fontId, style.hero.fontId ?? "", ...getTemplate(style.templateId).fonts].join("|");
   const [loadedKey, setLoadedKey] = useState("");
@@ -70,7 +79,16 @@ export function usePages(doc: CaptionDoc | null, style: CaptionStyleV2, settings
       alive = false;
     };
   }, [key]);
-  return useMemo(() => (doc && ready ? computePages(doc, settings, style, { width: CLIP_W, height: CLIP_H, fps: FPS }) : []), [doc, ready, settings, style]);
+  const [pages, setPages] = useState<Page[]>([]);
+  useEffect(() => {
+    if (!doc) {
+      setPages([]);
+      return;
+    }
+    if (!ready) return; // keep the previous pages until the new look's fonts land
+    setPages(computePages(doc, settings, style, { width: CLIP_W, height: CLIP_H, fps: FPS }));
+  }, [doc, ready, settings, style]);
+  return pages;
 }
 
 /** Plays while on screen, pauses when not (four players share the page). */
@@ -107,9 +125,13 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
   const ref = playerRef ?? own;
   const box = useRef<HTMLDivElement>(null);
   const empty = useMemo(() => CaptionDocSchema.parse({ version: 2, language: "en", words: [] }), []);
+  // DOM caption overlay (see the header comment): in burn mode the Player renders
+  // video-only so the captions are never drawn twice. Overlay mode keeps the old
+  // behaviour (the Player draws the captions on its transparent layer).
+  const overlayOn = mode === "burn" && !bare && !!doc;
   const input = useMemo(
-    () => ({ src: mode === "overlay" ? null : `/hero/${clip}.raw.mp4`, media: { width: CLIP_W, height: CLIP_H, fps: FPS, durationMs, rotation: 0 }, doc: bare || !doc ? empty : doc, style, settings, mode }),
-    [clip, durationMs, doc, bare, empty, style, settings, mode],
+    () => ({ src: mode === "overlay" ? null : `/hero/${clip}.raw.mp4`, media: { width: CLIP_W, height: CLIP_H, fps: FPS, durationMs, rotation: 0 }, doc: bare || !doc || overlayOn ? empty : doc, style, settings, mode }),
+    [clip, durationMs, doc, bare, empty, style, settings, mode, overlayOn],
   );
   // mount the player only once it is near the screen: a page of idle players is what made phones stutter
   const [near, setNear] = useState(false);
@@ -122,13 +144,39 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
     return () => io.disconnect();
   }, [near]);
   useVisiblePlay(box, ref, !!doc && near);
+  // Caption pages for the DOM overlay (same computation the side panels use).
+  const pages = usePages(doc, style, settings);
+  // The video element's own clock drives the overlay and the side panels (onTime).
+  // The Player's frameupdate is NOT the time source: when the video stalls the
+  // Player parks its frame loop on buffering and frameupdate stops firing, which
+  // froze every panel at ~00:00.42 while the video itself kept playing to the
+  // end. The video clock never stalls; on a healthy device the Player keeps the
+  // video seeked to its frame, so the two clocks agree there too.
+  const [tMs, setTMs] = useState(0);
+  const [boxW, setBoxW] = useState(0);
+  const tRef = useRef(0);
   useEffect(() => {
-    const p = ref.current;
-    if (!p || !onTime) return;
-    const on = (e: { detail: { frame: number } }) => onTime((e.detail.frame / FPS) * 1000);
-    p.addEventListener("frameupdate", on);
-    return () => p.removeEventListener("frameupdate", on);
-  }, [ref, onTime, doc]);
+    if (!near || !doc) return;
+    const el = box.current;
+    if (!el) return;
+    tRef.current = 0;
+    setTMs(0);
+    const tick = () => {
+      setBoxW(el.getBoundingClientRect().width);
+      const v = el.querySelector("video");
+      if (!v) return;
+      const ms = v.currentTime * 1000;
+      if (Math.abs(ms - tRef.current) <= 40) return;
+      tRef.current = ms;
+      setTMs(ms);
+      onTime?.(ms);
+    };
+    tick();
+    const id = setInterval(tick, 100);
+    return () => clearInterval(id);
+  }, [near, doc, onTime]);
+  const curPage = useMemo(() => (overlayOn ? pages.find((p) => tMs >= p.startMs && tMs < p.endMs) ?? null : null), [overlayOn, pages, tMs]);
+  const scale = boxW > 0 ? boxW / CLIP_W : 0;
 
   return (
     <div ref={box} className={`relative overflow-hidden ${className}`} style={style_}>
@@ -152,6 +200,19 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
           acknowledgeRemotionLicense
           numberOfSharedAudioTags={0}
         />
+      ) : null}
+      {curPage && scale > 0 ? (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          <div style={{ width: CLIP_W, height: CLIP_H, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+            <PageView
+              page={curPage}
+              timeMs={tMs}
+              style={curPage.styleOverride ? resolveStyle(style, curPage.styleOverride) : style}
+              canvas={{ width: CLIP_W, height: CLIP_H, fps: FPS }}
+              measure={measure}
+            />
+          </div>
+        </div>
       ) : null}
     </div>
   );
