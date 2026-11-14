@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { MotionConfigSchema, type MotionConfig } from "@capseasy/motion";
 import { canExportVideoInBrowser, exportVideoInBrowser, saveBlob } from "@/features/studio/browserExport";
+import { studioService } from "@/services/studio";
 import { fmtBytes } from "@/features/studio/controls";
 import { alphaUnavailableLine, probeAlphaCapability, type AlphaCapability } from "./alphaCapability";
 import { verifyAlphaExport } from "./alphaVerify";
@@ -39,6 +40,11 @@ import {
  * encoding (alphaVerify) before it downloads — see exportConfig.
  * Cancellation mirrors the Studio export: an AbortController whose signal the renderer
  * checks between frames, so Cancel really stops the render and saves nothing.
+ *
+ * Monthly video quota (E-03): the export is gated on the caller's remaining
+ * videos — at 0 it is blocked with the same message as the Studio. It is
+ * NOT counted: this path has no project, so there is nothing to record the
+ * finished video against (see the note in startExport).
  */
 
 interface Props {
@@ -121,6 +127,28 @@ export const MotionExportSection: React.FC<Props> = ({ config, asset = null, ass
     }
     if (!cap.ok) {
       dispatch({ type: "failure", message: cap.reason ?? "This browser can't encode video. Use Chrome, Edge or Safari." });
+      return;
+    }
+    // Monthly video quota gate (E-03): a standalone motion export is a
+    // finished video, so a user at 0 remaining is blocked here with the
+    // same message as the Studio. CHOICE — gate only, no recording: this
+    // path creates no project, and the record endpoint needs a project id,
+    // so there is nothing to record against. Creating a project per
+    // standalone export would change this page's guest-safe, no-project
+    // contract and needs a product decision; a new quota table is out of
+    // scope (no migration in this task). Counting gap, documented: a
+    // signed-in user at the limit cannot export from here, but a finished
+    // motion export below the limit is not counted against the month.
+    // Any quota-read failure (guest without a quota, table not set up,
+    // network) fails OPEN — the render proceeds, uncounted.
+    let quota: { remaining: number } | null = null;
+    try {
+      quota = (await studioService.videoQuota()).videoQuota;
+    } catch {
+      quota = null;
+    }
+    if (quota && quota.remaining <= 0) {
+      dispatch({ type: "failure", message: "Monthly limit reached — upgrade for more videos." });
       return;
     }
     const ctrl = new AbortController();

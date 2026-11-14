@@ -14,12 +14,20 @@ const h = vi.hoisted(() => ({
   canExport: vi.fn(async (): Promise<{ ok: boolean; reason?: string }> => ({ ok: true })),
   render: vi.fn(),
   save: vi.fn(),
+  videoQuota: vi.fn(async () => ({
+    videoQuota: { plan: "free", limit: 3, used: 0, remaining: 3, windowStart: "", windowEnd: "" },
+    quotaReady: true,
+  })),
 }));
 
 vi.mock("@/features/studio/browserExport", () => ({
   canExportVideoInBrowser: h.canExport,
   exportVideoInBrowser: h.render,
   saveBlob: h.save,
+}));
+
+vi.mock("@/services/studio", () => ({
+  studioService: { videoQuota: h.videoQuota },
 }));
 
 import { MotionExportSection } from "../MotionExportSection";
@@ -34,6 +42,11 @@ beforeEach(() => {
   h.render.mockReset();
   h.render.mockResolvedValue(blob);
   h.save.mockReset();
+  h.videoQuota.mockReset();
+  h.videoQuota.mockResolvedValue({
+    videoQuota: { plan: "free", limit: 3, used: 0, remaining: 3, windowStart: "", windowEnd: "" },
+    quotaReady: true,
+  });
 });
 
 describe("MotionExportSection — options and honest copy", () => {
@@ -143,5 +156,26 @@ describe("MotionExportSection — render flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(h.save).toHaveBeenCalledWith(blob, "subscribe-pill-1080x1920.mp4"));
     expect(h.render).toHaveBeenCalledTimes(2);
+  });
+
+  it("at the monthly video limit the export is blocked before rendering (E-03)", async () => {
+    h.videoQuota.mockResolvedValue({
+      videoQuota: { plan: "free", limit: 3, used: 3, remaining: 0, windowStart: "", windowEnd: "" },
+      quotaReady: true,
+    });
+    render(<MotionExportSection config={config} />);
+    await waitFor(() => expect(h.canExport).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Monthly limit reached"));
+    expect(h.render).not.toHaveBeenCalled();
+    expect(h.save).not.toHaveBeenCalled();
+  });
+
+  it("an unreadable quota fails open: the render proceeds, uncounted (E-03)", async () => {
+    h.videoQuota.mockResolvedValue({ videoQuota: null, quotaReady: false });
+    render(<MotionExportSection config={config} />);
+    await waitFor(() => expect(h.canExport).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
+    await waitFor(() => expect(h.save).toHaveBeenCalledWith(blob, "subscribe-pill-1080x1920.mp4"));
   });
 });
