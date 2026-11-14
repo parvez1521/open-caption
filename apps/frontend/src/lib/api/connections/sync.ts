@@ -11,7 +11,7 @@ import {
   type ConnectionRow,
 } from "./store";
 import { exchangeYoutubeCode, fetchYoutubeChannel, fetchYoutubeUploads, refreshYoutubeToken } from "./youtube";
-import { exchangeInstagramCode, fetchInstagramAccount, fetchInstagramMedia } from "./instagram";
+import { exchangeInstagramCode, fetchInstagramAccount, fetchInstagramMedia, INSTAGRAM_SYNC_LIMIT } from "./instagram";
 import type { FetchImpl, SyncedPost } from "./posts";
 
 /**
@@ -124,16 +124,18 @@ async function writeSyncedPosts(ownerId: string, posts: SyncedPost[]): Promise<n
 /** How many of the owner's stored posts carry this connection's source — the list's real total. */
 async function countStoredPosts(ownerId: string, source: ConnectPlatform): Promise<number> {
   const db = getAdmin();
-  const { data, error } = await db
+  // head:true + count:"exact" — a plain .select("id") is silently capped
+  // at PostgREST's 1000-row default, so .length undercounts big sources.
+  const { count, error } = await db
     .from("growth_posts")
-    .select("id")
+    .select("id", { count: "exact", head: true })
     .eq("owner_id", ownerId)
     .eq("source", source);
   if (error) {
     if (isMissingTableError(error) || isMissingExternalIdError(error)) throw new ConnectionStoreNotReady();
     throw new Error(`growth_posts count failed: ${error.message ?? "unknown error"}`);
   }
-  return (data ?? []).length;
+  return count ?? 0;
 }
 
 /** Marks a failure of the WRITE phase mid-sync, so it is never re-labelled a provider failure. */
@@ -183,9 +185,18 @@ export async function syncConnection(ownerId: string, platform: ConnectPlatform,
       fetched = result.posts.length;
       channelTotal = result.totalResults;
     } else {
-      const posts = await fetchInstagramMedia(conn.accessToken, conn.accountId, fetchImpl);
+      // Instagram writes each insights batch as it lands (like the
+      // YouTube page-by-page walk): a failure on a later batch leaves
+      // the earlier batches' posts in the list.
+      const posts = await fetchInstagramMedia(conn.accessToken, conn.accountId, fetchImpl, INSTAGRAM_SYNC_LIMIT, async (pagePosts) => {
+        try {
+          synced += await writeSyncedPosts(ownerId, pagePosts);
+        } catch (err) {
+          if (err instanceof ConnectionStoreNotReady) throw err;
+          throw new SyncWriteError(err);
+        }
+      });
       fetched = posts.length;
-      synced = await writeSyncedPosts(ownerId, posts);
     }
   } catch (err) {
     if (err instanceof ConnectionStoreNotReady) throw err;

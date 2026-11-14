@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import StudioShell from "@/components/studio/StudioShell";
+import { PairedComputers } from "@/features/companion/PairedComputers";
 
 
 export default function SettingsPage() {
@@ -168,6 +169,15 @@ export default function SettingsPage() {
             >
               Open billing
             </Link>
+          </div>
+        </section>
+
+        {/* Paired computers (A-04 + A-05): the Companion pairing flow, and
+            the revoke control the privacy policy and terms promise. */}
+        <section className="pt-10">
+          <h2 className="font-sora text-[15px] font-bold text-ink">Paired computers</h2>
+          <div className="mt-4">
+            <PairedComputers />
           </div>
         </section>
 

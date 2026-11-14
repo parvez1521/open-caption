@@ -27,8 +27,13 @@ describe("brand rebrand", () => {
     const dir = join(__dirname, "..", "..", "..", "..", "public", "brand");
     const files = readdirSync(dir);
     expect(files.filter((f) => f.startsWith("captionseasy"))).toEqual([]);
-    for (const f of ["opencaption-icon.svg", "opencaption-icon-light.svg", "opencaption-app-icon.svg", "opencaption-icon-192.png", "opencaption-icon-512.png"]) {
+    // E-06: the superseded opencaption app-icon files were deleted — the
+    // live brand set is the opencaption mark + the captionit app icons.
+    for (const f of ["opencaption-icon.svg", "opencaption-icon-light.svg", "captionit-icon-192.png", "captionit-icon-512.png"]) {
       expect(existsSync(join(dir, f))).toBe(true);
+    }
+    for (const f of ["opencaption-app-icon.svg", "opencaption-icon-192.png", "opencaption-icon-512.png"]) {
+      expect(existsSync(join(dir, f))).toBe(false);
     }
   });
 

@@ -27,17 +27,20 @@ import { validatePostRow, type GrowthPostInput } from "@/features/growth/model";
 
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
-  const { data, error } = await user.db
+  // C-05: the list is capped at 500 rows, so the exact total rides along —
+  // callers can say "showing 500 of N" instead of silently truncating.
+  const { data, count, error } = await user.db
     .from("growth_posts")
-    .select(GROWTH_POST_COLUMNS)
+    .select(GROWTH_POST_COLUMNS, { count: "exact" })
     .eq("owner_id", user.id)
     .order("posted_at", { ascending: false })
     .limit(500);
   if (error) {
-    if (isMissingTableError(error)) return ok({ ready: false, posts: [] });
+    if (isMissingTableError(error)) return ok({ ready: false, posts: [], total: null });
     throw new ApiFailure("INTERNAL", "Could not load your growth posts", error.message);
   }
-  return ok({ ready: true, posts: ((data ?? []) as GrowthPostRow[]).map(toApiGrowthPost) });
+  const posts = ((data ?? []) as GrowthPostRow[]).map(toApiGrowthPost);
+  return ok({ ready: true, posts, total: count ?? posts.length });
 });
 
 /** Zod checks only the envelope (a JSON object); the field RULES live in the shared validator. */

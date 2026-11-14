@@ -40,6 +40,8 @@ class FakeBuilder {
   private inFilters: Array<[string, unknown[]]> = [];
   private orderSpec: { col: string; ascending: boolean } | null = null;
   private limitN: number | null = null;
+  private countOpt: string | null = null;
+  private head: boolean = false;
   private inserted: Row | null = null;
   private updateRow: Row | null = null;
   private upsertSpec: { row: Row; onConflict: string } | null = null;
@@ -50,7 +52,11 @@ class FakeBuilder {
     private table: string,
   ) {}
 
-  select() {
+  select(_cols?: string, opts?: { count?: string; head?: boolean }) {
+    // C-06: the exact-count reads (.select("id", { count: "exact", head: true }))
+    // must resolve with a real count, like the Supabase client does.
+    this.countOpt = opts?.count ?? null;
+    this.head = opts?.head ?? false;
     return this;
   }
 
@@ -166,6 +172,15 @@ class FakeBuilder {
     return rows;
   }
 
+  /**
+   * The count PostgREST reports for count:"exact": every row matching the
+   * filters, BEFORE the page limit is applied — the page limit caps the
+   * rows returned, never the total.
+   */
+  private runCount(): number {
+    return (this.state.tables[this.table] ?? []).filter(this.matches).length;
+  }
+
   async maybeSingle() {
     if (this.state.missing) return { data: null, error: missingError(this.table) };
     if (this.mode === "insert") return { data: this.inserted, error: null };
@@ -191,14 +206,19 @@ class FakeBuilder {
       : { data: null, error: { code: "PGRST116", message: "JSON object requested, multiple (or no) rows returned" } };
   }
 
-  then(onOk: (v: { data: unknown; error: unknown }) => unknown, onErr?: (e: unknown) => unknown) {
-    if (this.state.missing) return Promise.resolve({ data: null, error: missingError(this.table) }).then(onOk, onErr);
-    if (this.mode === "insert") return Promise.resolve({ data: null, error: null }).then(onOk, onErr);
+  then(onOk: (v: { data: unknown; error: unknown; count?: number | null }) => unknown, onErr?: (e: unknown) => unknown) {
+    if (this.state.missing) return Promise.resolve({ data: null, error: missingError(this.table), count: null }).then(onOk, onErr);
+    if (this.mode === "insert") return Promise.resolve({ data: null, error: null, count: null }).then(onOk, onErr);
     if (this.mode === "update" || this.mode === "delete" || this.mode === "upsert") {
       this.runWrite();
-      return Promise.resolve({ data: null, error: null }).then(onOk, onErr);
+      return Promise.resolve({ data: null, error: null, count: null }).then(onOk, onErr);
     }
-    return Promise.resolve({ data: this.runSelect(), error: null }).then(onOk, onErr);
+    const rows = this.runSelect();
+    return Promise.resolve({
+      data: this.head ? null : rows,
+      count: this.countOpt === "exact" ? this.runCount() : null,
+      error: null,
+    }).then(onOk, onErr);
   }
 }
 

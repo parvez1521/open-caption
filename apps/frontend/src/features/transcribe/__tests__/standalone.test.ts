@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Word } from "@capseasy/shared";
 import {
   STAGE_LABELS,
+  TRANSCRIBE_ACCEPT,
   TRANSCRIBE_LIMITS,
   buildTranscriptDownloads,
   transcriptPlainText,
@@ -53,6 +54,20 @@ describe("standalone transcribe", () => {
     Object.defineProperty(big, "size", { value: TRANSCRIBE_LIMITS.maxBytes + 1 });
     expect(validateTranscribeFile(big)).toMatch(/over the 2 GB limit/);
     expect(validateTranscribeFile(new File([], "empty.mp4", { type: "video/mp4" }))).toMatch(/empty/);
+  });
+
+  it("B-06: FLAC/AAC are accepted and listed — picker, validator and copy agree", () => {
+    // Mediabunny decodes both (read/write .aac/.flac, AAC + FLAC audio
+    // decoders; the probe and the worker both use ALL_FORMATS, and the
+    // decodeAudio fallback covers browsers without WebCodecs FLAC).
+    expect(validateTranscribeFile(new File(["x"], "song.flac", { type: "audio/flac" }))).toBeNull();
+    expect(validateTranscribeFile(new File(["x"], "song.aac", { type: "audio/aac" }))).toBeNull();
+    expect(validateTranscribeFile(new File(["x"], "song.flac", { type: "" }))).toBeNull();
+    expect(TRANSCRIBE_ACCEPT).toContain("audio/flac");
+    expect(TRANSCRIBE_ACCEPT).toContain("audio/aac");
+    expect(TRANSCRIBE_ACCEPT).toContain(".flac");
+    expect(TRANSCRIBE_ACCEPT).toContain(".aac");
+    expect(validateTranscribeFile(new File(["x"], "notes.pdf", { type: "application/pdf" }))).toMatch(/FLAC, AAC/);
   });
 
   it("caps /transcribe at 2 GB and 15 minutes (owner decision 2026-11-14)", () => {

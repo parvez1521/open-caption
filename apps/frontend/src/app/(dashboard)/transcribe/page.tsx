@@ -214,7 +214,7 @@ export default function TranscribePage() {
                   <div className="mt-4">
                     <p className="text-[15px] font-semibold text-ink">Drop a video or audio file here</p>
                     <p className="mt-1 text-[13px] text-sand-600">
-                      MP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG · up to {Math.round(TRANSCRIBE_LIMITS.maxDurationSec / 60)} min ·{" "}
+                      MP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG, FLAC, AAC · up to {Math.round(TRANSCRIBE_LIMITS.maxDurationSec / 60)} min ·{" "}
                       {uploadLimitLabel(TRANSCRIBE_LIMITS.maxBytes)} max
                     </p>
                     <button

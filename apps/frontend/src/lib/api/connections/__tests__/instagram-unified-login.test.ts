@@ -25,7 +25,7 @@ import {
   fetchInstagramAccount,
   fetchInstagramMedia,
 } from "../instagram";
-import { connectInstagram, ProviderSyncError } from "../sync";
+import { connectInstagram, ProviderSyncError, syncConnection } from "../sync";
 import { getConnection } from "../store";
 
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
@@ -213,6 +213,12 @@ describe("connectInstagram end-to-end (callback path)", () => {
     const posts = state.current.tables["growth_posts"] ?? [];
     expect(posts).toHaveLength(1);
     expect(posts[0]).toMatchObject({ external_id: "m1", source: "instagram", views: 900, reach: 700 });
+
+    // C-06: the stored count comes from an exact count, not a row fetch —
+    // a re-sync reports the same 1 stored post, not a capped row list.
+    const again = await syncConnection("user-1", "instagram", fetchImpl);
+    expect(again.stored).toBe(1);
+    expect(again.synced).toBe(1);
   });
 
   it("an empty discovery fails the connect and stores nothing", async () => {

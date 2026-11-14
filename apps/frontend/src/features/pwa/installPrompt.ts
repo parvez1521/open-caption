@@ -12,11 +12,15 @@ export type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-/** iOS Safari / iPadOS detection. iPadOS 13+ reports a Macintosh UA, so a
- *  Mac UA with touch points counts as iOS too. */
+/** iOS Safari / iPadOS detection. iPadOS 13+ reports a Macintosh UA, so
+ *  it is recognised by the "Mobile" token its Safari sends (macOS Safari
+ *  never sends one) together with touch points — a bare Macintosh UA with
+ *  touch (a touchscreen Mac) is NOT iOS: its Share menu has no
+ *  "Add to Home Screen", and desktop Chrome there uses the
+ *  beforeinstallprompt path instead. */
 export function isIosDevice(userAgent: string, maxTouchPoints = 0): boolean {
   if (/iphone|ipad|ipod/i.test(userAgent)) return true;
-  return /macintosh/i.test(userAgent) && maxTouchPoints > 1;
+  return /macintosh/i.test(userAgent) && /mobile/i.test(userAgent) && maxTouchPoints > 1;
 }
 
 /** True when the page is already running as an installed standalone app. */
