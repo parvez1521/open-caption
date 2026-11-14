@@ -11,17 +11,22 @@
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MOTION_TEMPLATES } from "@capseasy/motion";
+import { getMotionTemplate, MOTION_TEMPLATES } from "@capseasy/motion";
 
 const h = vi.hoisted(() => ({
-  templateId: "subscribe-banner",
   push: vi.fn(),
   addMotionToProject: vi.fn(async () => ({ id: "ov-new" })),
 }));
 
 vi.mock("next/navigation", () => ({
-  useParams: () => ({ templateId: h.templateId }),
   useRouter: () => ({ push: h.push, replace: vi.fn() }),
+  // Mirror of Next's notFound(): throws the NEXT_NOT_FOUND digest the
+  // framework catches to render not-found.tsx at a real 404.
+  notFound: () => {
+    const err = new Error("NEXT_NOT_FOUND") as Error & { digest: string };
+    err.digest = "NEXT_NOT_FOUND";
+    throw err;
+  },
 }));
 vi.mock("@/components/studio/StudioShell", () => ({
   default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -50,8 +55,12 @@ vi.mock("@/features/motion/addToProject", async (importOriginal) => {
 
 import MotionDiscoveryPage from "@/app/(dashboard)/motion/page";
 import MotionCustomizeRoute from "@/app/(dashboard)/motion/[templateId]/page";
+import { MotionCustomizeClient } from "@/app/(dashboard)/motion/[templateId]/MotionCustomizeClient";
 import { MotionStudioSection } from "@/components/home/Sections";
 import { MOTION_PRESETS_KEY } from "../presets";
+
+/** The subscribe-banner template the customize tests configure. */
+const subscribeBanner = getMotionTemplate("subscribe-banner")!;
 
 /** IntersectionObserver / ResizeObserver fakes (previews stay on their poster frame). */
 class FakeIO {
@@ -119,7 +128,7 @@ describe("Motion Studio discovery page", () => {
 
 describe("Motion Studio customize page (subscribe-banner: text + colour + image)", () => {
   it("generates its controls from the registry fields, with registry defaults", () => {
-    const view = render(<MotionCustomizeRoute />);
+    const view = render(<MotionCustomizeClient template={subscribeBanner} />);
     const text = screen.getByLabelText("Text lines") as HTMLTextAreaElement;
     expect(text.value).toBe("Your Channel\nNew videos every week\nSubscribe\nSubscribed");
     // colour field: a hex text input carrying the registry default colour
@@ -134,14 +143,14 @@ describe("Motion Studio customize page (subscribe-banner: text + colour + image)
   });
 
   it("enforces the text field's maxLines (4 for subscribe-banner)", () => {
-    render(<MotionCustomizeRoute />);
+    render(<MotionCustomizeClient template={subscribeBanner} />);
     const text = screen.getByLabelText("Text lines") as HTMLTextAreaElement;
     fireEvent.change(text, { target: { value: "one\ntwo\nthree\nfour\nfive\nsix" } });
     expect(text.value).toBe("one\ntwo\nthree\nfour");
   });
 
   it("clamps duration to the schema bounds (400–30000 ms)", () => {
-    render(<MotionCustomizeRoute />);
+    render(<MotionCustomizeClient template={subscribeBanner} />);
     const num = screen.getByLabelText("Duration value in milliseconds") as HTMLInputElement;
     fireEvent.change(num, { target: { value: "99999" } });
     expect(num.value).toBe("30000");
@@ -150,7 +159,7 @@ describe("Motion Studio customize page (subscribe-banner: text + colour + image)
   });
 
   it("preset save / apply / delete round-trips through localStorage", async () => {
-    render(<MotionCustomizeRoute />);
+    render(<MotionCustomizeClient template={subscribeBanner} />);
     const text = screen.getByLabelText("Text lines") as HTMLTextAreaElement;
     fireEvent.change(text, { target: { value: "My Channel\nWeekly videos\nSubscribe\nSubscribed" } });
     fireEvent.click(screen.getByRole("button", { name: "Save preset" }));
@@ -171,7 +180,7 @@ describe("Motion Studio customize page (subscribe-banner: text + colour + image)
   });
 
   it("Add to project inserts via addMotionToProject with the configured config and opens the project", async () => {
-    render(<MotionCustomizeRoute />);
+    render(<MotionCustomizeClient template={subscribeBanner} />);
     fireEvent.click(screen.getByRole("button", { name: "Add to this project" }));
     await waitFor(() => expect(h.addMotionToProject).toHaveBeenCalledTimes(1));
     expect(h.addMotionToProject).toHaveBeenCalledWith("proj-1", {
@@ -181,12 +190,16 @@ describe("Motion Studio customize page (subscribe-banner: text + colour + image)
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/projects/proj-1"));
   });
 
-  it("an unknown template id gets the plain not-found state, not a crash", () => {
-    h.templateId = "no-such-template";
-    const view = render(<MotionCustomizeRoute />);
-    expect(view.container.textContent).toContain("That template does not exist.");
-    h.templateId = "subscribe-banner";
-    view.unmount();
+  it("D-1: an unknown template id 404s at the server component level — the page throws NEXT_NOT_FOUND instead of rendering", async () => {
+    await expect(
+      MotionCustomizeRoute({ params: Promise.resolve({ templateId: "no-such-template" }) }),
+    ).rejects.toMatchObject({ digest: "NEXT_NOT_FOUND" });
+  });
+
+  it("a known template id resolves to the customize client", async () => {
+    const element = await MotionCustomizeRoute({ params: Promise.resolve({ templateId: "subscribe-banner" }) });
+    expect(element.type).toBe(MotionCustomizeClient);
+    expect(element.props.template.id).toBe("subscribe-banner");
   });
 });
 
