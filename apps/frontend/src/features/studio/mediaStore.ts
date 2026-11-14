@@ -1,11 +1,13 @@
 "use client";
 
 import type { AssetLicenceRecord, MediaAssetKind } from "./mediaAssets";
+import { VIDEO_DB_VERSION } from "../upload/localVideos";
 
 /**
  * The media bin's bytes: a sibling `assets` store in the SAME IndexedDB database the device-video
  * store uses (`captionseasy-videos`, see features/upload/localVideos.ts — the DB version is shared,
- * so both modules open it at v3). Records are keyed by asset id and carry their projectId; listing
+ * so this module opens it at VIDEO_DB_VERSION, never its own literal: a lower version than the
+ * stored one throws VersionError and breaks imports). Records are keyed by asset id and carry their projectId; listing
  * filters by project. Bytes never leave the device, exactly like the project video: reopening the
  * project on another browser/device shows an empty bin there.
  */
@@ -41,7 +43,7 @@ export interface MediaAssetRecord {
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 3);
+    const req = indexedDB.open(DB, VIDEO_DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       for (const name of ["videos", "compat", "progress", ASSETS]) {

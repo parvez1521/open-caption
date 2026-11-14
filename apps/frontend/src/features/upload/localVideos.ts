@@ -21,6 +21,9 @@ const ASSETS = "assets";
 /** AI Clipper durable runs: one checkpoint record per source project (see ClipperRunCheckpoint) */
 const CLIPPER_RUNS = "clipperRuns";
 
+/** Single source of truth for the shared DB version — mediaStore.ts opens the same DB, so it must use this, never its own literal (a v3/v4 drift here throws VersionError on import). */
+export const VIDEO_DB_VERSION = 4;
+
 interface Entry { id: string; file: Blob; name: string; size: number; savedAt: number }
 
 export interface TranscriptProgress {
@@ -55,7 +58,7 @@ export interface ClipperRunCheckpoint {
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB, 4);
+    const req = indexedDB.open(DB, VIDEO_DB_VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
       for (const name of [VIDEOS, COMPAT, PROGRESS, ASSETS, CLIPPER_RUNS]) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
