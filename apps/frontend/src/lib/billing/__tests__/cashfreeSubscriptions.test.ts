@@ -80,7 +80,7 @@ describe("createCashfreeSubscription", () => {
     expect(created).toEqual({ subscriptionSessionId: "subs_token_abc", subscriptionId: "ocs_user1_x", status: "INITIALIZED" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("https://sandbox-api.cashfree.com/pg/subscriptions");
+    expect(url).toBe("https://sandbox.cashfree.com/pg/subscriptions");
     const headers = init.headers as Record<string, string>;
     expect(headers["x-api-version"]).toBe("2023-08-01");
     expect(headers["x-client-id"]).toBe("app-1");
@@ -141,7 +141,7 @@ describe("fetchCashfreeSubscription", () => {
     expect(fetched.planId).toBe("cf-plan-creator");
     expect(fetched.periodEnd).toBe("2026-12-14T00:00:00+05:30");
     expect(fetched.periodStart).toBe("2026-11-14T00:00:00+05:30");
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://sandbox-api.cashfree.com/pg/subscriptions/ocs_1");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://sandbox.cashfree.com/pg/subscriptions/ocs_1");
   });
 
   it("falls back to subscription_expiry_time when no next charge date is present", async () => {
@@ -160,7 +160,7 @@ describe("cancelCashfreeSubscription", () => {
     const cancelled = await cancelCashfreeSubscription("ocs_1");
     expect(cancelled.status).toBe("cancelled");
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("https://sandbox-api.cashfree.com/pg/subscriptions/ocs_1/manage");
+    expect(url).toBe("https://sandbox.cashfree.com/pg/subscriptions/ocs_1/manage");
     expect(JSON.parse(init.body as string)).toEqual({ subscription_id: "ocs_1", action: "CANCEL" });
   });
 });

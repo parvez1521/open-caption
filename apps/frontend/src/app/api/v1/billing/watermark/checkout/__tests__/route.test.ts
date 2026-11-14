@@ -56,7 +56,7 @@ vi.mock("@/lib/billing/cashfree", () => ({
     configured: true,
     env: "sandbox",
     appId: "TEST-APP-ID",
-secret: <redacted>
+    secret: "TEST-SECRET",
     webhookSecret: "TEST-SECRET",
     baseUrl: "https://sandbox.cashfree.com",
   }),
