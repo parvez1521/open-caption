@@ -8,7 +8,7 @@
  * them touch `fetch`/`XMLHttpRequest`/localStorage directly.
  */
 
-import { authService } from "./auth";
+import { authService, isSignInAgainToken } from "./auth";
 
 // The API is served by this same Next app (route handlers), so it is always same-origin.
 const API_BASE_URL = "/api/v1";
@@ -57,9 +57,32 @@ async function getAuthToken(): Promise<string | null> {
   return authService.getToken();
 }
 
-async function unwrap<T>(response: Response): Promise<T> {
+/**
+ * C-07: an expired real-user session dead-ended pages like /growth — every
+ * call 401'd and the page only showed "couldn't load — Retry", forever. A
+ * 401 on a call that carried a real user's token sends the browser to sign
+ * in again, keeping the current page as the post-login redirect. Guest
+ * sessions and opaque tokens never redirect (see isSignInAgainToken), so
+ * the dashboard layout can still bootstrap a fresh guest session and
+ * callers that handle 401s themselves (Studio) still see their error.
+ * The ApiError still propagates, so the caller renders its own state if
+ * the navigation cannot happen (tests, odd embeds).
+ */
+function redirectToLoginForExpiredSession(token: string | null): void {
+  if (!token || typeof window === "undefined") return;
+  if (!isSignInAgainToken(token)) return;
+  if (window.location.pathname === "/login") return;
+  try {
+    window.location.assign(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+  } catch {
+    // Navigation that cannot happen leaves the ApiError to the caller.
+  }
+}
+
+async function unwrap<T>(response: Response, token: string | null): Promise<T> {
   const body = await response.json();
   if (!response.ok || body.success === false) {
+    if (response.status === 401) redirectToLoginForExpiredSession(token);
     throw new ApiError(response.status, body.error ?? { code: "UNKNOWN_ERROR", message: "Request failed." });
   }
   return body.data as T;
@@ -89,7 +112,7 @@ export const apiClient = {
       body: init?.formData ?? (init?.json !== undefined ? JSON.stringify(init.json) : undefined),
       signal: init?.signal,
     });
-    return unwrap<T>(response);
+    return unwrap<T>(response, token);
   },
 
   async patch<T>(path: string, init?: { json?: unknown; signal?: AbortSignal }): Promise<T> {
@@ -102,7 +125,7 @@ export const apiClient = {
       body: init?.json !== undefined ? JSON.stringify(init.json) : undefined,
       signal: init?.signal,
     });
-    return unwrap<T>(response);
+    return unwrap<T>(response, token);
   },
 
   async put<T>(path: string, init?: { json?: unknown; signal?: AbortSignal }): Promise<T> {
@@ -115,7 +138,7 @@ export const apiClient = {
       body: init?.json !== undefined ? JSON.stringify(init.json) : undefined,
       signal: init?.signal,
     });
-    return unwrap<T>(response);
+    return unwrap<T>(response, token);
   },
 
   async delete<T = void>(path: string, init?: { signal?: AbortSignal }): Promise<T> {
@@ -128,7 +151,7 @@ export const apiClient = {
       signal: init?.signal,
     });
     if (response.status === 204) return undefined as T;
-    return unwrap<T>(response);
+    return unwrap<T>(response, token);
   },
 
   async get<T>(path: string, init?: { signal?: AbortSignal }): Promise<T> {
@@ -142,7 +165,7 @@ export const apiClient = {
           headers,
           signal: init?.signal,
         });
-        return await unwrap<T>(response);
+        return await unwrap<T>(response, token);
       } catch (err) {
         lastError = err;
         // Only retry network failures, never aborts or backend error responses.
@@ -170,6 +193,7 @@ export const apiClient = {
         });
         const body = await response.json();
         if (!response.ok || body.success === false) {
+          if (response.status === 401) redirectToLoginForExpiredSession(token);
           throw new ApiError(response.status, body.error ?? { code: "UNKNOWN_ERROR", message: "Request failed." });
         }
         return { data: body.data as T, meta: body.meta ?? {} };
@@ -217,6 +241,7 @@ export const apiClient = {
           if (xhr.status >= 200 && xhr.status < 300 && body.success !== false) {
             resolve(body.data as T);
           } else {
+            if (xhr.status === 401) redirectToLoginForExpiredSession(token);
             reject(new ApiError(xhr.status, body.error ?? { code: "UNKNOWN_ERROR", message: "Upload failed." }));
           }
         };

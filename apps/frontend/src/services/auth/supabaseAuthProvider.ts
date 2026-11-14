@@ -91,6 +91,46 @@ function getPersistedToken(): string | null {
   }
 }
 
+/**
+ * Decode a JWT payload WITHOUT verifying it — expiry/anonymous checks
+ * only; the server verifies every API call itself. Undecodable → null.
+ */
+function decodeSessionToken(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const json = JSON.parse(atob(padded));
+    return json && typeof json === "object" ? (json as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** True when the token is a JWT whose exp has passed. Undecodable tokens
+ * and tokens without an exp claim are never stale here — the server decides. */
+export function isExpiredSessionToken(token: string): boolean {
+  const payload = decodeSessionToken(token);
+  if (!payload) return false;
+  const exp = typeof payload.exp === "number" ? payload.exp : null;
+  return exp !== null && exp * 1000 <= Date.now();
+}
+
+/**
+ * True when a 401 on a call carrying this token means "sign in again": a
+ * decodable, non-anonymous session JWT. Guest (anonymous) sessions and
+ * opaque tokens keep the old behaviour — guests get a fresh guest session
+ * from the dashboard layout, and callers that handle 401s themselves
+ * (Studio) still see their error.
+ */
+export function isSignInAgainToken(token: string | null): boolean {
+  if (!token) return false;
+  const payload = decodeSessionToken(token);
+  if (!payload) return false;
+  return payload.is_anonymous !== true;
+}
+
 export const supabaseAuthProvider: AuthProvider = {
   async register(name: string, email: string, password: string) {
     const { data, error } = await supabase.auth.signUp({
@@ -186,7 +226,14 @@ export const supabaseAuthProvider: AuthProvider = {
   },
 
   isAuthenticated() {
-    return !!activeToken || !!getPersistedToken();
+    // C-07: a persisted token is not proof of a live session — its exp may
+    // have passed hours ago, and the old `!!token` check then let /growth
+    // render as signed-in while every API call 401'd. Either live token
+    // counts (the in-memory one can lag a refresh, the persisted one can
+    // lag a sign-out); an undecodable token keeps the old behaviour.
+    const tokens = [activeToken, getPersistedToken()].filter((t): t is string => !!t);
+    if (tokens.length === 0) return false;
+    return tokens.some((t) => !isExpiredSessionToken(t));
   },
 
   async requestPasswordReset(email: string) {
