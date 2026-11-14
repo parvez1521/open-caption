@@ -1,5 +1,5 @@
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 /**
@@ -74,5 +74,49 @@ describe("billing page phone at checkout", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Get Starter" }));
     await waitFor(() => expect(post).toHaveBeenCalled());
     expect(post).toHaveBeenCalledWith("/billing/checkout", { json: { plan: "starter", customerPhone: "9876543210" } });
+  });
+});
+
+describe("billing page Cashfree SDK checkout", () => {
+  const checkoutMock = vi.fn();
+  const cashfreeFactory = vi.fn(() => ({ checkout: checkoutMock }));
+
+  beforeEach(() => {
+    checkoutMock.mockReset();
+    cashfreeFactory.mockClear();
+    // loadCashfreeSdk() returns window.Cashfree when it exists, so the
+    // tests never append the real SDK script tag.
+    (window as unknown as { Cashfree?: unknown }).Cashfree = cashfreeFactory;
+    api.postImpl = async () => ({ configured: true, paymentSessionId: "sess-1" });
+  });
+
+  afterEach(() => {
+    delete (window as unknown as { Cashfree?: unknown }).Cashfree;
+  });
+
+  const startCheckout = async () => {
+    render(<BillingPage />);
+    fireEvent.change(await screen.findByLabelText("Mobile number"), { target: { value: "9876543210" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Get Starter" }));
+  };
+
+  it("passes redirectTarget _self to the SDK (returnTarget does not exist)", async () => {
+    checkoutMock.mockResolvedValue({ redirect: true });
+    await startCheckout();
+    await waitFor(() => expect(checkoutMock).toHaveBeenCalled());
+    expect(checkoutMock).toHaveBeenCalledWith({ paymentSessionId: "sess-1", redirectTarget: "_self" });
+  });
+
+  it("shows the SDK's error when checkout resolves {error} instead of rejecting", async () => {
+    checkoutMock.mockResolvedValue({ error: { message: "paymentSessionId is missing in options" } });
+    await startCheckout();
+    expect(await screen.findByText("paymentSessionId is missing in options")).toBeTruthy();
+  });
+
+  it("shows no notice when checkout resolves {redirect: true}", async () => {
+    checkoutMock.mockResolvedValue({ redirect: true });
+    await startCheckout();
+    await waitFor(() => expect(checkoutMock).toHaveBeenCalled());
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });

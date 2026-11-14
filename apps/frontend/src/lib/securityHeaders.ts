@@ -43,8 +43,9 @@
  *
  * Known trade-off, deliberate: `script-src` keeps `'unsafe-inline'` because the Next.js App Router
  * emits inline bootstrap scripts and the root layout ships two small constant inline scripts;
- * there is no nonce pipeline. Everything else is locked down (object-src/base-uri/form-action/
- * frame-ancestors 'none'/'self'), so the policy still blocks plugin content, framing, form
+ * there is no nonce pipeline. Everything else is locked down (object-src/base-uri/
+ * frame-ancestors 'none'/'self'; form-action adds the two Cashfree checkout
+ * hosts, see below), so the policy still blocks plugin content, framing, form
  * hijacking and any script/style/connect destination not listed here.
  */
 export function buildContentSecurityPolicy(isDev: boolean): string {
@@ -137,7 +138,15 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     ["manifest-src", ["'self'"]],
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],
-    ["form-action", ["'self'"]],
+    // Cashfree checkout: on desktop the JS SDK's checkout() redirect branch
+    // submits a <form method="post"> to the hosted checkout page — the
+    // production host is api.cashfree.com, the sandbox host
+    // sandbox.cashfree.com (SDK v3 _config, verified 2026-11-14). With
+    // form-action 'self' only, the browser silently blocks that POST: no JS
+    // error, and the SDK still resolves {redirect: true}, so the button just
+    // reverts and the payment never opens — the silent ₹299 failure of
+    // 2026-11-14. Only the two checkout hosts are added here.
+    ["form-action", ["'self'", "https://api.cashfree.com", "https://sandbox.cashfree.com"]],
     // The only framed third-party content on the site: Cashfree's hosted
     // checkout modal (billing), and Google's pre-built sign-in button iframe
     // (accounts.google.com renders the button; the chooser itself is a

@@ -44,8 +44,16 @@ interface CheckoutResponse {
   plan?: PlanId;
 }
 
+type CashfreeCheckoutResult = {
+  redirect?: boolean;
+  // The SDK resolves {error} instead of rejecting on validation failures
+  // (e.g. a bad session) — the caller must surface it, or the failure is
+  // silent. The error carries a message string (GeneralError).
+  error?: { message?: string };
+};
+
 type CashfreeFactory = (opts: { mode: string }) => {
-  checkout: (opts: { paymentSessionId: string; returnTarget?: string }) => Promise<unknown>;
+  checkout: (opts: { paymentSessionId: string; redirectTarget?: string }) => Promise<CashfreeCheckoutResult>;
 };
 
 declare global {
@@ -136,7 +144,18 @@ export default function BillingPage() {
         return;
       }
       const cashfree = await loadCashfreeSdk();
-      await cashfree({ mode: res.env ?? "sandbox" }).checkout({ paymentSessionId: res.paymentSessionId, returnTarget: "_self" });
+      // redirectTarget is the SDK's option name (returnTarget does not
+      // exist — the SDK ignores it). It defaults to "_self"; pass it
+      // explicitly so a future SDK change cannot silently flip the flow.
+      const result = await cashfree({ mode: res.env ?? "sandbox" }).checkout({
+        paymentSessionId: res.paymentSessionId,
+        redirectTarget: "_self",
+      });
+      // checkout() resolves {error} on SDK-side failures instead of
+      // rejecting — show it, or the button just reverts with no message.
+      if (result?.error) {
+        setNotice(result.error.message || "Checkout didn't start. Please try again.");
+      }
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Checkout didn't start. Please try again.");
     } finally {

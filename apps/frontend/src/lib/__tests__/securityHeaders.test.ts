@@ -40,7 +40,9 @@ describe("securityHeaders", () => {
       "https://sdk.cashfree.com https://payments.cashfree.com https://accounts.google.com",
     );
     expect(directive("base-uri")).toBe("'self'");
-    expect(directive("form-action")).toBe("'self'");
+    expect(directive("form-action")).toBe(
+      "'self' https://api.cashfree.com https://sandbox.cashfree.com",
+    );
   });
 
   it("allows the in-browser AI pipelines (HF model hosts, blob workers, WASM)", () => {
@@ -74,6 +76,21 @@ describe("securityHeaders", () => {
   it("never adds 'unsafe-eval' to production scripts (dev-only escape hatch)", () => {
     expect(directive("script-src")).not.toContain("'unsafe-eval'");
     expect(buildContentSecurityPolicy(true)).toContain("'unsafe-eval'");
+  });
+
+  it("lets the Cashfree SDK POST its checkout form (2026-11-14 silent checkout failure)", () => {
+    // On desktop the SDK's checkout() redirect branch submits a <form>
+    // POST to the hosted checkout page (production api.cashfree.com,
+    // sandbox sandbox.cashfree.com — SDK v3 _config). With form-action
+    // 'self' only, the browser silently blocks that POST: no JS error,
+    // and the SDK still resolves {redirect: true}, so the button just
+    // reverts and the payment never opens. 'self' stays first — only the
+    // two checkout hosts are added, no other form destination.
+    const formAction = directive("form-action");
+    expect(formAction).toContain("'self'");
+    expect(formAction).toContain("https://api.cashfree.com");
+    expect(formAction).toContain("https://sandbox.cashfree.com");
+    expect(formAction).not.toContain("payments.cashfree.com");
   });
 
   it("lets the in-browser export fetch the blob: video URL (2026-11-13 export failure)", () => {
