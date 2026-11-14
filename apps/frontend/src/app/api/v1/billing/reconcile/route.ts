@@ -2,6 +2,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { fetchCashfreeOrder } from "@/lib/billing/cashfree";
 import { settleClosed, settlePaid, type PaymentRow } from "@/lib/billing/settle";
 
@@ -14,6 +15,10 @@ const Body = z.object({ orderId: z.string().min(1).max(60) });
  */
 export const POST = route(async (req: Request) => {
   const user = await requireUser(req);
+  // Rate limit (C-08): without it a signed-in user can spam reconcile to
+  // hammer Cashfree's order API server-to-server. 30/hr matches the chat
+  // route's abuse ceiling and is generous for a "check status" button.
+  await rateLimit(user.id, "billing_reconcile", 30, 3600);
   const body = await parseBody(req, Body);
 
   const admin = getAdmin();

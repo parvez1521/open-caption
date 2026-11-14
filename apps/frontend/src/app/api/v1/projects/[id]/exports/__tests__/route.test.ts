@@ -82,6 +82,9 @@ class FakeBuilder {
   }
   upsert(row: Record<string, unknown>, opts: Record<string, unknown>) {
     state.upserts.push({ table: this.table, row, opts });
+    // A quota upsert lands a real row, so a later count in the same test
+    // sees it — this is what makes the C-09 concurrency test below honest.
+    if (this.table === "video_quota_events") state.quotaEvents.push({ id: String(row.export_id) });
     return this;
   }
   async maybeSingle() {
@@ -252,5 +255,19 @@ describe("monthly video quota (owner decision 2026-11-14: Free 3, Starter 10, Pl
     const res = await post({ kind: "srt" });
     expect(res.status).toBe(201);
     expect(state.upserts).toHaveLength(0);
+  });
+
+  it("two concurrent video exports at remaining=1: one queues, one gets 402 (C-09)", async () => {
+    state.quotaEvents = [{ id: "ev-1" }, { id: "ev-2" }];
+    const [a, b] = await Promise.all([post({ kind: "mp4" }), post({ kind: "mp4" })]);
+    expect([a.status, b.status].sort()).toEqual([202, 402]);
+    const denied = a.status === 402 ? a : b;
+    const deniedJson = (await denied.json()) as { error: { code: string } };
+    expect(deniedJson.error.code).toBe("LIMIT_EXCEEDED");
+    // Exactly one render queued and exactly one quota event recorded —
+    // the user lands at the cap, never at cap + 1.
+    expect(state.enqueued).toHaveLength(1);
+    expect(state.upserts.filter((u) => u.table === "video_quota_events")).toHaveLength(1);
+    expect(state.quotaEvents).toHaveLength(3);
   });
 });

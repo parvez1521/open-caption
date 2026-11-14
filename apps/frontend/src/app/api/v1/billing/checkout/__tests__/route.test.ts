@@ -16,10 +16,17 @@ const state = vi.hoisted(() => ({
   inserted: [] as Array<Record<string, unknown>>,
   createArgs: [] as Array<Record<string, unknown>>,
   createImpl: null as null | ((...args: unknown[]) => Promise<unknown>),
+  rateLimits: [] as Array<{ subject: string; bucket: string; max: number; windowSeconds: number }>,
 }));
 
 vi.mock("@/lib/api/auth", () => ({
   requireUser: async () => ({ id: "user-1", email: "user@example.test", token: "tok", guest: false, db: {} }),
+}));
+
+vi.mock("@/lib/api/rateLimit", () => ({
+  rateLimit: async (subject: string, bucket: string, max: number, windowSeconds: number) => {
+    state.rateLimits.push({ subject, bucket, max, windowSeconds });
+  },
 }));
 
 vi.mock("@/lib/supabase/admin", () => ({
@@ -65,6 +72,7 @@ const call = (body: Record<string, unknown> = { plan: "starter", customerPhone: 
 beforeEach(() => {
   state.inserted = [];
   state.createArgs = [];
+  state.rateLimits = [];
   state.createImpl = async () => ({ paymentSessionId: "sess-1", orderStatus: "ACTIVE" });
 });
 
@@ -137,5 +145,11 @@ describe("billing checkout error surfacing", () => {
     expect(body.error?.message).toBe("Add a valid mobile number to continue.");
     expect(state.inserted).toHaveLength(0);
     expect(state.createArgs).toHaveLength(0);
+  });
+
+  it("rate-limits checkout per user (C-08): one billing_checkout hit per call", async () => {
+    const res = await call();
+    expect(res.status).toBe(200);
+    expect(state.rateLimits).toEqual([{ subject: "user-1", bucket: "billing_checkout", max: 10, windowSeconds: 3600 }]);
   });
 });

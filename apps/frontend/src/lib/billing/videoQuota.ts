@@ -137,3 +137,96 @@ export async function recordVideoQuotaEvent(
   }
   return { recorded: true };
 }
+
+/**
+ * Delete one quota event by export_id, owner-scoped. Best-effort: never
+ * throws — it only ever runs to give a slot back after a render that was
+ * reserved but then failed before producing a video, so a delete failure
+ * must not turn into a second user-facing error.
+ */
+export async function releaseVideoQuotaEvent(
+  db: SupabaseClient,
+  input: { exportId: string; ownerId: string },
+): Promise<void> {
+  try {
+    const query = db.from("video_quota_events").delete();
+    if (typeof (query as { eq?: unknown }).eq !== "function") return;
+    const { error } = await query.eq("export_id", input.exportId).eq("owner_id", input.ownerId);
+    if (error && !isMissingTableError(error)) {
+      console.error(JSON.stringify({ level: "error", msg: "video quota release failed", exportId: input.exportId, err: error.message }));
+    }
+  } catch (e) {
+    console.error(JSON.stringify({ level: "error", msg: "video quota release failed", exportId: input.exportId, err: e instanceof Error ? e.message : String(e) }));
+  }
+}
+
+/**
+ * Per-owner in-process mutex for quota check+record. The check-then-record
+ * race (C-09) is closed by holding this lock across the count and the
+ * insert, so two concurrent exports for the same owner in THIS process
+ * cannot both see remaining=1 and both record. LIMIT: serverless instances
+ * do not share this lock — two requests landing on different instances at
+ * the same instant can still both pass. A fully atomic cap needs a Postgres
+ * function (count-and-insert in one statement), which is a migration and
+ * is deliberately out of scope here; the lock removes the race for the
+ * common single-instance case and the overage stays at most a small number.
+ */
+const ownerExportLocks = new Map<string, Promise<void>>();
+
+export async function withOwnerExportLock<T>(ownerId: string, fn: () => Promise<T>): Promise<T> {
+  const prev = ownerExportLocks.get(ownerId) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const chained = prev.then(() => gate);
+  ownerExportLocks.set(ownerId, chained);
+  await prev;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (ownerExportLocks.get(ownerId) === chained) ownerExportLocks.delete(ownerId);
+  }
+}
+
+/**
+ * Server-side pre-flight quota reservation (B-04): count the caller's
+ * videos and write the quota event for this exportId in one locked step,
+ * BEFORE any rendering starts — the client cannot skip it, and the
+ * exportId-keyed idempotency means the later post-render record is a
+ * no-op for the same export. A render that then fails or is cancelled
+ * should release the slot via releaseVideoQuotaEvent.
+ *
+ * Returns { reserved: false, usage: null } (soft-fail, same as the record
+ * path) when the quota table has not been applied yet — the caller proceeds
+ * uncounted instead of hard-failing. Throws LIMIT_EXCEEDED (402) at the cap.
+ */
+export async function reserveVideoQuotaEvent(
+  db: SupabaseClient,
+  input: { exportId: string; ownerId: string; projectId: string; kind: VideoQuotaKind; plan: PlanId; expiresAt: string | null; now?: Date },
+): Promise<{ reserved: boolean; usage: VideoQuotaUsage | null }> {
+  return withOwnerExportLock(input.ownerId, async () => {
+    let usage: VideoQuotaUsage;
+    try {
+      usage = await getVideoQuotaUsage(db, input.ownerId, input.plan, input.expiresAt, input.now);
+    } catch (e) {
+      if (e instanceof ApiFailure && e.message === QUOTA_NOT_SET_UP) return { reserved: false, usage: null };
+      throw e;
+    }
+    if (usage.remaining <= 0) {
+      throw new ApiFailure(
+        "LIMIT_EXCEEDED",
+        `Monthly limit reached — your plan includes ${usage.limit} videos a month. Upgrade for more videos.`,
+        { videoQuota: usage },
+      );
+    }
+    const { recorded } = await recordVideoQuotaEvent(db, {
+      exportId: input.exportId,
+      ownerId: input.ownerId,
+      projectId: input.projectId,
+      kind: input.kind,
+    });
+    return { reserved: recorded, usage };
+  });
+}

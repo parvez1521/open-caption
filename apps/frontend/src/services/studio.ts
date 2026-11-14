@@ -178,6 +178,22 @@ export const studioService = {
     return apiClient.post<{ recorded: boolean; usage: { limit: number; used: number; remaining: number } | null }>(`/projects/${projectId}/exports/record`, { json: body });
   },
 
+  /**
+   * Reserve one of the month's videos BEFORE a browser render starts
+   * (B-04): the server-side pre-flight check the client cannot skip.
+   * Throws LIMIT_EXCEEDED (402) at the cap; answers reserved:false when
+   * the quota table is not set up yet (soft-fail — render anyway, uncounted).
+   * The post-render record for the same exportId is then a no-op.
+   */
+  reserveBrowserExport(projectId: string, body: { exportId: string; kind: "mp4" | "mov_alpha" | "webm_alpha" }) {
+    return apiClient.post<{ reserved: boolean; usage: { limit: number; used: number; remaining: number } | null }>(`/projects/${projectId}/exports/reserve`, { json: body });
+  },
+
+  /** Give a reserved slot back after a failed or cancelled render. Best-effort. */
+  releaseBrowserExport(projectId: string, exportId: string) {
+    return apiClient.delete<{ released: boolean }>(`/projects/${projectId}/exports/reserve?exportId=${encodeURIComponent(exportId)}`);
+  },
+
   /** Monthly video quota for the signed-in user (null when not set up yet). */
   videoQuota() {
     return apiClient.get<{ videoQuota: { plan: string; limit: number; used: number; remaining: number; windowStart: string; windowEnd: string } | null; quotaReady: boolean }>("/billing/video-quota");

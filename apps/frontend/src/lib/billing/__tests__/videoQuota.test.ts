@@ -9,6 +9,8 @@ import {
   getVideoQuotaUsage,
   isVideoQuotaKind,
   recordVideoQuotaEvent,
+  releaseVideoQuotaEvent,
+  reserveVideoQuotaEvent,
   videoQuotaWindow,
   type VideoQuotaUsage,
 } from "../videoQuota";
@@ -173,5 +175,152 @@ describe("plans — the quota change did not move prices or ids", () => {
     expect(pricingFor("growth").priceInr).toBe(499);
     expect(pricingFor("pro").priceInr).toBe(799);
     expect(pricingFor("growth").id).toBe("growth");
+  });
+});
+
+/**
+ * reserveVideoQuotaEvent (B-04 pre-flight reservation + C-09 race fix):
+ * count + record happen in one per-owner locked step, so the slot is held
+ * before rendering starts. The fake below is LIVE — the count query sees
+ * rows written by earlier upserts, exactly like the real table — which is
+ * what makes the concurrency test below a real proof instead of a tautology.
+ */
+function liveFakeDb(
+  initial: Array<{ id: string; owner_id: string }> = [],
+  error: { code?: string; message?: string } | null = null,
+) {
+  const rows = [...initial];
+  const upserts: Array<Record<string, unknown>> = [];
+  const deletes: Array<Array<[string, unknown]>> = [];
+  const db = {
+    rows,
+    upserts,
+    deletes,
+    from: () => ({
+      select: () => {
+        let owner: string | null = null;
+        const chain = {
+          eq: (col: string, val: unknown) => {
+            if (col === "owner_id") owner = val as string;
+            return chain;
+          },
+          gte: () => chain,
+          lt: () => chain,
+          limit: async () => ({ data: rows.filter((r) => owner === null || r.owner_id === owner), error }),
+        };
+        return chain;
+      },
+      upsert: (row: Record<string, unknown>, _opts: Record<string, unknown>) => {
+        upserts.push(row);
+        if (!rows.some((r) => r.id === row.export_id)) {
+          rows.push({ id: String(row.export_id), owner_id: String(row.owner_id) });
+        }
+        return Promise.resolve({ error });
+      },
+      delete: () => {
+        const filters: Array<[string, unknown]> = [];
+        const chain = {
+          eq: (col: string, val: unknown) => {
+            filters.push([col, val]);
+            return chain;
+          },
+          then(onOk: (v: { error: null }) => unknown, onErr?: (e: unknown) => unknown) {
+            deletes.push(filters);
+            const match = rows.filter((r) => filters.every(([c, v]) => (c === "export_id" ? r.id === v : r.owner_id === v)));
+            for (const m of match) rows.splice(rows.indexOf(m), 1);
+            return Promise.resolve({ error }).then(onOk, onErr);
+          },
+        };
+        return chain;
+      },
+    }),
+  };
+  return db as unknown as Parameters<typeof getVideoQuotaUsage>[0] & {
+    rows: typeof rows;
+    upserts: typeof upserts;
+    deletes: typeof deletes;
+  };
+}
+
+const reserveInput = (exportId: string, ownerId = "user-1") => ({
+  exportId,
+  ownerId,
+  projectId: "proj-1",
+  kind: "mp4" as const,
+  plan: "free" as const,
+  expiresAt: null,
+  now: NOW,
+});
+
+describe("reserveVideoQuotaEvent", () => {
+  it("reserves under the limit: one event written, usage returned", async () => {
+    const db = liveFakeDb([{ id: "ev-1", owner_id: "user-1" }, { id: "ev-2", owner_id: "user-1" }]);
+    const res = await reserveVideoQuotaEvent(db, reserveInput("aaaaaaaa-1111-4111-8111-111111111111"));
+    expect(res).toMatchObject({ reserved: true, usage: { limit: 3, used: 2, remaining: 1 } });
+    expect(db.upserts).toHaveLength(1);
+    expect(db.upserts[0]).toMatchObject({ export_id: "aaaaaaaa-1111-4111-8111-111111111111", owner_id: "user-1" });
+    expect(db.rows).toHaveLength(3);
+  });
+
+  it("blocks at the Free 3 cap with LIMIT_EXCEEDED and writes nothing", async () => {
+    const db = liveFakeDb(events(3).map((e) => ({ ...e, owner_id: "user-1" })));
+    const err = await reserveVideoQuotaEvent(db, reserveInput("aaaaaaaa-1111-4111-8111-111111111111")).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiFailure);
+    expect((err as ApiFailure).code).toBe("LIMIT_EXCEEDED");
+    expect(db.upserts).toHaveLength(0);
+  });
+
+  it("soft-fails (reserved:false, never throws) when the quota table is not applied yet", async () => {
+    const db = liveFakeDb([], { code: "42P01", message: 'relation "public.video_quota_events" does not exist' });
+    const res = await reserveVideoQuotaEvent(db, reserveInput("aaaaaaaa-1111-4111-8111-111111111111"));
+    expect(res).toEqual({ reserved: false, usage: null });
+    expect(db.upserts).toHaveLength(0);
+  });
+
+  it("two concurrent reserves at remaining=1: exactly one succeeds (C-09)", async () => {
+    const db = liveFakeDb(events(2).map((e) => ({ ...e, owner_id: "user-1" })));
+    const [a, b] = await Promise.allSettled([
+      reserveVideoQuotaEvent(db, reserveInput("aaaaaaaa-1111-4111-8111-111111111111")),
+      reserveVideoQuotaEvent(db, reserveInput("bbbbbbbb-2222-4222-8222-222222222222")),
+    ]);
+    expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
+    const rejected = (a.status === "rejected" ? a : b).reason as ApiFailure;
+    expect(rejected).toBeInstanceOf(ApiFailure);
+    expect(rejected.code).toBe("LIMIT_EXCEEDED");
+    expect(db.upserts).toHaveLength(1);
+    expect(db.rows).toHaveLength(3);
+  });
+
+  it("two concurrent reserves for DIFFERENT owners at remaining=1 each: both succeed", async () => {
+    const db = liveFakeDb([
+      { id: "ev-1", owner_id: "user-1" },
+      { id: "ev-2", owner_id: "user-1" },
+      { id: "ev-3", owner_id: "user-2" },
+      { id: "ev-4", owner_id: "user-2" },
+    ]);
+    const [a, b] = await Promise.allSettled([
+      reserveVideoQuotaEvent(db, reserveInput("aaaaaaaa-1111-4111-8111-111111111111", "user-1")),
+      reserveVideoQuotaEvent(db, reserveInput("bbbbbbbb-2222-4222-8222-222222222222", "user-2")),
+    ]);
+    expect(a.status).toBe("fulfilled");
+    expect(b.status).toBe("fulfilled");
+    expect(db.upserts).toHaveLength(2);
+  });
+});
+
+describe("releaseVideoQuotaEvent", () => {
+  it("deletes the event for that export_id, owner-scoped", async () => {
+    const db = liveFakeDb([{ id: "ev-1", owner_id: "user-1" }]);
+    await releaseVideoQuotaEvent(db, { exportId: "ev-1", ownerId: "user-1" });
+    expect(db.rows).toHaveLength(0);
+    expect(db.deletes[0]).toEqual([
+      ["export_id", "ev-1"],
+      ["owner_id", "user-1"],
+    ]);
+  });
+
+  it("never throws when the quota table is missing", async () => {
+    const db = liveFakeDb([], { code: "42P01", message: 'relation "public.video_quota_events" does not exist' });
+    await expect(releaseVideoQuotaEvent(db, { exportId: "ev-1", ownerId: "user-1" })).resolves.toBeUndefined();
   });
 });
