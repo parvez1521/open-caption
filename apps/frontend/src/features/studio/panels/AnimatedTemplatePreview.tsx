@@ -105,13 +105,13 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
       granted = true;
       setLive(true);
     };
-    if (acquireLivePreviewSlot(grant)) grant();
+    if (acquireLivePreviewSlot("template", grant)) grant();
     return () => {
       if (granted) {
         setLive(false);
-        releaseLivePreviewSlot();
+        releaseLivePreviewSlot("template");
       } else {
-        cancelLivePreviewWait(grant);
+        cancelLivePreviewWait("template", grant);
       }
     };
   }, [near]);

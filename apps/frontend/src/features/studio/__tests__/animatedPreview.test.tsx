@@ -1,8 +1,10 @@
 /**
  * Bug 1 regression guard (picker live previews): the live layer must actually mount when a card nears
- * the viewport, the 6-live cap must hold, and slots must RECYCLE — a card leaving the viewport (or
- * unmounting) frees its slot so a queued card goes live. Before the fix, the immediate-acquire path
- * incremented the slot counter but never called the grant callback, so NO preview ever went live.
+ * the viewport, the per-kind cap (3 live template previews — the budget module splits the studio-wide
+ * 6 between the two preview kinds so neither panel can starve the other) must hold, and slots must
+ * RECYCLE — a card leaving the viewport (or unmounting) frees its slot so a queued card goes live.
+ * Before the fix, the immediate-acquire path incremented the slot counter but never called the grant
+ * callback, so NO preview ever went live.
  */
 import React from "react";
 import { act, render } from "@testing-library/react";
@@ -62,7 +64,7 @@ describe("AnimatedTemplatePreview live-slot lifecycle", () => {
     view.unmount();
   });
 
-  it("caps at 6 live and recycles the slot when a live card leaves the viewport", async () => {
+  it("caps at 3 live template previews and recycles the slot when a live card leaves the viewport", async () => {
     setup();
     const looks = LOOKS.slice(0, 8);
     const view = render(
@@ -74,13 +76,13 @@ describe("AnimatedTemplatePreview live-slot lifecycle", () => {
     );
     const cards = [...view.container.querySelectorAll(":scope > div > div")];
     await act(async () => { cards.forEach((c) => FakeIO.setVisible(c, true)); });
-    expect(liveLayers(view.container)).toBe(6);
+    expect(liveLayers(view.container)).toBe(3);
     // first card scrolls far away: its slot must free up and a queued card must take it
     await act(async () => { FakeIO.setVisible(cards[0]!, false); });
-    expect(liveLayers(view.container)).toBe(6);
+    expect(liveLayers(view.container)).toBe(3);
     // and scrolling it back re-acquires (possibly queueing behind others): total still capped
     await act(async () => { FakeIO.setVisible(cards[0]!, true); });
-    expect(liveLayers(view.container)).toBeLessThanOrEqual(6);
+    expect(liveLayers(view.container)).toBeLessThanOrEqual(3);
     view.unmount();
     expect(liveLayers(view.container)).toBe(0);
   });
@@ -98,10 +100,45 @@ describe("AnimatedTemplatePreview live-slot lifecycle", () => {
     const view = render(<Harness n={7} />);
     const cards = [...view.container.querySelectorAll(":scope > div > div")];
     await act(async () => { cards.forEach((c) => FakeIO.setVisible(c, true)); });
-    expect(liveLayers(view.container)).toBe(6);
+    expect(liveLayers(view.container)).toBe(3);
     view.rerender(<Harness n={6} />);
-    // still 6 mounted, all live — the freed slot went to the card that was queued
-    expect(liveLayers(view.container)).toBe(6);
+    // still 6 mounted, 3 live — the freed slot went to the card that was queued
+    expect(liveLayers(view.container)).toBe(3);
     view.unmount();
   });
+
+  it("every look goes live when scrolled into view — all 150, no per-look exception", async () => {
+    // Browser fine-probe (dev harness, 2026-11-14): scrolling the full list made 144 of
+    // 150 looks live; 6 never surfaced at a sampled instant (scroll-step granularity, not
+    // a per-look defect — 3 of the 6 were live in the top-of-list probe). This test closes
+    // the gap: it walks every look through the viewport in groups of 3 (the per-kind
+    // budget) and asserts each group actually goes live, then releases cleanly.
+    setup();
+    expect(LOOKS.length).toBe(150);
+    const view = render(
+      <div>
+        {LOOKS.map((look) => (
+          <AnimatedTemplatePreview key={look.id} look={look} poster={<div>POSTER</div>} />
+        ))}
+      </div>,
+    );
+    const cards = [...view.container.querySelectorAll(":scope > div > div")];
+    expect(cards).toHaveLength(150);
+    // Liveness is counted per CARD (a card with a live layer), not per matching div:
+    // difference_invert draws two 1080px-wide divs in its live layer, so the global
+    // div count overcounts it — the budget still holds exactly 3 live cards.
+    const isLive = (card: Element) => card.querySelector('div[style*="1080px"]') !== null;
+    const liveCardCount = () => cards.filter(isLive).length;
+    for (let i = 0; i < cards.length; i += 3) {
+      const group = cards.slice(i, i + 3);
+      await act(async () => { group.forEach((c) => FakeIO.setVisible(c, true)); });
+      expect(group.every(isLive)).toBe(true);
+      expect(liveCardCount()).toBe(group.length);
+      await act(async () => { group.forEach((c) => FakeIO.setVisible(c, false)); });
+      expect(liveCardCount()).toBe(0);
+    }
+    // 30s timeout (not the 5s default): the walk is 50 show/hide rounds over 150 cards.
+    view.unmount();
+    expect(liveCardCount()).toBe(0);
+  }, 30000);
 });
