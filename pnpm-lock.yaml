@@ -86,6 +86,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      disposable-email-domains:
+        specifier: ^1.0.62
+        version: 1.0.62
       framer-motion:
         specifier: ^11.11.17
         version: 11.18.2(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -3079,6 +3082,9 @@ packages:
 
   devtools-protocol@0.0.1608973:
     resolution: {integrity: sha512-Tpm17fxYzt+J7VrGdc1k8YdRqS3YV7se/M6KeemEqvUbq/n7At1rWVuXMxQgpWkdwSdIEKYbU//Bve+Shm4YNQ==}
+
+  disposable-email-domains@1.0.62:
+    resolution: {integrity: sha512-LBQvhRw7mznQTPoyZbsmYeNOZt1pN5aCsx4BAU/3siVFuiM9f2oyKzUaB8v1jbxFjE3aYqYiMo63kAL4pHgfWQ==}
 
   doctrine@2.1.0:
     resolution: {integrity: sha512-35mSku4ZXK0vfCuHEDAwt55dg2jNajHZ1odvF+8SSr82EsZY4QmXfuWso8oEd8zRhVObSN18aM0CjSdoBX7zIw==}
@@ -7417,6 +7423,8 @@ snapshots:
   detect-libc@2.1.2: {}
 
   devtools-protocol@0.0.1608973: {}
+
+  disposable-email-domains@1.0.62: {}
 
   doctrine@2.1.0:
     dependencies:

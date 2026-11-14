@@ -10,6 +10,7 @@ import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/
 import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
 import { billedMinutesForRender, reserveMinutes, settleReservation } from "@/lib/billing/minutes";
 import { assertLookAllowedForPlan } from "@/lib/billing/looks";
+import { attachDeviceCookie, enforceFreeTrialGrant } from "@/lib/billing/trial";
 import { getWatermarkStatus } from "@/lib/billing/watermark";
 import { putObject, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
@@ -46,24 +47,11 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   if (!docRow) throw new ApiFailure("CONFLICT", "There are no captions to export yet.");
   if (!project.style_json) throw new ApiFailure("CONFLICT", "Choose a caption style before exporting.");
 
-  // Premium looks (monetization): the server refuses a premium look for a
-  // Free user before any work is done — before minutes are reserved and
-  // before a text file or a render job is created. The look is never
-  // silently swapped for a free one: the error tells them to pick a free
-  // look or upgrade. This runs before the text branch on purpose: the
-  // export records the look id for every kind, so the rule is one rule
-  // for the whole route, not a different rule per format.
-  const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
-  assertLookAllowedForPlan(
-    (project as { look_id?: string | null }).look_id,
-    profile?.plan,
-    (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
-  );
-
   const doc = CaptionDocSchema.parse(docRow.doc);
   const settings = ProjectSettingsSchema.parse(project.settings_json ?? {});
   const style = CaptionStyleSchema.parse(project.style_json);
   const { data: video } = await user.db.from("videos").select("id, width, height, fps, duration_ms").eq("project_id", projectId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
 
   const exportId = crypto.randomUUID();
   const safeTitle = String(project.title || "captions").replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 60);
@@ -137,6 +125,20 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const effectivePlan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
   const retentionDays = planFor(effectivePlan).exportRetentionDays;
 
+  // Premium looks (monetization, VIDEO kinds only — Builder 5 fix):
+  // a text export (SRT/VTT/ASS/TXT/JSON) carries no look styling, so
+  // gating it on look tier over-blocks. The gate lives here, after the
+  // text branch has returned, so a Free user whose project uses a
+  // premium look can still export SRT. Video renders are refused for a
+  // Free user before any minutes are reserved and before a job is
+  // created. The look is never silently swapped for a free one: the
+  // error tells them to pick a free look or upgrade.
+  assertLookAllowedForPlan(
+    (project as { look_id?: string | null }).look_id,
+    profile?.plan,
+    (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
+  );
+
   // Watermark (monetization): the server decides, per project — a Free
   // user without a ₹69 entitlement for THIS project gets the mark on
   // MP4; paid users and entitled projects render clean. The decision
@@ -152,6 +154,19 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     expiresAt: (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
   });
   const watermark = body.kind === "mp4" ? watermarkStatus.watermark : null;
+
+  // Free-trial protection (monetization, Builder 5): the Free 5 minutes
+  // are granted lazily by reserve_minutes, so this gate runs BEFORE the
+  // reserve — verified email, no disposable address, no guest, and the
+  // IP-hash check. Paid plans skip it entirely. The device cookie is
+  // set on the response below when the browser had none.
+  const trial = await enforceFreeTrialGrant({
+    admin,
+    user: { id: user.id, email: user.email, guest: user.guest, emailVerified: user.emailVerified },
+    plan: effectivePlan,
+    req,
+    turnstileToken: req.headers.get("x-turnstile-token"),
+  });
 
   // Minutes ledger (replaces the old monthly video quota — one meter
   // only, never two): a video export reserves its whole minutes BEFORE
@@ -212,5 +227,7 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     await settleReservation(admin, { ownerId: user.id, exportId, outcome: "failed" }).catch(() => {});
     throw e;
   }
-  return ok({ exportId, jobId: job.id, ready: false, companionOnline: await hasOnlineCompanion(user.id), minutesReserved: reservation.minutes, watermark }, 202);
+  const res = ok({ exportId, jobId: job.id, ready: false, companionOnline: await hasOnlineCompanion(user.id), minutesReserved: reservation.minutes, watermark }, 202);
+  attachDeviceCookie(res, trial.deviceId, trial.deviceIsNew);
+  return res;
 });

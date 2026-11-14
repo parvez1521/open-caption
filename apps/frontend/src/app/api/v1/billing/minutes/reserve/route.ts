@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ok, parseBody, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { getMinutesUsage, reserveMinutes } from "@/lib/billing/minutes";
+import { attachDeviceCookie, enforceFreeTrialGrant } from "@/lib/billing/trial";
 
 const Body = z.object({
   exportId: z.string().uuid(),
@@ -18,8 +19,11 @@ const Body = z.object({
  * sign-in is needed). The minutes come from the client (the animation's
  * own duration — there is no video row for the server to recompute
  * from), capped at 60, and the caller settles in the sibling settle
- * endpoint after the file is saved. Guests may reserve too, on the
- * anonymous id; their minutes do not carry over on claim.
+ * endpoint after the file is saved. Guests get NO trial minutes
+ * (Builder 5): a guest reserve for a Free plan is refused with the
+ * signup response — the Free 5 minutes need a verified account, and
+ * the lazy grant inside reserve_minutes would otherwise mint them on
+ * the anonymous id.
  *
  * Honest limit, same as every browser render: the server cannot observe
  * a render that runs on the device. A modified client can skip this
@@ -33,6 +37,20 @@ export const POST = route(async (req: Request) => {
   const admin = getAdmin();
   const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
   const plan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
+
+  // Free-trial protection (monetization, Builder 5): same gate as the
+  // Studio reserve routes — verified email, no disposable address, no
+  // guest, and the IP-hash check — before any minutes are held. Paid
+  // plans skip it entirely. Motion Studio is a known bypass surface
+  // (audit §3.3): leaving it ungated would mint a second trial here.
+  const trial = await enforceFreeTrialGrant({
+    admin,
+    user: { id: user.id, email: user.email, guest: user.guest, emailVerified: user.emailVerified },
+    plan,
+    req,
+    turnstileToken: req.headers.get("x-turnstile-token"),
+  });
+
   const reservation = await reserveMinutes(admin, {
     ownerId: user.id,
     projectId: null,
@@ -48,5 +66,7 @@ export const POST = route(async (req: Request) => {
   } catch {
     usage = null;
   }
-  return ok({ reservationKey: reservation.reservationKey, exportId: body.exportId, minutes: reservation.minutes, balance: reservation.balance, usage }, 201);
+  const res = ok({ reservationKey: reservation.reservationKey, exportId: body.exportId, minutes: reservation.minutes, balance: reservation.balance, usage }, 201);
+  attachDeviceCookie(res, trial.deviceId, trial.deviceIsNew);
+  return res;
 });

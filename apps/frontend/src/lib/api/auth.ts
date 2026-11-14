@@ -10,6 +10,16 @@ export interface AuthedUser {
   token: string;
   /** anonymous guest who hasn't signed up yet (may edit, may not export) */
   guest: boolean;
+  /**
+   * Email verified in Supabase Auth (email_confirmed_at set, or the
+   * account came from Google, which verifies the address itself).
+   * Read server-side from auth.users on every token check — never from
+   * a client claim. The free-trial gate (lib/billing/trial.ts) reads
+   * this; other routes ignore it.
+   */
+  emailVerified: boolean;
+  /** Supabase Auth provider (app_metadata.provider, e.g. "google" | "email"), or null. */
+  authProvider: string | null;
   /** acts as the user; Postgres RLS enforces ownership */
   db: SupabaseClient;
 }
@@ -25,7 +35,24 @@ const bearer = (req: Request): string | null => {
  * expired token is always checked again.
  */
 const TOKEN_TTL_MS = 20_000;
-const verified = new Map<string, { id: string; email: string | null; guest: boolean; until: number }>();
+const verified = new Map<string, { id: string; email: string | null; guest: boolean; emailVerified: boolean; authProvider: string | null; until: number }>();
+
+/**
+ * True when Supabase Auth counts the address as verified: the
+ * confirmation timestamp is set, or the account came from Google
+ * (Google verifies the address itself, so Supabase marks OAuth users
+ * confirmed at signup). Pure, so the trial gate can unit-test it.
+ */
+export function isEmailVerifiedForTrial(user: {
+  email_confirmed_at?: string | null;
+  app_metadata?: { provider?: string | null };
+  identities?: Array<{ provider?: string | null }> | null;
+}): boolean {
+  if (user.email_confirmed_at) return true;
+  if (user.app_metadata?.provider === "google") return true;
+  if (user.identities?.some((i) => i.provider === "google")) return true;
+  return false;
+}
 
 /** Verifies the Supabase access token and returns an RLS-scoped client. profiles.id === auth.users.id since P1. */
 export async function requireUser(req: Request): Promise<AuthedUser> {
@@ -33,14 +60,16 @@ export async function requireUser(req: Request): Promise<AuthedUser> {
   if (!token) throw new ApiFailure("UNAUTHORIZED", "Missing bearer token");
   const now = Date.now();
   const hit = verified.get(token);
-  if (hit && hit.until > now) return { id: hit.id, email: hit.email, token, guest: hit.guest, db: getUserClient(token) };
+  if (hit && hit.until > now) return { id: hit.id, email: hit.email, token, guest: hit.guest, emailVerified: hit.emailVerified, authProvider: hit.authProvider, db: getUserClient(token) };
   const { data, error } = await getAdmin().auth.getUser(token);
   if (error || !data.user) throw new ApiFailure("UNAUTHORIZED", "Invalid or expired token");
   const u = data.user;
   const guest = !!u.is_anonymous && !u.email && !u.new_email;
+  const emailVerified = isEmailVerifiedForTrial(u);
+  const authProvider = (u.app_metadata?.provider as string | null) ?? null;
   if (verified.size > 500) for (const [k, v] of verified) if (v.until <= now) verified.delete(k);
-  verified.set(token, { id: u.id, email: u.email ?? null, guest, until: now + TOKEN_TTL_MS });
-  return { id: u.id, email: u.email ?? null, token, guest, db: getUserClient(token) };
+  verified.set(token, { id: u.id, email: u.email ?? null, guest, emailVerified, authProvider, until: now + TOKEN_TTL_MS });
+  return { id: u.id, email: u.email ?? null, token, guest, emailVerified, authProvider, db: getUserClient(token) };
 }
 
 export const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");

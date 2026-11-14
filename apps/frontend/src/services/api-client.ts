@@ -79,13 +79,13 @@ async function fetchWithNetworkErrorHandling(url: string, init: RequestInit): Pr
 }
 
 export const apiClient = {
-  async post<T>(path: string, init?: { json?: unknown; formData?: FormData; signal?: AbortSignal }): Promise<T> {
+  async post<T>(path: string, init?: { json?: unknown; formData?: FormData; signal?: AbortSignal; headers?: Record<string, string> }): Promise<T> {
     const token = await getAuthToken();
     const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
     const response = await fetchWithNetworkErrorHandling(`${API_BASE_URL}${path}`, {
       method: "POST",
-      headers: init?.formData ? headers : { ...headers, "Content-Type": "application/json" },
+      headers: init?.formData ? { ...headers, ...init.headers } : { ...headers, ...init?.headers, "Content-Type": "application/json" },
       body: init?.formData ?? (init?.json !== undefined ? JSON.stringify(init.json) : undefined),
       signal: init?.signal,
     });
