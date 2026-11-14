@@ -14,7 +14,7 @@ import type { SVGProps } from "react";
  * strokeWidth={3} (UploadPanel language check) wins.
  *
  * No sparkle icon lives here on purpose: the ban list forbids sparkle icons.
- * "No watermark" uses BadgeCheck (circle + check) instead.
+ * "Free MP4 exports carry a small watermark" (UploadPanel) uses BadgeCheck (circle + check) instead.
  */
 
 type IconProps = SVGProps<SVGSVGElement>;

@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PLAN_PERIOD_DAYS, planIdFor, type PlanId } from "@capseasy/shared";
 import { grantCycleMinutes } from "./minutes";
+import { isWatermarkPayment } from "./watermark";
 
 /**
  * Settling a payment — the ONE place a plan is granted or a payment is
@@ -21,9 +22,18 @@ export interface PaymentRow {
   cf_order_id: string;
   cf_payment_id: string | null;
   plan: string;
+  /**
+   * Product discriminator (watermark migration): "plan" for plan
+   * purchases, "watermark" for a ₹69 removal. Rows written before the
+   * migration have no value — they are plan purchases (see
+   * isWatermarkPayment: a missing product falls back to plan).
+   */
+  product?: string | null;
+  /** The project a watermark purchase removes the mark from. Null on plan purchases. */
+  project_id?: string | null;
   amount: number;
   currency: string;
-  status: "created" | "paid" | "failed" | "expired";
+  status: "created" | "paid" | "failed" | "expired" | "refunded";
   created_at: string;
   paid_at: string | null;
   period_start: string | null;
@@ -44,6 +54,12 @@ export interface PaymentRow {
  * was settled while the ledger was missing.
  */
 export async function settlePaid(admin: SupabaseClient, payment: PaymentRow, cfPaymentId: string | null): Promise<PaymentRow> {
+  // A watermark purchase is not a plan: it must never reach the plan
+  // grant below (planIdFor("watermark") reads as Free and would mint
+  // the one-time 5 minutes). Watermark orders settle in
+  // settleWatermarkPaid instead; the webhook and reconcile routes
+  // branch on the product before calling either.
+  if (isWatermarkPayment(payment)) throw new Error("settlePaid called for a watermark payment");
   if (payment.status !== "created" && payment.status !== "paid") return payment;
   const plan = planIdFor(payment.plan) as PlanId;
   const now = new Date();

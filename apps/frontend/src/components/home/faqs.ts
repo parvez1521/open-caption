@@ -2,7 +2,7 @@
 export const FAQS = [
   {
     q: "Is Captionit really free?",
-    a: "Yes. Captions, every look, the full editor, MP4 and SRT exports are free.. No watermark. Free videos can be up to 5 minutes long. Paid 30-day passes raise the limits. See Pricing.",
+    a: "Yes. Captions, every look, the full editor and SRT exports are free. Free MP4 exports carry a small Captionit watermark. Paid plans export clean, and ₹69 once removes it from one video. Free videos can be up to 5 minutes long. Paid plans add minutes — see Pricing.",
   },
   {
     q: "Is my video uploaded anywhere?",
@@ -14,7 +14,7 @@ export const FAQS = [
   },
   {
     q: "How is Captionit different from basic CapCut or Premiere captions?",
-    a: "CapCut and Premiere captions are plain timed text. Here every word is timed to the speech. The key word on each line gets its own look. Colour, box or motion.. You start from 150 animated looks. No watermark, nothing to install.",
+    a: "CapCut and Premiere captions are plain timed text. Here every word is timed to the speech, the key word on each line gets its own colour, box or motion, and you start from 150 animated looks. Nothing to install.",
   },
   {
     q: "Do I need to install anything?",

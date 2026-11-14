@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
-import { PLANS } from "@capseasy/shared";
+import { PLANS, WATERMARK_REMOVAL_PRICE_INR } from "@capseasy/shared";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
 import { LEGAL } from "@/lib/legal";
@@ -32,6 +32,8 @@ export default function TermsPage() {
 
       <Sec id="plans" title="3. Free service and limits">
         <p>The <strong>Free</strong> plan currently includes videos up to {Math.round(free.maxDurationSec / 60)} minutes, kept on your device up to {uploadLimitLabel(free.maxLocalBytes)}, up to {free.maxProjects} projects, with exports kept for {free.exportRetentionDays} days. Files sent to our storage — for example a video sent to a Companion export — are limited to {uploadLimitLabel(free.maxUploadBytes)}. Transcription runs in your browser and is unlimited.</p>
+        <p>Processing minutes are the meter for video exports. Free includes 5 minutes once, ever. Paid plans include fresh minutes each billing cycle. Unused minutes do not roll over. Text caption files (SRT, VTT, ASS, TXT, JSON) are free and never use minutes.</p>
+        <p>Free MP4 exports carry a small Captionit watermark. Paid plans export clean. A one-time ₹{WATERMARK_REMOVAL_PRICE_INR} payment removes the watermark from one video project, and re-exports of that same project stay clean. The removal buys nothing else: no minutes, no looks, no MOV export. A refund of the ₹{WATERMARK_REMOVAL_PRICE_INR} payment removes the watermark removal again, so the project is watermarked once more.</p>
         <p>Paid plans (Starter, Plus and Pro) raise those limits for 30 days at a time. They are sold as one-time 30-day passes at the prices published on the <Link href="/pricing">Pricing page</Link>, with payment processed by Cashfree. A pass never renews or charges you automatically: when its 30 days end, your account returns to Free limits and your projects are untouched. Nothing is ever charged unless you explicitly buy a pass.</p>
       </Sec>
 

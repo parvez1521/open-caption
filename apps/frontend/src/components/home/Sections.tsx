@@ -206,7 +206,7 @@ export function Hero() {
         </h1>
 
         <p data-hero="sub" className="mt-5 max-w-lg text-[15px] leading-relaxed text-[#FFFFEB]/70 sm:text-[17px] font-medium">
-          Captionit turns speech into animated, word-timed captions. For Shorts, Reels and TikTok. 150 looks and 14 languages. No watermark. All in the tab you already have open.
+          Captionit turns speech into animated, word-timed captions. For Shorts, Reels and TikTok. 150 looks and 14 languages. Free in the tab you already have open.
         </p>
 
         <div data-hero="cta" className="mt-7 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -224,7 +224,7 @@ export function Hero() {
           </Link>
         </p>
         <p data-hero="points" className="mt-6 font-mono text-xs tracking-wide text-[#FFFFEB]/50">
-          150 looks · 14 languages · No watermark
+          150 looks · 14 languages · Free to start
         </p>
         <HinglishClaim />
       </div>
@@ -713,7 +713,7 @@ export function ClosingCta() {
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-xl">
             <h2 className="font-styled text-4xl font-bold tracking-tight sm:text-5xl">Start with one clip.</h2>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-[#FFFFEB]/70 sm:text-lg">Upload a video and see your words on screen in under a minute. Free, no watermark.</p>
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-[#FFFFEB]/70 sm:text-lg">Upload a video and see your words on screen in under a minute. Free to start.</p>
           </div>
           <div className="flex shrink-0 flex-col items-start gap-2">
             <Link href="/start?choose=1" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:text-lg">

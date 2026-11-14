@@ -11,6 +11,8 @@ import {
 import { canExportInBrowser, exportMp4InBrowser, saveBlob } from "./browserExport";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studioService, type ExportKind, type ExportRow } from "@/services/studio";
+import { loadCashfreeSdk } from "@/lib/billing/cashfreeClient";
+import { WATERMARK_REMOVAL_PRICE_INR } from "@capseasy/shared";
 import { EXPORT_OPTIONS, exportDimsWithCanvas, optionKey, translatedTextOptions, type ExportOption } from "./exportOptions";
 import type { CanvasSettings } from "./canvas";
 import { ApiError } from "@/services/api-client";
@@ -139,7 +141,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
    * encoder meanwhile the render never moves again, so a render that makes no progress for 45 s while the tab is
    * visible is stopped and started again by itself (a render can't resume half-way).
    */
-  const exportHere = async (exportId: string, reservedMinutes: number, attempt = 0) => {
+  const exportHere = async (exportId: string, reservedMinutes: number, watermark: { text: string } | null, attempt = 0) => {
     if (!renderInput) return;
     setError(null);
     setWebDone(null);
@@ -174,7 +176,11 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       const started = clock();
       setPhaseLabel(null);
       let blob = await exportMp4InBrowser({
-        input: renderInput,
+        // Watermark: the reserve endpoint's server-side decision wins — it
+        // is what the preview showed, resolved at render time. A modified
+        // client can skip the reserve call on the browser path, so this is
+        // a deterrent here and a guarantee only on the server path.
+        input: { ...renderInput, watermark },
         width: outDims.width,
         height: outDims.height,
         fps: outFps,
@@ -238,7 +244,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     if (again) {
       Sentry.captureMessage("export: restarted after a stall", { level: "info", extra: { attempt } });
       setRestarted(true);
-      await exportHere(exportId, reservedMinutes, attempt + 1);
+      await exportHere(exportId, reservedMinutes, watermark, attempt + 1);
     }
   };
 
@@ -255,6 +261,45 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     staleTime: 60_000,
   });
   const minutes = minutesQ.data?.minutes ?? null;
+
+  /** Watermark state for this project — the server-side truth. The preview shows the same value. */
+  const watermarkQ = useQuery({
+    queryKey: ["watermark", projectId],
+    queryFn: () => studioService.watermarkStatus(projectId),
+    staleTime: 60_000,
+  });
+  const watermarkState = watermarkQ.data ?? null;
+  const [watermarkBusy, setWatermarkBusy] = useState(false);
+  const [watermarkNotice, setWatermarkNotice] = useState<string | null>(null);
+
+  /**
+   * Buy the ₹69 one-time removal for this project. Checkout opens on the
+   * billing page's return URL, where the payment is confirmed with
+   * Cashfree directly — the webhook then grants the removal, and this
+   * project exports clean from the next open of this panel.
+   */
+  const buyWatermark = async () => {
+    setWatermarkBusy(true);
+    setWatermarkNotice(null);
+    try {
+      const res = await studioService.buyWatermarkRemoval(projectId);
+      if (res.alreadyEntitled) {
+        setWatermarkNotice("This video already exports clean.");
+        await qc.invalidateQueries({ queryKey: ["watermark", projectId] });
+        return;
+      }
+      if (!res.configured || !res.paymentSessionId) {
+        setWatermarkNotice("Watermark removal checkout isn't switched on yet. Your export is unchanged.");
+        return;
+      }
+      const cashfree = await loadCashfreeSdk();
+      await cashfree({ mode: res.env ?? "sandbox" }).checkout({ paymentSessionId: res.paymentSessionId, returnTarget: "_self" });
+    } catch (e) {
+      setWatermarkNotice(e instanceof ApiError || e instanceof Error ? e.message : "Checkout didn't start. Please try again.");
+    } finally {
+      setWatermarkBusy(false);
+    }
+  };
 
   const download = async (id: string) => {
     try {
@@ -294,7 +339,12 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         setWeb(w);
         setBusyKind(null);
       }
-      if (w.ok && renderInput?.src) return exportHere(exportId, reservation.minutes);
+      if (w.ok && renderInput?.src) {
+        // The reserve endpoint's watermark decision wins over the preview's
+        // copy (same server truth, resolved at render time); the preview's
+        // value is only the fallback when the server sent none.
+        return exportHere(exportId, reservation.minutes, reservation.watermark ?? renderInput.watermark ?? null);
+      }
       // The render cannot start after all: give the hold straight back.
       void studioService.settleBrowserExport(projectId, { exportId, kind: "mp4", outcome: "failed" }).catch(() => {});
       setError(w.ok ? "The video isn't loaded yet. Wait a moment and try again." : w.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari.");
@@ -431,6 +481,20 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             <Button tone="primary" className="mt-3 w-full !py-3 text-sm font-semibold" disabled={renderDisabled} onClick={() => void start(selected)}>
               {busyKind === optionKey(selected) ? "Working…" : renderLabel(selected)}
             </Button>
+          ) : null}
+          {watermarkState?.watermark && selected?.kind === "mp4" ? (
+            <div className="mt-3 rounded-xl border border-st-line bg-st-raised/50 p-3 text-sm text-st-text/80">
+              <p>Free MP4 exports carry a small Captionit watermark.</p>
+              <p className="mt-1 text-xs text-st-muted">Remove it from this video for ₹{WATERMARK_REMOVAL_PRICE_INR}, once. Re-exports stay clean.</p>
+              {watermarkState.watermarkReady ? (
+                <Button className="mt-2 !px-3 !py-2 text-xs font-semibold" disabled={watermarkBusy} onClick={() => void buyWatermark()}>
+                  {watermarkBusy ? "Opening checkout…" : `Remove the watermark — ₹${WATERMARK_REMOVAL_PRICE_INR} once`}
+                </Button>
+              ) : (
+                <p className="mt-2 text-xs text-st-muted">Watermark removal checkout isn&apos;t set up yet.</p>
+              )}
+              {watermarkNotice ? <p role="status" className="mt-2 text-xs text-st-text">{watermarkNotice}</p> : null}
+            </div>
           ) : null}
           {minutes ? (
             <p className="mt-2 text-xs text-st-muted">

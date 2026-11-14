@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
-import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
+import { CaptionDocSchema, WATERMARK_TEXT, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
 import { defaultVoiceMemberAvatars } from "@capseasy/motion";
 import { deleteWordsByIds, insertWordAfter, mergeWithNext, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
@@ -14,7 +14,7 @@ import { Copy, EyeOff, Keyboard, Redo2, Scissors, Star, Trash2, Undo2 } from "@/
 import { Logo } from "@/components/brand/Logo";
 import { StudioSkeleton } from "@/components/brand/Skeletons";
 import { useBrandNav } from "@/components/brand/BrandNav";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth";
 import { ApiError } from "@/services/api-client";
 import { Button } from "./controls";
@@ -797,6 +797,16 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     [mediaBin.assets],
   );
 
+  // Watermark (monetization): the server-side decision for this project, shared by the
+  // Player preview and the browser MP4 export through the `input` object below. Until the
+  // server answers, the preview assumes watermarked — fail closed (see the `input` comment).
+  const watermarkQ = useQuery({
+    queryKey: ["watermark", projectId],
+    queryFn: () => studioService.watermarkStatus(projectId),
+    staleTime: 60_000,
+  });
+  const previewWatermark = watermarkQ.data ? watermarkQ.data.watermark : { text: WATERMARK_TEXT };
+
   const input = useMemo(
     () =>
       doc && style
@@ -809,6 +819,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             // bilingual track (slice 5.1): only spread when a saved track exists for the chosen
             // target, so projects without one build exactly the pre-5.1 input object
             ...(activeTranslatedDoc ? { translatedDoc: activeTranslatedDoc } : {}),
+            // watermark (monetization): the preview shows exactly what the export will carry.
+            // The server decides (free without a ₹69 entitlement → watermarked; paid or
+            // entitled → clean). Until the server answers, the preview assumes watermarked:
+            // a clean preview for a watermarked export would be the trust failure, while a
+            // mark that clears a moment later is just the server confirming the plan.
+            ...(previewWatermark ? { watermark: previewWatermark } : {}),
             style,
             settings,
             mode: "burn" as const,
@@ -825,7 +841,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             segmentAssets: segmentAssetUrls,
           }
         : null,
-    [doc, style, settings, video?.url, canvasSize.width, canvasSize.height, fps, durationMs, overlayAssetUrls, voiceMemberAssetsByItemId, segmentAssetUrls, activeTranslatedDoc],
+    [doc, style, settings, video?.url, canvasSize.width, canvasSize.height, fps, durationMs, overlayAssetUrls, voiceMemberAssetsByItemId, segmentAssetUrls, activeTranslatedDoc, previewWatermark],
   );
   // export reads frames: a video the decoder can't read uses the compatible copy instead
   const exportInput = useMemo(() => (input && compat.url ? { ...input, src: compat.url } : input), [input, compat.url]);

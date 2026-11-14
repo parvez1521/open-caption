@@ -5,7 +5,7 @@
 export const AUTO_CAPTION_FAQS = [
   {
     q: "Is the automatic caption generator free?",
-    a: "Yes. Captions, every look, the full editor, MP4 and SRT exports are free.. No watermark. Free videos can be up to 5 minutes long. Paid 30-day passes raise the limits. See Pricing.",
+    a: "Yes. Captions, every look, the full editor and SRT exports are free. Free MP4 exports carry a small Captionit watermark. Paid plans export clean, and ₹69 once removes it from one video. Free videos can be up to 5 minutes long. Paid plans add minutes — see Pricing.",
   },
   {
     q: "Do I have to upload my video anywhere?",

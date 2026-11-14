@@ -19,7 +19,7 @@
   (Hinglish model is Oriserve Whisper-Hindi2Hinglish-Swift, fine-tuned);
   MP4/MOV/WebM/MKV input; MP4 + transparent MOV/WebM overlays (Companion
   app) + SRT/VTT/ASS/TXT/JSON export; free up to 5 minutes; paid up to
-  3 hours; 30-day passes, no auto-renew; no watermark.
+  3 hours; monthly plans; free MP4 exports carry a small Captionit watermark (paid plans export clean, ₹69 once removes it from one video).
 - **Honesty rules applied:** limits stated on the page ("What it cannot
   do"); no invented stats, ratings, testimonials or user counts; "largest
   style count" qualified as "we verified among rival tools in this

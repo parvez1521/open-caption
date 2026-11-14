@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/api/auth";
 import { notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { VIDEO_MINUTES_KINDS, billedMinutesForRender, getMinutesUsage, reserveMinutes } from "@/lib/billing/minutes";
+import { getWatermarkStatus } from "@/lib/billing/watermark";
 
 const Body = z.object({
   exportId: z.string().uuid(),
@@ -58,11 +59,23 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     expiresAt: (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
   });
 
+  // Watermark (monetization): the server decides, per project — the modal
+  // renders with this value, so the browser MP4 carries exactly what the
+  // preview showed. A modified client can skip this call on the browser
+  // path, so this is a deterrent there and a guarantee only on the server
+  // path (the job payload).
+  const watermarkStatus = await getWatermarkStatus(admin, {
+    ownerId: user.id,
+    projectId,
+    plan: profile?.plan,
+    expiresAt: (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
+  });
+
   let usage = null;
   try {
     usage = await getMinutesUsage(admin, user.id, plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null);
   } catch {
     usage = null;
   }
-  return ok({ reservationKey: reservation.reservationKey, exportId: body.exportId, minutes: reservation.minutes, balance: reservation.balance, usage }, 201);
+  return ok({ reservationKey: reservation.reservationKey, exportId: body.exportId, minutes: reservation.minutes, balance: reservation.balance, usage, watermark: watermarkStatus.watermark }, 201);
 });

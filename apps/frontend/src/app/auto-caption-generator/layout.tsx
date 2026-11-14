@@ -5,7 +5,7 @@ import { faqPageJsonLd, pageMetadata, softwareApplicationJsonLd } from "@/lib/se
 export const metadata: Metadata = pageMetadata({
   title: "Automatic Video Caption Generator — Free, In Your Browser",
   description:
-    "Generate word-timed captions for your video. Free, in your browser. 150 animated looks. 14 languages, including Hindi and Hinglish. MP4 and SRT export. No watermark. Nothing to install.",
+    "Generate word-timed captions for your video automatically, free and in your browser. 150 animated looks, 14 languages including Hindi and Hinglish, MP4 and SRT export, nothing to install.",
   path: "/auto-caption-generator",
 });
 

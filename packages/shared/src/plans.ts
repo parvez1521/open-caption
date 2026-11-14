@@ -120,6 +120,9 @@ export const PLAN_PERIOD_DAYS = 30;
 export const WATERMARK_REMOVAL_PRICE_INR = 69;
 export const WATERMARK_REMOVAL_PRICE_USD: number | null = null;
 
+/** The mark painted on Free MP4 exports (paid plans and ₹69-removed projects render clean). */
+export const WATERMARK_TEXT = "Captionit";
+
 /** Caption looks: Free gets 25 of 150. Paid plans get all 150. */
 export const FREE_LOOKS_COUNT = 25;
 export const TOTAL_LOOKS_COUNT = 150;

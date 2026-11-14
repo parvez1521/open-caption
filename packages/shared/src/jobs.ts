@@ -54,6 +54,14 @@ export const RenderJobSchema = z.object({
    * `settings.bilingual` is on, exactly like the preview/browser paths.
    */
   translatedDocSnapshot: CaptionDocSchema.optional(),
+  /**
+   * Watermark (monetization, Builder 3): decided server-side per project —
+   * a Free user without a ₹69 entitlement for this project renders the
+   * mark on MP4; paid users and entitled projects render clean. Optional
+   * so pre-watermark queued jobs still validate; the composition only draws
+   * it in burn mode, so overlay jobs never carry it.
+   */
+  watermark: z.object({ text: z.string().min(1).max(40) }).nullable().optional(),
   style: CaptionStyleSchema,
   settings: ProjectSettingsSchema,
   fonts: z.array(FontRefSchema).default([]),
