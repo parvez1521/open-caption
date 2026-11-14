@@ -75,6 +75,9 @@ export interface TemplateDefinition {
   Page: React.FC<PageRenderProps>;
 }
 
+/** Monetization tier of a look. Free plans get the 25 free looks; paid plans get all 150. */
+export type LookTier = "free" | "premium";
+
 export interface LookDefinition {
   id: string;
   name: string;
@@ -88,6 +91,14 @@ export interface LookDefinition {
   /** short traits shown under the gallery preview ("Caps", "Box highlight") */
   tags?: string[];
   legacy?: boolean;
+  /**
+   * Monetization tier, assigned by the registry from FREE_LOOK_IDS — never
+   * by a look definition file. Like `trending`, display/entitlement metadata
+   * only: it is NOT part of a look's style or its uniqueness signature, so
+   * flipping it never changes a render. User-saved templates carry no tier
+   * and are treated as free (they are the creator's own style).
+   */
+  tier?: LookTier;
   /**
    * Display metadata only: curated "Trending" picks for the landing hero cylinder and the studio
    * picker badge. Deliberately NOT part of a look's style or its uniqueness signature

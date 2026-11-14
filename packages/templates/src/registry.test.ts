@@ -3,7 +3,7 @@ import { CaptionStyleSchema } from "@capseasy/shared";
 import { PACK_LOOKS } from "./pack";
 import { PREMIUM_LOOKS } from "./looks/premium";
 import { LOOK_NUMBER_ORDER, RETIRED_LOOK_NUMBERS } from "./looks/numbers";
-import { KNOWN_FONTS, FALLBACK_TEMPLATE, LOOKS, LOOK_SECTIONS, TEMPLATE_IDS, TRENDING_LOOK_IDS, TRENDING_LOOKS, applyLook, deepMerge, getLook, getTemplate, lookCategories, resolveStyle } from "./index";
+import { KNOWN_FONTS, FALLBACK_TEMPLATE, FREE_LOOK_IDS, LOOKS, LOOK_SECTIONS, TEMPLATE_IDS, TRENDING_LOOK_IDS, TRENDING_LOOKS, applyLook, deepMerge, getLook, getTemplate, lookCategories, resolveStyle } from "./index";
 
 describe("template registry", () => {
   it("ships the 8 legacy templates", () => {
@@ -74,6 +74,46 @@ describe("template registry", () => {
       const { trending: _t, ...rest } = l;
       expect(resolveStyle(rest.style)).toEqual(resolveStyle(l.style));
     }
+  });
+
+  it("look tiers pin the monetization split: 25 free, 125 premium, 150 total", () => {
+    expect(FREE_LOOK_IDS.size).toBe(25);
+    expect(LOOKS.length).toBe(150);
+    expect(LOOKS.filter((l) => l.tier === "free").map((l) => l.id).sort()).toEqual([...FREE_LOOK_IDS].sort());
+    expect(LOOKS.filter((l) => l.tier === "premium")).toHaveLength(125);
+    for (const l of LOOKS) expect(l.tier, `${l.id} needs a tier`).toMatch(/^(free|premium)$/);
+    // the 25, copied exactly from the owner brief — do not re-pick, add or swap
+    expect([...FREE_LOOK_IDS].sort()).toEqual(
+      ["netflix_sub", "minimal_pro", "read_along", "shimmer_pass", "explainer", "highlighter_card", "broadcast_lower", "hormozi_box", "karaoke_pill", "chat_bubble", "storytime", "wave_bounce", "scribble", "cream_strip_lines", "terminal", "motivational", "luxe_serif", "retro_vhs", "soft_glow", "selection_highlight", "plain_lowercase", "solid_label_card", "light_to_bold", "typo_big_small", "typo_editorial_indent"].sort(),
+    );
+    expect(getLook("netflix_sub")?.tier).toBe("free");
+    expect(getLook("metal_script")?.tier).toBe("premium");
+    // retired looks keep their tier too, so an old project still resolves with one (a retired
+    // premium look stays premium); hidden looks resolve to nothing and carry no tier
+    for (const n of RETIRED_LOOK_NUMBERS) {
+      const id = LOOK_NUMBER_ORDER[n - 1]!;
+      expect(getLook(id)?.tier, `#${n} ${id} needs a tier`).toMatch(/^(free|premium)$/);
+    }
+    expect(getLook("desi_bold")).toBeUndefined();
+    // the tier is not style: stripping it leaves the resolved style untouched
+    for (const l of LOOKS) {
+      const { tier: _t, ...rest } = l;
+      expect(resolveStyle(rest.style)).toEqual(resolveStyle(l.style));
+    }
+  });
+
+  it("the tier leaf and the registry agree on every known look (no drift either way)", async () => {
+    const { isPremiumLookId } = await import("./looks/tiers");
+    // gallery looks
+    for (const l of LOOKS) expect(isPremiumLookId(l.id)).toBe(l.tier === "premium");
+    // retired looks keep resolving with a tier
+    for (const n of RETIRED_LOOK_NUMBERS) {
+      const id = LOOK_NUMBER_ORDER[n - 1]!;
+      expect(isPremiumLookId(id)).toBe(getLook(id)?.tier === "premium");
+    }
+    // every number-list id resolves, so membership in the leaf is exactly getLook's reach
+    for (const id of LOOK_NUMBER_ORDER) expect(getLook(id), id).toBeDefined();
+    expect(LOOK_NUMBER_ORDER.length).toBe(178);
   });
 
   it("applyLook returns the look's style and timing settings", () => {

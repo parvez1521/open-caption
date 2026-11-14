@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Save, Search } from "@/components/ui/icons";
+import { Save, Search, Star } from "@/components/ui/icons";
 import type { CaptionStyleV2, ProjectSettings } from "@capseasy/shared";
 import { withAlpha } from "@motion-ai/caption-engine/core";
 import { LOOKS, LOOK_SECTIONS, fontStack, loadFontFamily, resolveStyle, type LookDefinition } from "@capseasy/templates";
@@ -133,6 +133,11 @@ export const TemplateCard = React.memo(function TemplateCard({
           {look.name}
           {look.number ? <span className="ml-1.5 font-medium text-st-faint">#{look.number}</span> : null}
         </span>
+        {look.tier === "premium" ? (
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[#FFA946] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">
+            <Star className="h-3 w-3" aria-hidden />Premium
+          </span>
+        ) : null}
         {onRemove ? (
           <button type="button" aria-label={`Delete ${look.name}`} onClick={(e) => { e.stopPropagation(); onRemove(look); }} className="rounded px-1 text-xs text-st-faint hover:bg-st-or/30 hover:text-st-text">✕</button>
         ) : chosen ? (
@@ -155,8 +160,17 @@ export const TemplateCard = React.memo(function TemplateCard({
 export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentStyle, currentSettings }) => {
   const qc = useQueryClient();
   const mine = useQuery({ queryKey: ["my-looks"], queryFn: () => studioService.listLooks() });
+  // Effective plan, for the premium gate below. While it loads — or if it
+  // fails — the panel treats the user as Free (fail closed): a premium
+  // click shows the upgrade prompt instead of applying. A paid user sees
+  // the prompt only if they click before the plan loads; dismiss and pick
+  // again once it has. Display only: the server export routes re-check
+  // the plan before anything renders.
+  const planQ = useQuery({ queryKey: ["billing-plan"], queryFn: () => studioService.billingPlan(), staleTime: 60_000 });
+  const canUsePremium = planQ.data?.plan !== undefined && planQ.data.plan !== "free";
+  const [premiumNotice, setPremiumNotice] = useState<LookDefinition | null>(null);
   const myLooks = useMemo<LookDefinition[]>(
-    () => (mine.data ?? []).map((l) => ({ id: `user:${l.id}`, name: l.name, description: "Saved template", category: "My templates", templateId: l.template_id, style: resolveStyle(l.style_json), settings: l.settings_json })),
+    () => (mine.data ?? []).map((l) => ({ id: `user:${l.id}`, name: l.name, description: "Saved template", category: "My templates", templateId: l.template_id, style: resolveStyle(l.style_json), settings: l.settings_json, tier: "free" as const })),
     [mine.data],
   );
   const cats = useMemo(() => ["All", ...LOOK_SECTIONS.map((s) => s.label), ...(myLooks.length ? ["My templates"] : [])], [myLooks.length]);
@@ -179,6 +193,25 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
     if (!window.confirm(`Delete "${look.name}"?`)) return;
     void studioService.deleteLook(look.id.slice(5)).then(() => qc.invalidateQueries({ queryKey: ["my-looks"] }));
   };
+
+  // Premium gate (display only — the server export routes enforce it):
+  // a Free user clicking a premium look does not apply it. The animated
+  // preview stays visible either way: the card keeps rendering its preview,
+  // so free users can explore premium styles before they upgrade.
+  // useCallback, not an inline arrow: TemplateCard is memoized, and a new
+  // onChoose identity every render would re-render all 150 cards on any
+  // selection change (the looksPanelPerf regression guard pins this).
+  const handleChoose = useCallback(
+    (look: LookDefinition) => {
+      if (look.tier === "premium" && !canUsePremium) {
+        setPremiumNotice(look);
+        return;
+      }
+      setPremiumNotice(null);
+      onChoose(look);
+    },
+    [canUsePremium, onChoose],
+  );
 
   // NOTE: no panel-wide font preload any more. It downloaded every look's full font set (100+ families,
   // up to 7 weights each) the moment the panel opened and finished with a panel-wide re-render — the
@@ -216,13 +249,23 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
         </p>
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
+        {premiumNotice ? (
+          <div role="status" className="rounded-xl border border-st-line bg-st-panel p-3">
+            <p className="text-sm font-bold text-st-text">This look is Premium.</p>
+            <p className="mt-1 text-sm text-st-muted">Free includes 25 looks. Upgrade to use all 150 looks.</p>
+            <div className="mt-2 flex gap-2">
+              <a href="/pricing" className="rounded-lg bg-st-ink px-3 py-2 text-sm font-semibold text-st-panel">View plans</a>
+              <button type="button" onClick={() => setPremiumNotice(null)} className="rounded-lg border border-st-line px-3 py-2 text-sm font-medium text-st-text">Dismiss</button>
+            </div>
+          </div>
+        ) : null}
         {shown.length === 0 ? <p className="py-8 text-center text-sm text-st-faint">No templates match “{q}”.</p> : null}
         {shown.map((look) => (
           <TemplateCard
             key={look.id}
             look={look}
             chosen={look.id === currentLookId}
-            onChoose={onChoose}
+            onChoose={handleChoose}
             onRemove={look.category === "My templates" ? removeLook : undefined}
           />
         ))}
