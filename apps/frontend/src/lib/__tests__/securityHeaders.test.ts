@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildContentSecurityPolicy, securityHeaders } from "../securityHeaders";
@@ -140,6 +140,40 @@ describe("securityHeaders", () => {
     // it is allowed by default — assert the absence, not a value.)
     const pp = securityHeaders.find((h) => h.key === "Permissions-Policy")?.value ?? "";
     expect(pp).not.toContain("identity-credentials-get");
+  });
+
+  it("allows Google Analytics 4 + AdSense (2026-11-15 CSP fix)", () => {
+    // The GA4 tag (script-src) and its beacons (connect-src), plus the
+    // AdSense loader (script-src), all live in the root layout and render
+    // only when their env vars are set (lib/seo.ts gaMeasurementId /
+    // adsensePublisherId). The live site proved the gap: the tag was in the
+    // served HTML but the CSP blocked it, so GA4 Realtime showed 0 users.
+    // The CSP itself is static — it allows these hosts whether or not the
+    // env vars are set; the env gate decides whether the tags render at all.
+    expect(directive("script-src")).toContain("https://www.googletagmanager.com");
+    expect(directive("script-src")).toContain("https://pagead2.googlesyndication.com");
+    const connect = directive("connect-src");
+    expect(connect).toContain("https://www.google-analytics.com");
+    expect(connect).toContain("https://*.google-analytics.com");
+    // Regression: the GA loader's host in the root layout must be the host
+    // this policy allows — a mismatch is exactly the 2026-11-15 failure
+    // (tag in the HTML, blocked by CSP, Realtime 0).
+    const layout = readFileSync(
+      fileURLToPath(new URL("../../app/layout.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(layout).toContain("https://www.googletagmanager.com/gtag/js?id=");
+    expect(layout).toContain("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js");
+    // No ad slots exist in the code yet (no adsbygoogle.push call anywhere
+    // — only the loader in app/layout.tsx), so the ad-serving
+    // hosts are deliberately NOT allowlisted; add them to
+    // img-src/connect-src/frame-src when ad slots ship.
+    expect(layout).not.toContain("adsbygoogle.push");
+    expect(csp).not.toContain("googleads.g.doubleclick.net");
+    expect(csp).not.toContain("tpc.googlesyndication.com");
+    // Nothing new is framed: the lockdown test pins frame-src exactly.
+    expect(directive("frame-src")).not.toContain("googlesyndication");
+    expect(directive("frame-src")).not.toContain("google-analytics");
   });
 
   it("lets the Teleprompter recorder use this origin's camera/mic (deep-audit B1)", () => {

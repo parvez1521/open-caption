@@ -40,6 +40,16 @@
  *   connect-src). Permissions-Policy lists no `identity-credentials-get` directive, so
  *   FedCM is allowed by default — deliberately NOT added as `()` (that would block the
  *   FedCM chooser the GIS button uses with `use_fedcm_for_prompt: true`).
+ * - Google Analytics 4 + AdSense (2026-11-15 CSP fix): the root layout
+ *   (app/layout.tsx) loads the GA4 tag from www.googletagmanager.com and the
+ *   AdSense loader from pagead2.googlesyndication.com — both script-src.
+ *   GA4 beacons go to www.google-analytics.com / *.google-analytics.com
+ *   (connect-src). Without these the tags render in the HTML but the browser
+ *   blocks them, so GA4 Realtime stays at 0 users. No ad slots exist in the
+ *   code yet (no <ins class="adsbygoogle"> anywhere), so the ad-serving
+ *   hosts (googleads.g.doubleclick.net, tpc.googlesyndication.com) are
+ *   deliberately NOT allowlisted — add them to img-src/connect-src/frame-src
+ *   when ad slots ship.
  *
  * Known trade-off, deliberate: `script-src` keeps `'unsafe-inline'` because the Next.js App Router
  * emits inline bootstrap scripts and the root layout ships two small constant inline scripts;
@@ -64,6 +74,16 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     // The chooser then says "to continue to captionit.in" instead of the
     // Supabase auth host — the 2026-11-13 Google sign-in branding fix.
     "https://accounts.google.com",
+    // Google Analytics 4: the root layout loads the gtag.js tag from here
+    // (app/layout.tsx, env-gated on NEXT_PUBLIC_GA_MEASUREMENT_ID). Without
+    // it the tag renders in the HTML but the browser blocks the script —
+    // the 2026-11-15 Realtime-zero-users failure.
+    "https://www.googletagmanager.com",
+    // AdSense: the root layout loads the adsbygoogle.js loader from here
+    // (app/layout.tsx, env-gated on NEXT_PUBLIC_ADSENSE_PUBLISHER_ID).
+    // Only the loader — no ad slots exist in the code yet, so no other
+    // ad-serving host is allowlisted (see the header comment).
+    "https://pagead2.googlesyndication.com",
   ];
   const directives: Array<[string, string[]]> = [
     ["default-src", ["'self'"]],
@@ -131,6 +151,13 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         // Google Identity Services: the button's token exchange + FedCM
         // identity calls go to accounts.google.com.
         "https://accounts.google.com",
+        // Google Analytics 4: gtag.js sends its beacons (page_view, events)
+        // to www.google-analytics.com (and the regional
+        // *.google-analytics.com endpoints). Without these the tag loads but
+        // no hit ever leaves the browser — Realtime stays at 0 users
+        // (2026-11-15).
+        "https://www.google-analytics.com",
+        "https://*.google-analytics.com",
       ],
     ],
     ["worker-src", ["'self'", "blob:"]],
