@@ -123,12 +123,12 @@ describe("useStudio unified history", () => {
 
   it("template picks are undoable, restoring look and style together", async () => {
     const { result } = await renderStudio();
-    expect(result.current.lookId).toBe("hormozi_box");
+    expect(result.current.lookId).toBe("kinetic_mix"); // the default look (kinetic, not the old basic one)
     const look = getLook("soft_glow")!;
     act(() => { result.current.chooseLook(look); });
     expect(result.current.lookId).toBe("soft_glow");
     act(() => { result.current.undo(); });
-    expect(result.current.lookId).toBe("hormozi_box");
+    expect(result.current.lookId).toBe("kinetic_mix");
     act(() => { result.current.redo(); });
     expect(result.current.lookId).toBe("soft_glow");
   });

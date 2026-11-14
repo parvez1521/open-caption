@@ -31,7 +31,7 @@ export function Section1Productivity() {
       ]}
     >
       <div className="absolute left-[34px] top-[64px]">
-        <Frame width={262}>
+        <Frame width={240}>
           <ClipPlayer clip={CLIP} doc={doc} durationMs={dur} style={style} settings={settings} onTime={setT} className="h-full w-full" />
         </Frame>
       </div>

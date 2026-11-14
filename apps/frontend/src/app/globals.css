@@ -241,6 +241,9 @@ html.lenis, html.lenis body {
 .studio ::-webkit-scrollbar-track { background: transparent; }
 .studio ::-webkit-scrollbar-thumb { background: #3A3A35; border: 2px solid var(--color-st-panel); border-radius: 8px; }
 .studio ::-webkit-scrollbar-thumb:hover { background: #4C4C47; }
+/* hide the scrollbar on single-row chip strips (they scroll by drag / swipe / wheel) */
+.scrollbar-hide { scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 .studio input[type="range"] { accent-color: var(--color-st-em); }
 .studio select option { background: var(--color-st-panel); color: var(--color-st-text); }
 .studio .font-display { font-family: var(--font-normal-sys), sans-serif; letter-spacing: -0.01em; }
@@ -267,6 +270,7 @@ html[data-intro="play"]:not(.ce-out) [data-hero] { animation-play-state: paused 
 [data-hero="cta"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 460ms) both; }
 [data-hero="points"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 560ms) both; }
 [data-hero="claim"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 660ms) both; }
+[data-hero="kinetic"] { animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 520ms) both; }
 [data-hero="stream"] { animation: hero-stream 1.5s cubic-bezier(0.16, 1, 0.3, 1) calc(var(--hero-at) + 380ms) both; }
 /* phones: the subtitle and buttons are the main content; show them at first paint instead of fading in */
 @media (pointer: coarse) { [data-hero="sub"], [data-hero="cta"] { animation: none; } }

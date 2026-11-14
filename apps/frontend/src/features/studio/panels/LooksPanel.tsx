@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Save, Search } from "@/components/ui/icons";
 import type { CaptionStyleV2, ProjectSettings } from "@capseasy/shared";
@@ -162,6 +162,27 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
   const cats = useMemo(() => ["All", ...LOOK_SECTIONS.map((s) => s.label), ...(myLooks.length ? ["My templates"] : [])], [myLooks.length]);
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
+
+  // Category chips: ONE horizontally scrollable row (never a wrapped mess), draggable with the
+  // mouse like a carousel strip, native swipe on touch. A fade at the edge(s) hints there is more.
+  // A drag that moves never selects a chip: the click ending it is swallowed.
+  const chipsRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null);
+  const swallowClick = useRef(false);
+  const [chipFade, setChipFade] = useState<"left" | "right" | "both" | "none">("right");
+  const updateChipFade = () => {
+    const el = chipsRef.current;
+    if (!el) return;
+    const left = el.scrollLeft > 4;
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setChipFade(left && right ? "both" : left ? "left" : right ? "right" : "none");
+  };
+  useEffect(() => {
+    updateChipFade();
+    window.addEventListener("resize", updateChipFade);
+    return () => window.removeEventListener("resize", updateChipFade);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cats]);
   const [saving, setSaving] = useState(false);
   const saveCurrent = async () => {
     const name = window.prompt("Name this template", "My template")?.trim();
@@ -206,9 +227,66 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
             <Save className="h-4 w-4" aria-hidden />{saving ? "Saving…" : "Save template"}
           </button>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div
+          ref={chipsRef}
+          onScroll={updateChipFade}
+          onPointerDown={(e) => {
+            // touch scrolls natively (touchAction pan-x); only mouse/pen drags are manual
+            if (e.button !== 0 || e.pointerType === "touch" || !chipsRef.current) return;
+            drag.current = { x: e.clientX, left: chipsRef.current.scrollLeft, moved: false };
+          }}
+          onPointerMove={(e) => {
+            const d = drag.current;
+            const el = chipsRef.current;
+            if (!d || !el) return;
+            const dx = e.clientX - d.x;
+            if (Math.abs(dx) > 5) d.moved = true;
+            if (d.moved) el.scrollLeft = d.left - dx;
+          }}
+          onPointerUp={() => {
+            if (drag.current?.moved) swallowClick.current = true;
+            drag.current = null;
+          }}
+          onPointerLeave={() => {
+            drag.current = null;
+          }}
+          onPointerCancel={() => {
+            drag.current = null;
+          }}
+          onClickCapture={(e) => {
+            if (swallowClick.current) {
+              swallowClick.current = false;
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+          role="group"
+          aria-label="Filter looks by category"
+          style={{
+            touchAction: "pan-x",
+            maskImage:
+              chipFade === "both"
+                ? "linear-gradient(to right, transparent, black 8%, black 92%, transparent)"
+                : chipFade === "left"
+                  ? "linear-gradient(to right, transparent, black 8%)"
+                  : chipFade === "right"
+                    ? "linear-gradient(to right, black 92%, transparent)"
+                    : undefined,
+          }}
+          className="scrollbar-hide flex flex-nowrap gap-1.5 overflow-x-auto"
+        >
           {cats.map((c) => (
-            <button key={c} onClick={() => setCat(c)} aria-pressed={cat === c} className={`relative rounded-full border px-3 py-2 text-xs transition-colors before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${cat === c ? "border-st-ink bg-st-ink text-st-panel shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-st-line bg-st-panel text-st-muted hover:text-st-text"}`}>{c}</button>
+            <button
+              key={c}
+              onClick={(e) => {
+                setCat(c);
+                e.currentTarget.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+              }}
+              aria-pressed={cat === c}
+              className={`relative shrink-0 rounded-full border px-3 py-2 text-xs transition-colors before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${cat === c ? "border-st-ink bg-st-ink text-st-panel shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-st-line bg-st-panel text-st-muted hover:text-st-text"}`}
+            >
+              {c}
+            </button>
           ))}
         </div>
         <p className="text-xs tabular-nums text-st-faint" role="status">

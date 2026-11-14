@@ -7,7 +7,8 @@ describe("listLooks", () => {
   it("lists the gallery with permanent numbers, no retired looks", () => {
     const all = listLooks();
     expect(all.length).toBe(150); // 99 + 22 Premium Plus + 8 Slice 1 showcase (2026-11-09) + 12 Envato-styles wave looks (2026-11-10) + 9 animation-expansion wave looks (2026-11-10)
-    expect(all[0]).toMatchObject({ number: 1, id: "metal_script", section: "viral" });
+    // best-first gallery order: the kinetic looks lead, not the lowest number
+    expect(all[0]).toMatchObject({ number: 11, id: "kinetic_mix", section: "kinetic" });
     expect(new Set(all.map((l) => l.number)).size).toBe(all.length);
     expect(all.some((l) => l.number === 46)).toBe(false); // retired
     for (const l of all) expect(Boolean(l.name && l.description && l.layout && l.wordsPerCard >= 1)).toBe(true);

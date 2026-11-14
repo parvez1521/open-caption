@@ -134,12 +134,31 @@ const ALL_LOOKS: LookDefinition[] = [
   ...(legacyLooks as unknown as LookDefinition[]).filter((l) => CURATED_LEGACY.has(l.id)).map((l) => named({ ...l, category: "Classic", style: CaptionStyleSchema.parse(deepMerge(deepMerge(l.style, LEGACY_FIXES[l.id]), { emoji: { enabled: EMOJI_ENABLED } })) })),
 ];
 
-/** Gallery sections, in display order. "All" lists these first (in this order), then every other look. */
+/**
+ * Gallery sections, in display order. "All" lists these first (in this order), then every other look.
+ * Best-first: the kinetic looks lead (they are the product's signature motion), then Premium Plus
+ * and the newest-motion Trending section; the plainest sections (Simple, and the un-sectioned
+ * Classic looks after these) sit last. A look must appear in exactly ONE section: the registry
+ * test requires the section lists to be the exact head of LOOKS with no duplicates. Look NUMBERS
+ * are permanent (looks/numbers.ts) and are untouched by this ordering.
+ */
+const KINETIC_LOOK_IDS: readonly string[] = ["kinetic_mix", "apex_kinetic", "glitch_reveal"];
+const packSection = (id: string) => {
+  const s = PACK_SECTIONS.find((p) => p.id === id)!;
+  return { id: s.id, label: s.label, lookIds: s.looks.map((l) => l.id) };
+};
 export const LOOK_SECTIONS: { id: string; label: string; lookIds: string[] }[] = [
-  { id: "viral", label: "Viral", lookIds: ["metal_script", "soft_glow", "neon_duo", "serif_behind", "ice_duo", "serif_accent_glow", "staggered_splash", "glow_stack_classic", "vintage_cinematic", "serif_pop_classic", "kinetic_mix"] },
+  { id: "kinetic", label: "Kinetic", lookIds: [...KINETIC_LOOK_IDS] },
+  { id: "premium_plus", label: "Premium Plus", lookIds: PREMIUM_LOOKS.map((l) => l.id).filter((id) => !KINETIC_LOOK_IDS.includes(id)) },
+  packSection("trending"),
+  { id: "viral", label: "Viral", lookIds: ["metal_script", "soft_glow", "neon_duo", "serif_behind", "ice_duo", "serif_accent_glow", "staggered_splash", "glow_stack_classic", "vintage_cinematic", "serif_pop_classic"] },
   { id: "popular", label: "Popular", lookIds: ["hormozi_box", "beast_bounce", "comic_burst", "chat_bubble", "explainer", "highlighter_card"] },
-  ...PACK_SECTIONS.filter((s) => s.looks.length).map((s) => ({ id: s.id, label: s.label, lookIds: s.looks.map((l) => l.id) })),
-  { id: "premium_plus", label: "Premium Plus", lookIds: PREMIUM_LOOKS.map((l) => l.id) },
+  packSection("premium"),
+  packSection("creator"),
+  packSection("dynamic"),
+  packSection("typography"),
+  packSection("paper"),
+  packSection("simple"),
 ].map((s) => ({ ...s, lookIds: s.lookIds.filter((id) => !isRetiredLook(id)) })).filter((s) => s.lookIds.length);
 const featured = LOOK_SECTIONS.flatMap((s) => s.lookIds);
 const rank = (id: string) => (featured.includes(id) ? featured.indexOf(id) : featured.length);

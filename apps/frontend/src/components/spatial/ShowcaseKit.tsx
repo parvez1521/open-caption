@@ -31,9 +31,9 @@ export const INK = "#FFFFEB";
  */
 export const SURFACE = "#1C1C1A";
 export const FPS = 30;
-/** clips are cut to the corridor card shape */
+/** clips are true vertical 9:16 (432x768) — the phone shape, faces fully in frame */
 export const CLIP_W = 432;
-export const CLIP_H = 600;
+export const CLIP_H = 768;
 
 type Transcript = { language: string; durationMs: number; words: { id: string; text: string; startMs: number; endMs: number }[] };
 
@@ -161,6 +161,18 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
     if (!el) return;
     tRef.current = 0;
     setTMs(0);
+    setBoxW(el.getBoundingClientRect().width);
+    // Budget devices show the still, not the player: there is no <video> clock, so drive the
+    // on-frame captions (and the side panels) from a looping timer instead — otherwise the
+    // overlay freezes on the first page and the captions only live in the side panels.
+    if (lowEnd) {
+      const id = setInterval(() => {
+        tRef.current = (tRef.current + 100) % durationMs;
+        setTMs(tRef.current);
+        onTime?.(tRef.current);
+      }, 100);
+      return () => clearInterval(id);
+    }
     const tick = () => {
       setBoxW(el.getBoundingClientRect().width);
       const v = el.querySelector("video");
@@ -174,7 +186,7 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
     tick();
     const id = setInterval(tick, 100);
     return () => clearInterval(id);
-  }, [near, doc, onTime]);
+  }, [near, doc, onTime, lowEnd, durationMs]);
   const curPage = useMemo(() => (overlayOn ? pages.find((p) => tMs >= p.startMs && tMs < p.endMs) ?? null : null), [overlayOn, pages, tMs]);
   const scale = boxW > 0 ? boxW / CLIP_W : 0;
 

@@ -7,6 +7,7 @@ import { MOTION_TEMPLATES, defaultMotionConfig } from "@capseasy/motion";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { FAQS } from "./faqs";
 import { HeroCylinder } from "./HeroCylinder";
+import { HeroKineticCaption } from "./HeroKineticCaption";
 
 /** A preview item for a motion template, built as a plain literal so this section's static
  *  bundle stays light (the renderer itself arrives with the dynamically-imported MotionPreview). */
@@ -201,8 +202,20 @@ export function Hero() {
         </div>
 
         <h1 className="font-styled mt-5 text-[clamp(2.6rem,6vw,4.6rem)] font-bold leading-[0.95] tracking-[-0.04em] text-[#FFFFEB]">
-          <span data-hero="word" className="block">Every word,</span>
-          <span data-hero="word2" className="font-accent block pr-[0.06em] font-normal italic tracking-[-0.025em] text-[#34D399]">on screen, on time.</span>
+          <span className="block overflow-hidden pb-[0.12em] -mb-[0.12em]">
+            {["Every", "word,"].map((w, i) => (
+              <span key={`${w}-${i}`} data-hero="word" className="mr-[0.26em] inline-block will-change-transform last:mr-0" style={{ animationDelay: `calc(var(--hero-at) + ${60 + i * 90}ms)` }}>
+                {w}
+              </span>
+            ))}
+          </span>
+          <span className="font-accent block overflow-hidden pb-[0.12em] -mb-[0.12em] pr-[0.06em] font-normal italic tracking-[-0.025em] text-[#34D399]">
+            {["on", "screen,", "on", "time."].map((w, i) => (
+              <span key={`${w}-${i}`} data-hero="word2" className="mr-[0.26em] inline-block will-change-transform last:mr-0" style={{ animationDelay: `calc(var(--hero-at) + ${150 + i * 90}ms)` }}>
+                {w}
+              </span>
+            ))}
+          </span>
         </h1>
 
         <p data-hero="sub" className="mt-5 max-w-lg text-[15px] leading-relaxed text-[#FFFFEB]/70 sm:text-[17px] font-medium">
@@ -227,6 +240,10 @@ export function Hero() {
           150 looks · 14 languages · No watermark
         </p>
         <HinglishClaim />
+        {/* the kinetic caption itself, live: the default Kinetic look rendering word by word */}
+        <div data-hero="kinetic" className="relative z-10 mt-10 max-w-[560px]">
+          <HeroKineticCaption />
+        </div>
       </div>
 
       {/* the captions are the visual: the trending looks on a rotating 3D cylinder */}
