@@ -1,14 +1,10 @@
 "use client";
 
-import { useCallback, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
-import type { PlayerRef } from "@remotion/player";
-import { CLIP_H, CLIP_W, ClipPlayer, FPS, ShowcaseCard, lookFor, useTranscript } from "./ShowcaseKit";
+import { useMemo } from "react";
+import { ClipPlayer, Frame, ShowcaseCard, Tag, lookFor, useTranscript } from "./ShowcaseKit";
 
 const INKC = "#FFFFEB";
 const CLIP = "drluv";
-const LAYER_W = 214;
-const LAYER_H = Math.round((LAYER_W * CLIP_H) / CLIP_W);
 const CHECKER = "repeating-conic-gradient(rgba(0,0,0,0.16) 0% 25%, rgba(255,255,235,0.4) 0% 50%) 0 0 / 14px 14px";
 
 const FORMATS = [
@@ -18,19 +14,12 @@ const FORMATS = [
   { f: "SRT · VTT · ASS", d: "Plain subtitles, instant" },
 ];
 
-/** 04: export the captions alone. Exploded view: untouched video below, alpha caption layer above. */
+/** 04: export the captions alone. The real captioned video plays, face in frame;
+// the format cards below say what leaves the app (the captions, not a re-encode). */
 export function Section4() {
   const { transcript, doc } = useTranscript(CLIP);
   const { style, settings } = useMemo(() => lookFor("hormozi_box", 1.6), []);
-  const back = useRef<PlayerRef>(null);
   const dur = transcript?.durationMs ?? 6000;
-  // keep the video layer in step with the caption layer
-  const sync = useCallback((ms: number) => {
-    const p = back.current;
-    if (!p) return;
-    const want = Math.round((ms / 1000) * FPS);
-    if (Math.abs(p.getCurrentFrame() - want) > 2) p.seekTo(want);
-  }, []);
 
   return (
     <ShowcaseCard
@@ -47,35 +36,35 @@ export function Section4() {
         { k: "Or skip video entirely:", v: "SRT, VTT, ASS and TXT in one click." },
       ]}
     >
-      {/* exploded layer stack */}
-      <div className="absolute left-0 right-0 top-[10px] h-[400px]" style={{ perspective: 1400 }}>
-        <div className="absolute left-1/2 top-1/2" style={{ transformStyle: "preserve-3d", transform: "translate(-50%,-50%) rotateX(56deg) rotateZ(-38deg)" }}>
-          {/* video layer */}
-          <div className="absolute overflow-hidden rounded-[14px]" style={{ width: LAYER_W, height: LAYER_H, left: -LAYER_W / 2, top: -LAYER_H / 2, boxShadow: "0 30px 50px -20px rgba(0,0,0,0.55)" }}>
-            <ClipPlayer clip={CLIP} doc={doc} bare durationMs={dur} style={style} settings={settings} playerRef={back} className="h-full w-full" />
-          </div>
-          {/* caption layer (alpha) */}
-          <motion.div
-            className="absolute overflow-hidden rounded-[14px] border border-[#FFFFEB]/15"
-            style={{ width: LAYER_W, height: LAYER_H, left: -LAYER_W / 2, top: -LAYER_H / 2, background: CHECKER, transformStyle: "preserve-3d" }}
-            animate={{ z: [2, 140, 140, 2, 2] }}
-            transition={{ duration: 6, times: [0, 0.25, 0.55, 0.8, 1], repeat: Infinity, ease: [0.65, 0, 0.35, 1] }}
-          >
-            <ClipPlayer clip={CLIP} doc={doc} mode="overlay" durationMs={dur} style={style} settings={settings} onTime={sync} className="h-full w-full" />
-          </motion.div>
-        </div>
+      <div className="absolute left-[36px] top-[70px]">
+        <Frame width={276}>
+          <ClipPlayer clip={CLIP} doc={doc} durationMs={dur} style={style} settings={settings} className="h-full w-full" />
+        </Frame>
       </div>
 
-      {/* legend */}
-      <div className="absolute bottom-[178px] left-[34px] right-[34px] flex items-center justify-between">
-        <span className="flex items-center gap-2 text-[12px] text-[#FFFFEB]/65">
-          <span className="h-3.5 w-3.5 rounded-[4px] border border-[#FFFFEB]/20" style={{ background: CHECKER }} />
-          captions.mov <span className="font-mono text-[10.5px] text-[#8F8F86]">alpha layer</span>
-        </span>
-        <span className="flex items-center gap-2 text-[12px] text-[#FFFFEB]/65">
-          <span className="h-3.5 w-3.5 rounded-[4px] bg-gradient-to-br from-[#b4546a] to-[#3b2a22]" />
-          your-footage.mp4 <span className="font-mono text-[10.5px] text-[#8F8F86]">untouched</span>
-        </span>
+      {/* what leaves the app: the captions alone, the footage untouched */}
+      <div className="absolute left-[336px] top-[70px] w-[192px]">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#B4B4AA]">What exports</span>
+          <span className="font-mono text-[10px] text-[#8F8F86]">live render</span>
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2.5 rounded-xl border border-[#FFFFEB]/10 bg-[#232320] px-3 py-2.5">
+            <span className="h-3.5 w-3.5 shrink-0 rounded-[4px] border border-[#FFFFEB]/20" style={{ background: CHECKER }} />
+            <span className="min-w-0 text-[12px] leading-[1.4] text-[#FFFFEB]/70">
+              <span className="font-mono font-semibold text-[#FFFFEB]">captions.mov</span> <span className="font-mono text-[10.5px] text-[#8F8F86]">alpha layer</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5 rounded-xl border border-[#FFFFEB]/10 bg-[#232320] px-3 py-2.5">
+            <span className="h-3.5 w-3.5 shrink-0 rounded-[4px] bg-gradient-to-br from-[#b4546a] to-[#3b2a22]" />
+            <span className="min-w-0 text-[12px] leading-[1.4] text-[#FFFFEB]/70">
+              <span className="font-mono font-semibold text-[#FFFFEB]">your-footage.mp4</span> <span className="font-mono text-[10.5px] text-[#8F8F86]">untouched</span>
+            </span>
+          </div>
+        </div>
+        <div className="mt-3">
+          <Tag>captions out · footage stays</Tag>
+        </div>
       </div>
 
       {/* formats */}
