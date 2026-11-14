@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
 import { billedMinutesForRender, reserveMinutes, settleReservation } from "@/lib/billing/minutes";
+import { getWatermarkStatus } from "@/lib/billing/watermark";
 import { putObject, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 
@@ -122,6 +123,22 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const effectivePlan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
   const retentionDays = planFor(effectivePlan).exportRetentionDays;
 
+  // Watermark (monetization): the server decides, per project — a Free
+  // user without a ₹69 entitlement for THIS project gets the mark on
+  // MP4; paid users and entitled projects render clean. The decision
+  // rides in the job payload, so the Companion renders exactly what the
+  // server decided (a modified client cannot strip it from a server
+  // render). Text exports return before this point, and the composition
+  // only draws the mark in burn mode — so only MP4 jobs carry it, and
+  // overlays stay clean by design.
+  const watermarkStatus = await getWatermarkStatus(admin, {
+    ownerId: user.id,
+    projectId,
+    plan: profile?.plan,
+    expiresAt: (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
+  });
+  const watermark = body.kind === "mp4" ? watermarkStatus.watermark : null;
+
   // Minutes ledger (replaces the old monthly video quota — one meter
   // only, never two): a video export reserves its whole minutes BEFORE
   // the job is created. Billed minutes = exported video minutes, rounded
@@ -169,6 +186,7 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
         kind: "render", exportId, format, width, height, fps, crf: body.crf ?? 21, range: body.range,
         docSnapshot: doc,
         ...(renderTranslation ? { translatedDocSnapshot: renderTranslation } : {}),
+        ...(watermark ? { watermark } : {}),
         style, settings, fonts: [], sourceVideoId: video.id,
       },
       idempotencyKey: `render:${exportId}`,
@@ -180,5 +198,5 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     await settleReservation(admin, { ownerId: user.id, exportId, outcome: "failed" }).catch(() => {});
     throw e;
   }
-  return ok({ exportId, jobId: job.id, ready: false, companionOnline: await hasOnlineCompanion(user.id), minutesReserved: reservation.minutes }, 202);
+  return ok({ exportId, jobId: job.id, ready: false, companionOnline: await hasOnlineCompanion(user.id), minutesReserved: reservation.minutes, watermark }, 202);
 });

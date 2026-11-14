@@ -26,6 +26,16 @@ export const CaptionedVideoProps = z.object({
   outputFps: z.number().positive().optional(),
   doc: CaptionDocSchema.default(emptyDoc()),
   /**
+   * Watermark (monetization, Builder 3): a small "Captionit" mark painted
+   * as the FINAL layer of the composition, over the captions. Free MP4
+   * exports carry it; paid plans and ₹69-removed projects pass null (clean).
+   * MP4 only — text exports have no picture, and transparent overlays stay
+   * clean (the component draws it only in burn mode). Null by default, so
+   * every existing caller (look previews, demos, overlay renders) is
+   * unchanged until a render path passes a watermark in.
+   */
+  watermark: z.object({ text: z.string().min(1).max(40) }).nullable().default(null),
+  /**
    * The translated caption track (slice 5.1): a second, real CaptionDoc in `settings.translateTo`'s
    * language, produced on-device by OPUS-MT. It is only DRAWN when `settings.bilingual` is on and
    * its language matches `settings.translateTo`; otherwise the render is exactly the pre-5.1 one.

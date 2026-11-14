@@ -4,7 +4,7 @@
 
 ### Animated captions for Shorts, Reels and TikToks — made right in your browser.
 
-Free · no watermark · your video never leaves your device · English and Hinglish
+Free · small watermark on free MP4 exports · your video never leaves your device · English and Hinglish
 
 [**Try it → captionseasy.com**](https://www.captionseasy.com) &nbsp;·&nbsp; [Report a bug](https://github.com/Ishaan-Gpt/Captions-Easy/issues) &nbsp;·&nbsp; [Request a feature](https://github.com/Ishaan-Gpt/Captions-Easy/issues)
 
@@ -21,7 +21,7 @@ Drop a video, get word-timed animated captions in a couple of minutes, fix any w
 - **Edit everything** — words, timing, line breaks, key words, position, fonts (400+ Google fonts or your own), colours, motion.
 - **Hindi / Hinglish** in Roman script with a fine-tuned Whisper model ([Oriserve Whisper-Hindi2Hinglish-Swift](https://huggingface.co/Oriserve/Whisper-Hindi2Hinglish-Swift), converted to ONNX with word timestamps).
 - **Exports:** MP4 with burned-in captions, SRT. The optional desktop helper adds transparent overlays (ProRes 4444 / WebM alpha) for Premiere, Resolve and CapCut.
-- **No signup to try**, no watermark.
+- **No signup to try.** Free MP4 exports carry a small Captionit watermark.
 
 ## Tech stack
 

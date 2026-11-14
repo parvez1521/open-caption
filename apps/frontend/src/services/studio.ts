@@ -177,17 +177,19 @@ export const studioService = {
   },
 
   createExport(projectId: string, body: { kind: ExportKind; crf?: number; width?: number; height?: number; fps?: number; range?: { startMs: number; endMs: number }; language?: string }) {
-    return apiClient.post<{ exportId: string; ready: boolean; downloadUrl?: string; jobId?: string; companionOnline?: boolean }>(`/projects/${projectId}/exports`, { json: body });
+    return apiClient.post<{ exportId: string; ready: boolean; downloadUrl?: string; jobId?: string; companionOnline?: boolean; watermark?: { text: string } | null }>(`/projects/${projectId}/exports`, { json: body });
   },
 
   /**
    * Reserve minutes for a browser-rendered video BEFORE it renders.
    * The server computes the minutes from the video row and the project
    * settings — the client only sends the trim range. A failed reserve
-   * (402 when the minutes are used up) must block the render.
+   * (402 when the minutes are used up) must block the render. The
+   * response also carries the server-side watermark decision for this
+   * project, so the render carries exactly what the preview showed.
    */
   reserveBrowserExport(projectId: string, body: { exportId: string; kind: "mp4" | "mov_alpha" | "webm_alpha"; range?: { startMs: number; endMs: number } }) {
-    return apiClient.post<{ reservationKey: string; exportId: string; minutes: number; balance: number; usage: MinutesUsage | null }>(`/projects/${projectId}/exports/reserve`, { json: body });
+    return apiClient.post<{ reservationKey: string; exportId: string; minutes: number; balance: number; usage: MinutesUsage | null; watermark: { text: string } | null }>(`/projects/${projectId}/exports/reserve`, { json: body });
   },
 
   /**
@@ -212,6 +214,26 @@ export const studioService = {
   /** Minutes balance for the signed-in user (null when not set up yet). */
   minutesUsage() {
     return apiClient.get<{ minutes: MinutesUsage | null; minutesReady: boolean }>(`/billing/minutes`);
+  },
+
+  /**
+   * Watermark state for one project — the server-side truth the preview
+   * and the Export modal render from, so the preview shows exactly what
+   * the export will carry. watermarkReady is false when the entitlement
+   * table is not applied yet (removal checkout is not available then).
+   */
+  watermarkStatus(projectId: string) {
+    return apiClient.get<{ watermark: { text: string } | null; entitled: boolean; plan: string; watermarkReady: boolean }>(`/projects/${projectId}/watermark`);
+  },
+
+  /**
+   * Start a ₹69 watermark-removal purchase for one project. Returns the
+   * Cashfree payment session when checkout can open, alreadyEntitled when
+   * this project already exports clean, or configured:false when payments
+   * (or the watermark setup) are not switched on yet.
+   */
+  buyWatermarkRemoval(projectId: string) {
+    return apiClient.post<{ configured: boolean; alreadyEntitled?: boolean; orderId?: string; paymentSessionId?: string; env?: "sandbox" | "production"; amount?: number; currency?: string; projectId?: string; dbPending?: boolean }>("/billing/watermark/checkout", { json: { projectId } });
   },
 
   async exportDownloadUrl(exportId: string): Promise<string> {

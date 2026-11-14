@@ -92,6 +92,14 @@ export async function createCashfreeOrder(input: {
   returnUrl: string;
   notifyUrl: string;
   planId: string;
+  /**
+   * Non-plan products (the ₹69 watermark removal) pass their own note and
+   * tags: the default note says "{plan} plan — 30 days", which is wrong
+   * for a one-time per-project purchase. Plan orders omit these and keep
+   * exactly today's note and tags.
+   */
+  orderNote?: string;
+  orderTags?: Record<string, string>;
 }): Promise<CreatedOrder> {
   const cfg = cashfreeConfig();
   if (!cfg.configured) throw new Error("Cashfree is not configured");
@@ -112,8 +120,8 @@ export async function createCashfreeOrder(input: {
         customer_phone: input.customerPhone,
       },
       order_meta: { return_url: input.returnUrl, notify_url: input.notifyUrl },
-      order_note: `Captionit ${input.planId} plan — 30 days`,
-      order_tags: { plan: input.planId },
+      order_note: input.orderNote ?? `Captionit ${input.planId} plan — 30 days`,
+      order_tags: input.orderTags ?? { plan: input.planId },
     }),
   })) as { payment_session_id?: string; order_status?: string } | null;
   if (!body?.payment_session_id) throw new Error("Cashfree did not return a payment session");

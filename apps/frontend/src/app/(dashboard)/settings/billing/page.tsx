@@ -112,11 +112,13 @@ export default function BillingPage() {
       try {
         const res = await apiClient.post<{ payment: PaymentRow }>("/billing/reconcile", { json: { orderId } });
         setNotice(
-          res.payment.status === "paid"
-            ? "Payment confirmed — your new plan is active. Thank you!"
-            : res.payment.status === "failed"
-              ? "That payment didn't go through. No money was taken for a failed payment — you can try again below."
-              : "We're still confirming that payment with Cashfree. Refresh in a moment — your plan updates automatically once it's confirmed.",
+          res.payment.status === "paid" && res.payment.plan === "watermark"
+            ? "Payment confirmed — the watermark is removed from that video. Thank you!"
+            : res.payment.status === "paid"
+              ? "Payment confirmed — your new plan is active. Thank you!"
+              : res.payment.status === "failed"
+                ? "That payment didn't go through. No money was taken for a failed payment — you can try again below."
+                : "We're still confirming that payment with Cashfree. Refresh in a moment — your plan updates automatically once it's confirmed.",
         );
       } catch {
         setNotice("We couldn't confirm that payment yet. If money left your account, your plan updates automatically via Cashfree's confirmation — check back in a few minutes.");
@@ -357,12 +359,13 @@ export default function BillingPage() {
                       {state.payments.map((p) => (
                         <tr key={p.id} className="border-b border-sand-200/60 last:border-0">
                           <td className="px-4 py-3 text-sand-800">{fmtDate(p.created_at)}</td>
-                          <td className="px-4 py-3 text-sand-800">{pricingForStoredPlan(p.plan).name}</td>
+                          {/* A ₹69 watermark removal is not a plan: it shows as itself, not as "Free". */}
+                          <td className="px-4 py-3 text-sand-800">{p.plan === "watermark" ? "Watermark removal — one video" : pricingForStoredPlan(p.plan).name}</td>
                           <td className="px-4 py-3 text-sand-800">{fmtMoney(p.amount, p.currency)}</td>
                           <td className="px-4 py-3 text-sand-800">
-                            {p.status === "paid" ? "Paid" : p.status === "created" ? "Started, not completed" : p.status === "failed" ? "Failed" : "Expired"}
+                            {p.status === "paid" ? "Paid" : p.status === "created" ? "Started, not completed" : p.status === "failed" ? "Failed" : p.status === "refunded" ? "Refunded" : "Expired"}
                           </td>
-                          <td className="px-4 py-3 text-sand-800">{p.status === "paid" ? fmtDate(p.period_end) : "—"}</td>
+                          <td className="px-4 py-3 text-sand-800">{p.plan === "watermark" ? (p.status === "paid" ? "One video" : "—") : p.status === "paid" ? fmtDate(p.period_end) : "—"}</td>
                         </tr>
                       ))}
                     </tbody>

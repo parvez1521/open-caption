@@ -189,3 +189,39 @@ describe("minutes billing — reserve before render, settle after save", () => {
     expect(reserve.mock.calls[0]![0]).toBe("ok");
   });
 });
+
+describe("watermark — the reserve decision rides into the clip render (Builder 3)", () => {
+  it("a watermarked reserve threads the mark into the render input", async () => {
+    const seen: Array<ClipRenderJob["input"]> = [];
+    const d = deps({
+      billing: {
+        reserve: vi.fn(async () => ({ minutes: 1, watermark: { text: "Captionit" } })),
+        settle: vi.fn(async () => ({})),
+      },
+      render: async (job) => {
+        seen.push(job.input);
+        return new Blob(["x"], { type: "video/mp4" });
+      },
+    });
+    const results = await runBatchExport(["a"], { deps: d });
+    expect(results[0]!.ok).toBe(true);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]!.watermark).toEqual({ text: "Captionit" });
+  });
+
+  it("a clean reserve (paid or entitled) renders with an explicit null watermark", async () => {
+    const seen: Array<ClipRenderJob["input"]> = [];
+    const d = deps({
+      billing: {
+        reserve: vi.fn(async () => ({ minutes: 1, watermark: null })),
+        settle: vi.fn(async () => ({})),
+      },
+      render: async (job) => {
+        seen.push(job.input);
+        return new Blob(["x"], { type: "video/mp4" });
+      },
+    });
+    await runBatchExport(["a"], { deps: d });
+    expect(seen[0]!.watermark).toBeNull();
+  });
+});

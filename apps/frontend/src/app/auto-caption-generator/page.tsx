@@ -27,7 +27,10 @@ export default function AutoCaptionGeneratorPage() {
           Automatic video caption generator
         </h1>
         <p className="mt-5 text-[16px] leading-relaxed text-[#FFFFEB]/80">
-          Drop in a short video. Get captions timed to every word, in minutes, free and in your browser. Pick one of 150 animated looks. Fix any word it heard wrong. Export an MP4 ready to post, or a subtitle file for YouTube. Nothing to install, no watermark. For transcription and the normal MP4 export, your video file is never uploaded anywhere.
+          Drop in a short video and get captions timed to every word, in minutes, free and in your browser. Pick one
+          of 150 animated looks, fix any word it heard wrong, and export an MP4 ready to post or a subtitle file for
+          YouTube. Nothing to install. Free MP4 exports carry a small Captionit watermark. For transcription and the
+          normal MP4 export, your video file is never uploaded anywhere.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
@@ -99,8 +102,8 @@ export default function AutoCaptionGeneratorPage() {
             <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>150 animated looks. The largest style count we verified among rival tools. Every look is in the free plan.</span></li>
             <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>14 languages, including Hindi and Hinglish. Hindi and Hinglish come out in Roman script, the way most creators type; Devanagari Hindi is a separate option.</span></li>
             <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>MP4 and subtitle export from one workflow. Most tools do one or the other; here you get both.</span></li>
-            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>No watermark, nothing to install. Transcription, editing and MP4 export run in your browser. On desktop or phone.</span></li>
-            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Built for vertical video. 9:16 Reels, Shorts and TikTok first. 16:9 widescreen works the same way.</span></li>
+            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Nothing to install. Free MP4 exports carry a small Captionit watermark. Transcription, editing and MP4 export all run in your browser, on desktop or phone.</span></li>
+            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Built for vertical video. 9:16 Reels, Shorts and TikTok first, with 16:9 widescreen working the same way.</span></li>
           </ul>
         </section>
 

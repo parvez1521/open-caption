@@ -53,6 +53,32 @@ describe("calculateMetadata: export output override", () => {
   });
 });
 
+describe("CaptionedVideoProps: watermark (monetization, Builder 3)", () => {
+  it("defaults to null — every existing caller is unchanged", () => {
+    expect(CaptionedVideoProps.parse({}).watermark).toBeNull();
+    expect(CaptionedVideoProps.parse({ media: MEDIA }).watermark).toBeNull();
+  });
+
+  it("accepts { text } and keeps it through parse", () => {
+    const parsed = CaptionedVideoProps.parse({ media: MEDIA, watermark: { text: "Captionit" } });
+    expect(parsed.watermark).toEqual({ text: "Captionit" });
+  });
+
+  it("accepts an explicit null (a clean export)", () => {
+    expect(CaptionedVideoProps.parse({ media: MEDIA, watermark: null }).watermark).toBeNull();
+  });
+
+  it("rejects an empty watermark text", () => {
+    expect(CaptionedVideoProps.safeParse({ media: MEDIA, watermark: { text: "" } }).success).toBe(false);
+  });
+
+  it("a watermark does not change the authored duration", async () => {
+    const plain = await meta({ media: MEDIA });
+    const marked = await meta({ media: MEDIA, watermark: { text: "Captionit" } });
+    expect(marked).toMatchObject({ width: plain.width, height: plain.height, fps: plain.fps, durationInFrames: plain.durationInFrames });
+  });
+});
+
 describe("calculateMetadata: clip range (Clipper projects)", () => {
   it("authors only the segment when the project carries a clipRange", async () => {
     const m = await meta({ media: { ...MEDIA, durationMs: 120_000 }, settings: { clipRange: { startMs: 32_000, endMs: 65_000 } } });

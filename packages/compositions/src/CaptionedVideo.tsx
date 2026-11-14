@@ -242,7 +242,7 @@ const PageSequence: React.FC<{ page: Page; fromFrame: number; canvas: Canvas; st
  * Remotion does NOT run inputProps through the zod schema at render time, and the Player passes props
  * verbatim, so every surface must normalize here. Partial settings/styles are completed with defaults.
  */
-export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc: docIn, translatedDoc: translatedDocIn, style: styleIn, settings: settingsIn, mode = "burn", backdrop = null, videoEngine = "offthread", videoAdjust: videoAdjustIn, overlays: overlaysIn, overlayAssets, overlayMemberAssets, segmentAssets }) => {
+export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc: docIn, translatedDoc: translatedDocIn, style: styleIn, settings: settingsIn, mode = "burn", backdrop = null, videoEngine = "offthread", videoAdjust: videoAdjustIn, overlays: overlaysIn, overlayAssets, overlayMemberAssets, segmentAssets, watermark = null }) => {
   const doc = useMemo(() => CaptionDocSchema.parse(docIn ?? { version: 2, words: [] }), [docIn]);
   // Bilingual track (slice 5.1): parsed like the primary doc, but an invalid/absent one simply
   // disables the secondary line — it must never break the primary render.
@@ -495,6 +495,30 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
           );
         })}
       </VideoFrameContext.Provider>
+      {/* Watermark (monetization): the FINAL layer, after the captions, inside this same
+          top-level AbsoluteFill — it paints over everything, so no caption page, overlay or
+          adjust layer can cover it. MP4 only: it renders only in burn mode (the transparent
+          overlay composition shares this component, and overlays + text exports stay clean).
+          Null = a clean export (paid plan, or a ₹69 removal for this project). */}
+      {mode === "burn" && watermark ? (
+        <div
+          data-watermark="true"
+          style={{
+            position: "absolute",
+            right: Math.round(width * 0.04),
+            bottom: Math.round(height * 0.03),
+            fontFamily: "system-ui, -apple-system, sans-serif",
+            fontSize: Math.max(20, Math.round(height * 0.02)),
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+            color: "rgba(255,255,255,0.85)",
+            textShadow: "0 2px 10px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.9)",
+            pointerEvents: "none",
+          }}
+        >
+          {watermark.text}
+        </div>
+      ) : null}
     </AbsoluteFill>
   );
 };

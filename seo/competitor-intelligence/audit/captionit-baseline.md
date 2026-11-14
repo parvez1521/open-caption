@@ -26,7 +26,7 @@ Every claim below is safe to use in SEO copy. "Verified" means read in the cited
 | Claim | Verdict | Evidence |
 |---|---|---|
 | Browser-based caption studio: upload a short video, get animated word-timed captions, edit, export MP4 or subtitle file; video stays on the device | **Verified** | Homepage copy + `apps/frontend/src/lib/brand.ts` (`BRAND_DESCRIPTION`, main @ `584adf3`); live homepage meta description identical, https://www.captionit.in/ |
-| No watermark | **Verified** | `apps/frontend/src/components/home/Sections.tsx:146` — "150 looks and 14 languages, no watermark, all in the tab you already have open." (main @ `584adf3`); also in `faqs.ts:17` and JSON-LD feature list |
+| No watermark | **Superseded 2026-11-14** | Was true when verified (main @ `584adf3`). The monetization programme (Builder 3) changed it: free MP4 exports now carry a small Captionit watermark; paid plans export clean; ₹69 once removes it from one video. Copy updated in `Sections.tsx`, `faqs.ts` and the JSON-LD feature list. |
 | Nothing to install | **Verified** | Same sources as above |
 | Free plan includes the full editor (paid buys headroom, not tools) | **Verified** | `packages/shared/src/plans.ts` header comment: "No editor feature is paywalled — a paid plan buys headroom, not tools."; `/pricing` live meta description: "a free plan with the full editor" |
 

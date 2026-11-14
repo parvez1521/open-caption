@@ -216,6 +216,58 @@ describe("video exports — queued as a companion render job with the right shap
   });
 });
 
+describe("watermark — server decides per project, MP4 only (Builder 3)", () => {
+  beforeEach(() => {
+    ROWS.profiles = { plan: "free" };
+    delete ROWS.watermark_entitlements;
+  });
+
+  it("a Free MP4 without an entitlement carries the watermark in the job payload and the response", async () => {
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(202);
+    const json = (await res.json()) as { data: { watermark: { text: string } | null } };
+    expect(json.data.watermark).toEqual({ text: "Captionit" });
+    const job = state.enqueued[0]!;
+    expect(job.payload).toMatchObject({ watermark: { text: "Captionit" } });
+  });
+
+  it("a Free user WITH a ₹69 entitlement for this project renders clean", async () => {
+    ROWS.watermark_entitlements = { project_id: "proj-1", status: "paid" };
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(202);
+    const json = (await res.json()) as { data: { watermark: { text: string } | null } };
+    expect(json.data.watermark).toBeNull();
+    expect(state.enqueued[0]!.payload).not.toHaveProperty("watermark");
+  });
+
+  it("a paid plan renders clean", async () => {
+    ROWS.profiles = { plan: "starter", plan_expires_at: "2026-12-14T00:00:00Z" };
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(202);
+    const json = (await res.json()) as { data: { watermark: { text: string } | null } };
+    expect(json.data.watermark).toBeNull();
+    expect(state.enqueued[0]!.payload).not.toHaveProperty("watermark");
+  });
+
+  it("overlays never carry a watermark, even for a Free user", async () => {
+    const res = await post({ kind: "mov_alpha" });
+    expect(res.status).toBe(202);
+    const json = (await res.json()) as { data: { watermark: { text: string } | null } };
+    expect(json.data.watermark).toBeNull();
+    expect(state.enqueued[0]!.payload).not.toHaveProperty("watermark");
+    const res2 = await post({ kind: "webm_alpha" });
+    expect(res2.status).toBe(202);
+    expect(state.enqueued[1]!.payload).not.toHaveProperty("watermark");
+  });
+
+  it("a watermarked MP4 still reserves its minutes (the removal buys no minutes)", async () => {
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(202);
+    expect(state.reserves).toHaveLength(1);
+    expect(state.reserves[0]!.args).toMatchObject({ p_minutes: 1 });
+  });
+});
+
 describe("kinds that are not creatable, and guest gating", () => {
   it("rejects png with VALIDATION and creates nothing", async () => {
     const res = await post({ kind: "png" });

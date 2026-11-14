@@ -164,7 +164,7 @@ export function softwareApplicationJsonLd() {
       "English and Hindi / Hinglish speech recognition",
       "MP4 export with burned-in captions",
       "SRT subtitle export",
-      "No watermark",
+      "Watermark removal available",
       "Video file stays on your device",
     ],
     image: `${SITE_URL}/opengraph-image.jpg`,

@@ -203,7 +203,13 @@ export interface BatchExportDeps {
 }
 
 export interface BatchBillingDeps {
-  reserve: (projectId: string, body: { exportId: string; kind: "mp4" }) => Promise<{ minutes: number }>;
+  /**
+   * Reserve minutes for one clip (the server computes them). The response
+   * also carries the server-side watermark decision for the clip's
+   * project, so the render carries exactly what that clip's Studio
+   * preview showed.
+   */
+  reserve: (projectId: string, body: { exportId: string; kind: "mp4" }) => Promise<{ minutes: number; watermark?: { text: string } | null }>;
   settle: (projectId: string, body: { exportId: string; kind: "mp4"; outcome: "completed" | "failed"; actualMinutes?: number }) => Promise<unknown>;
 }
 
@@ -258,7 +264,14 @@ export async function exportClipProject(
     const exportId = crypto.randomUUID();
     const reservation = await billing.reserve(projectId, { exportId, kind: "mp4" });
     try {
-      const blob = await deps.render(job, opts.onProgress ?? (() => undefined), opts.signal);
+      // Watermark: the reserve endpoint's server-side decision for this
+      // clip's project — the same value its Studio preview shows. When
+      // the server sent one, it wins over the loaded input's value.
+      const renderJob =
+        reservation.watermark !== undefined
+          ? { ...job, input: { ...job.input, watermark: reservation.watermark } }
+          : job;
+      const blob = await deps.render(renderJob, opts.onProgress ?? (() => undefined), opts.signal);
       const name = clipFileName(job.title);
       deps.save(blob, name);
       // Completion charges the reserved minutes. A failed settle just

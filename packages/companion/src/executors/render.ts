@@ -80,6 +80,10 @@ export async function runRender(ctx: JobContext) {
       // bilingual track (slice 5.1): only spread when the job carries one, so pre-5.1 jobs
       // render with exactly the old input props
       ...(job.translatedDocSnapshot ? { translatedDoc: job.translatedDocSnapshot } : {}),
+      // watermark (monetization): the server decided this in the job payload — the Companion
+      // renders exactly what the server decided, so a modified client cannot strip the mark
+      // from a server render. Only MP4 jobs carry it (the composition draws it in burn mode only).
+      ...(job.watermark ? { watermark: job.watermark } : {}),
       style: job.style,
       settings: job.settings,
       mode: burn ? "burn" : "overlay",

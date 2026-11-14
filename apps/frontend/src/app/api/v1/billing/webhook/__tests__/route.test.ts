@@ -16,6 +16,7 @@ type Row = Record<string, unknown>;
 class FakeBuilder {
   private filters: Array<[string, unknown]> = [];
   private updateRow: Row | null = null;
+  private insertRow: Row | null = null;
   constructor(
     private tables: Record<string, Row[]>,
     private table: string,
@@ -25,6 +26,10 @@ class FakeBuilder {
   }
   update(row: Row) {
     this.updateRow = row;
+    return this;
+  }
+  insert(row: Row) {
+    this.insertRow = row;
     return this;
   }
   eq(col: string, val: unknown) {
@@ -41,6 +46,16 @@ class FakeBuilder {
   }
   async maybeSingle() {
     const rows = (this.tables[this.table] ?? []).filter((r) => this.filters.every(([c, v]) => r[c] === v));
+    if (this.insertRow) {
+      // Unique keys, like the real table: one entitlement per project, one per order.
+      const clash = (this.tables[this.table] ?? []).find(
+        (r) => (this.insertRow!.project_id && r.project_id === this.insertRow!.project_id) || (this.insertRow!.cf_order_id && r.cf_order_id === this.insertRow!.cf_order_id),
+      );
+      if (clash) return { data: null, error: { code: "23505", message: "duplicate key value violates unique constraint" } };
+      const row: Row = { id: `ent-${(this.tables[this.table] ?? []).length + 1}`, ...this.insertRow, paid_at: "2026-11-14T00:00:00Z", created_at: "2026-11-14T00:00:00Z" };
+      (this.tables[this.table] ??= []).push(row);
+      return { data: row, error: null };
+    }
     if (this.updateRow) {
       const row = rows[0];
       if (!row) return { data: null, error: null };
@@ -121,7 +136,10 @@ beforeEach(() => {
   process.env.CASHFREE_WEBHOOK_SECRET = SECRET;
   state.tables = {
     profiles: [{ id: "user-1", plan: "free", plan_expires_at: null }],
-    payments: [aPayment()],
+    payments: [
+      aPayment(),
+      aPayment({ id: "pay-wm-1", cf_order_id: "oc_wm_order1", plan: "watermark", product: "watermark", project_id: "proj-1", amount: 69 }),
+    ],
   };
 });
 
@@ -177,6 +195,65 @@ describe("billing webhook", () => {
   it("an unknown order is acknowledged without side effects", async () => {
     const res = await call(event("PAYMENT_SUCCESS_WEBHOOK", "oc_unknown"));
     expect(res.status).toBe(200);
+    expect(state.tables.profiles[0]!.plan).toBe("free");
+  });
+});
+
+describe("billing webhook — ₹69 watermark removal", () => {
+  const wmPayment = () => state.tables.payments.find((p) => p.cf_order_id === "oc_wm_order1")!;
+
+  it("a signed PAYMENT_SUCCESS for a watermark order grants exactly one entitlement — and no plan, no minutes", async () => {
+    const res = await call(event("PAYMENT_SUCCESS_WEBHOOK", "oc_wm_order1"));
+    expect(res.status).toBe(200);
+    expect(wmPayment().status).toBe("paid");
+    expect(wmPayment().cf_payment_id).toBe("cfpay-1");
+    expect(state.tables.watermark_entitlements).toHaveLength(1);
+    expect(state.tables.watermark_entitlements![0]).toMatchObject({
+      project_id: "proj-1",
+      owner_id: "user-1",
+      cf_order_id: "oc_wm_order1",
+      amount: 69,
+      currency: "INR",
+      status: "paid",
+    });
+    // The boundary: a watermark purchase buys no plan and no minutes.
+    expect(state.tables.profiles[0]!.plan).toBe("free");
+    expect(state.tables.profiles[0]!.plan_expires_at).toBeNull();
+    expect(state.tables.minute_ledger).toBeUndefined();
+  });
+
+  it("a duplicate watermark delivery grants nothing twice", async () => {
+    await call(event("PAYMENT_SUCCESS_WEBHOOK", "oc_wm_order1"));
+    const res = await call(event("PAYMENT_SUCCESS_WEBHOOK", "oc_wm_order1"));
+    expect(res.status).toBe(200);
+    expect(state.tables.watermark_entitlements).toHaveLength(1);
+    expect(wmPayment().status).toBe("paid");
+  });
+
+  it("PAYMENT_FAILED for a watermark order closes it and grants nothing", async () => {
+    const res = await call(event("PAYMENT_FAILED_WEBHOOK", "oc_wm_order1"));
+    expect(res.status).toBe(200);
+    expect(wmPayment().status).toBe("failed");
+    expect(state.tables.watermark_entitlements).toBeUndefined();
+  });
+
+  it("a REFUND_SUCCESS for a watermark order revokes the removal", async () => {
+    await call(event("PAYMENT_SUCCESS_WEBHOOK", "oc_wm_order1"));
+    expect(state.tables.watermark_entitlements).toHaveLength(1);
+    const res = await call(event("REFUND_SUCCESS_WEBHOOK", "oc_wm_order1"));
+    expect(res.status).toBe(200);
+    expect(wmPayment().status).toBe("refunded");
+    expect(state.tables.watermark_entitlements![0]!.status).toBe("refunded");
+    // A re-delivered refund is a no-op.
+    await call(event("REFUND_SUCCESS_WEBHOOK", "oc_wm_order1"));
+    expect(state.tables.watermark_entitlements).toHaveLength(1);
+    expect(state.tables.watermark_entitlements![0]!.status).toBe("refunded");
+  });
+
+  it("a REFUND_SUCCESS for a plan order is acknowledged without a state change", async () => {
+    const res = await call(event("REFUND_SUCCESS_WEBHOOK", "oc_order1"));
+    expect(res.status).toBe(200);
+    expect(state.tables.payments[0]!.status).toBe("created");
     expect(state.tables.profiles[0]!.plan).toBe("free");
   });
 });

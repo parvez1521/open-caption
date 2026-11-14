@@ -1,9 +1,11 @@
 import { getAdmin } from "@/lib/supabase/admin";
 import { verifyWebhookSignature } from "@/lib/billing/cashfree";
 import { findPaymentByOrderId, settleClosed, settlePaid } from "@/lib/billing/settle";
+import { isWatermarkPayment, settleWatermarkPaid, settleWatermarkRefunded } from "@/lib/billing/watermark";
 
 /**
- * Cashfree webhook — the ONLY channel that can grant a plan on its own.
+ * Cashfree webhook — the ONLY channel that can grant a plan or a
+ * watermark removal on its own.
  * The signature is verified against the RAW body bytes before anything is
  * parsed (Cashfree signs timestamp + raw payload). Unknown orders and
  * already-settled payments answer 200 so Cashfree stops retrying; a bad
@@ -11,6 +13,13 @@ import { findPaymentByOrderId, settleClosed, settlePaid } from "@/lib/billing/se
  *
  * Configure this URL in the Cashfree dashboard:
  *   <site>/api/v1/billing/webhook
+ *
+ * Watermark orders branch on the payment's product BEFORE any plan
+ * settle: a ₹69 payment grants a per-project entitlement
+ * (settleWatermarkPaid), never a plan. A refund of a watermark payment
+ * (REFUND_SUCCESS_WEBHOOK) revokes the removal, so the project is
+ * watermarked again. Plan refunds have no handler yet (Builder 6 scope)
+ * and are acknowledged without a state change.
  */
 export async function POST(req: Request): Promise<Response> {
   const rawBody = await req.text();
@@ -37,11 +46,14 @@ export async function POST(req: Request): Promise<Response> {
   const cfPaymentId = event.data?.payment?.cf_payment_id != null ? String(event.data.payment.cf_payment_id) : null;
   try {
     if (event.type === "PAYMENT_SUCCESS_WEBHOOK") {
-      await settlePaid(admin, payment, cfPaymentId);
+      if (isWatermarkPayment(payment)) await settleWatermarkPaid(admin, payment, cfPaymentId);
+      else await settlePaid(admin, payment, cfPaymentId);
     } else if (event.type === "PAYMENT_FAILED_WEBHOOK") {
       await settleClosed(admin, payment, "failed");
     } else if (event.type === "PAYMENT_USER_DROPPED_WEBHOOK") {
       await settleClosed(admin, payment, "expired");
+    } else if (event.type === "REFUND_SUCCESS_WEBHOOK") {
+      if (isWatermarkPayment(payment)) await settleWatermarkRefunded(admin, payment);
     }
   } catch (e) {
     // A settle failure must surface as a non-200 so Cashfree retries —
