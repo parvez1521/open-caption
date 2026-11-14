@@ -12,13 +12,15 @@ import { ConnectionStoreNotReady, listConnectionStatuses } from "@/lib/api/conne
  */
 async function countSyncedPosts(ownerId: string, source: ConnectPlatform): Promise<number | null> {
   try {
-    const { data, error } = await getAdmin()
+    // head:true + count:"exact" — a plain .select("id") is silently capped
+    // at PostgREST's 1000-row default, so .length undercounts big sources.
+    const { count, error } = await getAdmin()
       .from("growth_posts")
-      .select("id")
+      .select("id", { count: "exact", head: true })
       .eq("owner_id", ownerId)
       .eq("source", source);
     if (error) return null;
-    return (data ?? []).length;
+    return count ?? 0;
   } catch {
     return null;
   }
