@@ -33,9 +33,6 @@ import { BRAND_NAME, BRAND_WORDMARK_ACCENT, BRAND_WORDMARK_LEAD } from "@/lib/br
 
 // Motion Studio previews: the real animated graphics, loaded lazily like the other live previews
 const MotionPreview = dynamic(() => import("@/features/motion/MotionPreview").then((m) => m.MotionPreview), { ssr: false, loading: () => <div className="aspect-[700/360] w-full animate-pulse bg-[#141412]" /> });
-// The AI Edit demonstration: a real sample clip edited live by the real renderer, loaded lazily
-const AiEditDemo = dynamic(() => import("./AiEditDemo").then((m) => m.AiEditDemo), { ssr: false, loading: () => <div className="aspect-[4/3] w-full animate-pulse rounded-[2rem] bg-[#1C1C1A]" /> });
-
 const INK = "#FFFFEB";
 /** Product Hunt badge: set NEXT_PUBLIC_PRODUCT_HUNT_POST_ID (and _SLUG) on Vercel once the launch is scheduled; hidden until then. */
 const PH_POST_ID = process.env.NEXT_PUBLIC_PRODUCT_HUNT_POST_ID || "";
@@ -566,37 +563,6 @@ export function MotionStudioSection() {
             </span>
             <span className="text-[13px] leading-snug text-[#FFFFEB]/65">See all motion templates</span>
           </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/**
- * AI Edit section: the demonstration is the product's real machinery on a real
- * sample clip — the style chips and plan checklist narrate the panel's flow
- * while the real composition renders the before and the edited states.
- */
-export function AiEditSection() {
-  return (
-    <section id="ai-edit" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
-      <div className="mx-auto max-w-6xl">
-        <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
-          <div className="lg:order-1">
-            <AiEditDemo />
-          </div>
-          <div className="lg:order-2">
-            <span className="rounded-md bg-[#34D399] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">New</span>
-            <h2 className="font-styled mt-4 text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
-              Describe the edit. <em className="font-normal italic text-[#34D399]">Check the plan. Keep what works.</em>
-            </h2>
-            <p className="mt-5 text-base leading-relaxed text-[#FFFFEB]/70">
-              Choose a look. Add a line of instruction if you like. AI Edit drafts the whole edit as a checklist: the caption look, punch-in zooms, key words and a hook. Nothing is applied until you approve it. Every step can be previewed and undone.
-            </p>
-            <Link href="/start?choose=1" className="mt-7 inline-flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-6 py-3.5 text-base font-bold text-[#141412]">
-              Try AI Edit <span aria-hidden>→</span>
-            </Link>
-          </div>
         </div>
       </div>
     </section>

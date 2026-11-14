@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ClipPlayer, Frame, ShowcaseCard, Tag, fmt, lookFor, usePages, useTranscript } from "./ShowcaseKit";
 
 const ORANGE = "#FF8A00";
-const CLIP = "omar";
+const CLIP = "kangkana";
 const ROW = 46;
 
 /** 03: the engine picks one key word per card; the list shows exactly what the renderer chose. */

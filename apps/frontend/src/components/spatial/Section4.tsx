@@ -6,7 +6,7 @@ import type { PlayerRef } from "@remotion/player";
 import { CLIP_H, CLIP_W, ClipPlayer, FPS, ShowcaseCard, lookFor, useTranscript } from "./ShowcaseKit";
 
 const INKC = "#FFFFEB";
-const CLIP = "sam";
+const CLIP = "john";
 const LAYER_W = 214;
 const LAYER_H = Math.round((LAYER_W * CLIP_H) / CLIP_W);
 const CHECKER = "repeating-conic-gradient(rgba(0,0,0,0.16) 0% 25%, rgba(255,255,235,0.4) 0% 50%) 0 0 / 14px 14px";
