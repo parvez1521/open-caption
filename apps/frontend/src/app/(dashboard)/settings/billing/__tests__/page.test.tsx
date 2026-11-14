@@ -1,6 +1,6 @@
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 /**
  * Billing page: when checkout creation fails, the notice shows the server's
@@ -49,8 +49,30 @@ beforeEach(() => {
 describe("billing page checkout failure", () => {
   it("shows the server's Cashfree error instead of a generic message", async () => {
     render(<BillingPage />);
+    fireEvent.change(await screen.findByLabelText("Mobile number"), { target: { value: "9876543210" } });
     fireEvent.click(await screen.findByRole("button", { name: "Get Starter" }));
     expect(await screen.findByText(/Cashfree \/pg\/orders failed \(401\): Invalid client id or secret/)).toBeTruthy();
     expect(screen.queryByText("Something went wrong")).toBeNull();
+  });
+});
+
+describe("billing page phone at checkout", () => {
+  it("does not send the order without a valid phone number", async () => {
+    const post = vi.fn(async () => ({ configured: true, paymentSessionId: "sess-1" }));
+    api.postImpl = post;
+    render(<BillingPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Get Starter" }));
+    expect(await screen.findByText("Add a valid mobile number to continue.")).toBeTruthy();
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("sends the cleaned phone with the order once it is valid", async () => {
+    const post = vi.fn(async () => ({ configured: true, paymentSessionId: "sess-1" }));
+    api.postImpl = post;
+    render(<BillingPage />);
+    fireEvent.change(await screen.findByLabelText("Mobile number"), { target: { value: "98765 43210" } });
+    fireEvent.click(await screen.findByRole("button", { name: "Get Starter" }));
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    expect(post).toHaveBeenCalledWith("/billing/checkout", { json: { plan: "starter", customerPhone: "9876543210" } });
   });
 });

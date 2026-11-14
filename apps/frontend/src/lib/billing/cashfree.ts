@@ -95,6 +95,11 @@ export async function createCashfreeOrder(input: {
 }): Promise<CreatedOrder> {
   const cfg = cashfreeConfig();
   if (!cfg.configured) throw new Error("Cashfree is not configured");
+  // Production /pg/orders REQUIRES customer_phone and answers 400 without
+  // it — fail here with a clear message instead of a Cashfree 400. The
+  // caller must pass a validated number; never invent one, a fake number
+  // would land on a real customer's receipt.
+  if (!input.customerPhone) throw new Error("customerPhone is required — Cashfree rejects orders without customer_phone");
   const body = (await cfFetch(cfg, "/pg/orders", {
     method: "POST",
     body: JSON.stringify({
@@ -104,10 +109,7 @@ export async function createCashfreeOrder(input: {
       customer_details: {
         customer_id: input.customerId,
         customer_email: input.customerEmail,
-        // Only when we actually have one — Cashfree collects it on the
-        // hosted page for payment methods that need it; inventing a number
-        // would put a fake phone on a real customer's receipt.
-        ...(input.customerPhone ? { customer_phone: input.customerPhone } : {}),
+        customer_phone: input.customerPhone,
       },
       order_meta: { return_url: input.returnUrl, notify_url: input.notifyUrl },
       order_note: `Captionit ${input.planId} plan — 30 days`,

@@ -5,8 +5,9 @@ import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { SITE_URL } from "@/lib/seo";
 import { cashfreeConfig, createCashfreeOrder, currencyForCountry, newOrderId, type CashfreeConfig } from "@/lib/billing/cashfree";
+import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
 
-const Body = z.object({ plan: z.string().min(1).max(20) });
+const Body = z.object({ plan: z.string().min(1).max(20), customerPhone: z.string().max(20).optional() });
 
 /**
  * Cashfree's order error is a status + their message only — it never
@@ -39,6 +40,14 @@ export const POST = route(async (req: Request) => {
   const pricing = PLAN_PRICING.find((p) => p.id === planId);
   if (!pricing || planId === "free" || pricing.priceInr <= 0) {
     throw new ApiFailure("VALIDATION", "That is not a purchasable plan.");
+  }
+
+  // Cashfree's production /pg/orders REQUIRES customer_details.customer_phone
+  // and answers 400 without it. Check before the payments row is written,
+  // so a bad number leaves no orphan row behind.
+  const phone = normalizeCustomerPhone(body.customerPhone);
+  if (!phone) {
+    throw new ApiFailure("VALIDATION", "Add a valid mobile number to continue.");
   }
 
   const cfg = cashfreeConfig();
@@ -79,7 +88,7 @@ export const POST = route(async (req: Request) => {
       currency,
       customerId: user.id,
       customerEmail: user.email ?? "",
-      customerPhone: "",
+      customerPhone: phone,
       returnUrl: `${origin}/settings/billing?order_id=${orderId}`,
       notifyUrl: `${origin}/api/v1/billing/webhook`,
       planId,

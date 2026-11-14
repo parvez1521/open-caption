@@ -6,6 +6,7 @@ import { PLAN_PRICING, PLANS, pricingFor, type PlanId } from "@capseasy/shared";
 import { priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import StudioShell from "@/components/studio/StudioShell";
 import { apiClient } from "@/services/api-client";
+import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
 
 interface PaymentRow {
   id: string;
@@ -74,6 +75,8 @@ export default function BillingPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const reconciled = useRef(false);
 
   const load = useCallback(async () => {
@@ -116,10 +119,18 @@ export default function BillingPage() {
   }, [load]);
 
   const buy = async (plan: PlanId) => {
+    // Cashfree needs a mobile number to create the order — never start
+    // checkout without a valid one.
+    const validPhone = normalizeCustomerPhone(phone);
+    if (!validPhone) {
+      setPhoneError("Add a valid mobile number to continue.");
+      return;
+    }
+    setPhoneError(null);
     setBusyPlan(plan);
     setNotice(null);
     try {
-      const res = await apiClient.post<CheckoutResponse>("/billing/checkout", { json: { plan } });
+      const res = await apiClient.post<CheckoutResponse>("/billing/checkout", { json: { plan, customerPhone: validPhone } });
       if (!res.configured || !res.paymentSessionId) {
         setNotice("Payments aren't switched on for Captionit yet — plans can't be bought right now. Your current plan and limits are unchanged.");
         return;
@@ -212,6 +223,32 @@ export default function BillingPage() {
 
             <section className="pt-10" aria-label="Plans">
               <h2 className="font-sora text-[15px] font-bold text-ink">Plans</h2>
+              <div className="mt-4">
+                <label htmlFor="checkout-phone" className="font-sora text-[13.5px] font-semibold text-ink">
+                  Mobile number
+                </label>
+                <p className="mt-1 text-[13px] text-sand-700">Cashfree needs your mobile number to start the payment.</p>
+                <input
+                  id="checkout-phone"
+                  type="tel"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setPhoneError(null);
+                  }}
+                  placeholder="98765 43210"
+                  aria-invalid={phoneError ? true : undefined}
+                  aria-describedby={phoneError ? "checkout-phone-error" : undefined}
+                  className="mt-2 w-full max-w-xs rounded-xl border border-sand-200 bg-sand-50 px-4 py-2.5 text-[14px] text-ink outline-none focus:border-ink"
+                />
+                {phoneError ? (
+                  <p id="checkout-phone-error" role="alert" className="mt-2 text-[13px] font-semibold text-ink">
+                    {phoneError}
+                  </p>
+                ) : null}
+              </div>
               <div className="mt-4 space-y-3">
                 {PLAN_PRICING.filter((p) => p.id !== "free").map((entry) => {
                   const price = priceLabel(entry, state.currency);

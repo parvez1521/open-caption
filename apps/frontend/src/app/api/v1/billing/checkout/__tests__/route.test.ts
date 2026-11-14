@@ -14,6 +14,7 @@ import { POST } from "../route";
 
 const state = vi.hoisted(() => ({
   inserted: [] as Array<Record<string, unknown>>,
+  createArgs: [] as Array<Record<string, unknown>>,
   createImpl: null as null | ((...args: unknown[]) => Promise<unknown>),
 }));
 
@@ -42,6 +43,7 @@ vi.mock("@/lib/billing/cashfree", () => ({
     baseUrl: "https://sandbox.cashfree.com",
   }),
   createCashfreeOrder: (...args: unknown[]) => {
+    state.createArgs.push(args[0] as Record<string, unknown>);
     if (!state.createImpl) throw new Error("createCashfreeOrder not stubbed");
     return state.createImpl(...args);
   },
@@ -51,17 +53,18 @@ vi.mock("@/lib/billing/cashfree", () => ({
 
 vi.mock("@/lib/seo", () => ({ SITE_URL: "https://captionit.in" }));
 
-const call = () =>
+const call = (body: Record<string, unknown> = { plan: "starter", customerPhone: "9876543210" }) =>
   POST(
     new Request("https://example.test/api/v1/billing/checkout", {
       method: "POST",
       headers: { Authorization: "Bearer tok", "Content-Type": "application/json" },
-      body: JSON.stringify({ plan: "starter" }),
+      body: JSON.stringify(body),
     }),
   );
 
 beforeEach(() => {
   state.inserted = [];
+  state.createArgs = [];
   state.createImpl = async () => ({ paymentSessionId: "sess-1", orderStatus: "ACTIVE" });
 });
 
@@ -99,5 +102,40 @@ describe("billing checkout error surfacing", () => {
     expect(body.success).toBe(true);
     expect(body.data?.paymentSessionId).toBe("sess-1");
     expect(body.data?.orderId).toBe("oc_testorder1");
+  });
+
+  it("passes a valid phone through to createCashfreeOrder", async () => {
+    const res = await call({ plan: "starter", customerPhone: "9876543210" });
+    expect(res.status).toBe(200);
+    expect(state.createArgs).toHaveLength(1);
+    expect(state.createArgs[0]?.customerPhone).toBe("9876543210");
+  });
+
+  it("sends the phone cleaned up, spaces and dashes stripped", async () => {
+    const res = await call({ plan: "starter", customerPhone: "98765 432-10" });
+    expect(res.status).toBe(200);
+    expect(state.createArgs[0]?.customerPhone).toBe("9876543210");
+  });
+
+  it("returns a clear validation error when the phone is missing, and writes no payments row", async () => {
+    const res = await call({ plan: "starter" });
+    const body = (await res.json()) as { success: boolean; error?: { code: string; message: string } };
+    expect(res.status).toBe(422);
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBe("VALIDATION");
+    expect(body.error?.message).toBe("Add a valid mobile number to continue.");
+    expect(state.inserted).toHaveLength(0);
+    expect(state.createArgs).toHaveLength(0);
+  });
+
+  it("returns a clear validation error when the phone is invalid, and writes no payments row", async () => {
+    const res = await call({ plan: "starter", customerPhone: "12345" });
+    const body = (await res.json()) as { success: boolean; error?: { code: string; message: string } };
+    expect(res.status).toBe(422);
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBe("VALIDATION");
+    expect(body.error?.message).toBe("Add a valid mobile number to continue.");
+    expect(state.inserted).toHaveLength(0);
+    expect(state.createArgs).toHaveLength(0);
   });
 });
