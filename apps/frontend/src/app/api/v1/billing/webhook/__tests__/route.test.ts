@@ -105,7 +105,10 @@ describe("billing webhook", () => {
     expect(res.status).toBe(200);
     expect(state.tables.payments[0]!.status).toBe("paid");
     expect(state.tables.payments[0]!.cf_payment_id).toBe("cfpay-1");
-    expect(state.tables.profiles[0]!.plan).toBe("growth");
+    // The payment row keeps the old "growth" id as history, but the
+    // profile is granted the plan it maps to today: Creator (2026-11-14
+    // minutes model — a stored "growth" reads as Creator, never Free).
+    expect(state.tables.profiles[0]!.plan).toBe("creator");
     expect(state.tables.profiles[0]!.plan_expires_at).toBeTruthy();
   });
 

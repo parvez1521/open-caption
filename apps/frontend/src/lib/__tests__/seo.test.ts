@@ -382,12 +382,14 @@ describe("competitor-intelligence programme (2026-11-13)", () => {
     expect(ld).not.toHaveProperty("aggregateRating");
     expect(ld).not.toHaveProperty("review");
     const offers = ld.offers as Array<Record<string, unknown>>;
-    // Free (one zero offer) + 3 paid plans x 2 currencies = 7 offers.
-    expect(offers).toHaveLength(7);
+    // Free (one zero offer) + 3 paid plans x INR only (USD prices are not
+    // set yet, so no USD offer is emitted) = 4 offers.
+    expect(offers).toHaveLength(4);
     const pairs = offers.map((o) => `${o.priceCurrency}:${o.price}`);
-    for (const expected of ["INR:0", "INR:299", "INR:499", "INR:799", "USD:4", "USD:6", "USD:10"]) {
+    for (const expected of ["INR:0", "INR:149", "INR:349", "INR:749"]) {
       expect(pairs).toContain(expected);
     }
+    expect(pairs.some((p) => p.startsWith("USD:"))).toBe(false);
     // One currency per Offer: the geo rule is honoured in structured data too.
     for (const o of offers) {
       expect(typeof o.priceCurrency).toBe("string");

@@ -58,11 +58,11 @@ describe("limits per plan", () => {
     expect(planFor(plan).videosPerMonth).toBe(limit);
   });
 
-  it("pricing bullets name the monthly videos, in short copy", () => {
-    expect(pricingFor("free").features[0]).toBe("3 videos a month");
-    expect(pricingFor("starter").features[0]).toBe("10 videos a month");
+  it("pricing bullets name the monthly minutes (the legacy Plus bullet still names its videos)", () => {
+    expect(pricingFor("free").features[0]).toBe("5 processing minutes, one-time only");
+    expect(pricingFor("starter").features[0]).toBe("40 processing minutes a month");
     expect(pricingFor("growth").features[0]).toBe("20 videos a month");
-    expect(pricingFor("pro").features[0]).toBe("40 videos a month");
+    expect(pricingFor("pro").features[0]).toBe("250 processing minutes a month");
   });
 });
 
@@ -167,11 +167,12 @@ describe("recordVideoQuotaEvent", () => {
   });
 });
 
-describe("plans — the quota change did not move prices or ids", () => {
-  it("plans, prices and the 30-day pass model are unchanged", () => {
-    expect(pricingFor("starter").priceInr).toBe(299);
+describe("plans — the minutes model repriced the plans; the legacy Plus record keeps its old price", () => {
+  it("new prices are Starter 149, Creator 349, Pro 749; old Plus stays 499 on its legacy record", () => {
+    expect(pricingFor("starter").priceInr).toBe(149);
+    expect(pricingFor("creator").priceInr).toBe(349);
+    expect(pricingFor("pro").priceInr).toBe(749);
     expect(pricingFor("growth").priceInr).toBe(499);
-    expect(pricingFor("pro").priceInr).toBe(799);
     expect(pricingFor("growth").id).toBe("growth");
   });
 });
