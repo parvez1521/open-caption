@@ -8,7 +8,7 @@ import { applyFillerFilter, applyProfanity, derivePages, toAss, toJson, toSrt, t
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
-import { checkVideoQuota, recordVideoQuotaEvent, type VideoQuotaKind } from "@/lib/billing/videoQuota";
+import { releaseVideoQuotaEvent, reserveVideoQuotaEvent, type VideoQuotaKind } from "@/lib/billing/videoQuota";
 import { putObject, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 
@@ -121,9 +121,23 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
 
   // Monthly video quota: a video export consumes one of the month's videos.
   // Text caption files never count, so this check runs for video kinds only.
+  // The slot is RESERVED here (count + record in one per-owner locked step,
+  // C-09) before the export row exists, so two concurrent exports at
+  // remaining=1 cannot both pass. If the quota table has not been applied
+  // yet the reservation soft-fails (reserved:false, same as the record path)
+  // and the export proceeds uncounted instead of hard-failing 500 (B-04).
   // A failed or cancelled render keeps its slot (the event is keyed by
-  // export_id), so retrying it is free.
-  await checkVideoQuota(admin, user.id, effectivePlan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null);
+  // export_id), so retrying it is free — but a queue that fails BEFORE the
+  // export row exists gives the slot back below, so a failed queue never
+  // consumes a video.
+  const reservation = await reserveVideoQuotaEvent(admin, {
+    exportId,
+    ownerId: user.id,
+    projectId,
+    kind: format as VideoQuotaKind,
+    plan: effectivePlan,
+    expiresAt: (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
+  });
 
   const { error: exErr } = await admin.from("exports").insert({
     id: exportId, project_id: projectId, owner_id: user.id, kind: body.kind, status_v2: "queued", status: "queued",
@@ -131,7 +145,10 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     settings: { width, height, fps, crf: body.crf ?? 21, range: body.range ?? null },
     expires_at: new Date(Date.now() + retentionDays * 86400_000).toISOString(),
   });
-  if (exErr) throw new ApiFailure("INTERNAL", "Could not create the export", exErr.message);
+  if (exErr) {
+    if (reservation.reserved) await releaseVideoQuotaEvent(admin, { exportId, ownerId: user.id });
+    throw new ApiFailure("INTERNAL", "Could not create the export", exErr.message);
+  }
 
   // bilingual renders carry the translated track for the project's chosen target (slice 5.1);
   // the composition decides whether to draw it (settings.bilingual), same as the preview
@@ -152,14 +169,8 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     idempotencyKey: `render:${exportId}`,
   });
   await admin.from("exports").update({ job_id: job.id }).eq("id", exportId);
-  // Count the video: the quota event is written after the job exists, so a
-  // failed queue never consumes a slot. If recording fails the export still
-  // renders — the user keeps the video and the miss is logged, not charged
-  // twice or blocked after the fact.
-  try {
-    await recordVideoQuotaEvent(admin, { exportId, ownerId: user.id, projectId, kind: format as VideoQuotaKind });
-  } catch (e) {
-    console.error(JSON.stringify({ level: "error", msg: "video quota record failed", exportId, err: e instanceof Error ? e.message : String(e) }));
-  }
+  // The quota event was already written by the reservation above (same
+  // export_id), so there is nothing left to record here — and a failed
+  // queue can no longer leave an export uncounted.
   return ok({ exportId, jobId: job.id, ready: false, companionOnline: await hasOnlineCompanion(user.id) }, 202);
 });

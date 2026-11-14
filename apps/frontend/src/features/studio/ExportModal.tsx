@@ -145,7 +145,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
    * encoder meanwhile the render never moves again, so a render that makes no progress for 45 s while the tab is
    * visible is stopped and started again by itself (a render can't resume half-way).
    */
-  const exportHere = async (attempt = 0) => {
+  const exportHere = async (attempt = 0, exportId = crypto.randomUUID()) => {
     if (!renderInput) return;
     setError(null);
     setWebDone(null);
@@ -156,6 +156,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     let last = Date.now();
     let stalled = false;
     let again = false;
+    let rendered = false;
     const onVisible = () => {
       if (document.visibilityState === "visible") last = Date.now();
     };
@@ -199,13 +200,16 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       const name = `${(title || "captionit").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "captionit"}.mp4`;
       saveBlob(blob, name);
       // Count the finished video: the render happened on this device, so the
-      // Studio reports it once, keyed by a fresh export id. Fire-and-forget
-      // — the file is already saved, so a failed record just means this video
-      // was not counted.
+      // Studio reports it once, keyed by the export id reserved in start()
+      // (same id → the record is a no-op when the reservation already wrote
+      // it; when the reservation soft-failed, this is the count). Fire-and-
+      // forget — the file is already saved, so a failed record just means
+      // this video was not counted.
       void studioService
-        .recordBrowserExport(projectId, { exportId: crypto.randomUUID(), kind: "mp4" })
+        .recordBrowserExport(projectId, { exportId, kind: "mp4" })
         .catch(() => {})
         .finally(() => void qc.invalidateQueries({ queryKey: ["video-quota", projectId] }));
+      rendered = true;
       setWebDone(`${fmtBytes(blob.size)} · made in ${fmtTime(clock() - started)}`);
       setMade({ blob, name });
       setShowReady(true);
@@ -226,11 +230,15 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       setWebProgress(null);
       setPhaseLabel(null);
       abort.current = null;
+      // A render that never produced a file gives its reserved slot back
+      // (failed mix, encoder error, stall on the last attempt, cancel) —
+      // but NOT a stalled attempt that is about to restart with the same id.
+      if (!rendered && !again) void studioService.releaseBrowserExport(projectId, exportId).catch(() => {});
     }
     if (again) {
       Sentry.captureMessage("export: restarted after a stall", { level: "info", extra: { attempt } });
       setRestarted(true);
-      await exportHere(attempt + 1);
+      await exportHere(attempt + 1, exportId);
     }
   };
 
@@ -272,6 +280,21 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         setError("Monthly limit reached — upgrade for more videos.");
         return;
       }
+      // Server-side pre-flight reservation (B-04): the authoritative check
+      // the client cannot skip — the slot is held for this export id before
+      // rendering starts, and the post-render record for the same id is a
+      // no-op. At the cap the server answers 402 and nothing renders; any
+      // other reserve failure (quota not set up, network) soft-fails and the
+      // render proceeds, counted by the post-render record instead.
+      const exportId = crypto.randomUUID();
+      try {
+        await studioService.reserveBrowserExport(projectId, { exportId, kind: "mp4" });
+      } catch (e) {
+        if (e instanceof ApiError && e.code === "LIMIT_EXCEEDED") {
+          setError("Monthly limit reached — upgrade for more videos.");
+          return;
+        }
+      }
       let w = web;
       if (!w) {
         setBusyKind("mp4");
@@ -279,7 +302,10 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         setWeb(w);
         setBusyKind(null);
       }
-      if (w.ok && renderInput?.src) return exportHere();
+      if (w.ok && renderInput?.src) return exportHere(0, exportId);
+      // The render cannot run (video not loaded / encoder refused) — give
+      // the reserved slot back instead of holding it for nothing.
+      void studioService.releaseBrowserExport(projectId, exportId).catch(() => {});
       setError(w.ok ? "The video isn't loaded yet. Wait a moment and try again." : w.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari.");
       return;
     }
