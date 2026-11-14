@@ -242,7 +242,7 @@ export default function ProjectsList() {
               const chip = STATUS_CHIP[project.status] ?? STATUS_CHIP.CREATED;
               const menuOpen = menuFor === project.id;
               return (
-                <div key={project.id} onClick={() => nav.go(`/projects/${project.id}`, "Opening your project")} onPointerEnter={() => warmProject(project.id)} onTouchStart={() => warmProject(project.id)} className="group relative flex h-32 cursor-pointer flex-col justify-between rounded-xl border border-sand-200 bg-white p-4 sm:h-40 sm:p-5 transition-all hover:border-sand-500 hover:shadow-sand-soft">
+                <div key={project.id} role="link" tabIndex={0} aria-label={`Open project ${project.title}`} onClick={() => nav.go(`/projects/${project.id}`, "Opening your project")} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); nav.go(`/projects/${project.id}`, "Opening your project"); } }} onPointerEnter={() => warmProject(project.id)} onTouchStart={() => warmProject(project.id)} className="group relative flex h-32 cursor-pointer flex-col justify-between rounded-xl border border-sand-200 bg-white p-4 sm:h-40 sm:p-5 transition-all hover:border-sand-500 hover:shadow-sand-soft">
                   <div className="min-w-0">
                     <h3 className="truncate pr-10 font-sora text-[15px] font-bold text-ink">{project.title}</h3>
                     {project.archived_at ? <p className="mt-1 text-[11px] text-sand-600">Archived</p> : null}

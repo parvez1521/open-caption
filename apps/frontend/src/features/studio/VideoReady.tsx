@@ -74,7 +74,7 @@ export const VideoReady: React.FC<Props> = ({ blob, filename, detail, onDownload
       <div ref={dialogRef} role="dialog" aria-label="Your video is ready" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="flex max-h-[94dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:rounded-2xl">
         <div className="flex items-center justify-between px-5 pt-4">
           <h2 className="text-lg font-semibold">Your video is ready 🎉</h2>
-          <button onClick={onClose} aria-label="Close" className="-mr-2 grid h-10 w-10 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
+          <button onClick={onClose} aria-label="Close" className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
           {detail ? <p className="text-xs text-st-muted">{detail}</p> : null}

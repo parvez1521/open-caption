@@ -325,7 +325,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       <div ref={dialogRef} role="dialog" aria-label="Export" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-st-line px-5 py-4">
           <h2 className="text-lg font-semibold">Export</h2>
-          <button onClick={onClose} aria-label="Close" className="-mr-2 grid h-10 w-10 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
+          <button onClick={onClose} aria-label="Close" className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
@@ -406,6 +406,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
                   onClick={() => setSelectedKey(key)}
                   className={`relative flex aspect-square flex-col overflow-hidden rounded-xl border text-left disabled:opacity-50 ${isSelected ? "border-st-em bg-st-em/10" : o.popular ? "border-st-ink bg-st-lav/40 hover:bg-st-lav/60" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
                 >
+                  {isSelected ? <span aria-hidden className="absolute left-1.5 top-1.5 z-10 grid h-5 w-5 place-items-center rounded-full bg-st-em text-[11px] font-bold text-[#141412]">✓</span> : null}
                   {o.popular ? <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-st-or px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#141412]">Most popular</span> : null}
                   {queued ? <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-st-raised px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-st-text">{queuedOnline ? "Rendering" : "Queued"}</span> : null}
                   {unavailable ? <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-st-raised px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-st-text">Unavailable</span> : null}

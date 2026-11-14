@@ -76,7 +76,7 @@ export const MotionPicker: React.FC<Props> = ({ label, kind, value, groups, onCh
               <div role="dialog" aria-label={label} onClick={(e) => e.stopPropagation()} className="flex max-h-[88dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl">
                 <div className="flex items-center justify-between border-b border-st-line px-5 py-4">
                   <h2 className="text-lg font-semibold">{label}</h2>
-                  <button onClick={() => setOpen(false)} aria-label="Close" className="-mr-2 grid h-10 w-10 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
+                  <button onClick={() => setOpen(false)} aria-label="Close" className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
                   {groups.filter((g) => g.types.length).map((g) => (

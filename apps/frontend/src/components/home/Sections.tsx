@@ -90,7 +90,7 @@ export function Nav() {
           <Link href="/start?choose=1" onClick={warmModel} className="hidden items-center gap-1.5 whitespace-nowrap rounded-full bg-[#34D399] px-4 py-2 text-sm font-bold text-[#141412] sm:flex">
             Start free <span aria-hidden>→</span>
           </Link>
-          <button onClick={() => setOpen((v) => !v)} aria-label="Menu" aria-expanded={open} className="grid h-10 w-10 place-items-center rounded-xl border border-[#FFFFEB]/15 lg:hidden">
+          <button onClick={() => setOpen((v) => !v)} aria-label="Menu" aria-expanded={open} className="grid h-11 w-11 place-items-center rounded-xl border border-[#FFFFEB]/15 lg:hidden">
             <span className="relative block h-3 w-4">
               <span className={`absolute left-0 top-0 h-[2px] w-4 bg-[#FFFFEB] transition ${open ? "translate-y-[5px] rotate-45" : ""}`} />
               <span className={`absolute bottom-0 left-0 h-[2px] w-4 bg-[#FFFFEB] transition ${open ? "-translate-y-[5px] -rotate-45" : ""}`} />
