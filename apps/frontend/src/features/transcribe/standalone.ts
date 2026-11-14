@@ -13,17 +13,19 @@ import type { In, Out } from "./whisper.worker";
  * no server round-trip for the transcription itself. The speech model runs in this browser, exactly like the Studio's
  * transcription — only the project/server half is missing.
  *
- * Limits are the frozen Free tier (50 MB, 5 min) for everyone on this page:
- * there is no project here to read a paid plan from, and the full Studio
- * keeps the paid headroom. The page says so plainly.
+ * Limits are frozen for everyone on this page (2 GB, 15 min): there is no
+ * project here to read a paid plan from. The size cap is the Free LOCAL-file
+ * limit, not the server-upload limit — the file never leaves this device, so
+ * the 50 MB upload cap does not apply here. The 15 min duration is the
+ * owner's call (2026-11-14). The page says both limits plainly.
  */
 
 export const TRANSCRIBE_ACCEPT =
   "video/mp4,video/quicktime,video/webm,video/x-matroska,audio/mpeg,audio/mp4,audio/wav,audio/webm,audio/ogg,.mp4,.mov,.webm,.mkv,.mp3,.m4a,.wav,.ogg";
 
 export const TRANSCRIBE_LIMITS = {
-  maxBytes: PLANS.free.maxUploadBytes,
-  maxDurationSec: PLANS.free.maxDurationSec,
+  maxBytes: PLANS.free.maxLocalBytes,
+  maxDurationSec: 15 * 60,
 };
 
 const AUDIO_EXTS = [".mp3", ".m4a", ".wav", ".ogg", ".flac", ".aac"];
