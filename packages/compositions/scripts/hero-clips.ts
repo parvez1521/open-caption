@@ -29,9 +29,9 @@ const dataOnly = process.argv.includes("--data");
 const outDir = resolve("../../apps/frontend/public/hero");
 const work = join(outDir, ".work");
 
-// the corridor card is 18:25
+// the card is true vertical 9:16 (432x768) — the phone shape, faces fully in frame
 const W = 432;
-const H = 600;
+const H = 768;
 const FPS = 30;
 const MAX_MS = 6500;
 
@@ -75,8 +75,8 @@ function displaySize(src: string): { w: number; h: number } {
 }
 
 /** Portrait card out of any source, without stretching or cutting the speaker:
- *  landscape sources keep full height and take an 18:25-wide slice around faceX;
- *  portrait sources keep full width and take an 18:25-tall slice around faceY, so the
+ *  landscape sources keep full height and take a 9:16-wide slice around faceX;
+ *  portrait sources keep full width and take a 9:16-tall slice around faceY, so the
  *  face (not the middle of the frame) lands in the card and baked-in lower-thirds fall
  *  outside the slice. */
 function crop(src: string, faceX: number, faceY = 0.35) {
@@ -107,8 +107,9 @@ async function words(wav: string, language: string) {
 }
 
 mkdirSync(work, { recursive: true });
-const serveUrl = await bundle({ entryPoint: resolve("src/entry.ts"), onProgress: () => undefined });
-const browser = await openBrowser("chrome");
+// --data only transcribes and cuts: no Remotion bundle or browser needed (Chrome is not installed everywhere).
+const serveUrl = dataOnly ? "" : await bundle({ entryPoint: resolve("src/entry.ts"), onProgress: () => undefined });
+const browser = dataOnly ? null : await openBrowser("chrome");
 const credits: Record<string, unknown> = {};
 
 for (const c of CLIPS.filter((c) => !only || c.name === only)) {
@@ -144,6 +145,8 @@ for (const c of CLIPS.filter((c) => !only || c.name === only)) {
   const { style: lookStyle, settings } = applyLook(look, 3); // three words per card at most (3-line looks read best this way)
   // the corridor shows these as small cards, so captions run larger than on a phone and sit in the lower third
   const style = { ...lookStyle, fontSize: lookStyle.fontSize * (getTemplate(lookStyle.templateId).layout === "stack3" ? 1.9 : 1.45), maxWidth: Math.max(lookStyle.maxWidth, 0.9), position: { x: 0.5, y: c.captionY ?? 0.7 } };
+  // credits are recorded in both modes: the --data run is what ships the live demos
+  credits[c.name] = { title: c.credit, license: c.license, source: c.url, look: look.id, lookName: look.name, text: inClip.map((w) => w.text).join(" ") };
 
   if (dataOnly) {
     ff(["-i", clip, "-c:v", "libx264", "-crf", "27", "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart", join(outDir, `${c.name}.raw.mp4`)]);
@@ -166,10 +169,9 @@ for (const c of CLIPS.filter((c) => !only || c.name === only)) {
   } finally {
     await served.close();
   }
-  credits[c.name] = { title: c.credit, license: c.license, source: c.url, look: look.id, lookName: look.name, text: inClip.map((w) => w.text).join(" ") };
   console.log(`${c.name} (${look.name}): ${inClip.map((w) => w.text).join(" ")}`);
 }
 
-await browser.close({ silent: true });
-if (!dataOnly) writeFileSync(join(outDir, "credits.json"), JSON.stringify(credits, null, 2) + "\n");
+await browser?.close({ silent: true });
+writeFileSync(join(outDir, "credits.json"), JSON.stringify(credits, null, 2) + "\n");
 rmSync(work, { recursive: true, force: true });

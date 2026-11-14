@@ -37,7 +37,7 @@ export function Section4() {
       ]}
     >
       <div className="absolute left-[36px] top-[70px]">
-        <Frame width={276}>
+        <Frame width={232}>
           <ClipPlayer clip={CLIP} doc={doc} durationMs={dur} style={style} settings={settings} className="h-full w-full" />
         </Frame>
       </div>

@@ -7,7 +7,7 @@ import { ClipPlayer, Frame, ShowcaseCard, Tag, lookFor, useTranscript } from "./
 
 const LAVENDER = "#F0D7FF";
 const CLIP = "goldi";
-const DEMO_LOOKS = ["hormozi_box", "beast_bounce", "karaoke_fill", "highlighter_card", "neon_sign", "staggered_splash"].filter((id) => getLook(id));
+const DEMO_LOOKS = ["kinetic_mix", "apex_kinetic", "hormozi_box", "beast_bounce", "karaoke_fill", "staggered_splash"].filter((id) => getLook(id));
 
 /** 02: one transcript, any look. Chips switch the real renderer live. */
 export function Section2() {

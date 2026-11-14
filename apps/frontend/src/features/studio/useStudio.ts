@@ -9,7 +9,8 @@ import { RevisionConflict, studioService, type StudioData } from "@/services/stu
 import { STAGE_C_ENABLED, buildStageCWritePatch, readCompositionSettings } from "./stageC";
 
 export type SaveState = "saved" | "dirty" | "saving" | "offline" | "conflict";
-export const DEFAULT_LOOK = "hormozi_box";
+/** The default caption style for a new project: Kinetic, the signature word-by-word motion look. */
+export const DEFAULT_LOOK = "kinetic_mix";
 
 const SAVE_DEBOUNCE_MS = 800;
 const HISTORY_LIMIT = 200;
