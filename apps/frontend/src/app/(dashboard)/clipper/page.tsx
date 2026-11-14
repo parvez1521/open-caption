@@ -3,6 +3,8 @@
 import React, { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PLANS, pricingFor, type PlanId } from "@capseasy/shared";
+import { apiClient } from "@/services/api-client";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
@@ -37,6 +39,14 @@ function ClipperPageInner() {
     enabled: signedIn,
   });
   const projects = data?.projects ?? [];
+  // The length limit is the signed-in user's own plan's — never the Free
+  // number for everyone. Falls back to the bare clause until it loads.
+  const { data: billing } = useQuery({
+    queryKey: ["billing-me"],
+    queryFn: () => apiClient.get<{ plan: PlanId }>("/billing/me"),
+    enabled: signedIn,
+  });
+  const planId = billing?.plan && billing.plan in PLANS ? billing.plan : null;
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   // Selection lives ONLY in the ?project= param — one source of truth, so the
@@ -87,7 +97,7 @@ function ClipperPageInner() {
           >
             {creating ? "Creating project…" : "Start with a new long video"}
           </button>
-          <p className="mt-3 text-[13px] text-sand-600">Your plan&apos;s length limit applies — Free covers up to 5 minutes.</p>
+          <p className="mt-3 text-[13px] text-sand-600">Your plan&apos;s length limit applies{planId ? ` — ${pricingFor(planId).name} covers up to ${Math.round(PLANS[planId].maxDurationSec / 60)} minutes.` : "."}</p>
           {createError ? <p role="alert" className="mt-3 text-[13px] font-medium text-obsidian">{createError}</p> : null}
         </div>
 
