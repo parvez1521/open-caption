@@ -202,9 +202,10 @@ describe("text exports — created right away, with the right extension and cont
 });
 
 describe("video exports — queued as a companion render job with the right shape", () => {
+  // mov_alpha is NOT in this list: a Free user may not export MOV (see
+  // the MOV describe below — Free → 402, paid → 202 with this shape).
   const cases = [
     { kind: "mp4", ext: "mp4" },
-    { kind: "mov_alpha", ext: "mov" },
     { kind: "webm_alpha", ext: "webm" },
   ] as const;
 
@@ -234,9 +235,11 @@ describe("video exports — queued as a companion render job with the right shap
 
   it("reports companionOnline honestly when a companion is paired", async () => {
     state.companionOnline = true;
+    ROWS.profiles = { plan: "starter", plan_expires_at: "2026-12-14T00:00:00Z" }; // MOV is paid-only
     const res = await post({ kind: "mov_alpha" });
     const json = (await res.json()) as { data: { companionOnline: boolean } };
     expect(json.data.companionOnline).toBe(true);
+    ROWS.profiles = { plan: "free" };
   });
 });
 
@@ -274,14 +277,18 @@ describe("watermark — server decides per project, MP4 only (Builder 3)", () =>
   });
 
   it("overlays never carry a watermark, even for a Free user", async () => {
-    const res = await post({ kind: "mov_alpha" });
+    // webm_alpha as a Free user; mov_alpha needs a paid plan (MOV gate),
+    // and a paid overlay carries no watermark either.
+    const res = await post({ kind: "webm_alpha" });
     expect(res.status).toBe(202);
     const json = (await res.json()) as { data: { watermark: { text: string } | null } };
     expect(json.data.watermark).toBeNull();
     expect(state.enqueued[0]!.payload).not.toHaveProperty("watermark");
-    const res2 = await post({ kind: "webm_alpha" });
+    ROWS.profiles = { plan: "starter", plan_expires_at: "2026-12-14T00:00:00Z" };
+    const res2 = await post({ kind: "mov_alpha" });
     expect(res2.status).toBe(202);
     expect(state.enqueued[1]!.payload).not.toHaveProperty("watermark");
+    ROWS.profiles = { plan: "free" };
   });
 
   it("a watermarked MP4 still reserves its minutes (the removal buys no minutes)", async () => {
@@ -352,6 +359,60 @@ describe("premium looks — server refuses a premium look for a Free user (Build
     expect(res.status).toBe(402);
     const json = (await res.json()) as { error: { message: string } };
     expect(json.error.message).toContain("Pick a free look");
+  });
+});
+
+describe("MOV export — a paid plan feature (MOV means mov_alpha, the ProRes overlay)", () => {
+  const setPlan = (plan: string, expiresAt?: string) => {
+    ROWS.profiles = expiresAt ? { plan, plan_expires_at: expiresAt } : { plan };
+  };
+  afterEach(() => {
+    setPlan("free");
+  });
+
+  it("a Free user requesting mov_alpha is refused 402, and reserves nothing", async () => {
+    setPlan("free");
+    const res = await post({ kind: "mov_alpha" });
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { code: string; message: string } };
+    expect(json.error.code).toBe("LIMIT_EXCEEDED");
+    expect(json.error.message).toBe("MOV export is a paid plan feature.");
+    expect(state.reserves).toHaveLength(0);
+    expect(state.enqueued).toHaveLength(0);
+    expect(state.inserts).toHaveLength(0);
+  });
+
+  it.each(["starter", "creator", "pro"])("a paid plan (%s) requesting mov_alpha is queued, with the video shape", async (plan) => {
+    setPlan(plan, "2026-12-14T00:00:00Z");
+    const range = { startMs: 1000, endMs: 5000 };
+    const res = await post({ kind: "mov_alpha", width: 1080, height: 1920, fps: 30, crf: 20, range });
+    expect(res.status).toBe(202);
+    const json = (await res.json()) as { data: { exportId: string; ready: boolean; jobId: string } };
+    expect(json.data.ready).toBe(false);
+    expect(json.data.jobId).toBe("job-1");
+    const row = state.inserts.find((i) => i.table === "exports")!.row;
+    expect(row).toMatchObject({ kind: "mov_alpha", status_v2: "queued", resolution: "1080x1920" });
+    expect(state.enqueued).toHaveLength(1);
+    expect(state.enqueued[0]!.payload).toMatchObject({
+      kind: "render", exportId: json.data.exportId, format: "mov_alpha",
+      width: 1080, height: 1920, fps: 30, crf: 20, range,
+    });
+    expect(state.reserves).toHaveLength(1);
+  });
+
+  it("an expired paid period reads as Free, so mov_alpha is refused", async () => {
+    setPlan("starter", "2026-11-01T00:00:00Z");
+    const res = await post({ kind: "mov_alpha" });
+    expect(res.status).toBe(402);
+    expect(state.enqueued).toHaveLength(0);
+    expect(state.reserves).toHaveLength(0);
+  });
+
+  it("a Free user requesting mp4, webm_alpha or srt is unaffected by this gate", async () => {
+    setPlan("free");
+    expect((await post({ kind: "mp4" })).status).toBe(202);
+    expect((await post({ kind: "webm_alpha" })).status).toBe(202);
+    expect((await post({ kind: "srt" })).status).toBe(201);
   });
 });
 
