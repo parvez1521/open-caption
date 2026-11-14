@@ -10,6 +10,7 @@ import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/
 import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
 import { billedMinutesForRender, reserveMinutes, settleReservation } from "@/lib/billing/minutes";
 import { assertLookAllowedForPlan } from "@/lib/billing/looks";
+import { assertMovAllowedForPlan } from "@/lib/billing/mov";
 import { attachDeviceCookie, enforceFreeTrialGrant } from "@/lib/billing/trial";
 import { getWatermarkStatus } from "@/lib/billing/watermark";
 import { putObject, signedGet } from "@/lib/api/storage";
@@ -135,6 +136,18 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   // error tells them to pick a free look or upgrade.
   assertLookAllowedForPlan(
     (project as { look_id?: string | null }).look_id,
+    profile?.plan,
+    (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
+  );
+
+  // MOV export (monetization): MOV means the ProRes overlay export
+  // (mov_alpha) — there is no plain-MOV kind. A Free user may not
+  // export it; paid plans include it. Refused here, after the text
+  // branch has returned and before any minutes are reserved and before
+  // a job is created. webm_alpha, mp4 and the text kinds are never
+  // refused by this gate.
+  assertMovAllowedForPlan(
+    body.kind,
     profile?.plan,
     (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
   );

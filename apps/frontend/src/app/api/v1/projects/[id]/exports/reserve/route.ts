@@ -5,6 +5,7 @@ import { notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { VIDEO_MINUTES_KINDS, billedMinutesForRender, getMinutesUsage, reserveMinutes } from "@/lib/billing/minutes";
 import { assertLookAllowedForPlan } from "@/lib/billing/looks";
+import { assertMovAllowedForPlan } from "@/lib/billing/mov";
 import { attachDeviceCookie, enforceFreeTrialGrant } from "@/lib/billing/trial";
 import { getWatermarkStatus } from "@/lib/billing/watermark";
 
@@ -62,6 +63,19 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   // (the exports route refuses the same look before queuing a job).
   assertLookAllowedForPlan(
     (project as { look_id?: string | null }).look_id,
+    profile?.plan,
+    (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
+  );
+
+  // MOV export (monetization): MOV means the ProRes overlay export
+  // (mov_alpha) — there is no plain-MOV kind. A Free user may not
+  // reserve it; paid plans include it. Refused here, before any
+  // minutes are held. webm_alpha and mp4 are never refused by this
+  // gate. A modified client can skip this call on the browser path, so
+  // this is a deterrent there and a guarantee only on the server path
+  // (the exports route refuses the same kind before queuing a job).
+  assertMovAllowedForPlan(
+    body.kind,
     profile?.plan,
     (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
   );

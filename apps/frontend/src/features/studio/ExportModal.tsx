@@ -137,9 +137,16 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outDims.width, outDims.height]);
   const webReady = !!web?.ok && !!renderInput?.src;
+  /** Effective plan, for the MOV gate below. Same query key as the Looks
+   * panel, so the plan loads once per session. While it loads — or if it
+   * fails — the MOV row is disabled (fail closed). Display only: the
+   * server export routes re-check the plan before anything renders. */
+  const planQ = useQuery({ queryKey: ["billing-plan"], queryFn: () => studioService.billingPlan(), staleTime: 60_000 });
+  const movPaid = planQ.data?.plan !== undefined && planQ.data.plan !== "free";
   /** the Render button stays off while the picked option can't run (MP4 blocked, or a bad trim range) */
   const selectedUnavailable = selected?.kind === "mp4" && (!!mp4Block || (web !== null && !webReady));
-  const renderDisabled = busyKind !== null || webProgress !== null || !selected || !!selectedUnavailable || (selected.usesRange && !trimValid);
+  const selectedMovBlocked = selected?.kind === "mov_alpha" && !movPaid;
+  const renderDisabled = busyKind !== null || webProgress !== null || !selected || !!selectedUnavailable || !!selectedMovBlocked || (selected.usesRange && !trimValid);
 
   const [restarted, setRestarted] = useState(false);
   /**
@@ -316,6 +323,13 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   };
 
   const start = async (o: ExportOption, turnstileToken?: string) => {
+    // MOV gate (display only — the server export routes enforce it): a
+    // Free user cannot start a MOV export. The row is disabled too; this
+    // guard covers a MOV picked before the plan loaded.
+    if (o.kind === "mov_alpha" && !movPaid) {
+      setError("MOV export is a paid plan feature.");
+      return;
+    }
     if (o.kind === "mp4") {
       // MP4 is made in the browser only; a click while the support check is still running waits for it
       if (mp4Block) {
@@ -475,19 +489,22 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           <div className="grid gap-2">
             {allOptions.map((o) => {
               const unavailable = o.kind === "mp4" && (!!mp4Block || (web !== null && !webReady));
+              // MOV is a paid plan feature: the row is disabled for Free
+              // users (display only — the server refuses it either way).
+              const movBlocked = o.kind === "mov_alpha" && !movPaid;
               const key = optionKey(o);
               const isSelected = selectedKey === key;
               return (
                 <button
                   key={key}
-                  disabled={busyKind !== null || webProgress !== null || unavailable || (o.usesRange && !trimValid)}
+                  disabled={busyKind !== null || webProgress !== null || unavailable || movBlocked || (o.usesRange && !trimValid)}
                   aria-pressed={isSelected}
                   onClick={() => setSelectedKey(key)}
                   className={`relative rounded-xl border p-4 text-left transition disabled:opacity-50 ${isSelected ? "border-st-em bg-st-em/10" : o.popular ? "border-st-ink bg-st-lav/40 hover:bg-st-lav/60" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
                 >
                   {o.popular ? <span className="absolute -top-2.5 right-3 rounded-full bg-st-or px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Most popular</span> : null}
                   <div className={`text-sm ${o.popular ? "font-semibold" : "font-medium"} text-st-text`}>{busyKind === key ? "Working…" : o.title}</div>
-                  <div className="mt-0.5 text-xs text-st-muted">{unavailable ? mp4Block?.reason ?? web?.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari." : o.desc}</div>
+                  <div className="mt-0.5 text-xs text-st-muted">{movBlocked ? "MOV export is a paid plan feature." : unavailable ? mp4Block?.reason ?? web?.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari." : o.desc}</div>
                   {o.kind === "mp4" && audioMix ? <div className="mt-0.5 text-xs text-st-muted">{audioMix.note}</div> : null}
                 </button>
               );

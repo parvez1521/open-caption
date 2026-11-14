@@ -153,6 +153,42 @@ describe("premium-look gate on the reserve endpoint", () => {
   });
 });
 
+describe("MOV export — a paid plan feature on the reserve endpoint", () => {
+  const movBody = { ...BODY, kind: "mov_alpha" as const };
+
+  it("a Free user reserving mov_alpha is refused 402 and holds no minutes", async () => {
+    const res = await post(movBody);
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { code: string; message: string } };
+    expect(json.error.code).toBe("LIMIT_EXCEEDED");
+    expect(json.error.message).toBe("MOV export is a paid plan feature.");
+    expect(state.reserves).toHaveLength(0);
+  });
+
+  it.each(["starter", "creator", "pro"])("a paid plan (%s) reserving mov_alpha gets the reservation", async (plan) => {
+    ROWS.profiles = { plan, plan_expires_at: "2026-12-14T00:00:00Z" };
+    const res = await post(movBody);
+    expect(res.status).toBe(201);
+    const json = (await res.json()) as { data: { reservationKey: string; minutes: number } };
+    expect(json.data.reservationKey).toBe(`reserve:${BODY.exportId}`);
+    expect(json.data.minutes).toBe(1);
+    expect(state.reserves).toHaveLength(1);
+  });
+
+  it("an expired paid period reads as Free, so mov_alpha is refused", async () => {
+    ROWS.profiles = { plan: "starter", plan_expires_at: "2026-11-01T00:00:00Z" };
+    const res = await post(movBody);
+    expect(res.status).toBe(402);
+    expect(state.reserves).toHaveLength(0);
+  });
+
+  it("a Free user reserving mp4 or webm_alpha is unaffected by this gate", async () => {
+    expect((await post({ ...BODY, kind: "mp4" })).status).toBe(201);
+    expect((await post({ ...BODY, kind: "webm_alpha" })).status).toBe(201);
+    expect(state.reserves).toHaveLength(2);
+  });
+});
+
 describe("free-trial protection — the gate in front of the lazy Free grant (Builder 5)", () => {
   const IP_HEADERS = { "x-forwarded-for": "203.0.113.7" };
 
