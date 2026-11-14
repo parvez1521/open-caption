@@ -737,8 +737,20 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
               return (
                 <div
                   key={b.key}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${b.text}  ${fmtTime(live.s)} – ${fmtTime(live.e)}`}
+                  aria-pressed={b.selected}
                   onPointerDown={(e) => beginDrag(e, b, "move")}
                   onClick={(e) => { e.stopPropagation(); onSelect(b.firstId); onSeek(live.s + 1); }}
+                  // Keyboard path (F-03 remainder): Enter/Space selects exactly like a
+                  // mouse click. Events from the rename input must pass through untouched
+                  // (Space types a space there), and stopPropagation keeps Space from also
+                  // toggling play/pause via StudioPage's window keydown handler.
+                  onKeyDown={(e) => {
+                    if ((e.target as HTMLElement).tagName === "INPUT") return;
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onSelect(b.firstId); onSeek(live.s + 1); }
+                  }}
                   onDoubleClick={(e) => { e.stopPropagation(); if (mode === "word" && !tracks.captions.locked) setRenaming(b.firstId); }}
                   title={`${b.text}  ${fmtTime(live.s)} – ${fmtTime(live.e)}${mode === "word" ? "  (double-click to edit)" : ""}`}
                   className={`absolute top-1 bottom-1 cursor-grab touch-none overflow-hidden rounded-md border text-[11px] leading-tight ${b.inSelection ? "ring-2 ring-st-em " : ""}${b.selected ? "border-st-ink bg-st-lav text-[#FFFFEB] ring-2 ring-st-ink/20" : b.live ? "border-st-ink/30 bg-st-or text-[#141412]" : mode === "line" ? "border-st-ink/15 bg-st-hover text-[#FFFFEB] hover:bg-st-lav/60" : "border-st-ink/10 bg-st-lav/60 text-[#FFFFEB] hover:bg-st-lav"}`}

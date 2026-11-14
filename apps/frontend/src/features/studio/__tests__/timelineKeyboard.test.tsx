@@ -89,6 +89,65 @@ describe("Timeline clip keyboard selection (F-03)", () => {
   });
 });
 
+describe("Timeline word-block keyboard selection (F-03 remainder)", () => {
+  const words: Word[] = [
+    { id: "w1", text: "hello", startMs: 500, endMs: 900 },
+    { id: "w2", text: "world", startMs: 900, endMs: 1400 },
+  ];
+
+  const renderWithWords = (extra: Record<string, unknown> = {}) =>
+    render(
+      <Timeline
+        {...baseProps}
+        words={words}
+        pages={[]}
+        editorComp={editorComp}
+        selectedVideoClipId={null}
+        onSelectVideoClip={vi.fn()}
+        {...extra}
+      />,
+    );
+
+  it("word blocks are focusable buttons", () => {
+    renderWithWords();
+    const block = screen.getByRole("button", { name: /hello/ });
+    expect(block.getAttribute("tabindex")).toBe("0");
+    expect(screen.getByRole("button", { name: /world/ }).getAttribute("tabindex")).toBe("0");
+  });
+
+  it("Enter on a word block selects it, exactly like a click", () => {
+    const onSelect = vi.fn();
+    const onSeek = vi.fn();
+    renderWithWords({ onSelect, onSeek });
+    fireEvent.keyDown(screen.getByRole("button", { name: /hello/ }), { key: "Enter" });
+    expect(onSelect).toHaveBeenCalledWith("w1");
+    expect(onSeek).toHaveBeenCalledWith(501);
+  });
+
+  it("Space on a word block selects it", () => {
+    const onSelect = vi.fn();
+    const onSeek = vi.fn();
+    renderWithWords({ onSelect, onSeek });
+    fireEvent.keyDown(screen.getByRole("button", { name: /world/ }), { key: " " });
+    expect(onSelect).toHaveBeenCalledWith("w2");
+    expect(onSeek).toHaveBeenCalledWith(901);
+  });
+
+  it("Space inside the rename input still types — it must not select the block", () => {
+    const onSelect = vi.fn();
+    const onSeek = vi.fn();
+    renderWithWords({ onSelect, onSeek });
+    const block = screen.getByRole("button", { name: /hello/ });
+    // double-click opens the rename input inside the block
+    fireEvent.doubleClick(block);
+    const input = screen.getByLabelText("Word text") as HTMLInputElement;
+    expect(input.value).toBe("hello");
+    fireEvent.keyDown(input, { key: " " });
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onSeek).not.toHaveBeenCalled();
+  });
+});
+
 describe("Timeline video trim handle times (B-03)", () => {
   it("announces the trim point in real milliseconds, not seconds divided by 1000", () => {
     render(

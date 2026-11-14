@@ -46,6 +46,21 @@ export const workersService = {
     return workers.map(toWorker);
   },
 
+  /**
+   * Is the desktop helper switched on for this deployment? Returns null when
+   * the check itself fails — callers fall back to offering the button, and the
+   * setup POST still reports the real error. (Overnight QA follow-up: the
+   * Settings pairing button is a dead end while COMPANIONS_ENABLED is off.)
+   */
+  async getCompanionStatus(): Promise<boolean | null> {
+    try {
+      const d = await apiClient.get<{ companionsEnabled: boolean }>("/device/status");
+      return d.companionsEnabled === true;
+    } catch {
+      return null;
+    }
+  },
+
   async deleteWorker(id: string): Promise<void> {
     await apiClient.delete(`/workers/${id}`);
   },

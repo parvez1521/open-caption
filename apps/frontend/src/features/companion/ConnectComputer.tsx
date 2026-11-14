@@ -71,6 +71,22 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
   const [copied, setCopied] = useState(false);
   const [connected, setConnected] = useState<Worker | null>(null);
   const known = useRef<Set<string>>(new Set());
+  // The desktop helper can be switched off server-side (COMPANIONS_ENABLED):
+  // when it is off, POST /device/setup 403s and this button is a dead end
+  // (proven live 2026-11-15: the setup route 403s in production). Ask once on
+  // mount and, when off, show an honest note instead of the button. Defaults
+  // to true so a failed check never hides a working button — the setup POST
+  // still reports the real error if the flag flips after this check.
+  const [companionsOn, setCompanionsOn] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    void workersService.getCompanionStatus().then((v) => {
+      if (alive && v === false) setCompanionsOn(false);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // watch for the new computer while waiting
   useEffect(() => {
@@ -138,6 +154,14 @@ export function ConnectComputer({ compact = false, onConnected }: { compact?: bo
           <b>{connected.name}</b> is connected. Exports and transcriptions now run on it automatically.
         </span>
       </div>
+    );
+  }
+
+  if (!companionsOn) {
+    return (
+      <p className="text-sm text-st-muted">
+        The desktop helper is turned off for this site. Captions and exports still work right in your browser — no computer needed.
+      </p>
     );
   }
 

@@ -23,6 +23,8 @@ vi.mock("@/services/workers", () => ({
       if (h.getMyWorkersError) throw h.getMyWorkersError;
       return h.workers;
     },
+    // ConnectComputer asks this on mount (overnight QA follow-up): on → button.
+    getCompanionStatus: async () => true,
     deleteWorker: h.deleteWorker,
   },
 }));

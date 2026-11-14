@@ -1446,6 +1446,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                 ["M", "Add marker at playhead"],
                 ["Delete / Backspace", "Delete selection"],
                 ["← / →", "Nudge selected words 100 ms (Shift: 10 ms)"],
+                ["Enter / Space", "Select focused timeline word"],
               ].map(([keys, action]) => (
                 <div key={keys} className="flex items-baseline justify-between gap-4">
                   <dt className="shrink-0 rounded-md border border-st-line bg-st-raised px-2 py-0.5 font-mono text-xs text-st-text">{keys}</dt>
