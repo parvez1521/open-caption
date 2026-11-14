@@ -37,11 +37,8 @@ import { ClipperLaunchCard } from "./panels/ClipperLaunchCard";
 import { TranslatePanel } from "./panels/TranslatePanel";
 import { TrimPanel } from "./panels/TrimPanel";
 import { PolishPanel } from "./panels/PolishPanel";
-import { AiEditPanel } from "./panels/AiEditPanel";
 import { EditAssistantPanel } from "./panels/EditAssistantPanel";
 import { polishCommitSettings, type PolishProjectState } from "./polish";
-import { brollLicenceFor, downloadBrollFile, type BrollSuggestion } from "../clipper/broll";
-import { importVideoToBin, realVideoStockImportDeps } from "./stockImport";
 import { removeRangesFromVideo, trimRangeEffects, type TrimRange } from "./trim";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
@@ -55,7 +52,7 @@ import { useDeviceVideo } from "@/features/upload/useDeviceVideo";
 import { useCompatCopy } from "@/features/upload/useCompatCopy";
 import { etaText } from "./ProcessingPanel";
 import { getSession, startSession, useSessionView } from "@/features/transcribe/session";
-import { aiEditIntroSeen, markAiEditIntroSeen, modeFromSearch, projectModeOf, setProjectMode, type ProjectStartMode } from "./projectMode";
+import { modeFromSearch, projectModeOf, setProjectMode, type ProjectStartMode } from "./projectMode";
 import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError } from "@/services/auth/guest";
 import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
 import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
@@ -103,7 +100,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "sfx" | "clipper" | "translate" | "trim" | "polish" | "ai-edit" | "assistant";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "sfx" | "clipper" | "translate" | "trim" | "polish" | "assistant";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -124,7 +121,6 @@ const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?:
   { id: "clipper", label: "Clipper", icon: railIcon(<><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" /></>) },
   { id: "trim", label: "Trim", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /><path d="M3 21l7-7" /></>) },
   { id: "polish", label: "Polish", icon: railIcon(<><path d="M4 20c2.5.5 5-.5 6-2.5L20.5 8a2.12 2.12 0 0 0-3-3L7 15.5C5 16.5 4 18 4 20z" /><path d="M13.5 6.5l3 3" /></>) },
-  { id: "ai-edit", label: "AI Edit", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5l5 2.5-5 2.5z" /><path d="M3 21l7-7" /></>) },
   { id: "assistant", label: "Assistant", icon: railIcon(<><path d="M20 4H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4v4l5.5-4H20a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z" /><path d="M7.5 9h9M7.5 12.5h5" /></>) },
 ];
 
@@ -191,32 +187,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // device record, then the captions default). Persisted the moment it's known/chosen.
   const [startMode, setStartMode] = useState<ProjectStartMode>(() => (typeof window !== "undefined" ? modeFromSearch(window.location.search) : null) ?? projectModeOf(projectId));
   useEffect(() => { setProjectMode(projectId, startMode); }, [projectId, startMode]);
-  // AI Edit door (Package: ai-edit-preview-homepage): the first time a project that
-  // started through the AI Edit door has its captions in, open the AI Edit panel and
-  // show the one-line prompt — exactly once per project on this device; after that
-  // the Studio behaves normally. (State is adjusted during render — React's
-  // sanctioned pattern for one-shot transitions — and the device record is written
-  // by the effect below, so no state is set inside an effect.)
-  const [aiEditNudge, setAiEditNudge] = useState(false);
-  const [aiEditIntroFired, setAiEditIntroFired] = useState(false);
-  const savedDoc = s.doc;
-  const shouldFireAiEditIntro =
-    startMode === "ai-edit" && !aiEditIntroFired && !!savedDoc && savedDoc.words.length > 0 && !aiEditIntroSeen(projectId);
-  if (shouldFireAiEditIntro) {
-    setAiEditIntroFired(true);
-    setSection("ai-edit");
-    setAiEditNudge(true);
-  }
-  useEffect(() => {
-    if (aiEditIntroFired) markAiEditIntroSeen(projectId);
-  }, [aiEditIntroFired, projectId]);
-  // AI Edit stage preview (W1): a THROWAWAY plan state the panel pushes up while
-  // previewing. It only ever feeds the stage (see previewInput below) — the store,
-  // the undo history and every export input stay on the committed state. Leaving
-  // the AI Edit panel ends any preview (same render-phase adjustment).
-  const [aiEditPreview, setAiEditPreview] = useState<PolishProjectState | null>(null);
-  const handleAiEditPreview = useCallback((next: PolishProjectState | null) => setAiEditPreview(next), []);
-  if (section !== "ai-edit" && aiEditPreview) setAiEditPreview(null);
   // right column (desktop): Motion Studio lives there permanently; the segment inspector
   // shares the column as a second tab that takes focus when a segment is selected. The
   // column collapses to a slim strip so the centre can reclaim the width on demand.
@@ -885,44 +855,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     () => (mixActive && exportInput ? { ...exportInput, settings: mutedSettings } : exportInput),
     [mixActive, exportInput, mutedSettings],
   );
-  /* ---------- AI Edit stage preview (W1) ----------
-   * While the AI Edit panel previews a plan, the STAGE renders this input instead:
-   * the same CaptionedVideo composition fed from the throwaway preview state (its
-   * doc, its style, its committed-style settings projection). It is an override at
-   * the stage's composition source ONLY — `input`, `exportInput` and
-   * `exportRenderInput` above never read it, so an export can only ever render the
-   * committed project. The translated track is omitted: the preview doc's timings
-   * are the plan's, and an uncut translation would misalign against them. */
-  const previewSettings = useMemo(
-    () => (aiEditPreview ? polishCommitSettings(aiEditPreview) : null),
-    [aiEditPreview],
-  );
-  const previewDurationMs = aiEditPreview ? Math.max(1, aiEditPreview.comp.durationMs) : durationMs;
-  const previewInput = useMemo(() => {
-    if (!input || !aiEditPreview || !previewSettings || !style) return null;
-    const st = mixActive
-      ? {
-          ...previewSettings,
-          composition: {
-            ...previewSettings.composition,
-            tracks: { ...previewSettings.composition.tracks, video: { ...previewSettings.composition.tracks.video, muted: true } },
-          },
-        }
-      : previewSettings;
-    return {
-      src: input.src,
-      media: { ...input.media, durationMs: previewDurationMs },
-      doc: aiEditPreview.doc,
-      style: aiEditPreview.style ?? style,
-      settings: st,
-      mode: "burn" as const,
-      videoAdjust: st.videoAdjust,
-      overlays: st.overlays,
-      overlayAssets: overlayAssetUrls,
-      overlayMemberAssets: voiceMemberAssetsByItemId,
-      segmentAssets: segmentAssetUrls,
-    };
-  }, [input, aiEditPreview, previewSettings, previewDurationMs, style, mixActive, overlayAssetUrls, voiceMemberAssetsByItemId, segmentAssetUrls]);
   useAudioPreview({ active: mixActive, comp: editorComp, playing, timeMs, getPlayerMs, getBlob: getAudioBlob });
   const audioMix = mixActive && editorComp
     ? {
@@ -1190,24 +1122,18 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const player = hasEditor && input && style ? (
     <StudioPlayer
       ref={playerRef}
-      input={previewInput ?? playerInput ?? input}
+      input={playerInput ?? input}
       width={canvasSize.width}
       height={canvasSize.height}
       fps={fps}
-      durationMs={previewInput ? previewDurationMs : durationMs}
-      position={previewInput ? (aiEditPreview?.style ?? style).position : style.position}
-      onMovePosition={previewInput ? () => {} : (p) => s.patchStyle((st) => ({ ...st, position: p }))}
+      durationMs={durationMs}
+      position={style.position}
+      onMovePosition={(p) => s.patchStyle((st) => ({ ...st, position: p }))}
       onTime={setTimeMs}
       onPlayingChange={setPlaying}
       compact={!desktop}
       platform={settings.platform}
-      stageOverlay={previewInput ? (
-        // previewing: the drag layer works on committed overlays, so it steps aside
-        // for the marker — the preview itself is not editable, only applicable
-        <div className="pointer-events-none absolute left-1/2 top-2 z-20 -translate-x-1/2" aria-live="polite">
-          <span className="rounded-full bg-[#FFA946] px-3 py-1 text-[11px] font-bold text-[#141412] shadow">Preview — not applied</span>
-        </div>
-      ) : settings.overlays.length ? (
+      stageOverlay={settings.overlays.length ? (
         <OverlayStageLayer
           overlays={settings.overlays}
           timeMs={timeMs}
@@ -1359,32 +1285,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             // ONE editAll for the whole pass (doc + projected settings + look),
             // so a single Ctrl+Z undoes an apply — and likewise a per-step revert.
             s.editAll({ doc: next.doc, settings: polishCommitSettings(next), style: next.style, lookId: next.lookId });
-          }}
-        />
-      ) : null)
-      : t === "ai-edit" ? (doc && style && editorComp ? (
-        <AiEditPanel
-          state={{ doc, comp: editorComp, settings, style, lookId: s.lookId }}
-          sourceTitle={data.project.title}
-          peaks={wave.peaks}
-          hopMs={1000 / PEAKS_PER_SECOND}
-          onCommit={(next: PolishProjectState) => {
-            // AI Edit: same commit path as Polish — ONE editAll for the whole
-            // plan, so a single Ctrl+Z undoes an apply or a per-step revert.
-            s.editAll({ doc: next.doc, settings: polishCommitSettings(next), style: next.style, lookId: next.lookId });
-          }}
-          onPreviewChange={handleAiEditPreview}
-          onImportBroll={async (sug: BrollSuggestion) => {
-            // D5: a chosen B-roll suggestion downloads and lands in this
-            // project's media bin with its Pixabay licence record.
-            const file = await downloadBrollFile(sug);
-            await importVideoToBin(realVideoStockImportDeps, {
-              projectId,
-              blob: file,
-              name: file.name,
-              licence: brollLicenceFor(sug, new Date().toISOString().slice(0, 10)),
-            });
-            void mediaBin.refresh();
           }}
         />
       ) : null)
@@ -1602,17 +1502,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       ))}
     </nav>
   );
-  // the AI Edit door's one-line first-run prompt (fires once per project, see above)
-  const aiEditNudgeBar = aiEditNudge ? (
-    <div className="flex shrink-0 items-center gap-2 border-b border-st-line bg-st-raised px-4 py-2.5">
-      <p className="min-w-0 flex-1 text-[13px] text-st-text">AI Edit is open — pick a style and build your plan.</p>
-      <button type="button" aria-label="Dismiss" onClick={() => setAiEditNudge(false)} className="shrink-0 rounded-md px-1.5 py-0.5 text-st-muted hover:bg-st-hover hover:text-st-text">✕</button>
-    </div>
-  ) : null;
   // the active section's panel, full height; Captions keeps its title row, the rest carry their own
   const panelColumn = (
     <aside aria-label="Tool panel" className="flex min-h-0 w-[min(340px,30vw)] min-w-[264px] shrink-0 flex-col border-r border-st-line bg-st-panel 2xl:w-[400px]">
-      {aiEditNudgeBar}
       {section === "captions" ? <PanelTitle title="Captions" hint={`${pages.length} cards`} /> : null}
       <div key={section} className="st-rise min-h-0 flex-1">{renderPanel(section)}</div>
     </aside>
@@ -1704,7 +1596,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       {segmentInspector ? (
         <div className="h-[min(38dvh,360px)] shrink-0 overflow-hidden border-b border-st-line bg-st-panel">{segmentInspector}</div>
       ) : null}
-      {aiEditNudgeBar}
       <div key={mobileTimeline ? "timeline" : section} className="st-rise min-h-0 flex-1 bg-st-panel">
         {mobileTimeline ? timeline : renderPanel(section)}
       </div>

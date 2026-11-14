@@ -51,7 +51,6 @@ vi.mock("../UploadPanel", () => ({
         {[
           ["captions", "Captions"],
           ["editor", "Normal Editor"],
-          ["ai-edit", "AI Edit"],
         ].map(([m, label]) => (
           <button key={m} role="radio" aria-checked={mode === m} onClick={() => onModeChange?.(m)}>
             {label}
@@ -197,7 +196,7 @@ describe("StudioPage first load — OC-001 (React #310)", () => {
   it.each([
     ["captions door (default)", ""],
     ["normal-editor door", "?mode=editor"],
-    ["ai-edit door", "?mode=ai-edit"],
+    ["retired ai-edit door falls back to captions", "?mode=ai-edit"],
   ])("%s: loading → loaded renders the upload screen, no hook-order crash", (_label, search) => {
     window.history.pushState({}, "", `/projects/p1${search}`);
     studioState.current = loadingStudio;

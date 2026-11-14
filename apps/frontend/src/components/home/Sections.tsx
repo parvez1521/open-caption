@@ -238,11 +238,10 @@ export function Hero() {
   );
 }
 
-/** The four ways in, as full-width rows: captions, plain editing, AI Edit, transcribe. */
+/** The ways in, as full-width rows: captions, plain editing, transcribe, auto caption generator. */
 const DOORS = [
   { href: "/start?mode=captions", tag: "Captions", title: "Add captions", body: "Upload a clip and get word-timed captions in one of 150 looks." },
   { href: "/start?mode=editor", tag: "Editor", title: "Edit a video", body: "The plain editor, no captions attached. Cut, trim and arrange." },
-  { href: "/start?mode=ai-edit", tag: "AI Edit", title: "AI Edit", body: "Describe the edit, then approve the plan before anything is applied." },
   { href: "/transcribe", tag: "Transcribe", title: "Transcribe", body: "A file in, a timed transcript out, in 14 languages." },
   { href: "/auto-caption-generator", tag: "Captions", title: "Auto caption generator", body: "How automatic captions work, what they cost, and what they cannot do." },
 ];

@@ -162,12 +162,13 @@ describe("AiEditPanel — stage preview (W1)", () => {
   });
 });
 
-describe("StudioPage — the stage preview can never reach an export (source pins)", () => {
+describe("StudioPage — the AI Edit preview is gone and exports stay committed-only (source pins)", () => {
   const src = readFileSync(join(process.cwd(), "src/features/studio/StudioPage.tsx"), "utf8");
-  it("the stage takes the preview override; the ExportModal takes only the committed render input", () => {
-    expect(src).toContain("input={previewInput ?? playerInput ?? input}");
+  it("the stage takes the committed input (no preview override); the ExportModal takes only the committed render input", () => {
+    expect(src).toContain("input={playerInput ?? input}");
+    expect(src).not.toContain("previewInput");
     expect(src).toContain("renderInput={exportRenderInput}");
-    expect(src).toContain("Preview — not applied");
+    expect(src).not.toContain("Preview — not applied");
   });
   it("the export input derivation never reads the preview state", () => {
     const region = src.slice(src.indexOf("const exportInput"), src.indexOf("const previewSettings"));
@@ -175,10 +176,12 @@ describe("StudioPage — the stage preview can never reach an export (source pin
     expect(region).not.toContain("aiEditPreview");
     expect(region).not.toContain("previewInput");
   });
-  it("the AI Edit panel receives the preview callback and the first-run activation is mode-gated", () => {
-    expect(src).toContain("onPreviewChange={handleAiEditPreview}");
-    expect(src).toContain('startMode === "ai-edit"');
-    expect(src).toContain("aiEditIntroSeen(projectId)");
-    expect(src).toContain("markAiEditIntroSeen(projectId)");
+  it("AI Edit is unlinked from StudioPage — no panel, no preview callback, no mode-gated activation", () => {
+    expect(src).not.toContain("ai-edit");
+    expect(src).not.toContain("AiEditPanel");
+    expect(src).not.toContain("onPreviewChange");
+    expect(src).not.toContain("aiEditPreview");
+    expect(src).not.toContain("aiEditIntroSeen");
+    expect(src).not.toContain("markAiEditIntroSeen");
   });
 });

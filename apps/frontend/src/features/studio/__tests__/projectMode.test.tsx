@@ -36,19 +36,19 @@ describe("project mode record", () => {
   });
 });
 
-describe("the AI Edit door (third door)", () => {
+describe("the retired AI Edit door falls back to captions", () => {
   beforeEach(() => window.localStorage.clear());
-  it("round-trips the ai-edit door per project", () => {
-    setProjectMode("p1", "ai-edit");
-    expect(projectModeOf("p1")).toBe("ai-edit");
+  it("a stored ai-edit record reads as the captions default", () => {
+    window.localStorage.setItem("oc:project-mode:p1", "ai-edit");
+    expect(projectModeOf("p1")).toBe("captions");
     expect(projectModeOf("p2")).toBe("captions");
   });
-  it("parses ?mode=ai-edit and nothing else new", () => {
-    expect(modeFromSearch("?mode=ai-edit")).toBe("ai-edit");
+  it("?mode=ai-edit parses to nothing (the caller falls back to the default)", () => {
+    expect(modeFromSearch("?mode=ai-edit")).toBeNull();
     expect(modeFromSearch("?mode=ai")).toBeNull();
   });
-  it("the chooser offers exactly three doors, captions first, AI Edit last", () => {
-    expect(START_DOORS.map((d) => d.mode)).toEqual(["captions", "editor", "ai-edit"]);
+  it("the chooser offers exactly two doors, captions first", () => {
+    expect(START_DOORS.map((d) => d.mode)).toEqual(["captions", "editor"]);
     for (const d of START_DOORS) {
       expect(d.label.length).toBeGreaterThan(0);
       expect(d.sub.length).toBeGreaterThan(0);
@@ -153,16 +153,16 @@ describe("UploadPanel — the doors at upload time", () => {
     expect(screen.getByText("Language spoken in the video")).toBeTruthy();
   });
 
-  it("all three doors render in the toggle", () => {
+  it("both doors render in the toggle", () => {
     render(<UploadPanel projectId="p1" onUploaded={vi.fn()} mode="captions" onModeChange={vi.fn()} />);
     expect(screen.getByRole("radio", { name: /^Captions/ })).toBeTruthy();
     expect(screen.getByRole("radio", { name: /Normal Editor/ })).toBeTruthy();
-    expect(screen.getByRole("radio", { name: /^AI Edit/ })).toBeTruthy();
+    expect(screen.queryByRole("radio", { name: /^AI Edit/ })).toBeNull();
   });
 
-  it("ai-edit mode: transcription still happens (the plan needs the words) — language asked, session starts", async () => {
+  it("captions mode: transcription still happens — language asked, session starts", async () => {
     const onUploaded = vi.fn();
-    const { container } = render(<UploadPanel projectId="p1" onUploaded={onUploaded} mode="ai-edit" onModeChange={vi.fn()} />);
+    const { container } = render(<UploadPanel projectId="p1" onUploaded={onUploaded} mode="captions" onModeChange={vi.fn()} />);
     expect(screen.getByText("Language spoken in the video")).toBeTruthy();
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     fireEvent.change(input, { target: { files: [new File(["x"], "clip.mp4", { type: "video/mp4" })] } });

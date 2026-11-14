@@ -19,7 +19,7 @@ import { LoadingMark } from "@/components/brand/LoadingMark";
  *   guest session is created on this path; after sign-up the survey runs,
  *   then the dashboard
  * Homepage "Get Started" carries ?choose=1: the visitor first picks a door
- * (Captions / Normal Editor / AI Edit — START_DOORS) and the fresh project starts
+ * (Captions / Normal Editor — START_DOORS) and the fresh project starts
  * through it. ?choose=1 is an explicit request for that choice, so it shows the
  * doors even when a project already exists (with a continue link to it); plain
  * /start without it sends a returning guest straight to their latest project.
@@ -124,7 +124,7 @@ export default function StartPage() {
         const live = projects.filter((p) => !p.archived_at && !p.deleted_at).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
         // The mode is a STARTING choice, forwarded only for a project created by this
         // visit: an explicit door link (?mode=) goes straight through; ?choose=1 (the
-        // homepage's Get Started) asks first, with the three doors — even when a
+        // homepage's Get Started) asks first, with the two doors — even when a
         // project already exists, because the click asked for the choice. Plain
         // /start keeps the "continue where you left off" redirect below.
         const doorMode = modeFromSearch(window.location.search);
