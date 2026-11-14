@@ -40,17 +40,17 @@ const whisperData = join(process.env.LOCALAPPDATA ?? join(homedir(), ".local", "
 /** Title cards (black question slides in the Peru interviews) are skipped by starting after them.
  *  language: what is actually spoken (forcing "en" on Spanish makes whisper TRANSLATE, so captions stop matching lips).
  *  faceX: horizontal centre of the speaker in the source (0–1). from: where to start looking for speech (s). */
-const CLIPS: { name: string; file: string; language?: string; look: string; captionY?: number; faceX: number; from: number; credit: string; license: string; url: string }[] = [
+const CLIPS: { name: string; file: string; language?: string; look: string; captionY?: number; faceX: number; faceY?: number; from: number; credit: string; license: string; url: string }[] = [
   { name: "sol", file: "sol.webm", language: "es", look: "staggered_splash", faceX: 0.57, from: 57, credit: "Peru Testimonial - Sol Luciana", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Sol_Luciana.webm" },
   { name: "gianna", file: "gianna.webm", language: "es", look: "hormozi_box", faceX: 0.56, from: 88, credit: "Peru Testimonial - Gianna Garcia", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Gianna_Garcia.webm" },
   { name: "jesse", file: "jesse.webm", language: "es", look: "glow_stack_classic", faceX: 0.67, from: 67, credit: "Peru Testimonial - Jesse Vilela", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Jesse_Vilela.webm" },
   { name: "aisha", file: "aisha.webm", look: "beast_bounce", faceX: 0.5, from: 8, credit: "Wikinights testimonial by Aisha", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Wikinights_testimonial_by_Aisha.webm" },
   { name: "rusita", file: "rusita.webm", look: "vintage_cinematic", captionY: 0.85, faceX: 0.5, from: 30, credit: "Wikipedians speak - Konkani Wikipedian Rusita Paryekar", license: "CC BY-SA 3.0", url: "https://commons.wikimedia.org/wiki/File:Wikipedians_speak_-_Konkani_Wikipedian_Rusita_Paryekar-en_1080p.webm" },
   { name: "william", file: "william.webm", look: "comic_burst", faceX: 0.5, from: 15, credit: "WIKITONGUES- William speaking English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_William_speaking_English.webm" },
-  { name: "rajen", file: "rajen.webm", look: "explainer", faceX: 0.5, from: 260, credit: "WIKITONGUES- Rajen speaking Karbi and English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Rajen_speaking_Karbi_and_English.webm" },
-  { name: "leena", file: "leena.webm", look: "kinetic_mix", faceX: 0.5, from: 14, credit: "Leena speaking English (Wikitongues and AfroCrowd)", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Leena_speaking_English_(Wikitongues_and_AfroCrowd).webm" },
-  { name: "kangkana", file: "kangkana.webm", look: "staggered_splash", faceX: 0.5, from: 60, credit: "WIKITONGUES- Kangkana speaking Assamese and English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Kangkana_speaking_Assamese_and_English.webm" },
-  { name: "john", file: "john.webm", look: "hormozi_box", faceX: 0.3, from: 0, credit: "WIKITONGUES- John speaking English, Spanish, and Greek", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_John_speaking_English,_Spanish,_and_Greek.webm" },
+  { name: "daniel", file: "daniel.webm", look: "explainer", faceX: 0.5, faceY: 0.35, from: 0, credit: "Daniel speaking English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Daniel_speaking_English.webm" },
+  { name: "goldi", file: "goldi.mp4", look: "kinetic_mix", faceX: 0.5, faceY: 0.3, from: 0, credit: "Goldi speaking Kumaoni, English", license: "CC BY-SA 4.0", url: "https://wikitongues.org/videos/goldi_20250409_kfy-eng/" },
+  { name: "steve", file: "steve.webm", look: "staggered_splash", faceX: 0.47, from: 0, credit: "Steve speaking English, Mandarin Chinese, Spanish, Standard Arabic, Portuguese, Russian, Japanese, French", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Steve_speaking_English,_Mandarin,_Spanish,_Arabic,_Portuguese,_Russian,_Japanese,_and_French.webm" },
+  { name: "drluv", file: "drluv.webm", look: "hormozi_box", faceX: 0.58, from: 120, credit: "WIKITONGUES- DrLuv speaking English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_DrLuv_speaking_English.webm" },
 ];
 
 // a full ffmpeg build (Remotion's bundled one leaves out filters such as setsar/fps)
@@ -59,15 +59,37 @@ const ff = (args: string[]) => {
   const r = spawnSync(ffmpeg, ["-v", "error", "-y", ...args], { stdio: "inherit" });
   if (r.status !== 0) throw new Error(`ffmpeg failed: ${args.join(" ")}`);
 };
-/** Portrait card out of any source: full height, 18:25 width around the speaker, clamped to the frame. */
-function crop(src: string, faceX: number) {
-  const info = spawnSync(ffmpeg, ["-hide_banner", "-i", src], { encoding: "utf8" }).stderr;
-  const m = /Video:.*?(\d{2,5})x(\d{2,5})/.exec(info);
-  if (!m) throw new Error(`cannot read the size of ${src}`);
-  const [iw, ih] = [Number(m[1]), Number(m[2])];
-  const w = Math.min(iw, Math.round((ih * W) / H / 2) * 2);
-  const x = Math.round(Math.max(0, Math.min(iw - w, iw * faceX - w / 2)));
-  return `crop=${w}:${ih}:${x}:0,scale=${W}:${H}:flags=lanczos,setsar=1,fps=${FPS}`;
+/** Display size of a source: ffmpeg auto-rotates decoded frames to the display orientation, so a
+ *  stored-landscape file with rotation metadata (phone video, e.g. Goldi) is really portrait. The
+ *  old code read the stored size and, for portrait sources, took the FULL height and scaled it to
+ *  432x600 — a 28% horizontal stretch — while for landscape it threw away ~60% of the width
+ *  around a fixed horizontal guess, which is what cut Leena's head and Kangkana's face. */
+function displaySize(src: string): { w: number; h: number } {
+  const probe = spawnSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:stream_tags=rotate", "-show_entries", "stream_side_data=rotation", "-of", "json", src], { encoding: "utf8" });
+  if (probe.status !== 0) throw new Error(`ffprobe failed for ${src}`);
+  const stream = JSON.parse(probe.stdout).streams?.[0] as { width?: number; height?: number; tags?: { rotate?: string }; side_data_list?: { rotation?: number }[] } | undefined;
+  if (!stream?.width || !stream?.height) throw new Error(`cannot read the size of ${src}`);
+  const rot = Number(stream.tags?.rotate ?? stream.side_data_list?.find((s) => typeof s.rotation === "number")?.rotation ?? 0);
+  const swapped = Math.abs(rot) === 90 || Math.abs(rot) === 270;
+  return swapped ? { w: stream.height, h: stream.width } : { w: stream.width, h: stream.height };
+}
+
+/** Portrait card out of any source, without stretching or cutting the speaker:
+ *  landscape sources keep full height and take an 18:25-wide slice around faceX;
+ *  portrait sources keep full width and take an 18:25-tall slice around faceY, so the
+ *  face (not the middle of the frame) lands in the card and baked-in lower-thirds fall
+ *  outside the slice. */
+function crop(src: string, faceX: number, faceY = 0.35) {
+  const { w: iw, h: ih } = displaySize(src);
+  const even = (n: number) => Math.round(n / 2) * 2;
+  if (iw / ih > W / H) {
+    const w = Math.min(iw, even((ih * W) / H));
+    const x = Math.round(Math.max(0, Math.min(iw - w, iw * faceX - w / 2)));
+    return `crop=${w}:${ih}:${x}:0,scale=${W}:${H}:flags=lanczos,setsar=1,fps=${FPS}`;
+  }
+  const h = Math.min(ih, even((iw * H) / W));
+  const y = Math.round(Math.max(0, Math.min(ih - h, ih * faceY - h / 2)));
+  return `crop=${iw}:${h}:0:${y},scale=${W}:${H}:flags=lanczos,setsar=1,fps=${FPS}`;
 }
 
 async function words(wav: string, language: string) {
@@ -111,7 +133,7 @@ for (const c of CLIPS.filter((c) => !only || c.name === only)) {
 
   // 2. the clip itself, cropped to the card
   const clip = join(work, `${c.name}.mp4`);
-  ff(["-ss", String(c.from + startMs / 1000), "-t", String(durationMs / 1000), "-i", src, "-vf", crop(src, c.faceX), "-an", "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", clip]);
+  ff(["-ss", String(c.from + startMs / 1000), "-t", String(durationMs / 1000), "-i", src, "-vf", crop(src, c.faceX, c.faceY), "-an", "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", clip]);
 
   // 3. caption document from the transcript, shifted to the clip's own clock
   const doc = CaptionDocSchema.parse({

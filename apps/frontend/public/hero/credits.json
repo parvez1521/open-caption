@@ -5,7 +5,7 @@
     "source": "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Sol_Luciana.webm",
     "look": "staggered_splash",
     "lookName": "3-Line Stagger",
-    "text": "En mi caso, lo que hacemos es hacer campañas de diferentes puntos de la ciudad, ya que la"
+    "text": "En mi caso, lo que hacemos es hacer campa\u00f1as de diferentes puntos de la ciudad, ya que la"
   },
   "gianna": {
     "title": "Peru Testimonial - Gianna Garcia",
@@ -21,7 +21,7 @@
     "source": "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Jesse_Vilela.webm",
     "look": "glow_stack_classic",
     "lookName": "3-Line Glow Hero",
-    "text": "podían acceder a sus derechos y también creo que me inicie como activista trans porque"
+    "text": "pod\u00edan acceder a sus derechos y tambi\u00e9n creo que me inicie como activista trans porque"
   },
   "aisha": {
     "title": "Wikinights testimonial by Aisha",
@@ -47,36 +47,36 @@
     "lookName": "Comic Tilt",
     "text": "by its users or its consumers to give up any certain personal information,"
   },
-  "rajen": {
-    "title": "WIKITONGUES- Rajen speaking Karbi and English",
+  "daniel": {
+    "title": "Daniel speaking English",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Rajen_speaking_Karbi_and_English.webm",
+    "source": "https://commons.wikimedia.org/wiki/File:Daniel_speaking_English.webm",
     "look": "explainer",
     "lookName": "Underline Sweep",
-    "text": "And therefore still we are back home, we don't have our M. I. L. And even M. I. L."
+    "text": "Hi. My name is Daniel. I am from"
   },
-  "leena": {
-    "title": "Leena speaking English (Wikitongues and AfroCrowd)",
+  "goldi": {
+    "title": "Goldi speaking Kumaoni, English",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Leena_speaking_English_(Wikitongues_and_AfroCrowd).webm",
+    "source": "https://wikitongues.org/videos/goldi_20250409_kfy-eng/",
     "look": "kinetic_mix",
     "lookName": "Kinetic Big Word",
-    "text": "It kind of happened at a time where I'm trying to put out a jewelry line"
+    "text": "My only language is Kumaoni. Kumaoni is a Hindi language and UNESCO"
   },
-  "kangkana": {
-    "title": "WIKITONGUES- Kangkana speaking Assamese and English",
+  "steve": {
+    "title": "Steve speaking English, Mandarin Chinese, Spanish, Standard Arabic, Portuguese, Russian, Japanese, French",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Kangkana_speaking_Assamese_and_English.webm",
+    "source": "https://commons.wikimedia.org/wiki/File:Steve_speaking_English,_Mandarin,_Spanish,_Arabic,_Portuguese,_Russian,_Japanese,_and_French.webm",
     "look": "staggered_splash",
     "lookName": "3-Line Stagger",
-    "text": "She is a very good person. She loves the language and helps me a lot."
+    "text": "I'm a language enthusiast. I like learning languages."
   },
-  "john": {
-    "title": "WIKITONGUES- John speaking English, Spanish, and Greek",
+  "drluv": {
+    "title": "WIKITONGUES- DrLuv speaking English",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_John_speaking_English,_Spanish,_and_Greek.webm",
+    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_DrLuv_speaking_English.webm",
     "look": "hormozi_box",
     "lookName": "Jumping Box",
-    "text": "All of which are native to myself and my family."
+    "text": "not making a dime while his band is out there making"
   }
 }
