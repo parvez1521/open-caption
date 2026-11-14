@@ -95,7 +95,7 @@ beforeEach(() => {
 
 describe("billing subscription checkout", () => {
   it("creates a subscription in INR and returns its session id", async () => {
-    const res = await call({ plan: "starter", mode: "subscription" });
+    const res = await call({ plan: "starter", mode: "subscription", customerPhone: "9876543210" });
     const body = (await res.json()) as { success: boolean; data?: Record<string, unknown> };
     expect(res.status).toBe(200);
     expect(body.success).toBe(true);
@@ -110,6 +110,7 @@ describe("billing subscription checkout", () => {
       subscriptionId: "ocs_testsub1",
       cashfreePlanId: "cf-plan-starter",
       customerId: "user-1",
+      customerPhone: "9876543210",
       planId: "starter",
     });
     expect((state.subCalls[0]?.returnUrl as string) ?? "").toContain("subscription_id=ocs_testsub1");
@@ -123,7 +124,7 @@ describe("billing subscription checkout", () => {
 
   it("answers subscriptionPlanMissing when the tier has no dashboard plan id", async () => {
     delete state.planMap.creator;
-    const res = await call({ plan: "creator", mode: "subscription" });
+    const res = await call({ plan: "creator", mode: "subscription", customerPhone: "9876543210" });
     const body = (await res.json()) as { success: boolean; data?: Record<string, unknown> };
     expect(res.status).toBe(200);
     expect(body.data?.subscriptionPlanMissing).toBe(true);
@@ -133,7 +134,7 @@ describe("billing subscription checkout", () => {
 
   it("answers dbPending when the subscriptions table is not applied yet", async () => {
     state.failInsert = { subscriptions: { code: "42P01", message: 'relation "public.subscriptions" does not exist' } };
-    const res = await call({ plan: "starter", mode: "subscription" });
+    const res = await call({ plan: "starter", mode: "subscription", customerPhone: "9876543210" });
     const body = (await res.json()) as { success: boolean; data?: Record<string, unknown> };
     expect(res.status).toBe(200);
     expect(body.data?.dbPending).toBe(true);
@@ -144,14 +145,27 @@ describe("billing subscription checkout", () => {
     state.createSubImpl = async () => {
       throw new Error("Cashfree /pg/subscriptions failed (400): Invalid plan id");
     };
-    const res = await call({ plan: "starter", mode: "subscription" });
+    const res = await call({ plan: "starter", mode: "subscription", customerPhone: "9876543210" });
     const body = (await res.json()) as { success: boolean; error?: { message: string } };
     expect(res.status).toBe(500);
     expect(body.error?.message).toBe("Cashfree /pg/subscriptions failed (400): Invalid plan id");
   });
 
+
+  it("returns a clear validation error when the phone is missing, and writes no rows", async () => {
+    const res = await call({ plan: "starter", mode: "subscription" });
+    const body = (await res.json()) as { success: boolean; error?: { code: string; message: string } };
+    expect(res.status).toBe(422);
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBe("VALIDATION");
+    expect(body.error?.message).toBe("Add a valid mobile number to continue.");
+    expect(state.subCalls).toHaveLength(0);
+    expect(state.tables.payments ?? []).toHaveLength(0);
+    expect(state.tables.subscriptions ?? []).toHaveLength(0);
+  });
+
   it("without mode, the one-time order flow is unchanged and no subscription is created", async () => {
-    const res = await call({ plan: "starter" });
+    const res = await call({ plan: "starter", customerPhone: "9876543210" });
     const body = (await res.json()) as { success: boolean; data?: Record<string, unknown> };
     expect(res.status).toBe(200);
     expect(body.data?.paymentSessionId).toBe("sess-1");

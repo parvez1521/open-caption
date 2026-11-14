@@ -12,6 +12,7 @@ import { canExportInBrowser, exportMp4InBrowser, saveBlob } from "./browserExpor
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studioService, type ExportKind, type ExportRow } from "@/services/studio";
 import { loadCashfreeSdk } from "@/lib/billing/cashfreeClient";
+import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
 import { WATERMARK_REMOVAL_PRICE_INR } from "@capseasy/shared";
 import { EXPORT_OPTIONS, exportDimsWithCanvas, optionKey, translatedTextOptions, type ExportOption } from "./exportOptions";
 import type { CanvasSettings } from "./canvas";
@@ -284,6 +285,8 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const watermarkState = watermarkQ.data ?? null;
   const [watermarkBusy, setWatermarkBusy] = useState(false);
   const [watermarkNotice, setWatermarkNotice] = useState<string | null>(null);
+  const [watermarkPhone, setWatermarkPhone] = useState("");
+  const [watermarkPhoneError, setWatermarkPhoneError] = useState<string | null>(null);
 
   /**
    * Buy the ₹69 one-time removal for this project. Checkout opens on the
@@ -292,10 +295,18 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
    * project exports clean from the next open of this panel.
    */
   const buyWatermark = async () => {
+    // Cashfree needs a mobile number to create the order — never start
+    // checkout without a valid one.
+    const validPhone = normalizeCustomerPhone(watermarkPhone);
+    if (!validPhone) {
+      setWatermarkPhoneError("Add a valid mobile number to continue.");
+      return;
+    }
+    setWatermarkPhoneError(null);
     setWatermarkBusy(true);
     setWatermarkNotice(null);
     try {
-      const res = await studioService.buyWatermarkRemoval(projectId);
+      const res = await studioService.buyWatermarkRemoval(projectId, validPhone);
       if (res.alreadyEntitled) {
         setWatermarkNotice("This video already exports clean.");
         await qc.invalidateQueries({ queryKey: ["watermark", projectId] });
@@ -306,7 +317,14 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         return;
       }
       const cashfree = await loadCashfreeSdk();
-      await cashfree({ mode: res.env ?? "sandbox" }).checkout({ paymentSessionId: res.paymentSessionId, returnTarget: "_self" });
+      // redirectTarget is the SDK's option name (returnTarget does not
+      // exist — the SDK ignores it). checkout() resolves {error} on
+      // SDK-side failures instead of rejecting — show it, or the button
+      // just reverts with no message.
+      const result = await cashfree({ mode: res.env ?? "sandbox" }).checkout({ paymentSessionId: res.paymentSessionId, redirectTarget: "_self" });
+      if (result?.error) {
+        setWatermarkNotice(result.error.message || "Checkout didn't start. Please try again.");
+      }
     } catch (e) {
       setWatermarkNotice(e instanceof ApiError || e instanceof Error ? e.message : "Checkout didn't start. Please try again.");
     } finally {
@@ -520,9 +538,35 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
               <p>Free MP4 exports carry a small Captionit watermark.</p>
               <p className="mt-1 text-xs text-st-muted">Remove it from this video for ₹{WATERMARK_REMOVAL_PRICE_INR}, once. Re-exports stay clean.</p>
               {watermarkState.watermarkReady ? (
-                <Button className="mt-2 !px-3 !py-2 text-xs font-semibold" disabled={watermarkBusy} onClick={() => void buyWatermark()}>
-                  {watermarkBusy ? "Opening checkout…" : `Remove the watermark — ₹${WATERMARK_REMOVAL_PRICE_INR} once`}
-                </Button>
+                <>
+                  <label htmlFor="watermark-phone" className="mt-2 block text-xs font-semibold text-st-text">
+                    Mobile number
+                  </label>
+                  <p className="mt-0.5 text-xs text-st-muted">Cashfree needs your mobile number to start the payment.</p>
+                  <input
+                    id="watermark-phone"
+                    type="tel"
+                    autoComplete="tel"
+                    inputMode="tel"
+                    value={watermarkPhone}
+                    onChange={(e) => {
+                      setWatermarkPhone(e.target.value);
+                      setWatermarkPhoneError(null);
+                    }}
+                    placeholder="98765 43210"
+                    aria-invalid={watermarkPhoneError ? true : undefined}
+                    aria-describedby={watermarkPhoneError ? "watermark-phone-error" : undefined}
+                    className="mt-1 w-full rounded-lg border border-st-line bg-white px-3 py-2 text-xs text-st-text outline-none"
+                  />
+                  {watermarkPhoneError ? (
+                    <p id="watermark-phone-error" role="alert" className="mt-1 text-xs font-semibold text-st-text">
+                      {watermarkPhoneError}
+                    </p>
+                  ) : null}
+                  <Button className="mt-2 !px-3 !py-2 text-xs font-semibold" disabled={watermarkBusy} onClick={() => void buyWatermark()}>
+                    {watermarkBusy ? "Opening checkout…" : `Remove the watermark — ₹${WATERMARK_REMOVAL_PRICE_INR} once`}
+                  </Button>
+                </>
               ) : (
                 <p className="mt-2 text-xs text-st-muted">Watermark removal checkout isn&apos;t set up yet.</p>
               )}

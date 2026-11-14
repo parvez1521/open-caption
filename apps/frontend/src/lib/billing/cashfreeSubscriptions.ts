@@ -147,7 +147,7 @@ export async function createCashfreeSubscription(input: {
       customer_details: {
         customer_id: input.customerId,
         customer_email: input.customerEmail,
-        ...(input.customerPhone ? { customer_phone: input.customerPhone } : {}),
+        customer_phone: input.customerPhone,
       },
       // No notify_url here: subscription webhooks are registered in the
       // dashboard (see the module header), not per subscription.

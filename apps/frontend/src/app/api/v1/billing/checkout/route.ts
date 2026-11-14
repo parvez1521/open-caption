@@ -118,7 +118,7 @@ export const POST = route(async (req: Request) => {
         cashfreePlanId: cfPlanId,
         customerId: user.id,
         customerEmail: user.email ?? "",
-        customerPhone: "",
+        customerPhone: phone,
         returnUrl: `${origin}/settings/billing?subscription_id=${subscriptionId}`,
         planId,
       });

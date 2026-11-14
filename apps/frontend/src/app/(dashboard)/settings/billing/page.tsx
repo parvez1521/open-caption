@@ -50,13 +50,6 @@ interface CheckoutResponse {
   plan?: PlanId;
 }
 
-type CashfreeCheckoutResult = {
-  redirect?: boolean;
-  // The SDK resolves {error} instead of rejecting on validation failures
-  // (e.g. a bad session) — the caller must surface it, or the failure is
-  // silent. The error carries a message string (GeneralError).
-  error?: { message?: string };
-};
 const fmtDate = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "—";
 const fmtMoney = (amount: number, currency: string) =>
@@ -160,10 +153,10 @@ export default function BillingPage() {
       } else {
         // checkout() resolves {error} on SDK-side failures instead of
         // rejecting — show it, or the button just reverts with no message.
-        const result = (await cashfree({ mode: res.env ?? "sandbox" }).checkout({
+        const result = await cashfree({ mode: res.env ?? "sandbox" }).checkout({
           paymentSessionId: res.paymentSessionId!,
           redirectTarget: "_self",
-        })) as CashfreeCheckoutResult | undefined;
+        });
         if (result?.error) {
           setNotice(result.error.message || "Checkout didn't start. Please try again.");
         }

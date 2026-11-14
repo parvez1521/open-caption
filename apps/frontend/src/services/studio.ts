@@ -246,8 +246,8 @@ export const studioService = {
    * this project already exports clean, or configured:false when payments
    * (or the watermark setup) are not switched on yet.
    */
-  buyWatermarkRemoval(projectId: string) {
-    return apiClient.post<{ configured: boolean; alreadyEntitled?: boolean; orderId?: string; paymentSessionId?: string; env?: "sandbox" | "production"; amount?: number; currency?: string; projectId?: string; dbPending?: boolean }>("/billing/watermark/checkout", { json: { projectId } });
+  buyWatermarkRemoval(projectId: string, customerPhone: string) {
+    return apiClient.post<{ configured: boolean; alreadyEntitled?: boolean; orderId?: string; paymentSessionId?: string; env?: "sandbox" | "production"; amount?: number; currency?: string; projectId?: string; dbPending?: boolean }>("/billing/watermark/checkout", { json: { projectId, customerPhone } });
   },
 
   async exportDownloadUrl(exportId: string): Promise<string> {
