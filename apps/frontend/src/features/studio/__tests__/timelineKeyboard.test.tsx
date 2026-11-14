@@ -104,4 +104,21 @@ describe("Timeline video trim handle times (B-03)", () => {
     expect(end.getAttribute("aria-valuetext")).toBe("0:02.0");
     expect(end.getAttribute("aria-valuenow")).toBe("2000");
   });
+
+  it("video trim handles carry the invisible hit-area expander (F-10 follow-up)", () => {
+    render(
+      <Timeline
+        {...baseProps}
+        editorComp={editorComp}
+        selectedVideoClipId={null}
+        onSelectVideoClip={vi.fn()}
+        onTrimVideoEdge={vi.fn()}
+      />,
+    );
+    const start = screen.getByRole("slider", { name: "Trim start of first segment" });
+    const end = screen.getByRole("slider", { name: "Trim end of segment 1" });
+    for (const handle of [start, end]) {
+      expect(handle.className).toContain("before:-inset-x-2");
+    }
+  });
 });

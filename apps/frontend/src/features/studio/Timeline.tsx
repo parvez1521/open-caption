@@ -844,7 +844,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                         aria-valuemax={total}
                         aria-valuetext={fmtTime(c.startMs)}
                         onPointerDown={(e) => beginVideoEdgeDrag(e, c.id, "start")}
-                        className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50"
+                        className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/50"
                         style={{ left: x(c.startMs) - 3 }}
                       />,
                     );
@@ -859,7 +859,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                       aria-valuemax={total}
                       aria-valuetext={fmtTime(c.startMs + c.durationMs)}
                       onPointerDown={(e) => beginVideoEdgeDrag(e, c.id, "end")}
-                      className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50"
+                      className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/50"
                       style={{ left: x(c.startMs + c.durationMs) - 3 }}
                     />,
                   );
