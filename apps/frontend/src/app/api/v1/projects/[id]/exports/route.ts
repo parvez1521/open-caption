@@ -9,6 +9,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
 import { billedMinutesForRender, reserveMinutes, settleReservation } from "@/lib/billing/minutes";
+import { assertLookAllowedForPlan } from "@/lib/billing/looks";
 import { getWatermarkStatus } from "@/lib/billing/watermark";
 import { putObject, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
@@ -44,6 +45,20 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const { data: docRow } = await user.db.from("caption_documents").select("revision, doc").eq("project_id", projectId).maybeSingle();
   if (!docRow) throw new ApiFailure("CONFLICT", "There are no captions to export yet.");
   if (!project.style_json) throw new ApiFailure("CONFLICT", "Choose a caption style before exporting.");
+
+  // Premium looks (monetization): the server refuses a premium look for a
+  // Free user before any work is done — before minutes are reserved and
+  // before a text file or a render job is created. The look is never
+  // silently swapped for a free one: the error tells them to pick a free
+  // look or upgrade. This runs before the text branch on purpose: the
+  // export records the look id for every kind, so the rule is one rule
+  // for the whole route, not a different rule per format.
+  const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
+  assertLookAllowedForPlan(
+    (project as { look_id?: string | null }).look_id,
+    profile?.plan,
+    (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
+  );
 
   const doc = CaptionDocSchema.parse(docRow.doc);
   const settings = ProjectSettingsSchema.parse(project.settings_json ?? {});
@@ -119,7 +134,6 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const fps = body.fps ?? settings.exportSettings.fps;
   const format = body.kind as RenderJob["format"];
 
-  const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
   const effectivePlan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
   const retentionDays = planFor(effectivePlan).exportRetentionDays;
 

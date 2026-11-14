@@ -21,7 +21,9 @@ vi.mock("../panels/AnimatedTemplatePreview", () => ({
   },
 }));
 vi.mock("@/services/studio", () => ({
-  studioService: { listLooks: async () => [], saveLook: async () => ({}), deleteLook: async () => ({}) },
+  // billingPlan is seeded as a paid plan in each test (see below): the
+  // click test targets LOOKS[3], a premium look, and must still apply.
+  studioService: { listLooks: async () => [], saveLook: async () => ({}), deleteLook: async () => ({}), billingPlan: async () => ({ plan: "starter" }) },
 }));
 
 import { LooksPanel } from "../panels/LooksPanel";
@@ -31,6 +33,9 @@ describe("LooksPanel selection re-render scope", () => {
 
   it("changing the selection re-renders only the affected cards", () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // paid plan, cached before render: the panel reads the plan synchronously
+    // from the cache, so no async plan fetch can re-render cards mid-test
+    qc.setQueryData(["billing-plan"], { plan: "starter" });
     const style = resolveStyle(LOOKS[0]!.style);
     const settings = ProjectSettingsSchema.parse({});
     const onChoose = vi.fn();
@@ -53,6 +58,7 @@ describe("LooksPanel selection re-render scope", () => {
 
   it("clicking a card calls onChoose with that look (selection stays a local, synchronous apply)", () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    qc.setQueryData(["billing-plan"], { plan: "starter" });
     const style = resolveStyle(LOOKS[0]!.style);
     const settings = ProjectSettingsSchema.parse({});
     const onChoose = vi.fn();

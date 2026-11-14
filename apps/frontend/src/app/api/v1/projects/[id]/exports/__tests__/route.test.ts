@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 /**
@@ -265,6 +265,68 @@ describe("watermark — server decides per project, MP4 only (Builder 3)", () =>
     expect(res.status).toBe(202);
     expect(state.reserves).toHaveLength(1);
     expect(state.reserves[0]!.args).toMatchObject({ p_minutes: 1 });
+  });
+});
+
+describe("premium looks — server refuses a premium look for a Free user (Builder 4)", () => {
+  const setLook = (lookId: string) => {
+    (ROWS.projects as { look_id: string }).look_id = lookId;
+  };
+  const setPlan = (plan: string, expiresAt?: string) => {
+    ROWS.profiles = expiresAt ? { plan, plan_expires_at: expiresAt } : { plan };
+  };
+  afterEach(() => {
+    setLook("look-1");
+    setPlan("free");
+  });
+
+  it("a Free MP4 with a premium look is refused 402, and reserves nothing", async () => {
+    setLook("metal_script");
+    setPlan("free");
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { code: string; message: string } };
+    expect(json.error.code).toBe("LIMIT_EXCEEDED");
+    expect(json.error.message).toContain("Pick a free look");
+    expect(json.error.message).toContain("upgrade");
+    expect(state.reserves).toHaveLength(0);
+    expect(state.enqueued).toHaveLength(0);
+    expect(state.inserts).toHaveLength(0);
+  });
+
+  it("the refusal covers text exports too: one rule for the whole route", async () => {
+    setLook("metal_script");
+    setPlan("free");
+    const res = await post({ kind: "srt" });
+    expect(res.status).toBe(402);
+    expect(state.puts).toHaveLength(0);
+    expect(state.inserts).toHaveLength(0);
+  });
+
+  it("a Free user with a free look exports, and a paid plan with a premium look exports", async () => {
+    setLook("netflix_sub");
+    setPlan("free");
+    expect((await post({ kind: "mp4" })).status).toBe(202);
+    setLook("metal_script");
+    setPlan("starter", "2026-12-14T00:00:00Z");
+    expect((await post({ kind: "mp4" })).status).toBe(202);
+  });
+
+  it("an expired paid period reads as Free, so a premium look is refused", async () => {
+    setLook("metal_script");
+    setPlan("starter", "2026-11-01T00:00:00Z");
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(402);
+    expect(state.enqueued).toHaveLength(0);
+  });
+
+  it("a retired premium look on an old Free project is refused, not silently swapped", async () => {
+    setLook("karaoke_fill");
+    setPlan("free");
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { message: string } };
+    expect(json.error.message).toContain("Pick a free look");
   });
 });
 

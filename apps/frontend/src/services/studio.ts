@@ -3,7 +3,7 @@
  * projects service so the old dashboard keeps working while the studio moves to the new pipeline.
  */
 
-import type { CaptionDoc, CaptionStyleV2, CompositionSettings, CreatableExportKind, ProjectSettings } from "@capseasy/shared";
+import type { CaptionDoc, CaptionStyleV2, CompositionSettings, CreatableExportKind, PlanId, ProjectSettings } from "@capseasy/shared";
 import { apiClient, ApiError } from "./api-client";
 import type { PreparedVideo } from "@/features/upload/prepareVideo";
 import { saveLocalVideo } from "@/features/upload/localVideos";
@@ -214,6 +214,17 @@ export const studioService = {
   /** Minutes balance for the signed-in user (null when not set up yet). */
   minutesUsage() {
     return apiClient.get<{ minutes: MinutesUsage | null; minutesReady: boolean }>(`/billing/minutes`);
+  },
+
+  /**
+   * The caller's effective plan (an expired paid period reads as Free —
+   * the same rule the server export gates apply). The Looks panel reads
+   * this to badge premium looks and to show the upgrade prompt instead of
+   * applying one for a Free user. Display only: the server export routes
+   * re-check the plan before anything renders.
+   */
+  billingPlan() {
+    return apiClient.get<{ plan: PlanId }>(`/billing/me`);
   },
 
   /**

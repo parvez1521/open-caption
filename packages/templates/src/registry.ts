@@ -164,7 +164,16 @@ export const TRENDING_LOOK_IDS: readonly string[] = [
 ];
 const TRENDING = new Set(TRENDING_LOOK_IDS);
 
-const NUMBERED: LookDefinition[] = [...ALL_LOOKS].sort((a, b) => rank(a.id) - rank(b.id)).map((l) => ({ ...l, number: lookNumber(l.id), trending: TRENDING.has(l.id) }));
+/**
+ * Free looks live in ./looks/tiers.ts (pure data, no imports): the registry
+ * derives every look's tier from that one set, and the server export gate
+ * imports the same file directly — the templates barrel cannot be imported
+ * from a route handler (it re-exports client-only modules). See tiers.ts.
+ */
+import { FREE_LOOK_IDS, lookTier } from "./looks/tiers";
+export { FREE_LOOK_IDS, lookTier };
+
+const NUMBERED: LookDefinition[] = [...ALL_LOOKS].sort((a, b) => rank(a.id) - rank(b.id)).map((l) => ({ ...l, number: lookNumber(l.id), trending: TRENDING.has(l.id), tier: lookTier(l.id) }));
 /** the gallery: every look except retired ones (see looks/numbers.ts) */
 export const LOOKS: LookDefinition[] = NUMBERED.filter((l) => !isRetiredLook(l.id));
 /** the curated trending looks, in TRENDING_LOOK_IDS order (hero cylinder + picker badge) */
