@@ -21,7 +21,7 @@ import type { In, Out } from "./whisper.worker";
  */
 
 export const TRANSCRIBE_ACCEPT =
-  "video/mp4,video/quicktime,video/webm,video/x-matroska,audio/mpeg,audio/mp4,audio/wav,audio/webm,audio/ogg,.mp4,.mov,.webm,.mkv,.mp3,.m4a,.wav,.ogg";
+  "video/mp4,video/quicktime,video/webm,video/x-matroska,audio/mpeg,audio/mp4,audio/wav,audio/webm,audio/ogg,audio/flac,audio/aac,.mp4,.mov,.webm,.mkv,.mp3,.m4a,.wav,.ogg,.flac,.aac";
 
 export const TRANSCRIBE_LIMITS = {
   maxBytes: PLANS.free.maxLocalBytes,
@@ -36,7 +36,7 @@ export function validateTranscribeFile(file: File): string | null {
   const name = file.name.toLowerCase();
   const knownExt = [...AUDIO_EXTS, ...VIDEO_EXTS].some((e) => name.endsWith(e));
   const knownType = file.type.startsWith("video/") || file.type.startsWith("audio/");
-  if (!knownType && !knownExt) return "Choose a video or audio file (MP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG).";
+  if (!knownType && !knownExt) return "Choose a video or audio file (MP4, MOV, WebM, MKV, MP3, M4A, WAV, OGG, FLAC, AAC).";
   if (file.size > TRANSCRIBE_LIMITS.maxBytes) {
     return `This file is over the ${uploadLimitLabel(TRANSCRIBE_LIMITS.maxBytes)} limit for this tool. Trim it and try again.`;
   }
