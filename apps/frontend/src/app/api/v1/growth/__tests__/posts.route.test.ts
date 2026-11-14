@@ -67,8 +67,9 @@ describe("GET /growth/posts", () => {
   it("lists only the caller's posts, newest posted first, mapped, ready:true", async () => {
     const res = await get();
     expect(res.status).toBe(200);
-    const json = (await res.json()) as { data: { ready: boolean; posts: Array<Record<string, unknown>> } };
+    const json = (await res.json()) as { data: { ready: boolean; posts: Array<Record<string, unknown>>; total: number } };
     expect(json.data.ready).toBe(true);
+    expect(json.data.total).toBe(2); // C-05: the stored total rides along with the page
     expect(json.data.posts.map((p) => p.id)).toEqual(["post-new", "post-old"]);
     expect(json.data.posts[0]).toMatchObject({
       platform: "instagram",
@@ -82,12 +83,24 @@ describe("GET /growth/posts", () => {
     expect(json.data.posts[0]).not.toHaveProperty("owner_id");
   });
 
+  it("C-05: over 500 stored posts the page caps at 500 but the total still reports all of them", async () => {
+    state.current = makeState({
+      growth_posts: Array.from({ length: 600 }, (_, i) =>
+        post({ id: `post-${i}`, posted_at: `2026-02-${String((i % 28) + 1).padStart(2, "0")}T10:30:00.000Z` }),
+      ),
+    });
+    const res = await get();
+    const json = (await res.json()) as { data: { ready: boolean; posts: unknown[]; total: number } };
+    expect(json.data.posts).toHaveLength(500);
+    expect(json.data.total).toBe(600);
+  });
+
   it("answers ready:false with an empty list when the table is missing — no 500", async () => {
     state.current.missing = true;
     const res = await get();
     expect(res.status).toBe(200);
-    const json = (await res.json()) as { data: { ready: boolean; posts: unknown[] } };
-    expect(json.data).toEqual({ ready: false, posts: [] });
+    const json = (await res.json()) as { data: { ready: boolean; posts: unknown[]; total: number | null } };
+    expect(json.data).toEqual({ ready: false, posts: [], total: null });
   });
 });
 

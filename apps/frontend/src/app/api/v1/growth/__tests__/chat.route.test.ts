@@ -100,6 +100,15 @@ describe("POST /growth/chat", () => {
     expect(rateLimitCalls.calls).toContainEqual(["site", "create_ai_global", 600, 86400]);
   });
 
+  it("C-05: over 500 stored posts the Coach context says the dataset is truncated", async () => {
+    state.current = makeState({
+      growth_posts: Array.from({ length: 501 }, (_, i) => post({ id: `post-${i}` })),
+    });
+    await ask("How did my posts do?");
+    expect(ai.calls).toHaveLength(1);
+    expect(ai.calls[0]!.user).toContain("Coverage: this dataset holds only the newest 500 of 501 stored posts");
+  });
+
   it("unconfigured deployment → configured:false and NO model call", async () => {
     ai.configured = false;
     const res = await ask("How did I do?");

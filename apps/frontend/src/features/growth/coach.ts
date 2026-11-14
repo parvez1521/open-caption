@@ -56,11 +56,15 @@ function postLine(post: GrowthPost): string {
 const byEngagementDesc = (a: GrowthPost, b: GrowthPost): number =>
   engagementOf(b) - engagementOf(a) || Date.parse(b.postedAt) - Date.parse(a.postedAt);
 
-/** The dataset text the model may reason over. Only the user's rows, only computed figures. */
+/** The dataset text the model may reason over. Only the user's rows, only computed figures.
+ * `totalPosts` is the caller's stored total (C-05): when it exceeds the
+ * page the route could send, the model is told the dataset is truncated —
+ * otherwise it would reason over the newest 500 as if they were everything. */
 export function buildGrowthContext(
   posts: ReadonlyArray<GrowthPost>,
   sections: CoachSections,
   competitors: ReadonlyArray<CompetitorProfile>,
+  totalPosts: number | null = null,
 ): string {
   const lines: string[] = [];
   if (posts.length === 0) {
@@ -72,6 +76,11 @@ export function buildGrowthContext(
     lines.push(
       `Posts tracked: ${posts.length} (${mix.manual} Manual, ${mix.csv} CSV, ${mix.youtube} YouTube, ${mix.instagram} Instagram), from ${fmtDate(dates[0]!)} to ${fmtDate(dates[dates.length - 1]!)}.`,
     );
+    if (totalPosts !== null && totalPosts > posts.length) {
+      lines.push(
+        `Coverage: this dataset holds only the newest ${posts.length} of ${totalPosts} stored posts — the older ${totalPosts - posts.length} are NOT included, so every total, ranking and trend below covers the newest ${posts.length} only. Say so when a question could turn on the missing older posts.`,
+      );
+    }
     // All-history totals over figures actually entered (a metric nobody entered is missing, not zero).
     const totals: Array<[string, number | null]> = (["views", "reach", "likes", "comments", "shares", "saves"] as const).map((key) => {
       let total = 0;

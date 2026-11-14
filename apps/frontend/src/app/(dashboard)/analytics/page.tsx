@@ -71,6 +71,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [posts, setPosts] = useState<GrowthPost[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
   const [growthReady, setGrowthReady] = useState(true);
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export default function AnalyticsPage() {
     try {
       const list = await fetchGrowthPosts();
       setPosts(list.posts);
+      setTotal(list.total);
       setGrowthReady(list.ready);
     } catch (e) {
       setLoadError(errText(e, "Couldn't load your analytics. Try again."));
@@ -175,6 +177,14 @@ export default function AnalyticsPage() {
             {/* The figures' source, stated once for the whole page (it used to repeat
                 verbatim under all four sections). */}
             <p className="pt-8 text-[12px] text-sand-600">{analytics.sourceFootnote}</p>
+            {/* C-05: the list is capped at 500 rows — when the stored total
+                is bigger, say so plainly instead of letting the totals
+                pass for the whole history. */}
+            {total !== null && total > posts.length ? (
+              <p className="pt-2 text-[12px] text-sand-600">
+                Showing the newest {fmt(posts.length)} of {fmt(total)} stored posts — older posts are beyond this page, so the totals below cover the newest {fmt(posts.length)} only.
+              </p>
+            ) : null}
             {/* -------------------------------------------------- Totals */}
             <section className="pt-10" aria-label="Totals">
               <h2 className={sectionTitleCls}>Totals — all posts</h2>

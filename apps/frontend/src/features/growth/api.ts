@@ -22,6 +22,10 @@ import type { CompetitorProfile, GrowthPost, GrowthPostInput, PostSource } from 
 export interface GrowthPostList {
   ready: boolean;
   posts: GrowthPost[];
+  /** The caller's stored total (C-05): the page is capped at 500 rows, so
+   * total > posts.length means older posts are beyond this page. Null
+   * when the server did not report one (older payload / not set up). */
+  total: number | null;
 }
 
 export interface CompetitorList {
@@ -106,11 +110,15 @@ export function mapCompetitorProfile(raw: unknown): CompetitorProfile | null {
 }
 
 export function mapGrowthPostList(raw: unknown): GrowthPostList {
-  if (!isRecord(raw)) return { ready: false, posts: [] };
+  if (!isRecord(raw)) return { ready: false, posts: [], total: null };
   const posts = Array.isArray(raw.posts)
     ? raw.posts.map(mapGrowthPost).filter((x): x is GrowthPost => x !== null)
     : [];
-  return { ready: raw.ready === true, posts };
+  return {
+    ready: raw.ready === true,
+    posts,
+    total: typeof raw.total === "number" && Number.isFinite(raw.total) ? raw.total : null,
+  };
 }
 
 export function mapCompetitorList(raw: unknown): CompetitorList {

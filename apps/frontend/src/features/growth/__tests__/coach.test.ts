@@ -85,6 +85,15 @@ describe("buildGrowthContext", () => {
     expect(ctx).toContain("Rival (@rival) on instagram");
     expect(ctx).toContain("no metrics were fetched");
   });
+
+  it("C-05: when the stored total exceeds the page, the context says the dataset is truncated", () => {
+    const posts = [post({ id: "a", title: "Newest", views: 5000 })];
+    const full = buildGrowthContext(posts, sectionsOf(posts), [], 1);
+    expect(full).not.toContain("Coverage:");
+    const truncated = buildGrowthContext(posts, sectionsOf(posts), [], 501);
+    expect(truncated).toContain("Coverage: this dataset holds only the newest 1 of 501 stored posts");
+    expect(truncated).toContain("the older 500 are NOT included");
+  });
 });
 
 describe("the no-invention contract", () => {

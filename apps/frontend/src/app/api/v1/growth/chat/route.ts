@@ -80,17 +80,19 @@ export const POST = route(async (req: Request) => {
 
   const postsRes = await user.db
     .from("growth_posts")
-    .select(GROWTH_POST_COLUMNS)
+    .select(GROWTH_POST_COLUMNS, { count: "exact" })
     .eq("owner_id", user.id)
     .order("posted_at", { ascending: false })
     .limit(500);
   let posts: GrowthPost[] = [];
+  let total: number | null = null;
   if (postsRes.error) {
     if (!isMissingTableError(postsRes.error)) {
       throw new ApiFailure("INTERNAL", "Could not load your growth posts", postsRes.error.message);
     }
   } else {
     posts = ((postsRes.data ?? []) as GrowthPostRow[]).map(toApiGrowthPost);
+    total = postsRes.count ?? posts.length;
   }
 
   const competitorsRes = await user.db
@@ -111,7 +113,7 @@ export const POST = route(async (req: Request) => {
     topBottom: computeTopBottom(posts, now),
     trend: computeTrend(posts, now),
   };
-  const context = buildGrowthContext(posts, sections, competitors);
+  const context = buildGrowthContext(posts, sections, competitors, total);
   const prompt = buildCoachPrompt(body.question, context, body.history ?? []);
   let answer: string;
   try {

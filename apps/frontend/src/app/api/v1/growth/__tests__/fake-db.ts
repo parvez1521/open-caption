@@ -172,6 +172,15 @@ class FakeBuilder {
     return rows;
   }
 
+  /**
+   * The count PostgREST reports for count:"exact": every row matching the
+   * filters, BEFORE the page limit is applied — the page limit caps the
+   * rows returned, never the total.
+   */
+  private runCount(): number {
+    return (this.state.tables[this.table] ?? []).filter(this.matches).length;
+  }
+
   async maybeSingle() {
     if (this.state.missing) return { data: null, error: missingError(this.table) };
     if (this.mode === "insert") return { data: this.inserted, error: null };
@@ -207,7 +216,7 @@ class FakeBuilder {
     const rows = this.runSelect();
     return Promise.resolve({
       data: this.head ? null : rows,
-      count: this.countOpt === "exact" ? rows.length : null,
+      count: this.countOpt === "exact" ? this.runCount() : null,
       error: null,
     }).then(onOk, onErr);
   }
