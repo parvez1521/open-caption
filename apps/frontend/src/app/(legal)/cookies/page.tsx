@@ -10,6 +10,7 @@ const ITEMS: [string, string, string, string][] = [
   ["sb-…-auth-token", "Local storage", "Keeps you signed in (your session with our authentication provider).", "Until you sign out"],
   ["ce_tl_mode, ce_tl_snap, ce_tl_ripple", "Local storage", "Remembers your timeline view (words or lines, snapping, linked moves).", "Until you clear it"],
   ["ce_intro", "Session storage", "Shows the landing-page intro animation once per visit.", "Until you close the tab"],
+  ["_ga, _ga_<id>", "Cookie (Google Analytics 4)", "Distinguishes visits for Google Analytics 4 — page visits, approximate location, device and browser. No video, audio or transcript data.", "Up to 2 years"],
 ];
 
 export default function CookiesPage() {
@@ -17,7 +18,7 @@ export default function CookiesPage() {
     <LegalDoc
       title="Cookie"
       accent="Policy"
-      intro={<>{LEGAL.product} itself stores only what the site needs to work: your sign-in session and a few editor preferences — no advertising or cross-site tracking cookies of our own. Analytics on this site (Vercel Analytics and Speed Insights) set no cookies. If advertising is ever enabled on the site, Google and its partners may set advertising cookies as described below.</>}
+      intro={<>{LEGAL.product} itself stores only what the site needs to work: your sign-in session and a few editor preferences — no advertising or cross-site tracking cookies of our own. Analytics on this site (Vercel Analytics and Speed Insights) set no cookies; Google Analytics 4 does set cookies — see below. If advertising is ever enabled on the site, Google and its partners may set advertising cookies as described below.</>}
     >
       <Sec id="what" title="What we store">
         <div className="-mx-1 overflow-x-auto">
@@ -36,11 +37,12 @@ export default function CookiesPage() {
             </tbody>
           </table>
         </div>
-        <p>All of these are strictly necessary or remember a choice you made, so they do not need consent under most cookie laws. Analytics already runs on this site, but it sets no cookies (see below). If we ever add marketing cookies, we will ask for your consent first and update this page.</p>
+        <p>All of these are strictly necessary or remember a choice you made, so they do not need consent under most cookie laws — except the Google Analytics cookies, which are analytics, not strictly necessary. If we ever add marketing cookies, we will ask for your consent first and update this page.</p>
       </Sec>
 
-      <Sec id="analytics" title="Analytics (no cookies)">
+      <Sec id="analytics" title="Analytics">
         <p>Every page loads Vercel Analytics and Speed Insights, which record page visits and a few product events: a video added (with its language and length), captions ready or failed, and an export finished or failed (with its format, quality, resolution and frame rate). They never receive your video, audio or transcripts, and they set no cookies.</p>
+        <p>Google Analytics 4 also runs on every page. It records page visits with approximate location, device and browser, and sets the <code>_ga</code> and <code>_ga_&lt;id&gt;</code> cookies listed above, kept up to 2 years. It never receives your video, audio or transcripts. You can opt out with Google&rsquo;s <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noreferrer">Analytics opt-out add-on</a>.</p>
       </Sec>
 
       <Sec id="ads" title="Advertising cookies (only if ads are enabled)">
