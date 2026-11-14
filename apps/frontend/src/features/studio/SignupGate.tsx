@@ -6,6 +6,7 @@ import { renderGoogleSignInButton } from "@/services/auth/googleIdToken";
 import { isGoogleAuthEnabled, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { friendlyAuthError } from "@/components/auth/AuthShell";
 import { Button } from "./controls";
+import { useDialogEscapeAndTrap } from "./useDialogEscapeAndTrap";
 
 /**
  * Shown when a guest clicks Export: one step to a free account. The account is linked to the guest's user id,
@@ -15,6 +16,11 @@ import { Button } from "./controls";
 export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; notice?: string | null }> = ({ onDone, onClose, notice }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One hook call for all three dialog sites below (only one renders at a
+  // time, so the ref lands on whichever is mounted). Must sit above the
+  // early returns.
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogEscapeAndTrap(dialogRef, onClose);
 
   // Google Identity Services button (captionit.in chooser) vs the old OAuth button —
   // same "checking" → "gis" | "oauth" swap as the login page. The guest claim stash
@@ -81,7 +87,7 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
   if (!isSupabaseConfigured()) {
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-        <div role="dialog" aria-label="No account needed" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
+        <div ref={dialogRef} role="dialog" aria-label="No account needed" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
           <h2 className="text-lg font-semibold">No account needed to export</h2>
           <p className="mt-1 text-sm text-st-muted">Accounts are coming soon — no sign-up needed to make captions. Your export is made right in your browser.</p>
           {notice ? <p role="status" className="mt-3 rounded-lg border border-st-line bg-st-raised px-3 py-2 text-sm text-st-text">{notice}</p> : null}
@@ -101,7 +107,7 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
   if (!isGoogleAuthEnabled()) {
     return (
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-        <div role="dialog" aria-label="Create your free account" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
+        <div ref={dialogRef} role="dialog" aria-label="Create your free account" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
           <h2 className="text-lg font-semibold">Create a free account to export</h2>
           <p className="mt-1 text-sm text-st-muted">Sign-up with Google isn&rsquo;t switched on yet, so new accounts can&rsquo;t be created here right now. If you already have an account, sign in — everything you&rsquo;ve made comes with you.</p>
           {notice ? <p role="status" className="mt-3 rounded-lg border border-st-line bg-st-raised px-3 py-2 text-sm text-st-text">{notice}</p> : null}
@@ -116,7 +122,7 @@ export const SignupGate: React.FC<{ onDone: () => void; onClose: () => void; not
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div role="dialog" aria-label="Create your free account" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
+      <div ref={dialogRef} role="dialog" aria-label="Create your free account" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-t-2xl border border-st-line bg-st-panel p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl">
         <h2 className="text-lg font-semibold">Create a free account to export</h2>
         <p className="mt-1 text-sm text-st-muted">One tap with Google. Everything you&apos;ve made stays exactly as it is.</p>
         <div ref={gisContainerRef} className="mt-5 w-full" />

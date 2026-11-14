@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { CANONICAL_APP } from "@/lib/authReturn";
 import { FEEDBACK_MAILTO, LEGAL } from "@/lib/legal";
 import { Button } from "./controls";
+import { useDialogEscapeAndTrap } from "./useDialogEscapeAndTrap";
 
 const SITE = CANONICAL_APP.replace(/^https?:\/\//, "");
 export const SHARE_TEXT = `I made this video using Captionit ✨ Add animated captions to your videos for free: ${CANONICAL_APP}`;
@@ -38,6 +39,8 @@ interface Props {
 
 /** "Your video is ready": shown after an MP4 export, with the video, a share button and a download button. */
 export const VideoReady: React.FC<Props> = ({ blob, filename, detail, onDownload, onClose }) => {
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  useDialogEscapeAndTrap(dialogRef, onClose);
   const url = useMemo(() => URL.createObjectURL(blob), [blob]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
   const file = useMemo(() => new File([blob], filename, { type: blob.type || "video/mp4" }), [blob, filename]);
@@ -68,7 +71,7 @@ export const VideoReady: React.FC<Props> = ({ blob, filename, detail, onDownload
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div role="dialog" aria-label="Your video is ready" onClick={(e) => e.stopPropagation()} className="flex max-h-[94dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:rounded-2xl">
+      <div ref={dialogRef} role="dialog" aria-label="Your video is ready" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="flex max-h-[94dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:rounded-2xl">
         <div className="flex items-center justify-between px-5 pt-4">
           <h2 className="text-lg font-semibold">Your video is ready 🎉</h2>
           <button onClick={onClose} aria-label="Close" className="-mr-2 grid h-10 w-10 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>

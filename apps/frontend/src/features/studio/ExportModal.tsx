@@ -16,6 +16,7 @@ import { FORMAT_SHORT_LABEL, FormatPreview } from "./exportFormatPreview";
 import type { CanvasSettings } from "./canvas";
 import { ApiError } from "@/services/api-client";
 import { Button, fmtBytes, fmtTime, triggerDownload } from "./controls";
+import { useDialogEscapeAndTrap } from "./useDialogEscapeAndTrap";
 import { exportPreflightNote, fourKBlockReason } from "./preflight";
 import { VideoReady } from "./VideoReady";
 import { track } from "@/lib/track";
@@ -75,6 +76,8 @@ interface Props {
 
 export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings, canvas = null, audioMix = null, translationTracks = [] }) => {
   const qc = useQueryClient();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogEscapeAndTrap(dialogRef, onClose);
   const allOptions: ExportOption[] = [...EXPORT_OPTIONS, ...translatedTextOptions(translationTracks)];
   /** busy identity is the option KEY (kind, or kind:language for translated rows), not just the kind */
   const [busyKind, setBusyKind] = useState<string | null>(null);
@@ -319,7 +322,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   return (
     <>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div role="dialog" aria-label="Export" onClick={(e) => e.stopPropagation()} className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
+      <div ref={dialogRef} role="dialog" aria-label="Export" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-st-line px-5 py-4">
           <h2 className="text-lg font-semibold">Export</h2>
           <button onClick={onClose} aria-label="Close" className="-mr-2 grid h-10 w-10 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
