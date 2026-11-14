@@ -12,6 +12,7 @@ import { canExportInBrowser, exportMp4InBrowser, saveBlob } from "./browserExpor
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { studioService, type ExportKind, type ExportRow } from "@/services/studio";
 import { EXPORT_OPTIONS, exportDimsWithCanvas, optionKey, translatedTextOptions, type ExportOption } from "./exportOptions";
+import { FORMAT_SHORT_LABEL, FormatPreview } from "./exportFormatPreview";
 import type { CanvasSettings } from "./canvas";
 import { ApiError } from "@/services/api-client";
 import { Button, fmtBytes, fmtTime, triggerDownload } from "./controls";
@@ -87,8 +88,13 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     return `${verb} ${KIND_LABEL[o.kind] ?? o.kind}`;
   };
   const [error, setError] = useState<string | null>(null);
-  /** set when a companion render (alpha overlay) was queued instead of made right away */
-  const [queuedNote, setQueuedNote] = useState<string | null>(null);
+  /** first caption words for the format previews; a short sample when the project has no words yet */
+  const docWords = (renderInput?.doc as { words?: Array<{ text: string }> } | undefined)?.words;
+  const sampleWords = docWords?.slice(0, 4).map((w) => w.text).join(" ").trim() || "Hello world";
+  /** set when a companion render (alpha overlay) was queued instead of made right away:
+   *  shown as a small badge on that card, never a sentence */
+  const [queuedKey, setQueuedKey] = useState<string | null>(null);
+  const [queuedOnline, setQueuedOnline] = useState(false);
   const [quality, setQuality] = useState<"high" | "balanced" | "small">("high");
   const [trim, setTrim] = useState(false);
   const [startS, setStartS] = useState(0);
@@ -278,7 +284,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       return;
     }
     setError(null);
-    setQueuedNote(null);
+    setQueuedKey(null);
     setBusyKind(optionKey(o));
     try {
       await flushSave(); // never export stale captions
@@ -294,11 +300,10 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       const created = await studioService.createExport(projectId, body);
       if (created.ready && created.downloadUrl) triggerDownload(created.downloadUrl);
       // alpha overlays are not made here: the API queues a render for the paired desktop app, and
-      // with no companion online the job simply waits — say so instead of implying a file is coming
+      // with no companion online the job simply waits — the card shows a small badge, never a sentence
       if (!created.ready) {
-        setQueuedNote(created.companionOnline
-          ? "Rendering on your paired computer now. Your file will appear under “Your exports” below when it is ready."
-          : "Queued. No paired computer is online right now. This will start rendering when your desktop app is next online. It will appear under “Your exports” below.");
+        setQueuedKey(optionKey(o));
+        setQueuedOnline(created.companionOnline ?? false);
       }
       track("export_done", { kind: o.kind });
       await qc.invalidateQueries({ queryKey: ["exports", projectId] });
@@ -382,23 +387,30 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             Quality, resolution, frame rate and trim apply to the video formats (MP4 and the two
             overlays). The text files below always contain all your captions, in full.
           </p>
-          <div className="grid gap-2">
+          <div role="group" aria-label="Export format" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {allOptions.map((o) => {
               const unavailable = o.kind === "mp4" && (!!mp4Block || (web !== null && !webReady));
               const key = optionKey(o);
               const isSelected = selectedKey === key;
+              const queued = queuedKey === key;
+              const langLabel = o.language ? translationTracks.find((t) => t.lang === o.language)?.label ?? o.language : null;
               return (
                 <button
                   key={key}
                   disabled={busyKind !== null || webProgress !== null || unavailable || (o.usesRange && !trimValid)}
                   aria-pressed={isSelected}
+                  title={unavailable ? (mp4Block?.reason ?? web?.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari.") : undefined}
                   onClick={() => setSelectedKey(key)}
-                  className={`relative rounded-xl border p-4 text-left transition disabled:opacity-50 ${isSelected ? "border-st-em bg-st-em/10" : o.popular ? "border-st-ink bg-st-lav/40 hover:bg-st-lav/60" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
+                  className={`relative flex aspect-square flex-col overflow-hidden rounded-xl border text-left disabled:opacity-50 ${isSelected ? "border-st-em bg-st-em/10" : o.popular ? "border-st-ink bg-st-lav/40 hover:bg-st-lav/60" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
                 >
-                  {o.popular ? <span className="absolute -top-2.5 right-3 rounded-full bg-st-or px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#141412]">Most popular</span> : null}
-                  <div className={`text-sm ${o.popular ? "font-semibold" : "font-medium"} text-st-text`}>{busyKind === key ? "Working…" : o.title}</div>
-                  <div className="mt-0.5 text-xs text-st-muted">{unavailable ? mp4Block?.reason ?? web?.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari." : o.desc}</div>
-                  {o.kind === "mp4" && audioMix ? <div className="mt-0.5 text-xs text-st-muted">{audioMix.note}</div> : null}
+                  {o.popular ? <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-st-or px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#141412]">Most popular</span> : null}
+                  {queued ? <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-st-raised px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-st-text">{queuedOnline ? "Rendering" : "Queued"}</span> : null}
+                  {unavailable ? <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-st-raised px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-st-text">Unavailable</span> : null}
+                  <FormatPreview kind={o.kind} sampleWords={sampleWords} />
+                  <span className="border-t border-st-line px-1 py-1.5 text-center">
+                    <span className="block text-xs font-semibold text-st-text">{FORMAT_SHORT_LABEL[o.kind] ?? o.kind}</span>
+                    {langLabel ? <span className="block text-[10px] text-st-muted">{langLabel}</span> : null}
+                  </span>
                 </button>
               );
             })}
@@ -438,7 +450,6 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
               {made ? <Button className="!px-2.5 !py-1 text-xs" onClick={() => setShowReady(true)}>Share</Button> : null}
             </div>
           ) : null}
-          {queuedNote ? <p role="status" className="mt-3 rounded-lg bg-st-raised/70 px-3 py-2 text-sm text-st-text">{queuedNote}</p> : null}
           {error ? <p role="alert" className="mt-3 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">{error}</p> : null}
 
           {rows.length > 0 ? (
