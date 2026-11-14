@@ -11,6 +11,8 @@ vi.mock("server-only", () => ({}));
 
 const state = vi.hoisted(() => ({
   guest: false,
+  email: "user@example.com" as string | null,
+  emailVerified: true as boolean | undefined,
   companionOnline: false,
   userDb: null as unknown,
   adminDb: null as unknown,
@@ -24,10 +26,11 @@ const state = vi.hoisted(() => ({
   settles: [] as Array<{ fn: string; args: Record<string, unknown> }>,
   minutesBlocked: false,
   enqueueFails: false,
+  ipHashes: new Set<string>(),
 }));
 
 vi.mock("@/lib/api/auth", () => ({
-  requireUser: async () => ({ id: "user-1", guest: state.guest, db: state.userDb }),
+  requireUser: async () => ({ id: "user-1", guest: state.guest, email: state.email, emailVerified: state.emailVerified, db: state.userDb }),
 }));
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: async () => undefined }));
 vi.mock("@/lib/api/jobs", () => ({
@@ -99,6 +102,7 @@ class FakeBuilder {
 const fakeDb = () => ({
   from: (table: string) => new FakeBuilder(table),
   // Minutes ledger rpc: reserve succeeds unless the test blocks it; settle always lands.
+  // Trial IP rpc: backed by state.ipHashes, mirroring trial_ip_status / trial_ip_claim.
   rpc: async (fn: string, args: Record<string, unknown>) => {
     if (fn === "reserve_minutes") {
       if (state.minutesBlocked) {
@@ -111,15 +115,26 @@ const fakeDb = () => ({
       state.settles.push({ fn, args });
       return { data: { settled: true, outcome: args.p_outcome, minutes_charged: 0, refunded: 0, balance: 4 }, error: null };
     }
+    if (fn === "trial_ip_status") {
+      const hash = args.p_ip_hash as string;
+      const claimed = state.ipHashes.has(hash);
+      return { data: { claimed, account_count: claimed ? 1 : 0, trial_granted_at: claimed ? new Date().toISOString() : null }, error: null };
+    }
+    if (fn === "trial_ip_claim") {
+      const hash = args.p_ip_hash as string;
+      const already = state.ipHashes.has(hash);
+      state.ipHashes.add(hash);
+      return { data: { claimed: true, already_claimed: already, account_count: already ? 2 : 1 }, error: null };
+    }
     return { data: null, error: { message: `fake rpc: unknown function ${fn}` } };
   },
 });
 
-const post = (body: unknown) =>
+const post = (body: unknown, headers: Record<string, string> = {}) =>
   POST(
     new Request("http://localhost/api/v1/projects/proj-1/exports", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
     }),
     { params: Promise.resolve({ id: "proj-1" }) },
@@ -127,6 +142,8 @@ const post = (body: unknown) =>
 
 beforeEach(() => {
   state.guest = false;
+  state.email = "user@example.com";
+  state.emailVerified = true;
   state.companionOnline = false;
   state.userDb = fakeDb();
   state.adminDb = fakeDb();
@@ -140,6 +157,13 @@ beforeEach(() => {
   state.settles = [];
   state.minutesBlocked = false;
   state.enqueueFails = false;
+  state.ipHashes = new Set<string>();
+  vi.stubEnv("TRIAL_IP_HASH_SECRET", "test-trial-secret-that-is-long-enough");
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
 });
 
 describe("text exports — created right away, with the right extension and content", () => {
@@ -294,13 +318,14 @@ describe("premium looks — server refuses a premium look for a Free user (Build
     expect(state.inserts).toHaveLength(0);
   });
 
-  it("the refusal covers text exports too: one rule for the whole route", async () => {
+  it("text exports are NOT refused for a premium look (Builder 5 fix): SRT carries no look styling", async () => {
     setLook("metal_script");
     setPlan("free");
     const res = await post({ kind: "srt" });
-    expect(res.status).toBe(402);
-    expect(state.puts).toHaveLength(0);
-    expect(state.inserts).toHaveLength(0);
+    expect(res.status).toBe(201);
+    expect(state.puts).toHaveLength(1);
+    expect(state.reserves).toHaveLength(0);
+    expect(state.enqueued).toHaveLength(0);
   });
 
   it("a Free user with a free look exports, and a paid plan with a premium look exports", async () => {
@@ -406,5 +431,75 @@ describe("minutes ledger (owner decision 2026-11-14: minutes replace the video q
     expect(state.settles).toHaveLength(1);
     expect(state.settles[0]!.args).toMatchObject({ p_outcome: "failed" });
     expect(state.enqueued).toHaveLength(0);
+  });
+});
+
+describe("free-trial protection — the gate in front of the lazy Free grant (Builder 5)", () => {
+  const IP_HEADERS = { "x-forwarded-for": "203.0.113.7" };
+
+  it("a Free MP4 from a fresh IP claims the trial and queues", async () => {
+    const res = await post({ kind: "mp4" }, IP_HEADERS);
+    expect(res.status).toBe(202);
+    expect(state.ipHashes.size).toBe(1);
+    expect(state.reserves).toHaveLength(1);
+  });
+
+  it("a second account from the same IP is refused 402 with the trial challenge, and reserves nothing", async () => {
+    expect((await post({ kind: "mp4" }, IP_HEADERS)).status).toBe(202);
+    const res = await post({ kind: "mp4" }, IP_HEADERS);
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { code: string; message: string; details?: { trialChallenge?: boolean } } };
+    expect(json.error.code).toBe("LIMIT_EXCEEDED");
+    expect(json.error.message).toContain("already used the free trial");
+    expect(json.error.details?.trialChallenge).toBe(true);
+    expect(state.reserves).toHaveLength(1); // only the first account's reserve
+    expect(state.enqueued).toHaveLength(1);
+  });
+
+  it("the second account earns the trial with a verified Turnstile token", async () => {
+    expect((await post({ kind: "mp4" }, IP_HEADERS)).status).toBe(202);
+    vi.stubEnv("TURNSTILE_SECRET_KEY", "test-secret");
+    vi.stubGlobal("fetch", vi.fn(async () => ({ json: async () => ({ success: true }) })));
+    const res = await post({ kind: "mp4" }, { ...IP_HEADERS, "x-turnstile-token": "token-1" });
+    expect(res.status).toBe(202);
+    expect(state.reserves).toHaveLength(2);
+  });
+
+  it("an unverified email gets no trial: 403 before any reserve", async () => {
+    state.emailVerified = false;
+    const res = await post({ kind: "mp4" }, IP_HEADERS);
+    expect(res.status).toBe(403);
+    const json = (await res.json()) as { error: { code: string; message: string; details?: { emailVerificationRequired?: boolean } } };
+    expect(json.error.code).toBe("FORBIDDEN");
+    expect(json.error.message).toContain("Verify your email");
+    expect(json.error.details?.emailVerificationRequired).toBe(true);
+    expect(state.reserves).toHaveLength(0);
+    expect(state.ipHashes.size).toBe(0);
+  });
+
+  it("a disposable email gets no trial: 422 before any reserve", async () => {
+    state.email = "user@mailinator.com";
+    const res = await post({ kind: "mp4" }, IP_HEADERS);
+    expect(res.status).toBe(422);
+    const json = (await res.json()) as { error: { code: string; message: string } };
+    expect(json.error.code).toBe("VALIDATION");
+    expect(json.error.message).toContain("permanent email");
+    expect(state.reserves).toHaveLength(0);
+  });
+
+  it("a paid plan on a claimed IP is unaffected — no trial check runs", async () => {
+    expect((await post({ kind: "mp4" }, IP_HEADERS)).status).toBe(202);
+    ROWS.profiles = { plan: "starter", plan_expires_at: "2026-12-14T00:00:00Z" };
+    const res = await post({ kind: "mp4" }, IP_HEADERS);
+    expect(res.status).toBe(202);
+    expect(state.reserves).toHaveLength(2);
+    ROWS.profiles = { plan: "free" };
+  });
+
+  it("a text export never reaches the trial gate: SRT works with no IP signal at all", async () => {
+    state.emailVerified = false;
+    const res = await post({ kind: "srt" });
+    expect(res.status).toBe(201);
+    expect(state.reserves).toHaveLength(0);
   });
 });

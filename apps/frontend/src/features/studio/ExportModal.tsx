@@ -16,6 +16,7 @@ import { WATERMARK_REMOVAL_PRICE_INR } from "@capseasy/shared";
 import { EXPORT_OPTIONS, exportDimsWithCanvas, optionKey, translatedTextOptions, type ExportOption } from "./exportOptions";
 import type { CanvasSettings } from "./canvas";
 import { ApiError } from "@/services/api-client";
+import { TurnstileWidget, isTurnstileConfigured } from "@/components/auth/TurnstileWidget";
 import { Button, fmtBytes, fmtTime, triggerDownload } from "./controls";
 import { exportPreflightNote, fourKBlockReason } from "./preflight";
 import { VideoReady } from "./VideoReady";
@@ -89,6 +90,11 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     return `${verb} ${KIND_LABEL[o.kind] ?? o.kind}`;
   };
   const [error, setError] = useState<string | null>(null);
+  /** Turnstile challenge for the free trial (Builder 5): set when the
+   * server refuses a grant because this network already used the trial
+   * (or signup velocity is suspicious). The widget below collects a
+   * token and the same export is retried with it. */
+  const [trialChallenge, setTrialChallenge] = useState<{ option: ExportOption } | null>(null);
   /** set when a companion render (alpha overlay) was queued instead of made right away */
   const [queuedNote, setQueuedNote] = useState<string | null>(null);
   const [quality, setQuality] = useState<"high" | "balanced" | "small">("high");
@@ -309,7 +315,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     }
   };
 
-  const start = async (o: ExportOption) => {
+  const start = async (o: ExportOption, turnstileToken?: string) => {
     if (o.kind === "mp4") {
       // MP4 is made in the browser only; a click while the support check is still running waits for it
       if (mp4Block) {
@@ -327,8 +333,14 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           exportId,
           kind: "mp4",
           ...(trim ? { range: { startMs: Math.round(startS * 1000), endMs: Math.round(endS * 1000) } } : {}),
-        });
+        }, turnstileToken ? { turnstileToken } : undefined);
       } catch (e) {
+        // A trial challenge (this network already used the free trial):
+        // show the Turnstile widget and retry with its token, instead
+        // of a dead end. Any other reserve failure is a plain error.
+        if (e instanceof ApiError && (e.details as Record<string, unknown> | null)?.trialChallenge === true) {
+          setTrialChallenge({ option: o });
+        }
         setError(e instanceof ApiError || e instanceof Error ? e.message : "Could not reserve minutes for this export.");
         return;
       }
@@ -364,7 +376,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         ...(o.usesRange ? { width: outDims.width, height: outDims.height, fps: outFps } : {}),
         ...(o.usesRange && trim ? { range: { startMs: Math.round(startS * 1000), endMs: Math.round(endS * 1000) } } : {}),
       };
-      const created = await studioService.createExport(projectId, body);
+      const created = await studioService.createExport(projectId, body, turnstileToken ? { turnstileToken } : undefined);
       if (created.ready && created.downloadUrl) triggerDownload(created.downloadUrl);
       // alpha overlays are not made here: the API queues a render for the paired desktop app, and
       // with no companion online the job simply waits — say so instead of implying a file is coming
@@ -378,6 +390,10 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       await qc.invalidateQueries({ queryKey: ["minutes", projectId] });
       await qc.invalidateQueries({ queryKey: ["studio", projectId] });
     } catch (e) {
+      // Same trial challenge as the MP4 reserve above, for server renders.
+      if (e instanceof ApiError && (e.details as Record<string, unknown> | null)?.trialChallenge === true) {
+        setTrialChallenge({ option: o });
+      }
       setError(e instanceof ApiError || e instanceof Error ? e.message : "Export failed.");
     } finally {
       setBusyKind(null);
@@ -528,6 +544,22 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           ) : null}
           {queuedNote ? <p role="status" className="mt-3 rounded-lg bg-st-raised/70 px-3 py-2 text-sm text-st-text">{queuedNote}</p> : null}
           {error ? <p role="alert" className="mt-3 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">{error}</p> : null}
+          {trialChallenge && isTurnstileConfigured() ? (
+            <div className="mt-3 rounded-lg border border-st-line bg-st-raised/50 p-3">
+              <p className="text-sm text-st-text">Confirm you are human to use the free trial.</p>
+              <div className="mt-2">
+                <TurnstileWidget
+                  onToken={(token) => {
+                    const option = trialChallenge.option;
+                    setTrialChallenge(null);
+                    setError(null);
+                    void start(option, token);
+                  }}
+                  onError={() => setError("The check did not load. Try again.")}
+                />
+              </div>
+            </div>
+          ) : null}
 
           {rows.length > 0 ? (
             <div className="mt-6">

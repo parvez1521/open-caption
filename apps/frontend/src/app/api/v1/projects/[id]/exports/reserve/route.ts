@@ -5,6 +5,7 @@ import { notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { VIDEO_MINUTES_KINDS, billedMinutesForRender, getMinutesUsage, reserveMinutes } from "@/lib/billing/minutes";
 import { assertLookAllowedForPlan } from "@/lib/billing/looks";
+import { attachDeviceCookie, enforceFreeTrialGrant } from "@/lib/billing/trial";
 import { getWatermarkStatus } from "@/lib/billing/watermark";
 
 const Body = z.object({
@@ -22,9 +23,10 @@ const Body = z.object({
  * are computed server-side from the video row and the project settings
  * — the client never supplies a minutes number, only the trim range.
  * A duplicate exportId returns the existing reservation (no double
- * charge). Guests may reserve too (browser MP4 has always been open to
- * guests); their minutes live on the anonymous id and do not carry over
- * on claim — the same gap the old quota had.
+ * charge). Guests get NO trial minutes (Builder 5): a guest reserve
+ * for a Free plan is refused with the signup response — the Free 5
+ * minutes need a verified account, and the lazy grant inside
+ * reserve_minutes would otherwise mint them on the anonymous id.
  *
  * Honest limit: a modified client can skip this call and render anyway.
  * Browser minutes are a deterrent on this path and a guarantee only on
@@ -64,6 +66,19 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null,
   );
 
+  // Free-trial protection (monetization, Builder 5): same gate as the
+  // server exports route — verified email, no disposable address, no
+  // guest, and the IP-hash check — before any minutes are held. Paid
+  // plans skip it entirely. The device cookie is set on the response
+  // below when the browser had none.
+  const trial = await enforceFreeTrialGrant({
+    admin,
+    user: { id: user.id, email: user.email, guest: user.guest, emailVerified: user.emailVerified },
+    plan,
+    req,
+    turnstileToken: req.headers.get("x-turnstile-token"),
+  });
+
   const reservation = await reserveMinutes(admin, {
     ownerId: user.id,
     projectId,
@@ -91,5 +106,7 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   } catch {
     usage = null;
   }
-  return ok({ reservationKey: reservation.reservationKey, exportId: body.exportId, minutes: reservation.minutes, balance: reservation.balance, usage, watermark: watermarkStatus.watermark }, 201);
+  const res = ok({ reservationKey: reservation.reservationKey, exportId: body.exportId, minutes: reservation.minutes, balance: reservation.balance, usage, watermark: watermarkStatus.watermark }, 201);
+  attachDeviceCookie(res, trial.deviceId, trial.deviceIsNew);
+  return res;
 });

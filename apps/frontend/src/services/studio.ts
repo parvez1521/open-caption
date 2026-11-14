@@ -176,8 +176,8 @@ export const studioService = {
     return apiClient.get<ExportRow[]>(`/projects/${projectId}/exports`);
   },
 
-  createExport(projectId: string, body: { kind: ExportKind; crf?: number; width?: number; height?: number; fps?: number; range?: { startMs: number; endMs: number }; language?: string }) {
-    return apiClient.post<{ exportId: string; ready: boolean; downloadUrl?: string; jobId?: string; companionOnline?: boolean; watermark?: { text: string } | null }>(`/projects/${projectId}/exports`, { json: body });
+  createExport(projectId: string, body: { kind: ExportKind; crf?: number; width?: number; height?: number; fps?: number; range?: { startMs: number; endMs: number }; language?: string }, opts?: { turnstileToken?: string }) {
+    return apiClient.post<{ exportId: string; ready: boolean; downloadUrl?: string; jobId?: string; companionOnline?: boolean; watermark?: { text: string } | null }>(`/projects/${projectId}/exports`, { json: body, ...(opts?.turnstileToken ? { headers: { "X-Turnstile-Token": opts.turnstileToken } } : {}) });
   },
 
   /**
@@ -187,9 +187,12 @@ export const studioService = {
    * (402 when the minutes are used up) must block the render. The
    * response also carries the server-side watermark decision for this
    * project, so the render carries exactly what the preview showed.
+   * `turnstileToken` is sent only when the server asked for a
+   * challenge (trial already used on this network): it is verified
+   * server-side before the trial is granted.
    */
-  reserveBrowserExport(projectId: string, body: { exportId: string; kind: "mp4" | "mov_alpha" | "webm_alpha"; range?: { startMs: number; endMs: number } }) {
-    return apiClient.post<{ reservationKey: string; exportId: string; minutes: number; balance: number; usage: MinutesUsage | null; watermark: { text: string } | null }>(`/projects/${projectId}/exports/reserve`, { json: body });
+  reserveBrowserExport(projectId: string, body: { exportId: string; kind: "mp4" | "mov_alpha" | "webm_alpha"; range?: { startMs: number; endMs: number } }, opts?: { turnstileToken?: string }) {
+    return apiClient.post<{ reservationKey: string; exportId: string; minutes: number; balance: number; usage: MinutesUsage | null; watermark: { text: string } | null }>(`/projects/${projectId}/exports/reserve`, { json: body, ...(opts?.turnstileToken ? { headers: { "X-Turnstile-Token": opts.turnstileToken } } : {}) });
   },
 
   /**
