@@ -13,8 +13,8 @@
  *
  * Data honesty: every metric stays `number | null` end to end — null is
  * "not entered", never rewritten to 0 here — and `source` is whatever the
- * server stamped ('manual' | 'csv'); rows whose source is anything else
- * are dropped by the defensive mapper below.
+ * server stamped ('manual' | 'csv' | 'youtube' | 'instagram'); rows whose
+ * source is anything else are dropped by the defensive mapper below.
  */
 import { apiClient } from "@/services/api-client";
 import type { CompetitorProfile, GrowthPost, GrowthPostInput, PostSource } from "./model";
@@ -68,7 +68,7 @@ const asMetric = (value: unknown): number | null =>
   typeof value === "number" && Number.isFinite(value) ? value : null;
 
 const asSource = (value: unknown): PostSource | null =>
-  value === "manual" || value === "csv" ? value : null;
+  value === "manual" || value === "csv" || value === "youtube" || value === "instagram" ? value : null;
 
 export function mapGrowthPost(raw: unknown): GrowthPost | null {
   if (!isRecord(raw) || typeof raw.id !== "string") return null;

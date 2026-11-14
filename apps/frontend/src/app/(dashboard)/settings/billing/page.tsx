@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PLAN_PRICING, PLANS, pricingFor, type PlanId } from "@capseasy/shared";
-import { priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
+import { priceLabel, uploadLimitLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import StudioShell from "@/components/studio/StudioShell";
 import { apiClient } from "@/services/api-client";
 import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
@@ -199,7 +199,7 @@ export default function BillingPage() {
                 </p>
                 <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
                   Up to {PLANS[state.plan].maxProjects} projects · uploads to{" "}
-                  {Math.round(PLANS[state.plan].maxUploadBytes / 1_000_000)} MB · videos to{" "}
+                  {uploadLimitLabel(PLANS[state.plan].maxUploadBytes)} · videos to{" "}
                   {Math.round(PLANS[state.plan].maxDurationSec / 60)} minutes · exports kept{" "}
                   {PLANS[state.plan].exportRetentionDays} days.
                 </p>
@@ -249,6 +249,7 @@ export default function BillingPage() {
                   Mobile number
                 </label>
                 <p className="mt-1 text-[13px] text-sand-700">Cashfree needs your mobile number to start the payment.</p>
+                <p className="mt-1 text-[13px] text-sand-700">Outside India, include your country code, e.g. +1 415 555 0132.</p>
                 <input
                   id="checkout-phone"
                   type="tel"
@@ -306,7 +307,7 @@ export default function BillingPage() {
               </div>
               <p className="mt-3 text-[12.5px] leading-relaxed text-sand-600">
                 Buying the plan you already have adds 30 days to your current period. Switching plans starts a fresh
-                30 days on the new plan — the old plan&rsquo;s remaining days don&rsquo;t carry over. Full comparison on
+                30 days on the new plan — the old plan&rsquo;s remaining days don&rsquo;t carry over. See the plans on
                 the{" "}
                 <Link href="/pricing" className="underline">
                   pricing page

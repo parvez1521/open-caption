@@ -20,7 +20,14 @@ export const POST = route(async (req: Request) => {
   const { data } = await admin.from("payments").select("*").eq("cf_order_id", body.orderId).maybeSingle();
   const payment = data as PaymentRow | null;
   if (!payment || payment.owner_id !== user.id) throw new ApiFailure("NOT_FOUND", "Payment not found");
-  if (payment.status === "paid" || payment.status === "failed" || payment.status === "expired") {
+  if (payment.status === "paid") {
+    // Paid already — but the grant may never have landed (C-01): verify the
+    // profile matches the payment and repair it instead of trusting the
+    // status alone. No Cashfree call here; the payment row is the truth.
+    const settled = await settlePaid(admin, payment, null);
+    return ok({ payment: settled });
+  }
+  if (payment.status === "failed" || payment.status === "expired") {
     return ok({ payment });
   }
 
