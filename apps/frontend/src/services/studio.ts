@@ -169,6 +169,20 @@ export const studioService = {
     return apiClient.post<{ exportId: string; ready: boolean; downloadUrl?: string; jobId?: string; companionOnline?: boolean }>(`/projects/${projectId}/exports`, { json: body });
   },
 
+  /**
+   * Record a browser-rendered MP4 as one finished video for the monthly
+   * quota. Fire-and-forget: the file is already saved on the user's device,
+   * so a failed record just means that video was not counted.
+   */
+  recordBrowserExport(projectId: string, body: { exportId: string; kind: "mp4" | "mov_alpha" | "webm_alpha" }) {
+    return apiClient.post<{ recorded: boolean; usage: { limit: number; used: number; remaining: number } | null }>(`/projects/${projectId}/exports/record`, { json: body });
+  },
+
+  /** Monthly video quota for the signed-in user (null when not set up yet). */
+  videoQuota() {
+    return apiClient.get<{ videoQuota: { plan: string; limit: number; used: number; remaining: number; windowStart: string; windowEnd: string } | null; quotaReady: boolean }>("/billing/video-quota");
+  },
+
   async exportDownloadUrl(exportId: string): Promise<string> {
     return (await apiClient.get<{ url: string }>(`/exports/${exportId}/download`)).url;
   },

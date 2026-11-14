@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 
 /**
  * Route-level tests for POST /projects/:id/exports with the database, storage and job queue
@@ -15,6 +16,8 @@ const state = vi.hoisted(() => ({
   adminDb: null as unknown,
   inserts: [] as Array<{ table: string; row: Record<string, unknown> }>,
   updates: [] as Array<{ table: string; row: Record<string, unknown> }>,
+  upserts: [] as Array<{ table: string; row: Record<string, unknown>; opts: Record<string, unknown> }>,
+  quotaEvents: [] as Array<{ id: string }>,
   puts: [] as Array<{ path: string; body: string; mime: string }>,
   signedGets: [] as Array<{ path: string; name?: string }>,
   enqueued: [] as Array<Record<string, unknown>>,
@@ -67,6 +70,8 @@ class FakeBuilder {
   is() { return this; }
   order() { return this; }
   limit() { return this; }
+  gte() { return this; }
+  lt() { return this; }
   insert(row: Record<string, unknown>) {
     state.inserts.push({ table: this.table, row });
     return this;
@@ -75,11 +80,17 @@ class FakeBuilder {
     state.updates.push({ table: this.table, row });
     return this;
   }
+  upsert(row: Record<string, unknown>, opts: Record<string, unknown>) {
+    state.upserts.push({ table: this.table, row, opts });
+    return this;
+  }
   async maybeSingle() {
     return { data: ROWS[this.table] ?? null, error: null };
   }
-  then(onOk: (v: { data: null; error: null }) => unknown, onErr?: (e: unknown) => unknown) {
-    return Promise.resolve({ data: null, error: null }).then(onOk, onErr);
+  then(onOk: (v: { data: Array<{ id: string }> | null; error: null }) => unknown, onErr?: (e: unknown) => unknown) {
+    // The quota count reads video_quota_events; everything else reads nothing.
+    const data = this.table === "video_quota_events" ? state.quotaEvents : null;
+    return Promise.resolve({ data, error: null }).then(onOk, onErr);
   }
 }
 
@@ -102,6 +113,8 @@ beforeEach(() => {
   state.adminDb = fakeDb();
   state.inserts = [];
   state.updates = [];
+  state.upserts = [];
+  state.quotaEvents = [];
   state.puts = [];
   state.signedGets = [];
   state.enqueued = [];
@@ -207,4 +220,37 @@ describe("kinds that are not creatable, and guest gating", () => {
       expect(state.puts).toHaveLength(0);
     },
   );
+});
+
+describe("monthly video quota (owner decision 2026-11-14: Free 3, Starter 10, Plus 20, Pro 40)", () => {
+  it("a video export under the limit queues AND records one quota event", async () => {
+    state.quotaEvents = [{ id: "ev-1" }, { id: "ev-2" }];
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(202);
+    expect(state.enqueued).toHaveLength(1);
+    const event = state.upserts.find((u) => u.table === "video_quota_events");
+    expect(event).toBeDefined();
+    expect(event!.row).toMatchObject({ owner_id: "user-1", project_id: "proj-1", kind: "mp4" });
+    expect(event!.opts).toMatchObject({ onConflict: "export_id", ignoreDuplicates: true });
+  });
+
+  it("blocks a video export at the Free 3 cap with an upsell message and queues nothing", async () => {
+    state.quotaEvents = [{ id: "ev-1" }, { id: "ev-2" }, { id: "ev-3" }];
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { code: string; message: string } };
+    expect(json.error.code).toBe("LIMIT_EXCEEDED");
+    expect(json.error.message).toContain("Monthly limit reached");
+    expect(json.error.message).toContain("Upgrade for more videos");
+    expect(state.enqueued).toHaveLength(0);
+    expect(state.inserts).toHaveLength(0);
+    expect(state.upserts).toHaveLength(0);
+  });
+
+  it("a text export at the cap still succeeds — text files never count", async () => {
+    state.quotaEvents = [{ id: "ev-1" }, { id: "ev-2" }, { id: "ev-3" }];
+    const res = await post({ kind: "srt" });
+    expect(res.status).toBe(201);
+    expect(state.upserts).toHaveLength(0);
+  });
 });

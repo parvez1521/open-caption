@@ -10,6 +10,11 @@
  * same scale limits (more projects, longer videos, bigger uploads, longer
  * export retention). No editor feature is paywalled — a paid plan buys
  * headroom, not tools.
+ *
+ * ONE owner-approved exception (2026-11-14): the monthly video quota
+ * (videosPerMonth) DOES cap Free at 3 videos a month — the quota is the
+ * subscription model itself (1 video = 1 finished export; transcription
+ * and editing stay unlimited; unused videos never roll over).
  */
 export type PlanId = "free" | "starter" | "growth" | "pro";
 
@@ -21,13 +26,15 @@ export interface PlanLimits {
   cloudAsrMinutesPerMonth: number;
   exportRetentionDays: number;
   maxProjects: number;
+  /** finished video exports per 30-day window (1 video = 1 finished export). */
+  videosPerMonth: number;
 }
 
 export const PLANS: Record<PlanId, PlanLimits> = {
-  free: { maxUploadBytes: 50 * 1024 * 1024, maxLocalBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60, cloudAsrMinutesPerMonth: 30, exportRetentionDays: 7, maxProjects: 10 },
-  starter: { maxUploadBytes: 200 * 1024 * 1024, maxLocalBytes: 4 * 1024 * 1024 * 1024, maxDurationSec: 30 * 60, cloudAsrMinutesPerMonth: 120, exportRetentionDays: 30, maxProjects: 50 },
-  growth: { maxUploadBytes: 500 * 1024 * 1024, maxLocalBytes: 8 * 1024 * 1024 * 1024, maxDurationSec: 60 * 60, cloudAsrMinutesPerMonth: 300, exportRetentionDays: 60, maxProjects: 200 },
-  pro: { maxUploadBytes: 2 * 1024 * 1024 * 1024, maxLocalBytes: 8 * 1024 * 1024 * 1024, maxDurationSec: 3 * 3600, cloudAsrMinutesPerMonth: 600, exportRetentionDays: 60, maxProjects: 1000 },
+  free: { maxUploadBytes: 50 * 1024 * 1024, maxLocalBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60, cloudAsrMinutesPerMonth: 30, exportRetentionDays: 7, maxProjects: 10, videosPerMonth: 3 },
+  starter: { maxUploadBytes: 200 * 1024 * 1024, maxLocalBytes: 4 * 1024 * 1024 * 1024, maxDurationSec: 30 * 60, cloudAsrMinutesPerMonth: 120, exportRetentionDays: 30, maxProjects: 50, videosPerMonth: 10 },
+  growth: { maxUploadBytes: 500 * 1024 * 1024, maxLocalBytes: 8 * 1024 * 1024 * 1024, maxDurationSec: 60 * 60, cloudAsrMinutesPerMonth: 300, exportRetentionDays: 60, maxProjects: 200, videosPerMonth: 20 },
+  pro: { maxUploadBytes: 2 * 1024 * 1024 * 1024, maxLocalBytes: 8 * 1024 * 1024 * 1024, maxDurationSec: 3 * 3600, cloudAsrMinutesPerMonth: 600, exportRetentionDays: 60, maxProjects: 1000, videosPerMonth: 40 },
 };
 
 export const PLAN_IDS = Object.keys(PLANS) as PlanId[];
@@ -81,6 +88,7 @@ export const PLAN_PRICING: PlanPricing[] = [
     priceInr: 0,
     priceUsd: 0,
     features: [
+      "3 videos a month",
       "10 projects",
       "Videos up to 5 minutes",
       "Uploads up to 50 MB",
@@ -95,6 +103,7 @@ export const PLAN_PRICING: PlanPricing[] = [
     priceInr: 299,
     priceUsd: 4,
     features: [
+      "10 videos a month",
       "50 projects",
       "Videos up to 30 minutes",
       "Uploads up to 200 MB",
@@ -112,6 +121,7 @@ export const PLAN_PRICING: PlanPricing[] = [
     priceInr: 499,
     priceUsd: 6,
     features: [
+      "20 videos a month",
       "200 projects",
       "Videos up to 1 hour",
       "Uploads up to 500 MB",
@@ -126,6 +136,7 @@ export const PLAN_PRICING: PlanPricing[] = [
     priceInr: 799,
     priceUsd: 10,
     features: [
+      "40 videos a month",
       "1,000 projects",
       "Videos up to 3 hours",
       "Uploads up to 2 GB",
