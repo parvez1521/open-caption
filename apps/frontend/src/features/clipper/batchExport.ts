@@ -20,7 +20,46 @@ import { buildSegmentAssetUrls, pickStudioDurationMs, type SegmentLike } from "@
 import { listProjectAssets } from "@/features/studio/mediaStore";
 import { exportDimsWithCanvas } from "@/features/studio/exportOptions";
 import { exportMp4InBrowser, saveBlob } from "@/features/studio/browserExport";
+import { ApiError } from "@/services/api-client";
 import { DEFAULT_LOOK } from "@/features/studio/useStudio";
+
+/** Shown when the month's videos are used up — same wording as the Studio's Export modal. */
+export const QUOTA_LIMIT_MESSAGE = "Monthly limit reached — upgrade for more videos.";
+
+/**
+ * Monthly video quota for Clipper exports (E-02). One finished clip = one
+ * of the month's videos, exactly like a Studio MP4: a fresh count first,
+ * then a server-side reservation for the export id before rendering, then
+ * one record after the file is saved (same id → no double count). A render
+ * that fails gives its reserved slot back.
+ */
+export interface ClipQuotaDeps {
+  /** Fresh remaining count, or null when the quota is not set up / unreadable (fail open). */
+  checkQuota: (projectId: string) => Promise<{ remaining: number } | null>;
+  /** Hold one video for this export id. limited:true means the server said the cap is hit. */
+  reserve: (projectId: string, exportId: string) => Promise<{ reserved: boolean; limited?: boolean }>;
+  /** Give a reserved slot back after a failed render. */
+  release: (projectId: string, exportId: string) => Promise<void>;
+  /** Count the finished clip (idempotent on exportId). */
+  record: (projectId: string, exportId: string) => Promise<void>;
+}
+
+export const defaultClipQuotaDeps: ClipQuotaDeps = {
+  checkQuota: async () => (await studioService.videoQuota()).videoQuota,
+  reserve: async (projectId, exportId) => {
+    try {
+      return await studioService.reserveBrowserExport(projectId, { exportId, kind: "mp4" });
+    } catch (e) {
+      // The server said the cap is hit: block. Any other reserve failure
+      // (quota not set up, network) soft-fails — the post-render record is
+      // the fallback count, same as the Studio.
+      if (e instanceof ApiError && e.code === "LIMIT_EXCEEDED") return { reserved: false, limited: true };
+      return { reserved: false };
+    }
+  },
+  release: (projectId, exportId) => studioService.releaseBrowserExport(projectId, exportId),
+  record: (projectId, exportId) => studioService.recordBrowserExport(projectId, { exportId, kind: "mp4" }),
+};
 
 /**
  * Batch export for the AI Clipping Studio: render several clip projects to
@@ -32,7 +71,8 @@ import { DEFAULT_LOOK } from "@/features/studio/useStudio";
  *
  * Failure discipline: strictly sequential (one encoder at a time); every
  * clip is isolated — a failure is recorded against that clip and the batch
- * continues; the failed clip can be retried on its own. Two honest refusals:
+ * continues; the failed clip can be retried on its own. Three honest refusals:
+ *  - the month's videos are used up (quota gate + reservation, E-02);
  *  - a project whose video bytes are not on THIS device cannot render here
  *    (media never leaves the device in this product);
  *  - a project with an ACTIVE custom sound mix is not batch-exported: the
@@ -186,6 +226,8 @@ export interface BatchExportDeps {
   loadJob: (projectId: string) => Promise<ClipRenderJob>;
   render: (job: ClipRenderJob, onProgress: (fraction: number) => void, signal?: AbortSignal) => Promise<Blob>;
   save: (blob: Blob, name: string) => void;
+  /** Monthly video quota (E-02). Absent → the export runs ungated, as before (unit tests). */
+  quota?: ClipQuotaDeps;
 }
 
 export const defaultBatchDeps: BatchExportDeps = {
@@ -202,6 +244,7 @@ export const defaultBatchDeps: BatchExportDeps = {
       onProgress,
     }),
   save: saveBlob,
+  quota: defaultClipQuotaDeps,
 };
 
 export type BatchEvent =
@@ -226,10 +269,32 @@ export async function exportClipProject(
   const deps = opts.deps ?? defaultBatchDeps;
   const job = await deps.loadJob(projectId);
   try {
-    const blob = await deps.render(job, opts.onProgress ?? (() => undefined), opts.signal);
-    const name = clipFileName(job.title);
-    deps.save(blob, name);
-    return { name, size: blob.size };
+    // Monthly video quota (E-02): the same fresh-count gate the Studio's
+    // Export modal uses, then a server-side reservation for this export id
+    // BEFORE any rendering starts — a Free user at 0/3 exports nothing.
+    let exportId: string | null = null;
+    if (deps.quota) {
+      exportId = crypto.randomUUID();
+      const quota = await deps.quota.checkQuota(projectId).catch(() => null);
+      if (quota && quota.remaining <= 0) throw new Error(QUOTA_LIMIT_MESSAGE);
+      const reservation = await deps.quota.reserve(projectId, exportId).catch(() => ({ reserved: false }));
+      if (reservation.limited) throw new Error(QUOTA_LIMIT_MESSAGE);
+    }
+    try {
+      const blob = await deps.render(job, opts.onProgress ?? (() => undefined), opts.signal);
+      const name = clipFileName(job.title);
+      deps.save(blob, name);
+      // Count the finished clip once, keyed by the reserved export id
+      // (a no-op when the reservation already wrote it). Fire-and-forget
+      // — the file is already saved, so a failed record just means this
+      // clip was not counted.
+      if (deps.quota) await deps.quota.record(projectId, exportId!).catch(() => {});
+      return { name, size: blob.size };
+    } catch (e) {
+      // A render that never produced a file gives its reserved slot back.
+      if (deps.quota) await deps.quota.release(projectId, exportId!).catch(() => {});
+      throw e;
+    }
   } finally {
     job.dispose();
   }

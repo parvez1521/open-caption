@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  QUOTA_LIMIT_MESSAGE,
   clipFileName,
   exportClipProject,
   runBatchExport,
   type BatchExportDeps,
+  type ClipQuotaDeps,
   type ClipRenderJob,
 } from "./batchExport";
 
@@ -108,5 +110,85 @@ describe("clipFileName", () => {
   it("sanitises titles the way the Studio's export does", () => {
     expect(clipFileName("My great clip! (2026)")).toBe("My-great-clip-2026.mp4");
     expect(clipFileName("")).toBe("captionit.mp4");
+  });
+});
+
+describe("monthly video quota (E-02)", () => {
+  function quota(over: Partial<ClipQuotaDeps> = {}): ClipQuotaDeps {
+    return {
+      checkQuota: async () => ({ remaining: 5 }),
+      reserve: vi.fn(async () => ({ reserved: true })),
+      release: vi.fn(async () => undefined),
+      record: vi.fn(async () => undefined),
+      ...over,
+    };
+  }
+
+  it("blocks the export at the limit before rendering anything", async () => {
+    const render = vi.fn(async () => new Blob(["x"], { type: "video/mp4" }));
+    const save = vi.fn();
+    const q = quota({ checkQuota: async () => ({ remaining: 0 }) });
+    await expect(exportClipProject("x", { deps: deps({ render, save, quota: q }) })).rejects.toThrow(QUOTA_LIMIT_MESSAGE);
+    expect(render).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(q.reserve).not.toHaveBeenCalled();
+  });
+
+  it("blocks when the server reservation says the cap is hit", async () => {
+    const render = vi.fn(async () => new Blob(["x"], { type: "video/mp4" }));
+    const q = quota({ reserve: vi.fn(async () => ({ reserved: false, limited: true })) });
+    await expect(exportClipProject("x", { deps: deps({ render, quota: q }) })).rejects.toThrow(QUOTA_LIMIT_MESSAGE);
+    expect(render).not.toHaveBeenCalled();
+    expect(q.record).not.toHaveBeenCalled();
+  });
+
+  it("reserves before rendering and records once, with the same export id", async () => {
+    const q = quota();
+    const d = deps({ quota: q });
+    const done = await exportClipProject("x", { deps: d });
+    expect(done.name).toBe("Clip-x.mp4");
+    expect(q.reserve).toHaveBeenCalledTimes(1);
+    expect(q.record).toHaveBeenCalledTimes(1);
+    expect(q.release).not.toHaveBeenCalled();
+    const reservedId = (q.reserve as ReturnType<typeof vi.fn>).mock.calls[0]![1];
+    const recordedId = (q.record as ReturnType<typeof vi.fn>).mock.calls[0]![1];
+    expect(recordedId).toBe(reservedId);
+    expect((q.reserve as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toBe("x");
+    expect((q.record as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toBe("x");
+  });
+
+  it("a failed render releases the reservation and records nothing", async () => {
+    const q = quota();
+    const d = deps({
+      quota: q,
+      render: async () => {
+        throw new Error("encoder exploded");
+      },
+    });
+    await expect(exportClipProject("x", { deps: d })).rejects.toThrow(/encoder exploded/);
+    expect(q.release).toHaveBeenCalledTimes(1);
+    expect(q.record).not.toHaveBeenCalled();
+    const releasedId = (q.release as ReturnType<typeof vi.fn>).mock.calls[0]![1];
+    expect(releasedId).toBe((q.reserve as ReturnType<typeof vi.fn>).mock.calls[0]![1]);
+  });
+
+  it("a batch at the limit fails every clip with the limit message and renders nothing", async () => {
+    const render = vi.fn(async () => new Blob(["x"], { type: "video/mp4" }));
+    const q = quota({ checkQuota: async () => ({ remaining: 0 }) });
+    const results = await runBatchExport(["a", "b"], { deps: deps({ render, quota: q }) });
+    expect(results.map((r) => r.ok)).toEqual([false, false]);
+    expect(results[0]!.message).toBe(QUOTA_LIMIT_MESSAGE);
+    expect(render).not.toHaveBeenCalled();
+    expect(q.record).not.toHaveBeenCalled();
+  });
+
+  it("a batch records once per finished clip, each with its own export id", async () => {
+    const q = quota();
+    const results = await runBatchExport(["a", "b"], { deps: deps({ quota: q }) });
+    expect(results.map((r) => r.ok)).toEqual([true, true]);
+    expect(q.reserve).toHaveBeenCalledTimes(2);
+    expect(q.record).toHaveBeenCalledTimes(2);
+    const ids = (q.record as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[1] as string);
+    expect(new Set(ids).size).toBe(2);
   });
 });
