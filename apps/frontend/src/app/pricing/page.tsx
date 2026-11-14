@@ -72,7 +72,7 @@ export default async function PricingPage() {
                   ))}
                 </ul>
                 <p className="mt-6 border-t border-white/10 pt-4 text-[12px] leading-relaxed text-[#FFFFEB]/55">
-                  Up to {projectCountLabel(limits.maxProjects)} projects · videos up to {uploadLimitLabel(limits.maxLocalBytes)}{" "}
+                  Up to {projectCountLabel(limits.maxProjects)} projects · videos up to {uploadLimitLabel(limits.maxUploadBytes)}{" "}
                   on this device · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
                   days
                 </p>
