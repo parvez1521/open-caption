@@ -57,8 +57,12 @@ export const defaultClipQuotaDeps: ClipQuotaDeps = {
       return { reserved: false };
     }
   },
-  release: (projectId, exportId) => studioService.releaseBrowserExport(projectId, exportId),
-  record: (projectId, exportId) => studioService.recordBrowserExport(projectId, { exportId, kind: "mp4" }),
+  release: async (projectId, exportId) => {
+    await studioService.releaseBrowserExport(projectId, exportId);
+  },
+  record: async (projectId, exportId) => {
+    await studioService.recordBrowserExport(projectId, { exportId, kind: "mp4" });
+  },
 };
 
 /**
@@ -277,7 +281,7 @@ export async function exportClipProject(
       exportId = crypto.randomUUID();
       const quota = await deps.quota.checkQuota(projectId).catch(() => null);
       if (quota && quota.remaining <= 0) throw new Error(QUOTA_LIMIT_MESSAGE);
-      const reservation = await deps.quota.reserve(projectId, exportId).catch(() => ({ reserved: false }));
+      const reservation = await deps.quota.reserve(projectId, exportId).catch(() => ({ reserved: false, limited: false }));
       if (reservation.limited) throw new Error(QUOTA_LIMIT_MESSAGE);
     }
     try {

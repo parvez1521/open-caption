@@ -224,7 +224,7 @@ function liveFakeDb(
             filters.push([col, val]);
             return chain;
           },
-          then(onOk: (v: { error: null }) => unknown, onErr?: (e: unknown) => unknown) {
+          then(onOk: (v: { error: { code?: string; message?: string } | null }) => unknown, onErr?: (e: unknown) => unknown) {
             deletes.push(filters);
             const match = rows.filter((r) => filters.every(([c, v]) => (c === "export_id" ? r.id === v : r.owner_id === v)));
             for (const m of match) rows.splice(rows.indexOf(m), 1);
@@ -284,9 +284,11 @@ describe("reserveVideoQuotaEvent", () => {
       reserveVideoQuotaEvent(db, reserveInput("bbbbbbbb-2222-4222-8222-222222222222")),
     ]);
     expect([a.status, b.status].sort()).toEqual(["fulfilled", "rejected"]);
-    const rejected = (a.status === "rejected" ? a : b).reason as ApiFailure;
-    expect(rejected).toBeInstanceOf(ApiFailure);
-    expect(rejected.code).toBe("LIMIT_EXCEEDED");
+    const rejected = [a, b].find((r): r is PromiseRejectedResult => r.status === "rejected");
+    expect(rejected).toBeDefined();
+    const reason = rejected!.reason as ApiFailure;
+    expect(reason).toBeInstanceOf(ApiFailure);
+    expect(reason.code).toBe("LIMIT_EXCEEDED");
     expect(db.upserts).toHaveLength(1);
     expect(db.rows).toHaveLength(3);
   });

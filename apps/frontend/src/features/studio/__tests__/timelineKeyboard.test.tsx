@@ -10,6 +10,7 @@ import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { DEFAULT_COMPOSITION_TRACKS } from "@capseasy/shared";
+import type { Page, Word } from "@capseasy/shared";
 import { Timeline } from "../Timeline";
 import type { EditorComposition } from "../compositionDoc";
 
@@ -39,12 +40,12 @@ const editorComp: EditorComposition = {
 };
 
 const baseProps = {
-  pages: [], words: [], durationMs: 6000, timeMs: 0, selectedId: null, peaks: null, waveState: "idle",
-  onSeek: vi.fn(), onSelect: vi.fn(), selectedWordIds: new Set(), onWordSelectionChange: vi.fn(),
+  pages: [] as Page[], words: [] as Word[], durationMs: 6000, timeMs: 0, selectedId: null, peaks: null, waveState: "idle" as const,
+  onSeek: vi.fn(), onSelect: vi.fn(), selectedWordIds: new Set<string>(), onWordSelectionChange: vi.fn(),
   onShiftWords: vi.fn(), onRetimeRun: vi.fn(), onRename: vi.fn(), onAddWord: () => null,
   onSplit: vi.fn(), onJoin: vi.fn(), onSplitAtPlayhead: vi.fn(), onOpenSettings: vi.fn(),
   selectedOverlayId: null, onSelectOverlay: vi.fn(), onMoveOverlay: vi.fn(),
-} as const;
+};
 
 describe("Timeline clip keyboard selection (F-03)", () => {
   it("Enter on a video segment selects it", () => {

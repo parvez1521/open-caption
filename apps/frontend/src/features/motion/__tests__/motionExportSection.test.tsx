@@ -14,7 +14,7 @@ const h = vi.hoisted(() => ({
   canExport: vi.fn(async (): Promise<{ ok: boolean; reason?: string }> => ({ ok: true })),
   render: vi.fn(),
   save: vi.fn(),
-  videoQuota: vi.fn(async () => ({
+  videoQuota: vi.fn(async (): Promise<{ videoQuota: { plan: string; limit: number; used: number; remaining: number; windowStart: string; windowEnd: string } | null; quotaReady: boolean }> => ({
     videoQuota: { plan: "free", limit: 3, used: 0, remaining: 3, windowStart: "", windowEnd: "" },
     quotaReady: true,
   })),
