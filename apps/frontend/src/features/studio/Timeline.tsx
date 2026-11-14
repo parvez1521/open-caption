@@ -674,14 +674,14 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
         <div className="relative grid w-max" style={{ gridTemplateColumns: `${LABEL_W}px ${width}px`, gridTemplateRows: rows }}>
           <div className="sticky left-0 z-20 grid whitespace-nowrap border-r border-st-line bg-st-panel text-[11px] text-st-muted" style={{ gridTemplateRows: rows, gridRow: `1 / span ${rowCount}` }}>
             <div />
-            <div className={`${labelCell} font-semibold text-st-text`} aria-label={tier === "narrow" ? "Captions track" : undefined}>
+            <div className={`${labelCell} font-semibold text-st-text`} role="group" aria-label={tier === "narrow" ? "Captions track" : undefined}>
               <span className={labelName}>{NAMES.captions}</span>
               <span className={labelBtns}>
                 {trackBtn(tracks.captions.locked ? "Unlock captions track" : "Lock captions track", tracks.captions.locked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onTrackPatch?.("captions", { locked: !tracks.captions.locked }), tracks.captions.locked)}
                 {trackBtn(tracks.captions.visible ? "Hide captions track" : "Show captions track", tracks.captions.visible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onTrackPatch?.("captions", { visible: !tracks.captions.visible }), !tracks.captions.visible)}
               </span>
             </div>
-            <div className={`${labelCell} text-st-muted`} aria-label={tier === "narrow" ? "Video track" : undefined}>
+            <div className={`${labelCell} text-st-muted`} role="group" aria-label={tier === "narrow" ? "Video track" : undefined}>
               <span className={labelName}>{NAMES.video}</span>
               <span className={labelBtns}>
                 {trackBtn(tracks.video.locked ? "Unlock video track" : "Lock video track", tracks.video.locked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onTrackPatch?.("video", { locked: !tracks.video.locked }), tracks.video.locked)}
@@ -689,14 +689,14 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                 {trackBtn(tracks.video.muted ? "Unmute video" : "Mute video", tracks.video.muted ? <VolumeX className={ticon} /> : <Volume2 className={ticon} />, () => onTrackPatch?.("video", { muted: !tracks.video.muted }), tracks.video.muted)}
               </span>
             </div>
-            <div className={`${labelCell} text-st-muted`} aria-label={tier === "narrow" ? "Text and elements tracks" : undefined}>
+            <div className={`${labelCell} text-st-muted`} role="group" aria-label={tier === "narrow" ? "Text and elements tracks" : undefined}>
               <span className={labelName}>{NAMES.text}</span>
               <span className={labelBtns}>
                 {trackBtn(overlayBothLocked ? "Unlock overlay tracks" : "Lock overlay tracks", overlayBothLocked ? <Lock className={ticon} /> : <LockOpen className={ticon} />, () => onOverlayTrackPatch?.({ locked: !overlayBothLocked }), overlayBothLocked)}
                 {trackBtn(overlayAnyVisible ? "Hide overlay tracks" : "Show overlay tracks", overlayAnyVisible ? <Eye className={ticon} /> : <EyeOff className={ticon} />, () => onOverlayTrackPatch?.({ visible: !overlayAnyVisible }), !overlayAnyVisible)}
               </span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 text-st-muted" aria-label={tier === "narrow" ? "Audio (the video's own sound)" : undefined}>{NAMES.audio}</div>
+            <div className="flex items-center gap-1.5 px-2 text-st-muted" role="group" aria-label={tier === "narrow" ? "Audio (the video's own sound)" : undefined}>{NAMES.audio}</div>
             {audioTracks.map((t) => (
               <div key={t.id} className="flex items-center gap-1 border-b border-st-line px-2 text-st-muted">
                 <span className="min-w-0 flex-1 truncate" title={t.name}>{t.name}</span>
@@ -763,8 +763,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   ) : null}
                   {wpx > 10 && renaming !== b.firstId ? (
                     <>
-                      <span onPointerDown={(e) => beginDrag(e, b, "start")} className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize bg-st-ink/10 hover:bg-st-ink/40" title={`Move start of ${b.text}`} />
-                      <span onPointerDown={(e) => beginDrag(e, b, "end")} className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize bg-st-ink/10 hover:bg-st-ink/40" title={`Move end of ${b.text}`} />
+                      <span onPointerDown={(e) => beginDrag(e, b, "start")} className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize bg-st-ink/10 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/40" title={`Move start of ${b.text}`} />
+                      <span onPointerDown={(e) => beginDrag(e, b, "end")} className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize bg-st-ink/10 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/40" title={`Move end of ${b.text}`} />
                     </>
                   ) : null}
                 </div>
@@ -798,11 +798,13 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
               <div
                 key={c.id}
                 role="button"
+                tabIndex={0}
                 aria-label={view.still ? `Freeze frame segment ${i + 1}` : `Video segment ${i + 1}`}
                 aria-pressed={c.id === selectedVideoClipId}
                 title={`Segment ${i + 1}  ${fmtTime(c.startMs)} – ${fmtTime(c.startMs + c.durationMs)}`}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onSelectVideoClip?.(c.id); }}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectVideoClip?.(c.id); } }}
                 className={`absolute top-1 bottom-1 z-10 overflow-hidden rounded-md border text-[10px] leading-tight ${c.id === selectedVideoClipId ? "border-st-ink bg-white/15 ring-2 ring-st-ink/30" : "border-white/40 bg-black/10"}`}
                 style={{ left: x(c.startMs), width: Math.max(3, x(c.startMs + c.durationMs) - x(c.startMs) - 1) }}
               >
@@ -840,7 +842,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                         aria-valuenow={c.startMs}
                         aria-valuemin={0}
                         aria-valuemax={total}
-                        aria-valuetext={fmtTime(c.startMs / 1000)}
+                        aria-valuetext={fmtTime(c.startMs)}
                         onPointerDown={(e) => beginVideoEdgeDrag(e, c.id, "start")}
                         className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50"
                         style={{ left: x(c.startMs) - 3 }}
@@ -855,7 +857,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                       aria-valuenow={c.startMs + c.durationMs}
                       aria-valuemin={0}
                       aria-valuemax={total}
-                      aria-valuetext={fmtTime((c.startMs + c.durationMs) / 1000)}
+                      aria-valuetext={fmtTime(c.startMs + c.durationMs)}
                       onPointerDown={(e) => beginVideoEdgeDrag(e, c.id, "end")}
                       className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50"
                       style={{ left: x(c.startMs + c.durationMs) - 3 }}
@@ -889,8 +891,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   {wpx > 24 ? <span className="flex h-full items-center truncate font-medium">{label}</span> : null}
                   {selected && !locked && onTrimOverlayClip && wpx > 10 ? (
                     <>
-                      <span onPointerDown={(e) => beginOverlayTrim(e, c, "start")} className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" title={`Move start of ${label}`} />
-                      <span onPointerDown={(e) => beginOverlayTrim(e, c, "end")} className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" title={`Move end of ${label}`} />
+                      <span onPointerDown={(e) => beginOverlayTrim(e, c, "start")} className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/50" title={`Move start of ${label}`} />
+                      <span onPointerDown={(e) => beginOverlayTrim(e, c, "end")} className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/50" title={`Move end of ${label}`} />
                     </>
                   ) : null}
                 </div>
@@ -921,10 +923,12 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   <div
                     key={c.id}
                     role="button"
+                    tabIndex={0}
                     aria-label={`Audio clip ${c.assetName || c.id}`}
                     aria-pressed={selected}
                     onPointerDown={(e) => beginAudioDrag(e, c)}
                     onClick={(e) => { e.stopPropagation(); onSelectAudioClip?.(c.id); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectAudioClip?.(c.id); } }}
                     title={`${c.assetName}  ${fmtTime(liveS)} – ${fmtTime(liveE)} (drag to move)`}
                     className={`absolute top-1 bottom-1 overflow-hidden rounded-md border px-1.5 text-[11px] leading-tight ${track.muted ? "opacity-40 " : ""}${selected ? "border-st-ink bg-st-em/50 text-[#FFFFEB] ring-2 ring-st-em" : "border-st-ink/15 bg-st-em/25 text-[#FFFFEB] hover:bg-st-em/40"} ${track.locked ? "cursor-default" : "cursor-grab touch-none"}`}
                     style={{ left: x(liveS), width: wpx }}
@@ -934,8 +938,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                     {wpx > 24 ? <span className="relative flex h-full items-center truncate font-medium">{c.assetName}</span> : null}
                     {!track.locked && onTrimAudioClip && wpx > 10 ? (
                       <>
-                        <span onPointerDown={(e) => beginAudioTrim(e, c, "start")} className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" aria-label={`Move start of ${c.assetName}`} />
-                        <span onPointerDown={(e) => beginAudioTrim(e, c, "end")} className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 hover:bg-st-ink/50" aria-label={`Move end of ${c.assetName}`} />
+                        <span onPointerDown={(e) => beginAudioTrim(e, c, "start")} className="absolute inset-y-0 left-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/50" title={`Move start of ${c.assetName}`} />
+                        <span onPointerDown={(e) => beginAudioTrim(e, c, "end")} className="absolute inset-y-0 right-0 z-10 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/50" title={`Move end of ${c.assetName}`} />
                       </>
                     ) : null}
                   </div>

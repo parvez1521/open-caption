@@ -183,7 +183,9 @@ export default function BillingPage() {
             </button>
           </p>
         ) : !state ? (
-          <div className="mt-8 h-32 animate-pulse rounded-xl bg-sand-100" aria-label="Loading billing details" />
+          <div className="mt-8 h-32 animate-pulse rounded-xl bg-sand-100" role="status">
+            <span className="sr-only">Loading billing details</span>
+          </div>
         ) : (
           <>
             <section className="pt-8" aria-label="Current plan">

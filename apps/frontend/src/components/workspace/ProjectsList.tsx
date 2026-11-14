@@ -205,7 +205,7 @@ export default function ProjectsList() {
             </select>
           </label>
           {allTags.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-1.5" aria-label="Filter by tag">
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by tag">
               {allTags.map((t) => (
                 <button key={t} onClick={() => setTagFilter(tagFilter === t ? null : t)} aria-pressed={tagFilter === t} className={`rounded-full px-3 py-1 font-sora text-[11px] font-semibold transition-colors cursor-pointer ${tagFilter === t ? "bg-ink text-dune-white" : "border border-sand-300 text-sand-700 hover:text-ink"}`}>{t}</button>
               ))}

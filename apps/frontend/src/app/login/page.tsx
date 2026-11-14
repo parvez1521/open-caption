@@ -195,7 +195,7 @@ export default function LoginPage() {
   // own button renders — an empty container takes no space, so nothing shifts.
   const googleButton = (
     <>
-      <div ref={gisContainerRef} className="w-full" aria-label="Sign in with Google" />
+      <div ref={gisContainerRef} className="w-full" />
       {gisMode !== "gis" ? (
         <button
           type="button"

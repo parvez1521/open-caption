@@ -140,7 +140,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
   const playheadInside = playheadMs >= segment.startMs && playheadMs < segment.startMs + segment.timelineDurationMs;
   const transitionType = segment.transitionIn?.type ?? "none";
   return (
-    <div className="h-full overflow-y-auto" aria-label={`Segment ${segment.index + 1} inspector`}>
+    <div className="h-full overflow-y-auto" role="group" aria-label={`Segment ${segment.index + 1} inspector`}>
       <Section title={`Segment ${segment.index + 1}`} hint={segment.still ? "A freeze-frame still — its length is its on-screen duration." : undefined}>
         <div className="flex flex-wrap gap-1.5">
           <Button onClick={onDuplicate} disabled={busy}>Duplicate</Button>
