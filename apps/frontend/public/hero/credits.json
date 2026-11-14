@@ -47,36 +47,36 @@
     "lookName": "Comic Tilt",
     "text": "by its users or its consumers to give up any certain personal information,"
   },
-  "sam": {
-    "title": "WIKITONGUES- Sam speaking English",
+  "rajen": {
+    "title": "WIKITONGUES- Rajen speaking Karbi and English",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Sam_speaking_English.webm",
-    "look": "serif_pop_classic",
-    "lookName": "Script Hero Pop",
-    "text": "big books, like you can put the libraries, you know, pay so much, you know, to access knowledge, I can just, you know,"
-  },
-  "gereon": {
-    "title": "WIKITONGUES- Gereon speaking English",
-    "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Gereon_speaking_English.webm",
+    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Rajen_speaking_Karbi_and_English.webm",
     "look": "explainer",
     "lookName": "Underline Sweep",
-    "text": "Now, that's a very nice thing because you have experienced Wikipedians on site."
+    "text": "And therefore still we are back home, we don't have our M. I. L. And even M. I. L."
   },
-  "mckensie": {
-    "title": "WIKITONGUES- Mckensie speaking English",
+  "leena": {
+    "title": "Leena speaking English (Wikitongues and AfroCrowd)",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Mckensie_speaking_English.webm",
+    "source": "https://commons.wikimedia.org/wiki/File:Leena_speaking_English_(Wikitongues_and_AfroCrowd).webm",
     "look": "kinetic_mix",
     "lookName": "Kinetic Big Word",
-    "text": "So we welcome people from all over the world to edit, specifically on those topics, but not just that, but to learn how to edit."
+    "text": "It kind of happened at a time where I'm trying to put out a jewelry line"
   },
-  "omar": {
-    "title": "WIKITONGUES- Omar Speaking English and Jamaican Patois",
-    "license": "CC BY 3.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Omar_Speaking_English_and_Jamaican_Patois.webm",
-    "look": "highlighter_card",
-    "lookName": "Yellow Highlighter",
-    "text": "just being back home it's like you know it's so free and natural for me to talk tattoo and talk like the way"
+  "kangkana": {
+    "title": "WIKITONGUES- Kangkana speaking Assamese and English",
+    "license": "CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Kangkana_speaking_Assamese_and_English.webm",
+    "look": "staggered_splash",
+    "lookName": "3-Line Stagger",
+    "text": "She is a very good person. She loves the language and helps me a lot."
+  },
+  "john": {
+    "title": "WIKITONGUES- John speaking English, Spanish, and Greek",
+    "license": "CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_John_speaking_English,_Spanish,_and_Greek.webm",
+    "look": "hormozi_box",
+    "lookName": "Jumping Box",
+    "text": "All of which are native to myself and my family."
   }
 }

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { ClipPlayer, Frame, ShowcaseCard, Tag, fmt, lookFor, useTranscript } from "./ShowcaseKit";
 
 const EMERALD = "#34D399";
-const CLIP = "gereon";
+const CLIP = "rajen";
 
 /** 01: every word carries its own start and end, straight from local whisper. */
 export function Section1Productivity() {
