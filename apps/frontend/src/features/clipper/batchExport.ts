@@ -30,6 +30,13 @@ import { DEFAULT_LOOK } from "@/features/studio/useStudio";
  * resolution, same canvas maths, same duration truth, same output-size and
  * fps rules), so a batch file is the file the Studio would have produced.
  *
+ * Minutes: each clip reserves its minutes on the server before rendering
+ * (the server computes them from the video row and the project settings)
+ * and settles after the file is saved; a failed clip refunds its hold.
+ * The same honest limit as every browser render applies: the server
+ * cannot observe a render on the device, so a modified client can skip
+ * the reserve call.
+ *
  * Failure discipline: strictly sequential (one encoder at a time); every
  * clip is isolated — a failure is recorded against that clip and the batch
  * continues; the failed clip can be retried on its own. Two honest refusals:
@@ -186,7 +193,24 @@ export interface BatchExportDeps {
   loadJob: (projectId: string) => Promise<ClipRenderJob>;
   render: (job: ClipRenderJob, onProgress: (fraction: number) => void, signal?: AbortSignal) => Promise<Blob>;
   save: (blob: Blob, name: string) => void;
+  /**
+   * Minutes billing for one clip. The default talks to the server
+   * (reserve before render, settle after); tests inject a stub. A
+   * reserve failure (minutes used up) fails just that clip, like any
+   * other per-clip failure, and the batch continues.
+   */
+  billing?: BatchBillingDeps;
 }
+
+export interface BatchBillingDeps {
+  reserve: (projectId: string, body: { exportId: string; kind: "mp4" }) => Promise<{ minutes: number }>;
+  settle: (projectId: string, body: { exportId: string; kind: "mp4"; outcome: "completed" | "failed"; actualMinutes?: number }) => Promise<unknown>;
+}
+
+const defaultBatchBilling: BatchBillingDeps = {
+  reserve: (projectId, body) => studioService.reserveBrowserExport(projectId, body),
+  settle: (projectId, body) => studioService.settleBrowserExport(projectId, body),
+};
 
 export const defaultBatchDeps: BatchExportDeps = {
   loadJob: loadClipRenderJob,
@@ -218,18 +242,34 @@ export interface BatchItemResult {
   message?: string;
 }
 
-/** Export one clip project end to end (load → render → save). Throws on failure. */
+/** Export one clip project end to end (load → reserve → render → save → settle). Throws on failure. */
 export async function exportClipProject(
   projectId: string,
   opts: { onProgress?: (fraction: number) => void; signal?: AbortSignal; deps?: BatchExportDeps } = {},
 ): Promise<{ name: string; size: number }> {
   const deps = opts.deps ?? defaultBatchDeps;
+  const billing = deps.billing ?? defaultBatchBilling;
   const job = await deps.loadJob(projectId);
   try {
-    const blob = await deps.render(job, opts.onProgress ?? (() => undefined), opts.signal);
-    const name = clipFileName(job.title);
-    deps.save(blob, name);
-    return { name, size: blob.size };
+    // Minutes: the server computes them from the video row and the
+    // project settings — the client never supplies a number. A failed
+    // reserve (minutes used up) fails just this clip, and the batch
+    // continues with the rest.
+    const exportId = crypto.randomUUID();
+    const reservation = await billing.reserve(projectId, { exportId, kind: "mp4" });
+    try {
+      const blob = await deps.render(job, opts.onProgress ?? (() => undefined), opts.signal);
+      const name = clipFileName(job.title);
+      deps.save(blob, name);
+      // Completion charges the reserved minutes. A failed settle just
+      // means the hold is swept later — the file is already saved.
+      await billing.settle(projectId, { exportId, kind: "mp4", outcome: "completed", actualMinutes: reservation.minutes }).catch(() => {});
+      return { name, size: blob.size };
+    } catch (e) {
+      // A failed render refunds the whole hold.
+      await billing.settle(projectId, { exportId, kind: "mp4", outcome: "failed" }).catch(() => {});
+      throw e;
+    }
   } finally {
     job.dispose();
   }

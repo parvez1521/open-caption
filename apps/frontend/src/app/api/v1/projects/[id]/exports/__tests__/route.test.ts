@@ -17,10 +17,13 @@ const state = vi.hoisted(() => ({
   inserts: [] as Array<{ table: string; row: Record<string, unknown> }>,
   updates: [] as Array<{ table: string; row: Record<string, unknown> }>,
   upserts: [] as Array<{ table: string; row: Record<string, unknown>; opts: Record<string, unknown> }>,
-  quotaEvents: [] as Array<{ id: string }>,
   puts: [] as Array<{ path: string; body: string; mime: string }>,
   signedGets: [] as Array<{ path: string; name?: string }>,
   enqueued: [] as Array<Record<string, unknown>>,
+  reserves: [] as Array<{ fn: string; args: Record<string, unknown> }>,
+  settles: [] as Array<{ fn: string; args: Record<string, unknown> }>,
+  minutesBlocked: false,
+  enqueueFails: false,
 }));
 
 vi.mock("@/lib/api/auth", () => ({
@@ -29,6 +32,7 @@ vi.mock("@/lib/api/auth", () => ({
 vi.mock("@/lib/api/rateLimit", () => ({ rateLimit: async () => undefined }));
 vi.mock("@/lib/api/jobs", () => ({
   enqueueJob: async (input: Record<string, unknown>) => {
+    if (state.enqueueFails) throw new Error("queue down");
     state.enqueued.push(input);
     return { id: "job-1" };
   },
@@ -88,13 +92,28 @@ class FakeBuilder {
     return { data: ROWS[this.table] ?? null, error: null };
   }
   then(onOk: (v: { data: Array<{ id: string }> | null; error: null }) => unknown, onErr?: (e: unknown) => unknown) {
-    // The quota count reads video_quota_events; everything else reads nothing.
-    const data = this.table === "video_quota_events" ? state.quotaEvents : null;
-    return Promise.resolve({ data, error: null }).then(onOk, onErr);
+    return Promise.resolve({ data: null, error: null }).then(onOk, onErr);
   }
 }
 
-const fakeDb = () => ({ from: (table: string) => new FakeBuilder(table) });
+const fakeDb = () => ({
+  from: (table: string) => new FakeBuilder(table),
+  // Minutes ledger rpc: reserve succeeds unless the test blocks it; settle always lands.
+  rpc: async (fn: string, args: Record<string, unknown>) => {
+    if (fn === "reserve_minutes") {
+      if (state.minutesBlocked) {
+        return { data: { ok: false, code: "INSUFFICIENT", balance: 0, minutes: args.p_minutes }, error: null };
+      }
+      state.reserves.push({ fn, args });
+      return { data: { ok: true, already_reserved: false, reservation_key: `reserve:${args.p_export_id}`, minutes: args.p_minutes, balance: 4 }, error: null };
+    }
+    if (fn === "settle_reservation") {
+      state.settles.push({ fn, args });
+      return { data: { settled: true, outcome: args.p_outcome, minutes_charged: 0, refunded: 0, balance: 4 }, error: null };
+    }
+    return { data: null, error: { message: `fake rpc: unknown function ${fn}` } };
+  },
+});
 
 const post = (body: unknown) =>
   POST(
@@ -114,10 +133,13 @@ beforeEach(() => {
   state.inserts = [];
   state.updates = [];
   state.upserts = [];
-  state.quotaEvents = [];
   state.puts = [];
   state.signedGets = [];
   state.enqueued = [];
+  state.reserves = [];
+  state.settles = [];
+  state.minutesBlocked = false;
+  state.enqueueFails = false;
 });
 
 describe("text exports — created right away, with the right extension and content", () => {
@@ -222,35 +244,53 @@ describe("kinds that are not creatable, and guest gating", () => {
   );
 });
 
-describe("monthly video quota (owner decision 2026-11-14: Free 3, Starter 10, Plus 20, Pro 40)", () => {
-  it("a video export under the limit queues AND records one quota event", async () => {
-    state.quotaEvents = [{ id: "ev-1" }, { id: "ev-2" }];
+describe("minutes ledger (owner decision 2026-11-14: minutes replace the video quota — one meter only)", () => {
+  it("a video export reserves its minutes BEFORE the job is queued", async () => {
     const res = await post({ kind: "mp4" });
     expect(res.status).toBe(202);
     expect(state.enqueued).toHaveLength(1);
-    const event = state.upserts.find((u) => u.table === "video_quota_events");
-    expect(event).toBeDefined();
-    expect(event!.row).toMatchObject({ owner_id: "user-1", project_id: "proj-1", kind: "mp4" });
-    expect(event!.opts).toMatchObject({ onConflict: "export_id", ignoreDuplicates: true });
+    expect(state.reserves).toHaveLength(1);
+    const reserve = state.reserves[0]!;
+    const json = (await res.json()) as { data: { exportId: string } };
+    expect(reserve.args).toMatchObject({
+      p_user_id: "user-1",
+      p_project_id: "proj-1",
+      p_export_id: json.data.exportId,
+      p_minutes: 1, // the 10-second source rounds up to 1 minute
+      p_idempotency_key: `reserve:${json.data.exportId}`,
+    });
+    // No quota event is written any more: the reservation IS the charge.
+    expect(state.upserts.filter((u) => u.table === "video_quota_events")).toHaveLength(0);
   });
 
-  it("blocks a video export at the Free 3 cap with an upsell message and queues nothing", async () => {
-    state.quotaEvents = [{ id: "ev-1" }, { id: "ev-2" }, { id: "ev-3" }];
+  it("blocks a video export with no minutes left with a 402 upsell message and queues nothing", async () => {
+    state.minutesBlocked = true;
     const res = await post({ kind: "mp4" });
     expect(res.status).toBe(402);
     const json = (await res.json()) as { error: { code: string; message: string } };
     expect(json.error.code).toBe("LIMIT_EXCEEDED");
-    expect(json.error.message).toContain("Monthly limit reached");
-    expect(json.error.message).toContain("Upgrade for more videos");
+    expect(json.error.message).toContain("Monthly minutes used up");
+    expect(json.error.message).toContain("Upgrade for more minutes");
     expect(state.enqueued).toHaveLength(0);
     expect(state.inserts).toHaveLength(0);
-    expect(state.upserts).toHaveLength(0);
+    expect(state.reserves).toHaveLength(0);
   });
 
-  it("a text export at the cap still succeeds — text files never count", async () => {
-    state.quotaEvents = [{ id: "ev-1" }, { id: "ev-2" }, { id: "ev-3" }];
+  it("a text export with no minutes left still succeeds — text files never count", async () => {
+    state.minutesBlocked = true;
     const res = await post({ kind: "srt" });
     expect(res.status).toBe(201);
-    expect(state.upserts).toHaveLength(0);
+    expect(state.reserves).toHaveLength(0);
+    expect(state.settles).toHaveLength(0);
+  });
+
+  it("a failed queue refunds the reservation, so a failed queue never consumes minutes", async () => {
+    state.enqueueFails = true;
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(500);
+    expect(state.reserves).toHaveLength(1);
+    expect(state.settles).toHaveLength(1);
+    expect(state.settles[0]!.args).toMatchObject({ p_outcome: "failed" });
+    expect(state.enqueued).toHaveLength(0);
   });
 });

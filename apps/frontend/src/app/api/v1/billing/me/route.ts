@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ok, route } from "@/lib/api/http";
 import { cashfreeConfig, currencyForCountry } from "@/lib/billing/cashfree";
 import { getAdmin } from "@/lib/supabase/admin";
-import { getVideoQuotaUsage, type VideoQuotaUsage } from "@/lib/billing/videoQuota";
+import { getMinutesUsage, type MinutesUsage } from "@/lib/billing/minutes";
 
 /**
  * The billing page's data: the caller's effective plan (an expired paid
@@ -30,13 +30,13 @@ export const GET = route(async (req: Request) => {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  // Monthly video quota: null when the quota table has not been applied
+  // Minutes balance: null when the ledger table has not been applied
   // yet — the billing page hides the line instead of breaking.
-  let videoQuota: VideoQuotaUsage | null = null;
+  let minutes: MinutesUsage | null = null;
   try {
-    videoQuota = await getVideoQuotaUsage(getAdmin(), user.id, effectivePlanId(storedPlan, expiresAt), expiresAt);
+    minutes = await getMinutesUsage(getAdmin(), user.id, effectivePlanId(storedPlan, expiresAt), expiresAt);
   } catch {
-    videoQuota = null;
+    minutes = null;
   }
 
   return ok({
@@ -49,6 +49,6 @@ export const GET = route(async (req: Request) => {
     guest: user.guest,
     payments: error ? [] : (payments ?? []),
     dbPending: !!error,
-    videoQuota,
+    minutes,
   });
 });

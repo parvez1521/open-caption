@@ -4,15 +4,24 @@ import { PLAN_PERIOD_DAYS, effectivePlanId, planFor, type LegacyPlanId, type Pla
 import { ApiFailure } from "@/lib/api/http";
 
 /**
- * Monthly video quota — the subscription model (owner, 2026-11-14).
- * 1 video = 1 finished video export. Text caption files never count.
- * Transcription and editing stay unlimited; unused videos never roll over.
+ * Monthly video quota — RETIRED at the minutes cutover (2026-11-14).
+ * The minutes ledger (lib/billing/minutes.ts) is the only meter now.
+ * This module is kept, uncalled by any route or component, so the
+ * legacy history in public.video_quota_events stays readable and its
+ * tests keep pinning the old window/count rules. No new quota rows are
+ * written anywhere: the exports route, the record route, the billing
+ * read routes, and the Export modal all use minutes now. Do not call
+ * checkVideoQuota or recordVideoQuotaEvent from new code.
+ *
+ * The old rules, for the record: 1 video = 1 finished video export.
+ * Text caption files never counted. Transcription and editing stayed
+ * unlimited; unused videos never rolled over.
  *
  * Counting source: public.video_quota_events — one row per finished video
- * export (server renders write it when the job is queued; browser MP4s
- * write it when the render finishes, via the record endpoint). A failed
- * render keeps its slot: retrying the same export is free, because the
- * event is keyed by export_id and never written twice.
+ * export (server renders wrote it when the job was queued; browser MP4s
+ * wrote it when the render finished, via the record endpoint). A failed
+ * render kept its slot: retrying the same export was free, because the
+ * event was keyed by export_id and never written twice.
  *
  * The table is service-role-only (RLS on, no policies — same shape as
  * growth_connections). If it has not been applied yet the write path fails

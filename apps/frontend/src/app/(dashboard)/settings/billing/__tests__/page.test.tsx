@@ -119,11 +119,20 @@ describe("billing page Cashfree SDK checkout", () => {
     await waitFor(() => expect(checkoutMock).toHaveBeenCalled());
     expect(screen.queryByRole("status")).toBeNull();
 describe("billing page plan display (new minutes model)", () => {
-  it("shows the minutes allowance, no faked usage number, and the Most Popular marker", async () => {
-    api.getImpl = async () => ({ ...billingState, plan: "creator", storedPlan: "creator", expiresAt: "2026-12-14T00:00:00.000Z" });
+  it("shows the minutes allowance, the real minutes usage, and the Most Popular marker", async () => {
+    api.getImpl = async () => ({
+      ...billingState,
+      plan: "creator",
+      storedPlan: "creator",
+      expiresAt: "2026-12-14T00:00:00.000Z",
+      minutes: { plan: "creator", granted: 100, used: 12, remaining: 88, cycleStart: "2026-11-14T00:00:00.000Z", cycleEnd: "2026-12-14T00:00:00.000Z", freeGranted: false },
+    });
     render(<BillingPage />);
     expect((await screen.findAllByText(/100 processing minutes a month/)).length).toBeGreaterThanOrEqual(1);
-    expect(await screen.findByText(/Minutes used: coming with the minutes ledger\./)).toBeTruthy();
+    // Real usage from the minutes ledger — the old "coming with the
+    // minutes ledger" placeholder is gone.
+    expect(await screen.findByText(/88 of 100 minutes left/)).toBeTruthy();
+    expect(screen.queryByText(/coming with the minutes ledger/)).toBeNull();
     expect((await screen.findAllByText("Most Popular")).length).toBe(1);
     expect(screen.queryByText(/Paid plans are 30-day passes/)).toBeNull();
     expect(screen.queryByText(/adds 30 days to your current period/)).toBeNull();

@@ -54,7 +54,33 @@ class FakeBuilder {
 const state = vi.hoisted(() => ({ tables: {} as Record<string, Row[]> }));
 
 vi.mock("@/lib/supabase/admin", () => ({
-  getAdmin: () => ({ from: (t: string) => new FakeBuilder(state.tables, t) }),
+  getAdmin: () => ({
+    from: (t: string) => new FakeBuilder(state.tables, t),
+    // Minutes grant only: the in-memory grant_cycle_minutes. A grant
+    // with a key already in minute_ledger is a no-op (idempotent by key).
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      if (fn !== "grant_cycle_minutes") throw new Error(`fake rpc: unknown function ${fn}`);
+      const userId = args.p_user_id as string;
+      const key = args.p_idempotency_key as string;
+      const ledger = (state.tables.minute_ledger ??= []);
+      const balances = (state.tables.minute_balances ??= []);
+      const existing = balances.find((r) => r.user_id === userId);
+      if (ledger.some((r) => r.idempotency_key === key)) {
+        return { data: { granted: false, already_granted: true, balance: (existing?.balance_minutes as number) ?? 0 }, error: null };
+      }
+      const minutes = args.p_minutes as number;
+      let bal = existing;
+      if (!bal) {
+        bal = { user_id: userId, balance_minutes: 0, cycle_start: null, cycle_end: null };
+        balances.push(bal);
+      }
+      bal.balance_minutes = (bal.balance_minutes as number) + minutes;
+      bal.cycle_start = args.p_cycle_start as string;
+      bal.cycle_end = args.p_cycle_end as string | null;
+      ledger.push({ user_id: userId, kind: "grant", minutes, balance_after: bal.balance_minutes, idempotency_key: key });
+      return { data: { granted: true, already_granted: false, balance: bal.balance_minutes }, error: null };
+    },
+  }),
   getUserClient: () => {
     throw new Error("not used");
   },
@@ -110,6 +136,10 @@ describe("billing webhook", () => {
     // minutes model — a stored "growth" reads as Creator, never Free).
     expect(state.tables.profiles[0]!.plan).toBe("creator");
     expect(state.tables.profiles[0]!.plan_expires_at).toBeTruthy();
+    // The settle also grants the Creator cycle minutes (100), once.
+    expect(state.tables.minute_ledger).toHaveLength(1);
+    expect(state.tables.minute_ledger[0]).toMatchObject({ kind: "grant", minutes: 100, idempotency_key: "grant:payment:pay-1" });
+    expect(state.tables.minute_balances[0]).toMatchObject({ user_id: "user-1", balance_minutes: 100 });
   });
 
   it("a duplicate delivery settles once (idempotent)", async () => {
@@ -118,6 +148,9 @@ describe("billing webhook", () => {
     const res = await call(event("PAYMENT_SUCCESS_WEBHOOK", "oc_order1"));
     expect(res.status).toBe(200);
     expect(state.tables.profiles[0]!.plan_expires_at).toBe(endAfterFirst);
+    // The healing grant on the second delivery is a no-op by key.
+    expect(state.tables.minute_ledger).toHaveLength(1);
+    expect(state.tables.minute_balances[0]).toMatchObject({ balance_minutes: 100 });
   });
 
   it("a bad signature answers 401 and changes nothing", async () => {

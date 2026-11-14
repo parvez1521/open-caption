@@ -1,31 +1,41 @@
 import { z } from "zod";
 import { effectivePlanId } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
-import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
+import { notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import {
-  VIDEO_QUOTA_KINDS,
-  getVideoQuotaUsage,
-  recordVideoQuotaEvent,
-} from "@/lib/billing/videoQuota";
+  VIDEO_MINUTES_KINDS,
+  getMinutesUsage,
+  settleReservation,
+} from "@/lib/billing/minutes";
 
 const Body = z.object({
   exportId: z.string().uuid(),
-  kind: z.enum(VIDEO_QUOTA_KINDS),
+  kind: z.enum(VIDEO_MINUTES_KINDS),
+  outcome: z.enum(["completed", "failed"]),
+  actualMinutes: z.number().int().min(0).optional(),
 });
 
 /**
- * Record a browser-rendered MP4 as one finished video for the monthly quota.
+ * Settle a browser-rendered video's minutes reservation.
  *
- * MP4s are rendered on the user's own device and never touch the server
- * exports route, so the Studio reports the finished render here — once,
- * keyed by the client-generated exportId, so a retry never counts twice.
- * Guests may record too (browser MP4 has always been open to guests);
- * their events stay with the anonymous id and do not carry over on claim.
+ * This route used to be a post-hoc quota record (fire-and-forget, no
+ * limit check at all). It is now the second half of reserve-then-settle:
+ * the Studio reserves BEFORE rendering (exports/reserve) and settles
+ * here after the file is saved ('completed') or when the render fails
+ * or is cancelled ('failed'). Completion charges the actual rendered
+ * minutes (capped at the reservation) and refunds the unused hold;
+ * failure refunds the whole hold.
  *
- * A missing quota table answers recorded:false instead of an error: the
- * file is already saved on the user's device, so there is nothing to undo
- * — the video simply was not counted.
+ * A record with no reservation answers settled:false instead of an
+ * error: the file is already saved on the user's device, so there is
+ * nothing to undo — the video simply was not charged. That is the
+ * honest limit of the browser path (see the reserve route): a modified
+ * client can skip the reserve call, and the server cannot observe a
+ * render that never touches it.
+ *
+ * Guests may settle too (browser MP4 has always been open to guests);
+ * their minutes stay with the anonymous id and do not carry over on claim.
  */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
@@ -36,23 +46,23 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   if (!project) throw notFound("Project");
 
   const admin = getAdmin();
-  // recordVideoQuotaEvent answers recorded:false (never throws) when the
-  // quota table has not been applied yet.
-  const { recorded } = await recordVideoQuotaEvent(admin, {
-    exportId: body.exportId,
+  const settled = await settleReservation(admin, {
     ownerId: user.id,
-    projectId,
-    kind: body.kind,
+    exportId: body.exportId,
+    outcome: body.outcome,
+    actualMinutes: body.actualMinutes,
   });
-  if (!recorded) return ok({ recorded: false, usage: null });
+  if (!settled.settled) {
+    console.error(JSON.stringify({ level: "warn", msg: "browser export settled with no reservation", exportId: body.exportId, reason: settled.reason ?? "unknown" }));
+  }
 
   const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
   const plan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
   let usage = null;
   try {
-    usage = await getVideoQuotaUsage(admin, user.id, plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null);
-  } catch (e) {
-    if (!(e instanceof ApiFailure)) throw e;
+    usage = await getMinutesUsage(admin, user.id, plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null);
+  } catch {
+    usage = null;
   }
-  return ok({ recorded: true, usage }, 201);
+  return ok({ settled: settled.settled, reason: settled.reason ?? null, minutesCharged: settled.minutesCharged, refunded: settled.refunded, usage }, 201);
 });

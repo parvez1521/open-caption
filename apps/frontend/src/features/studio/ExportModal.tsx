@@ -139,7 +139,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
    * encoder meanwhile the render never moves again, so a render that makes no progress for 45 s while the tab is
    * visible is stopped and started again by itself (a render can't resume half-way).
    */
-  const exportHere = async (attempt = 0) => {
+  const exportHere = async (exportId: string, reservedMinutes: number, attempt = 0) => {
     if (!renderInput) return;
     setError(null);
     setWebDone(null);
@@ -150,6 +150,15 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     let last = Date.now();
     let stalled = false;
     let again = false;
+    // set once the file is saved and the settle call is fired — the
+    // finally block refunds the hold on every other exit
+    let settled = false;
+    const settleFailed = () => {
+      void studioService
+        .settleBrowserExport(projectId, { exportId, kind: "mp4", outcome: "failed" })
+        .catch(() => {})
+        .finally(() => void qc.invalidateQueries({ queryKey: ["minutes", projectId] }));
+    };
     const onVisible = () => {
       if (document.visibilityState === "visible") last = Date.now();
     };
@@ -192,14 +201,15 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       }
       const name = `${(title || "captionit").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "captionit"}.mp4`;
       saveBlob(blob, name);
-      // Count the finished video: the render happened on this device, so the
-      // Studio reports it once, keyed by a fresh export id. Fire-and-forget
-      // — the file is already saved, so a failed record just means this video
-      // was not counted.
+      // Settle the reservation made before the render: completion charges
+      // the reserved minutes (the server computed them from the video and
+      // the trim). A failed settle just means the hold is swept later by
+      // the stale-hold cleanup — the file is already saved.
       void studioService
-        .recordBrowserExport(projectId, { exportId: crypto.randomUUID(), kind: "mp4" })
+        .settleBrowserExport(projectId, { exportId, kind: "mp4", outcome: "completed", actualMinutes: reservedMinutes })
         .catch(() => {})
-        .finally(() => void qc.invalidateQueries({ queryKey: ["video-quota", projectId] }));
+        .finally(() => void qc.invalidateQueries({ queryKey: ["minutes", projectId] }));
+      settled = true;
       setWebDone(`${fmtBytes(blob.size)} · made in ${fmtTime(clock() - started)}`);
       setMade({ blob, name });
       setShowReady(true);
@@ -220,11 +230,15 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       setWebProgress(null);
       setPhaseLabel(null);
       abort.current = null;
+      // Every exit except a saved file or a stall restart refunds the
+      // hold: a failed, cancelled, or stalled-out render never consumes
+      // minutes. A stall that restarts keeps the same reservation.
+      if (!settled && !again) settleFailed();
     }
     if (again) {
       Sentry.captureMessage("export: restarted after a stall", { level: "info", extra: { attempt } });
       setRestarted(true);
-      await exportHere(attempt + 1);
+      await exportHere(exportId, reservedMinutes, attempt + 1);
     }
   };
 
@@ -234,13 +248,13 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     refetchInterval: (q) => ((q.state.data as ExportRow[] | undefined)?.some((e) => e.status_v2 === "queued" || e.status_v2 === "rendering") ? 2500 : false),
   });
 
-  /** Monthly video quota: 1 video = 1 finished export. Text files never count. */
-  const quotaQ = useQuery({
-    queryKey: ["video-quota", projectId],
-    queryFn: () => studioService.videoQuota(),
+  /** Minutes balance: remaining minutes in the current cycle. Text files never count. */
+  const minutesQ = useQuery({
+    queryKey: ["minutes", projectId],
+    queryFn: () => studioService.minutesUsage(),
     staleTime: 60_000,
   });
-  const quota = quotaQ.data?.videoQuota ?? null;
+  const minutes = minutesQ.data?.minutes ?? null;
 
   const download = async (id: string) => {
     try {
@@ -257,13 +271,20 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         setError(mp4Block.reason);
         return;
       }
-      // Quota gate: the render happens on this device, so the server only
-      // counts it after the fact — check the fresh count first, so a render
-      // at the limit never starts. (Server renders are gated by the API.)
-      const fresh = await quotaQ.refetch();
-      const freshQuota = fresh.data?.videoQuota ?? null;
-      if (freshQuota && freshQuota.remaining <= 0) {
-        setError("Monthly limit reached — upgrade for more videos.");
+      // Minutes gate: the render happens on this device, so the minutes
+      // are reserved on the server BEFORE it starts. A 402 means the
+      // minutes are used up — the render never starts. (Server renders
+      // are gated by the API the same way.)
+      const exportId = crypto.randomUUID();
+      let reservation;
+      try {
+        reservation = await studioService.reserveBrowserExport(projectId, {
+          exportId,
+          kind: "mp4",
+          ...(trim ? { range: { startMs: Math.round(startS * 1000), endMs: Math.round(endS * 1000) } } : {}),
+        });
+      } catch (e) {
+        setError(e instanceof ApiError || e instanceof Error ? e.message : "Could not reserve minutes for this export.");
         return;
       }
       let w = web;
@@ -273,7 +294,9 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         setWeb(w);
         setBusyKind(null);
       }
-      if (w.ok && renderInput?.src) return exportHere();
+      if (w.ok && renderInput?.src) return exportHere(exportId, reservation.minutes);
+      // The render cannot start after all: give the hold straight back.
+      void studioService.settleBrowserExport(projectId, { exportId, kind: "mp4", outcome: "failed" }).catch(() => {});
       setError(w.ok ? "The video isn't loaded yet. Wait a moment and try again." : w.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari.");
       return;
     }
@@ -302,6 +325,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       }
       track("export_done", { kind: o.kind });
       await qc.invalidateQueries({ queryKey: ["exports", projectId] });
+      await qc.invalidateQueries({ queryKey: ["minutes", projectId] });
       await qc.invalidateQueries({ queryKey: ["studio", projectId] });
     } catch (e) {
       setError(e instanceof ApiError || e instanceof Error ? e.message : "Export failed.");
@@ -408,10 +432,10 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
               {busyKind === optionKey(selected) ? "Working…" : renderLabel(selected)}
             </Button>
           ) : null}
-          {quota ? (
+          {minutes ? (
             <p className="mt-2 text-xs text-st-muted">
-              {quota.remaining} of {quota.limit} videos left this month.
-              {quota.remaining <= 0 ? (
+              {minutes.remaining} of {minutes.granted} minutes left.
+              {minutes.remaining <= 0 ? (
                 <>
                   {" "}
                   <Link href="/settings/billing" className="font-semibold text-st-text underline">

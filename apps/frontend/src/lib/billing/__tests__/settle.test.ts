@@ -49,8 +49,33 @@ class FakeBuilder {
   }
 }
 
-const fakeAdmin = (tables: Record<string, Row[]>) =>
-  ({ from: (t: string) => new FakeBuilder(tables, t) }) as never;
+const fakeAdmin = (tables: Record<string, Row[]>) => ({
+  from: (t: string) => new FakeBuilder(tables, t),
+  // Minutes grant only: the in-memory grant_cycle_minutes. A grant with
+  // a key already in minute_ledger is a no-op (idempotent by key).
+  rpc: async (fn: string, args: Record<string, unknown>) => {
+    if (fn !== "grant_cycle_minutes") throw new Error(`fake rpc: unknown function ${fn}`);
+    const userId = args.p_user_id as string;
+    const key = args.p_idempotency_key as string;
+    const ledger = (tables.minute_ledger ??= []);
+    const balances = (tables.minute_balances ??= []);
+    const existing = balances.find((r) => r.user_id === userId);
+    if (ledger.some((r) => r.idempotency_key === key)) {
+      return { data: { granted: false, already_granted: true, balance: (existing?.balance_minutes as number) ?? 0 }, error: null };
+    }
+    const minutes = args.p_minutes as number;
+    let bal = existing;
+    if (!bal) {
+      bal = { user_id: userId, balance_minutes: 0, cycle_start: null, cycle_end: null };
+      balances.push(bal);
+    }
+    bal.balance_minutes = (bal.balance_minutes as number) + minutes;
+    bal.cycle_start = args.p_cycle_start as string;
+    bal.cycle_end = args.p_cycle_end as string | null;
+    ledger.push({ user_id: userId, kind: "grant", minutes, balance_after: bal.balance_minutes, idempotency_key: key });
+    return { data: { granted: true, already_granted: false, balance: bal.balance_minutes }, error: null };
+  },
+}) as never;
 
 const payment = (over: Partial<PaymentRow> = {}): PaymentRow => ({
   id: "pay-1",
@@ -83,6 +108,10 @@ describe("settlePaid", () => {
     const end = new Date(profile.plan_expires_at as string).getTime();
     expect(end).toBeGreaterThan(before + 29 * 24 * 3600 * 1000);
     expect(end).toBeLessThan(before + 31 * 24 * 3600 * 1000);
+    // The settle grants the cycle's minutes with the payment (Starter 40).
+    expect(tables.minute_balances?.[0]).toMatchObject({ user_id: "user-1", balance_minutes: 40 });
+    expect(tables.minute_ledger).toHaveLength(1);
+    expect(tables.minute_ledger?.[0]).toMatchObject({ kind: "grant", minutes: 40, idempotency_key: "grant:payment:pay-1" });
   });
 
   it("renewing the SAME plan extends from the current period end (no paid days eaten)", async () => {
@@ -112,6 +141,8 @@ describe("settlePaid", () => {
     // profile is granted the plan it maps to today: Creator (2026-11-14
     // minutes model — a stored "growth" reads as Creator, never Free).
     expect(tables.profiles[0]!.plan).toBe("creator");
+    // ...and the minutes grant follows the mapped plan (Creator 100).
+    expect(tables.minute_balances?.[0]).toMatchObject({ balance_minutes: 100 });
   });
 
   it("is idempotent: paid and terminal payments never settle again", async () => {
@@ -124,6 +155,18 @@ describe("settlePaid", () => {
     expect(tables.profiles[0]!.plan).toBe("free"); // untouched
     const failed = await settlePaid(fakeAdmin(tables), payment({ status: "failed" }), "x");
     expect(failed.status).toBe("failed");
+  });
+
+  it("a paid payment re-settled later heals a missed minutes grant — once, never twice", async () => {
+    const tables: Record<string, Row[]> = {
+      profiles: [{ id: "user-1", plan: "starter", plan_expires_at: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() }],
+      payments: [{ ...payment({ status: "paid", period_start: new Date().toISOString(), period_end: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString() }) }],
+    };
+    await settlePaid(fakeAdmin(tables), payment({ status: "paid", period_start: tables.payments[0]!.period_start as string, period_end: tables.payments[0]!.period_end as string }), "x");
+    expect(tables.minute_balances?.[0]).toMatchObject({ balance_minutes: 40 });
+    await settlePaid(fakeAdmin(tables), payment({ status: "paid", period_start: tables.payments[0]!.period_start as string, period_end: tables.payments[0]!.period_end as string }), "x");
+    expect(tables.minute_ledger).toHaveLength(1);
+    expect(tables.minute_balances?.[0]).toMatchObject({ balance_minutes: 40 });
   });
 });
 

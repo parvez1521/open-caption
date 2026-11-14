@@ -14,7 +14,13 @@ const h = vi.hoisted(() => ({
   canExport: vi.fn(async (): Promise<{ ok: boolean; reason?: string }> => ({ ok: true })),
   render: vi.fn(),
   save: vi.fn(),
+  reserve: vi.fn(async (body: { exportId: string; kind: "mp4" | "webm" | "webm_alpha"; minutes: number; source: "motion" }): Promise<{ minutes: number }> => ({ minutes: 1 })),
+  settle: vi.fn(async (body: { exportId: string; outcome: "completed" | "failed"; actualMinutes?: number }): Promise<unknown> => ({})),
 }));
+
+/** Minutes billing stub: the section reserves before rendering and settles after. */
+const billing = { reserve: h.reserve, settle: h.settle };
+const renderSection = () => render(<MotionExportSection config={config} billing={billing} />);
 
 vi.mock("@/features/studio/browserExport", () => ({
   canExportVideoInBrowser: h.canExport,
@@ -34,11 +40,15 @@ beforeEach(() => {
   h.render.mockReset();
   h.render.mockResolvedValue(blob);
   h.save.mockReset();
+  h.reserve.mockReset();
+  h.reserve.mockResolvedValue({ minutes: 1 });
+  h.settle.mockReset();
+  h.settle.mockResolvedValue({});
 });
 
 describe("MotionExportSection — options and honest copy", () => {
   it("renders every option group with the exact honest wording", async () => {
-    const view = render(<MotionExportSection config={config} />);
+    const view = renderSection();
     expect(screen.getByRole("heading", { name: /export this animation/i })).toBeTruthy();
     // background choices, chroma first with its exact label
     expect(screen.getByRole("button", { name: "Solid colour background for chroma-key removal in your editor" })).toBeTruthy();
@@ -63,7 +73,7 @@ describe("MotionExportSection — options and honest copy", () => {
   });
 
   it("switching aspect updates the dims readout; switching format relabels the export button", async () => {
-    const view = render(<MotionExportSection config={config} />);
+    const view = renderSection();
     fireEvent.click(screen.getByRole("button", { name: "16:9" }));
     expect(view.container.textContent).toContain("Exports at 1920 × 1080");
     fireEvent.click(screen.getByRole("button", { name: "720p" }));
@@ -76,13 +86,13 @@ describe("MotionExportSection — options and honest copy", () => {
 
   it("a browser that cannot encode disables export and says why", async () => {
     h.canExport.mockResolvedValue({ ok: false, reason: "This browser can't encode video. Use Chrome, Edge or Safari." });
-    render(<MotionExportSection config={config} />);
+    renderSection();
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("can't encode video"));
     expect((screen.getByRole("button", { name: "Export MP4" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("when the alpha probe withholds the transparent option, the note names the stage that withheld it", async () => {
-    const view = render(<MotionExportSection config={config} />);
+    const view = renderSection();
     // this test environment has no VideoEncoder, so the probe's truthful gate answer is
     // no-videoencoder — once it lands, the generic transparency note is replaced by the
     // line naming that stage (and the transparent format stays unlisted)
@@ -100,7 +110,7 @@ describe("MotionExportSection — options and honest copy", () => {
 
 describe("MotionExportSection — render flow", () => {
   it("success: renders the built job, downloads <template>-<w>x<h>.mp4 and reports it", async () => {
-    render(<MotionExportSection config={config} />);
+    renderSection();
     await waitFor(() => expect(h.canExport).toHaveBeenCalled());
     fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
     await waitFor(() => expect(h.save).toHaveBeenCalledWith(blob, "subscribe-pill-1080x1920.mp4"));
@@ -121,7 +131,7 @@ describe("MotionExportSection — render flow", () => {
           job.signal?.addEventListener("abort", () => reject(new Error("renderMediaOnWeb() was cancelled")));
         }),
     );
-    const view = render(<MotionExportSection config={config} />);
+    const view = renderSection();
     await waitFor(() => expect(h.canExport).toHaveBeenCalled());
     fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
     await waitFor(() => expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("50"));
@@ -135,7 +145,7 @@ describe("MotionExportSection — render flow", () => {
 
   it("failure shows the renderer's real message and Retry runs the export again", async () => {
     h.render.mockRejectedValueOnce(new Error("VP9 encoder exploded"));
-    render(<MotionExportSection config={config} />);
+    renderSection();
     await waitFor(() => expect(h.canExport).toHaveBeenCalled());
     fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("VP9 encoder exploded"));
@@ -143,5 +153,63 @@ describe("MotionExportSection — render flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(h.save).toHaveBeenCalledWith(blob, "subscribe-pill-1080x1920.mp4"));
     expect(h.render).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("MotionExportSection — minutes billing", () => {
+  it("reserves 1 minute before rendering and settles completed after the save", async () => {
+    renderSection();
+    await waitFor(() => expect(h.canExport).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
+    await waitFor(() => expect(h.save).toHaveBeenCalledWith(blob, "subscribe-pill-1080x1920.mp4"));
+    expect(h.reserve).toHaveBeenCalledTimes(1);
+    // the 4-second animation rounds up to 1 minute
+    expect(h.reserve.mock.calls[0]![0]).toMatchObject({ kind: "mp4", minutes: 1, source: "motion" });
+    expect(typeof h.reserve.mock.calls[0]![0].exportId).toBe("string");
+    expect(h.settle).toHaveBeenCalledTimes(1);
+    expect(h.settle.mock.calls[0]![0]).toMatchObject({ outcome: "completed", actualMinutes: 1 });
+    expect(h.settle.mock.calls[0]![0].exportId).toBe(h.reserve.mock.calls[0]![0].exportId);
+  });
+
+  it("a reserve failure blocks the render and shows the message", async () => {
+    h.reserve.mockRejectedValueOnce(new Error("Monthly minutes used up — your plan includes 5 minutes a month. Upgrade for more minutes."));
+    renderSection();
+    await waitFor(() => expect(h.canExport).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Monthly minutes used up"));
+    expect(h.render).not.toHaveBeenCalled();
+    expect(h.save).not.toHaveBeenCalled();
+    expect(h.settle).not.toHaveBeenCalled();
+  });
+
+  it("a failed render refunds the hold", async () => {
+    h.render.mockRejectedValueOnce(new Error("VP9 encoder exploded"));
+    renderSection();
+    await waitFor(() => expect(h.canExport).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("VP9 encoder exploded"));
+    expect(h.reserve).toHaveBeenCalledTimes(1);
+    expect(h.settle).toHaveBeenCalledTimes(1);
+    expect(h.settle.mock.calls[0]![0]).toMatchObject({ outcome: "failed" });
+  });
+
+  it("a cancelled render refunds the hold", async () => {
+    h.render.mockImplementation(
+      (job: { signal?: AbortSignal; onProgress?: (f: number) => void }) =>
+        new Promise<Blob>((_resolve, reject) => {
+          job.onProgress?.(0.5);
+          job.signal?.addEventListener("abort", () => reject(new Error("renderMediaOnWeb() was cancelled")));
+        }),
+    );
+    const view = renderSection();
+    await waitFor(() => expect(h.canExport).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Export MP4" }));
+    await waitFor(() => expect(screen.getByRole("progressbar")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Export MP4" })).toBeTruthy());
+    expect(h.save).not.toHaveBeenCalled();
+    expect(h.settle).toHaveBeenCalledTimes(1);
+    expect(h.settle.mock.calls[0]![0]).toMatchObject({ outcome: "failed" });
+    view.unmount();
   });
 });

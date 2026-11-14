@@ -30,7 +30,7 @@ interface BillingState {
   guest: boolean;
   payments: PaymentRow[];
   dbPending: boolean;
-  videoQuota: { plan: PlanId; limit: number; used: number; remaining: number; windowStart: string; windowEnd: string } | null;
+  minutes: { plan: PlanId; granted: number; used: number; remaining: number; cycleStart: string | null; cycleEnd: string | null; freeGranted: boolean } | null;
 }
 
 interface CheckoutResponse {
@@ -204,12 +204,11 @@ export default function BillingPage() {
                 <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
                   {minutesLabel(PLANS[state.plan].minutesPerCycle, PLANS[state.plan].minutesOneTime)}.
                 </p>
-                <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
-                  Minutes used: coming with the minutes ledger.
-                </p>
-                {state.videoQuota ? (
+                {state.minutes ? (
                   <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
-                    {state.videoQuota.remaining} of {state.videoQuota.limit} videos left this month.
+                    {state.minutes.remaining} of {state.minutes.granted} minutes left
+                    {state.minutes.cycleEnd ? ` until ${fmtDate(state.minutes.cycleEnd)}` : " — one-time minutes, they never expire"}.
+                    {state.minutes.remaining <= 0 ? " Upgrade below for more minutes." : ""}
                   </p>
                 ) : null}
                 {state.storedPlan !== state.plan && state.plan === "free" ? (

@@ -34,6 +34,10 @@ function deps(over: Partial<BatchExportDeps> = {}): BatchExportDeps {
       return new Blob(["x"], { type: "video/mp4" });
     },
     save: vi.fn(),
+    billing: {
+      reserve: vi.fn(async () => ({ minutes: 1 })),
+      settle: vi.fn(async () => ({})),
+    },
     ...over,
   };
 }
@@ -108,5 +112,80 @@ describe("clipFileName", () => {
   it("sanitises titles the way the Studio's export does", () => {
     expect(clipFileName("My great clip! (2026)")).toBe("My-great-clip-2026.mp4");
     expect(clipFileName("")).toBe("captionit.mp4");
+  });
+});
+
+describe("minutes billing — reserve before render, settle after save", () => {
+  it("reserves before rendering and settles completed after the save", async () => {
+    const d = deps();
+    const reserve = d.billing!.reserve as ReturnType<typeof vi.fn>;
+    const settle = d.billing!.settle as ReturnType<typeof vi.fn>;
+    const results = await runBatchExport(["a"], { deps: d });
+    expect(results[0]!.ok).toBe(true);
+    expect(reserve).toHaveBeenCalledTimes(1);
+    expect(reserve.mock.calls[0]![0]).toBe("a");
+    expect(reserve.mock.calls[0]![1]).toMatchObject({ kind: "mp4" });
+    expect(typeof reserve.mock.calls[0]![1].exportId).toBe("string");
+    expect(settle).toHaveBeenCalledTimes(1);
+    expect(settle.mock.calls[0]![0]).toBe("a");
+    expect(settle.mock.calls[0]![1]).toMatchObject({ kind: "mp4", outcome: "completed", actualMinutes: 1 });
+    expect(settle.mock.calls[0]![1].exportId).toBe(reserve.mock.calls[0]![1].exportId);
+    // reserve ran before the render: the mock render records its call order
+    const order: string[] = [];
+    const d2 = deps({
+      billing: {
+        reserve: vi.fn(async () => { order.push("reserve"); return { minutes: 1 }; }),
+        settle: vi.fn(async () => { order.push("settle"); return {}; }),
+      },
+      render: async () => { order.push("render"); return new Blob(["x"], { type: "video/mp4" }); },
+    });
+    await runBatchExport(["a"], { deps: d2 });
+    expect(order).toEqual(["reserve", "render", "settle"]);
+  });
+
+  it("a failed render refunds the hold and the batch continues", async () => {
+    const d = deps({
+      render: async (job) => {
+        if (job.title.includes("bad")) throw new Error("encoder exploded");
+        return new Blob(["x"], { type: "video/mp4" });
+      },
+      loadJob: async (id) => fakeJob(id === "bad" ? "bad clip" : `Clip ${id}`),
+    });
+    const settle = d.billing!.settle as ReturnType<typeof vi.fn>;
+    const results = await runBatchExport(["one", "bad", "three"], { deps: d });
+    expect(results.map((r) => r.ok)).toEqual([true, false, true]);
+    const failedSettles = settle.mock.calls.filter((c) => (c[1] as { outcome: string }).outcome === "failed");
+    expect(failedSettles).toHaveLength(1);
+    expect(failedSettles[0]![0]).toBe("bad");
+    expect(settle.mock.calls.filter((c) => (c[1] as { outcome: string }).outcome === "completed")).toHaveLength(2);
+  });
+
+  it("a reserve failure (minutes used up) fails just that clip and the batch continues", async () => {
+    const d = deps({
+      billing: {
+        reserve: vi.fn(async (projectId: string) => {
+          if (projectId === "broke") throw new Error("Monthly minutes used up — your plan includes 5 minutes a month. Upgrade for more minutes.");
+          return { minutes: 1 };
+        }),
+        settle: vi.fn(async () => ({})),
+      },
+    });
+    const results = await runBatchExport(["ok", "broke", "ok2"], { deps: d });
+    expect(results.map((r) => r.ok)).toEqual([true, false, true]);
+    expect(results[1]!.message).toMatch(/Monthly minutes used up/);
+  });
+
+  it("a load failure reserves nothing", async () => {
+    const d = deps({
+      loadJob: async (id) => {
+        if (id === "gone") throw new Error("The video file isn't on this device.");
+        return fakeJob(`Clip ${id}`);
+      },
+    });
+    const reserve = d.billing!.reserve as ReturnType<typeof vi.fn>;
+    const results = await runBatchExport(["gone", "ok"], { deps: d });
+    expect(results.map((r) => r.ok)).toEqual([false, true]);
+    expect(reserve).toHaveBeenCalledTimes(1);
+    expect(reserve.mock.calls[0]![0]).toBe("ok");
   });
 });
