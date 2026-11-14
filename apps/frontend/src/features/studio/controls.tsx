@@ -102,6 +102,7 @@ export const Toggle: React.FC<{ label: string; checked: boolean; onChange: (v: b
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       onClick={() => onChange(!checked)}
       className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${checked ? "bg-st-em" : "bg-st-hover ring-1 ring-inset ring-st-ink/10"}`}
     >

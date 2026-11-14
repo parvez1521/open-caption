@@ -230,8 +230,8 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
       ) : null}
       <div className="space-y-2 border-b border-st-line p-3">
         <div className="flex gap-2">
-          <input value={find} disabled={locked} onChange={(e) => setFind(e.target.value)} placeholder="Find" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
-          <input value={replace} disabled={locked} onChange={(e) => setReplace(e.target.value)} placeholder="Replace with" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
+          <input value={find} disabled={locked} onChange={(e) => setFind(e.target.value)} placeholder="Find" aria-label="Find" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
+          <input value={replace} disabled={locked} onChange={(e) => setReplace(e.target.value)} placeholder="Replace with" aria-label="Replace with" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
         </div>
         <div className="flex gap-2">
           <label className="ml-auto inline-flex cursor-pointer items-center rounded-lg border border-st-line bg-st-panel px-3 py-1 text-xs font-medium text-st-text hover:bg-st-hover" title="Replace the captions with an .srt or .vtt file (you can undo)">
