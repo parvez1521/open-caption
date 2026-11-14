@@ -3,6 +3,7 @@ import { PLAN_PRICING, planIdFor } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/api/rateLimit";
 import { SITE_URL } from "@/lib/seo";
 import { cashfreeConfig, createCashfreeOrder, currencyForCountry, newOrderId, type CashfreeConfig } from "@/lib/billing/cashfree";
 import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
@@ -35,6 +36,10 @@ export const POST = route(async (req: Request) => {
   if (user.guest) {
     throw new ApiFailure("FORBIDDEN", "Guests can't buy a plan — create a free account first, then upgrade.");
   }
+  // Rate limit (C-08): without it a signed-in user can spam checkout to mint
+  // unlimited payments rows + Cashfree orders. 10/hr is plenty for a human
+  // buying a plan (and retrying a failed attempt a few times).
+  await rateLimit(user.id, "billing_checkout", 10, 3600);
   const body = await parseBody(req, Body);
   const planId = planIdFor(body.plan);
   const pricing = PLAN_PRICING.find((p) => p.id === planId);
