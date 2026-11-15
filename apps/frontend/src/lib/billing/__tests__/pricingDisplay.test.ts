@@ -11,17 +11,16 @@ describe("pricingDisplay", () => {
     expect(priceLabel(pricingFor("free"), "USD")).toBe("$0");
   });
 
-  it("upload-limit labels match the feature bullets on the same card (deep-audit B5)", () => {
-    // plans.ts bullets: 50 MB / 200 MB / 500 MB / 2 GB — the summary line must
-    // render the same numbers (it previously divided by 1,000,000 and showed
-    // 52 / 210 / 524 / 2147).
+  it("upload-limit labels still render per-plan server caps (used by terms + upload errors)", () => {
+    // maxUploadBytes is unchanged (Supabase Free bounds storage files at 50 MB);
+    // the labels are still used by the terms page, the upload hint, /transcribe
+    // and the server videos route — but NO pricing feature bullet mentions them.
     expect(uploadLimitLabel(PLANS.free.maxUploadBytes)).toBe("50 MB");
     expect(uploadLimitLabel(PLANS.starter.maxUploadBytes)).toBe("200 MB");
     expect(uploadLimitLabel(PLANS.growth.maxUploadBytes)).toBe("500 MB");
     expect(uploadLimitLabel(PLANS.pro.maxUploadBytes)).toBe("2 GB");
     for (const entry of [pricingFor("free"), pricingFor("starter"), pricingFor("growth"), pricingFor("pro")]) {
-      const bullet = entry.features.find((f) => f.startsWith("Uploads up to "));
-      expect(bullet).toBe(`Uploads up to ${uploadLimitLabel(PLANS[entry.id].maxUploadBytes)}`);
+      expect(entry.features.some((f) => f.startsWith("Uploads up to "))).toBe(false);
     }
   });
 

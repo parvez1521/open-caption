@@ -4,13 +4,13 @@ import Link from "next/link";
 import { PLAN_PRICING, PLANS } from "@capseasy/shared";
 import { Footer, Nav } from "@/components/home/Sections";
 import { currencyForCountry } from "@/lib/billing/cashfree";
-import { priceLabel, projectCountLabel, uploadLimitLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
+import { priceLabel, projectCountLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import { pageMetadata, productJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
   title: "Pricing",
   description:
-    "Captionit pricing: a free plan with the full editor. 30-day paid passes for more projects, bigger uploads and longer videos. One price, in your currency. No auto-renewal. No surprise charges.",
+    "Captionit pricing: a free plan with the full editor. 30-day paid passes for more projects and longer videos. One price, in your currency. No auto-renewal. No surprise charges.",
   path: "/pricing",
 });
 
@@ -72,8 +72,7 @@ export default async function PricingPage() {
                   ))}
                 </ul>
                 <p className="mt-6 border-t border-white/10 pt-4 text-[12px] leading-relaxed text-[#FFFFEB]/55">
-                  Up to {projectCountLabel(limits.maxProjects)} projects · videos up to {uploadLimitLabel(limits.maxUploadBytes)}{" "}
-                  on this device · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
+                  Up to {projectCountLabel(limits.maxProjects)} projects · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
                   days
                 </p>
                 <Link

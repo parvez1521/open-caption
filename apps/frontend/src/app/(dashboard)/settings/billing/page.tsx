@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { PLAN_PRICING, PLANS, pricingFor, type PlanId } from "@capseasy/shared";
-import { priceLabel, uploadLimitLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
+import { priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import StudioShell from "@/components/studio/StudioShell";
 import { apiClient } from "@/services/api-client";
 import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
@@ -198,8 +198,7 @@ export default function BillingPage() {
                   ) : null}
                 </p>
                 <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
-                  Up to {PLANS[state.plan].maxProjects} projects · uploads to{" "}
-                  {uploadLimitLabel(PLANS[state.plan].maxUploadBytes)} · videos to{" "}
+                  Up to {PLANS[state.plan].maxProjects} projects · videos to{" "}
                   {Math.round(PLANS[state.plan].maxDurationSec / 60)} minutes · exports kept{" "}
                   {PLANS[state.plan].exportRetentionDays} days.
                 </p>

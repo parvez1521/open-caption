@@ -3,6 +3,7 @@ import { CreateVideoBody, VIDEO_MIME_TYPES, newId, effectivePlanId, planFor } fr
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { extFromMime, signedPut } from "@/lib/api/storage";
+import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
 
 /** Step 1 of upload: validate against the plan, register the video, hand back a signed upload URL. */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
@@ -22,7 +23,7 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   // on-device videos never reach our storage: the cap only protects the browser's own storage quota
   const cap = body.local ? limits.maxLocalBytes : limits.maxUploadBytes;
   if (body.size > cap) {
-    throw new ApiFailure("LIMIT_EXCEEDED", `This file is larger than your plan allows (${Math.round(cap / 1048576)} MB).`, { maxUploadBytes: cap });
+    throw new ApiFailure("LIMIT_EXCEEDED", `This file is larger than your plan allows (${uploadLimitLabel(cap)}).`, { maxUploadBytes: cap });
   }
   if (body.probe && body.probe.durationMs / 1000 > limits.maxDurationSec) {
     throw new ApiFailure("LIMIT_EXCEEDED", `Videos longer than ${Math.round(limits.maxDurationSec / 60)} minutes are not allowed on your plan.`, { maxDurationSec: limits.maxDurationSec });

@@ -3,14 +3,31 @@ import { PLAN_IDS, PLAN_PERIOD_DAYS, PLAN_PRICING, PLANS, effectivePlanId, planF
 
 describe("plans config", () => {
   it("free is frozen at its long-standing limits (paid tiers never shrink it)", () => {
+    // Owner-approved change 2026-11-15: free local uploads raised 2 GB -> 4 GB
+    // (all plans now support >= 4 GB on-device uploads; server cap unchanged).
     expect(PLANS.free).toEqual({
       maxUploadBytes: 50 * 1024 * 1024,
-      maxLocalBytes: 2 * 1024 * 1024 * 1024,
+      maxLocalBytes: 4 * 1024 * 1024 * 1024,
       maxDurationSec: 5 * 60,
       cloudAsrMinutesPerMonth: 30,
       exportRetentionDays: 7,
       maxProjects: 10,
+      videosPerMonth: 3,
     });
+  });
+
+  it("every plan supports at least 4 GB local uploads (owner order 2026-11-15)", () => {
+    for (const id of PLAN_IDS) {
+      expect(PLANS[id].maxLocalBytes).toBeGreaterThanOrEqual(4 * 1024 * 1024 * 1024);
+    }
+  });
+
+  it("no pricing feature mentions an upload size (owner order 2026-11-15)", () => {
+    for (const entry of PLAN_PRICING) {
+      for (const feature of entry.features) {
+        expect(feature).not.toMatch(/upload/i);
+      }
+    }
   });
 
   it("every tier has pricing, in display order, free first", () => {
