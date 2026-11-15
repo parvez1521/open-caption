@@ -5,6 +5,8 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { MOTION_TEMPLATES, defaultMotionConfig } from "@capseasy/motion";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
+import { PLAN_PRICING } from "@capseasy/shared";
+import { priceLabel } from "@/lib/billing/pricingDisplay";
 import { FAQS } from "./faqs";
 import { HeroCylinder } from "./HeroCylinder";
 import { HeroKineticCaption } from "./HeroKineticCaption";
@@ -718,6 +720,86 @@ export function Faq() {
             );
           })}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Homepage pricing summary (owner order 2026-11-15): the last section on the
+ * homepage. Renders from the same PLAN_PRICING config as /pricing, so the
+ * plans and prices cannot drift; /pricing keeps the full comparison table.
+ * Currency: the homepage is client-rendered with no geo header, so it shows
+ * the INR prices the owner quoted (₹0 / ₹299 / ₹499 / ₹799) — one currency
+ * only, never ₹ and $ together. Paid plans are 30-day passes, monthly only.
+ *
+ * Clipper filter: plans.ts still carries the old "Editor, Clipper and
+ * Creator Studio included" bullet (a parallel change is removing it there),
+ * so this section drops any feature containing "Clipper" at render time and
+ * prints "Editor and Creator Studio included" on every plan instead. No
+ * upload-size bullet is rendered anywhere here.
+ */
+export function HomePricingSection() {
+  return (
+    <section id="pricing" className="border-t border-[#FFFFEB]/10 px-4 py-24 sm:py-32">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="max-w-2xl">
+          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+            Pricing that stays out of the way.
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-[#FFFFEB]/70">
+            Start free with the full editor. Pay only when you need more videos, more projects, or longer exports.
+            Paid plans are 30-day passes: you pay once, nothing renews on its own.
+          </p>
+        </div>
+        <div data-reveal className="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {PLAN_PRICING.map((entry) => {
+            const isFree = entry.id === "free";
+            const features = [
+              ...entry.features.filter((f) => !f.includes("Clipper")),
+              "Editor and Creator Studio included",
+            ];
+            return (
+              <section
+                key={entry.id}
+                data-tier
+                className={`flex flex-col rounded-2xl border p-6 ${
+                  entry.id === "growth" ? "border-[#34D399]/60 bg-[#1C1C1A]" : "border-white/10 bg-[#1C1C1A]"
+                }`}
+                aria-label={`${entry.name} plan`}
+              >
+                <h3 className="font-sora text-[17px] font-bold">{entry.name}</h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-[#FFFFEB]/60">{entry.tagline}</p>
+                <p className="mt-5">
+                  <span className="font-serif text-4xl font-semibold">{priceLabel(entry, "INR")}</span>
+                  <span className="ml-2 text-[13px] text-[#FFFFEB]/60">{isFree ? "forever" : "for 30 days"}</span>
+                </p>
+                <ul className="mt-6 flex-1 space-y-2.5 text-[13.5px] leading-relaxed text-[#FFFFEB]/85">
+                  {features.map((f) => (
+                    <li key={f} className="flex gap-2">
+                      <span aria-hidden className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={isFree ? "/start" : "/settings/billing"}
+                  className={`mt-6 inline-flex items-center justify-center rounded-full px-5 py-2.5 font-sora text-[13.5px] font-semibold ${
+                    entry.id === "growth" ? "bg-[#34D399] text-[#0B1512]" : "border border-white/25 text-[#FFFFEB]"
+                  }`}
+                >
+                  {isFree ? "Start free" : `Get ${entry.name}`}
+                </Link>
+              </section>
+            );
+          })}
+        </div>
+        <p data-reveal className="mt-8 text-center text-[14px] leading-relaxed text-[#FFFFEB]/70">
+          <Link href="/pricing" className="underline decoration-[#34D399]/60 underline-offset-2">
+            See full comparison
+          </Link>{" "}
+          on the pricing page, including how 30-day passes work.
+        </p>
       </div>
     </section>
   );
