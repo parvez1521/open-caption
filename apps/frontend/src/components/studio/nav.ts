@@ -15,6 +15,10 @@
  * Teleprompter (/prompter) are NOT listed here, but their routes and pages stay live
  * and unlinked. To restore one, re-add its entry below (and its row in the nav test's
  * pinned IA list); nothing else needs to change.
+ *
+ * Owner order 2026-11-15: Clipper is additionally gone from the editor itself —
+ * the left-rail "Clipper" tab and its launch card were removed from StudioPage,
+ * so no surface in the app links to /clipper or /ai-clipper any more.
  */
 
 export type NavGroupId = "primary" | "supporting";
@@ -26,8 +30,8 @@ export interface NavItem {
   group: NavGroupId;
   /** Path prefixes that mark this item active (segment-aware: "/projects" matches "/projects/abc"). */
   activeMatch: string[];
-  /** Package 3 item I.1: the entry opens its surface in a NEW browser tab (the Clipper
-   *  is a standalone workspace — leaving the current page would lose editor state). */
+  /** Package 3 item I.1: the entry opens its surface in a NEW browser tab (a
+   *  standalone workspace — leaving the current page would lose editor state). */
   newTab?: boolean;
 }
 

@@ -30,6 +30,20 @@ describe("plans config", () => {
     }
   });
 
+  it("no pricing surface mentions Clipper (owner order 2026-11-15)", () => {
+    // The Free tier used to read "Editor, Clipper and Creator Studio included";
+    // Clipper is hidden from every user-visible surface now, so no plan name,
+    // tagline or feature bullet may name it.
+    for (const entry of PLAN_PRICING) {
+      expect(entry.name).not.toMatch(/clipper/i);
+      expect(entry.tagline).not.toMatch(/clipper/i);
+      for (const feature of entry.features) {
+        expect(feature).not.toMatch(/clipper/i);
+      }
+    }
+    expect(pricingFor("free").features).toContain("Editor and Creator Studio included");
+  });
+
   it("every tier has pricing, in display order, free first", () => {
     expect(PLAN_PRICING.map((p) => p.id)).toEqual(["free", "starter", "growth", "pro"]);
     for (const id of PLAN_IDS) {

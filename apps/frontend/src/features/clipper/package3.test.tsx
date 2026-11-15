@@ -202,7 +202,12 @@ describe("Clipper launch behaviour (I.1)", () => {
     expect(NAV_ITEMS.map((i) => i.id)).not.toContain("ai-clipper");
     expect(NAV_ITEMS.filter((i) => i.newTab)).toEqual([]);
   });
-  it("the Studio launch card links to the standalone Clipper for THIS project, in a new tab", () => {
+  it("the unlinked launch card still links to the standalone Clipper for THIS project, in a new tab", () => {
+    // Owner order 2026-11-15: the Studio no longer renders this card — the
+    // "Clipper" rail tab and its panel branch were removed from StudioPage
+    // (pinned in features/studio/__tests__/railSections.test.ts). The card
+    // component itself stays live but unlinked, so restoring it is one import
+    // + one panel branch; its link must keep pointing at this project.
     render(<ClipperLaunchCard projectId="proj-9" />);
     const link = screen.getByRole("link", { name: "Open Clipper" });
     expect(link.getAttribute("href")).toBe("/clipper?project=proj-9");
