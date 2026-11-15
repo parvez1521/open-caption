@@ -24,6 +24,13 @@ import {
 
 const NOW = new Date("2026-11-14T10:00:00.000Z");
 
+// Enforcement tests run AFTER the 5-day free launch window ends
+// (20 Nov 2026, 23:59:59 IST): inside the window the quota is lifted, so
+// counting/blocking only applies from 21 Nov. Window behaviour itself is
+// pinned in freeLaunch.test.ts. The videoQuotaWindow tests above keep NOW
+// — that function is pure date math, unaffected by the window.
+const AFTER_WINDOW = new Date("2026-11-25T10:00:00.000Z");
+
 /** Chainable stand-in for the supabase query builder, as videoQuota uses it. */
 function fakeDb(rows: Array<{ id: string }>, error: { code?: string; message?: string } | null = null) {
   const upserts: Array<{ row: Record<string, unknown>; opts: Record<string, unknown> }> = [];
@@ -107,20 +114,20 @@ describe("isVideoQuotaKind", () => {
 describe("getVideoQuotaUsage", () => {
   it("counts the window's events and reports the remainder", async () => {
     const db = fakeDb(events(2));
-    const usage: VideoQuotaUsage = await getVideoQuotaUsage(db, "user-1", "free", null, NOW);
+    const usage: VideoQuotaUsage = await getVideoQuotaUsage(db, "user-1", "free", null, AFTER_WINDOW);
     expect(usage).toMatchObject({ plan: "free", limit: 3, used: 2, remaining: 1 });
   });
 
   it("remaining never goes below zero", async () => {
     const db = fakeDb(events(5));
-    const usage = await getVideoQuotaUsage(db, "user-1", "free", null, NOW);
+    const usage = await getVideoQuotaUsage(db, "user-1", "free", null, AFTER_WINDOW);
     expect(usage.used).toBe(5);
     expect(usage.remaining).toBe(0);
   });
 
   it("fails closed with a plain message when the quota table is not applied yet", async () => {
     const db = fakeDb([], { code: "42P01", message: 'relation "public.video_quota_events" does not exist' });
-    await expect(getVideoQuotaUsage(db, "user-1", "free", null, NOW)).rejects.toMatchObject({
+    await expect(getVideoQuotaUsage(db, "user-1", "free", null, AFTER_WINDOW)).rejects.toMatchObject({
       code: "INTERNAL",
       message: QUOTA_NOT_SET_UP,
     });
@@ -130,13 +137,13 @@ describe("getVideoQuotaUsage", () => {
 describe("checkVideoQuota", () => {
   it("passes under the limit", async () => {
     const db = fakeDb(events(2));
-    const usage = await checkVideoQuota(db, "user-1", "free", null, NOW);
+    const usage = await checkVideoQuota(db, "user-1", "free", null, AFTER_WINDOW);
     expect(usage.remaining).toBe(1);
   });
 
   it("blocks at the Free 3 cap with an upsell message, never a crash", async () => {
     const db = fakeDb(events(3));
-    const err = await checkVideoQuota(db, "user-1", "free", null, NOW).catch((e: unknown) => e);
+    const err = await checkVideoQuota(db, "user-1", "free", null, AFTER_WINDOW).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiFailure);
     expect((err as ApiFailure).code).toBe("LIMIT_EXCEEDED");
     expect((err as ApiFailure).message).toContain("Monthly limit reached");
@@ -146,7 +153,7 @@ describe("checkVideoQuota", () => {
 
   it("blocks a paid plan at its own cap", async () => {
     const db = fakeDb(events(20));
-    const err = await checkVideoQuota(db, "user-1", "growth", "2026-11-20T00:00:00.000Z", NOW).catch((e: unknown) => e);
+    const err = await checkVideoQuota(db, "user-1", "growth", "2026-12-20T00:00:00.000Z", AFTER_WINDOW).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiFailure);
     expect((err as ApiFailure).message).toContain("20 videos a month");
   });
@@ -249,7 +256,7 @@ const reserveInput = (exportId: string, ownerId = "user-1") => ({
   kind: "mp4" as const,
   plan: "free" as const,
   expiresAt: null,
-  now: NOW,
+  now: AFTER_WINDOW,
 });
 
 describe("reserveVideoQuotaEvent", () => {

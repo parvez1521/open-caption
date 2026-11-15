@@ -18,6 +18,18 @@ const api = vi.hoisted(() => ({
   postImpl: null as null | ((...args: unknown[]) => Promise<unknown>),
 }));
 
+// Free launch window (owner, 2026-11-15): off by default so the checkout
+// pins below test post-window behaviour; the window describe flips it on.
+const launch = vi.hoisted(() => ({ active: false }));
+
+vi.mock("@/lib/billing/freeLaunch", () => ({
+  isFreeLaunchWindow: () => launch.active,
+  FREE_LAUNCH_UNTIL_ISO: "2026-11-20T18:29:59.000Z",
+  FREE_LAUNCH_UNTIL: new Date("2026-11-20T18:29:59.000Z"),
+  FREE_LAUNCH_END_LABEL: "20 Nov",
+  PAID_FROM_LABEL: "21 Nov",
+}));
+
 vi.mock("@/services/api-client", () => ({
   apiClient: {
     get: (...args: unknown[]) => api.getImpl!(...args),
@@ -40,6 +52,7 @@ const billingState = {
 };
 
 beforeEach(() => {
+  launch.active = false;
   api.getImpl = async () => billingState;
   api.postImpl = async () => {
     throw new Error("Cashfree /pg/orders failed (401): Invalid client id or secret");
@@ -118,5 +131,22 @@ describe("billing page Cashfree SDK checkout", () => {
     await startCheckout();
     await waitFor(() => expect(checkoutMock).toHaveBeenCalled());
     expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
+describe("billing page free launch window (owner, 2026-11-15)", () => {
+  it("disables buying and shows unlimited videos during the window", async () => {
+    launch.active = true;
+    api.getImpl = async () => ({
+      ...billingState,
+      videoQuota: { plan: "free", limit: 3, used: 2, remaining: 9007199254740991, windowStart: "", windowEnd: "", freeLaunch: true },
+    });
+    render(<BillingPage />);
+    expect(await screen.findByText("Unlimited videos till 20 Nov — everything is free.")).toBeTruthy();
+    expect(await screen.findByText("Everything is free till 20 Nov — paid plans return on 21 Nov.")).toBeTruthy();
+    const buttons = await screen.findAllByRole("button", { name: "Available 21 Nov" });
+    expect(buttons).toHaveLength(3);
+    for (const button of buttons) expect(button).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Get Starter" })).toBeNull();
   });
 });

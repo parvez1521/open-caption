@@ -4,7 +4,9 @@ import Link from "next/link";
 import { PLAN_PRICING, PLANS } from "@capseasy/shared";
 import { Footer, Nav } from "@/components/home/Sections";
 import ComparisonTable from "@/components/pricing/ComparisonTable";
+import MinutesLaunchTable from "@/components/pricing/MinutesLaunchTable";
 import { currencyForCountry } from "@/lib/billing/cashfree";
+import { isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
 import { priceLabel, projectCountLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import { pageMetadata, productJsonLd } from "@/lib/seo";
 
@@ -25,6 +27,9 @@ export const metadata: Metadata = pageMetadata({
 export default async function PricingPage() {
   const country = (await headers()).get("x-vercel-ip-country");
   const currency: DisplayCurrency = currencyForCountry(country);
+  // Free launch window (owner, 2026-11-15): everything free till 20 Nov,
+  // paid returns 21 Nov. Old passes are not buyable until then.
+  const freeLaunch = isFreeLaunchWindow();
 
   return (
     <div className="min-h-screen bg-[#141412] text-[#FFFFEB]">
@@ -44,6 +49,11 @@ export default async function PricingPage() {
           limits, they don&rsquo;t unlock features. Paid plans are 30-day passes: you pay once, nothing renews or
           charges you again automatically.
         </p>
+        {freeLaunch ? (
+          <p className="mt-6 inline-block rounded-full border border-[#34D399]/60 bg-[#1C1C1A] px-4 py-2 text-[13.5px] font-semibold text-[#34D399]">
+            Everything free till 20 Nov — no card needed.
+          </p>
+        ) : null}
 
         <div className="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {PLAN_PRICING.map((entry) => {
@@ -76,20 +86,31 @@ export default async function PricingPage() {
                   Up to {projectCountLabel(limits.maxProjects)} projects · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
                   days
                 </p>
-                <Link
-                  href={isFree ? "/start" : "/settings/billing"}
-                  className={`mt-5 inline-flex items-center justify-center rounded-full px-5 py-2.5 font-sora text-[13.5px] font-semibold ${
-                    entry.id === "growth"
-                      ? "bg-[#34D399] text-[#0B1512]"
-                      : "border border-white/25 text-[#FFFFEB]"
-                  }`}
-                >
-                  {isFree ? "Start free" : `Get ${entry.name}`}
-                </Link>
+                {freeLaunch && !isFree ? (
+                  <span
+                    className="mt-5 inline-flex items-center justify-center rounded-full border border-white/25 px-5 py-2.5 font-sora text-[13.5px] font-semibold text-[#FFFFEB]/60"
+                    aria-disabled="true"
+                  >
+                    Available 21 Nov
+                  </span>
+                ) : (
+                  <Link
+                    href={isFree ? "/start" : "/settings/billing"}
+                    className={`mt-5 inline-flex items-center justify-center rounded-full px-5 py-2.5 font-sora text-[13.5px] font-semibold ${
+                      entry.id === "growth"
+                        ? "bg-[#34D399] text-[#0B1512]"
+                        : "border border-white/25 text-[#FFFFEB]"
+                    }`}
+                  >
+                    {isFree ? "Start free" : `Get ${entry.name}`}
+                  </Link>
+                )}
               </section>
             );
           })}
         </div>
+
+        <MinutesLaunchTable />
 
         <ComparisonTable currency={currency} />
 

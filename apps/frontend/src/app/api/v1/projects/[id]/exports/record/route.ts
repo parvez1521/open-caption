@@ -5,9 +5,11 @@ import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/
 import { getAdmin } from "@/lib/supabase/admin";
 import {
   VIDEO_QUOTA_KINDS,
+  freeLaunchUsage,
   getVideoQuotaUsage,
   recordVideoQuotaEvent,
 } from "@/lib/billing/videoQuota";
+import { isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
 
 const Body = z.object({
   exportId: z.string().uuid(),
@@ -36,6 +38,13 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   if (!project) throw notFound("Project");
 
   const admin = getAdmin();
+  const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
+  const plan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
+  const expiresAt = (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null;
+  // Free launch window (owner, 2026-11-15): the finished video is NOT
+  // counted — no quota event is written, so the window never eats a user's
+  // monthly videos. recorded:false is honest here: nothing was recorded.
+  if (isFreeLaunchWindow()) return ok({ recorded: false, usage: freeLaunchUsage(plan, expiresAt) });
   // recordVideoQuotaEvent answers recorded:false (never throws) when the
   // quota table has not been applied yet.
   const { recorded } = await recordVideoQuotaEvent(admin, {
@@ -46,11 +55,9 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   });
   if (!recorded) return ok({ recorded: false, usage: null });
 
-  const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
-  const plan = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
   let usage = null;
   try {
-    usage = await getVideoQuotaUsage(admin, user.id, plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at ?? null);
+    usage = await getVideoQuotaUsage(admin, user.id, plan, expiresAt);
   } catch (e) {
     if (!(e instanceof ApiFailure)) throw e;
   }

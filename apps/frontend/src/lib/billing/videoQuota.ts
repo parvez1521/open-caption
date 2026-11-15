@@ -2,6 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PLAN_PERIOD_DAYS, effectivePlanId, planFor, type PlanId } from "@capseasy/shared";
 import { ApiFailure } from "@/lib/api/http";
+import { isFreeLaunchWindow } from "./freeLaunch";
 
 /**
  * Monthly video quota — the subscription model (owner, 2026-11-14).
@@ -34,6 +35,8 @@ export interface VideoQuotaUsage {
   remaining: number;
   windowStart: string;
   windowEnd: string;
+  /** True while the 5-day free launch window is active: limits are lifted. */
+  freeLaunch?: boolean;
 }
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -64,6 +67,32 @@ export const isMissingTableError = (error: { code?: string; message?: string } |
 
 export const QUOTA_NOT_SET_UP = "Video limits aren't set up yet — exports are paused until the setup finishes.";
 
+/**
+ * Unlimited remaining during the free launch: a finite sentinel (JSON-safe,
+ * unlike Infinity) so every existing `remaining <= 0` gate passes without
+ * a client change. The billing page branches on `freeLaunch` instead of
+ * printing this number.
+ */
+export const FREE_LAUNCH_REMAINING = Number.MAX_SAFE_INTEGER;
+
+/**
+ * The usage answer while the free launch window is active: the caller's
+ * plan limit is reported honestly, nothing is counted, remaining is
+ * unlimited. No DB access — this never fails on a missing table.
+ */
+export function freeLaunchUsage(plan: PlanId, expiresAt: string | null, now: Date = new Date()): VideoQuotaUsage {
+  const { start, end } = videoQuotaWindow(plan, expiresAt, now);
+  return {
+    plan,
+    limit: planFor(plan).videosPerMonth,
+    used: 0,
+    remaining: FREE_LAUNCH_REMAINING,
+    windowStart: start.toISOString(),
+    windowEnd: end.toISOString(),
+    freeLaunch: true,
+  };
+}
+
 /** Count the caller's finished videos in the current window. */
 export async function getVideoQuotaUsage(
   db: SupabaseClient,
@@ -72,6 +101,12 @@ export async function getVideoQuotaUsage(
   expiresAt: string | null,
   now: Date = new Date(),
 ): Promise<VideoQuotaUsage> {
+  // Free launch window (owner, 2026-11-15): no counting, no limit — the
+  // usage answers unlimited without touching the quota table, so every
+  // read path (billing page, video-quota gate, record usage) reports
+  // unlimited and the client gates (remaining <= 0) pass on their own.
+  // `used` is not counted during the window — nothing displays it then.
+  if (isFreeLaunchWindow(now)) return freeLaunchUsage(plan, expiresAt, now);
   const limit = planFor(plan).videosPerMonth;
   const { start, end } = videoQuotaWindow(plan, expiresAt, now);
   const { data, error } = await db
@@ -206,6 +241,12 @@ export async function reserveVideoQuotaEvent(
   db: SupabaseClient,
   input: { exportId: string; ownerId: string; projectId: string; kind: VideoQuotaKind; plan: PlanId; expiresAt: string | null; now?: Date },
 ): Promise<{ reserved: boolean; usage: VideoQuotaUsage | null }> {
+  // Free launch window (owner, 2026-11-15): the export is allowed and
+  // NOT counted — no quota event is written, so the window never eats a
+  // user's monthly videos. No lock needed: nothing is written.
+  if (isFreeLaunchWindow(input.now ?? new Date())) {
+    return { reserved: true, usage: freeLaunchUsage(input.plan, input.expiresAt, input.now) };
+  }
   return withOwnerExportLock(input.ownerId, async () => {
     let usage: VideoQuotaUsage;
     try {

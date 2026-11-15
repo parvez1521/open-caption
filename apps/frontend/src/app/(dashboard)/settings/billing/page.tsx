@@ -7,6 +7,7 @@ import { priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import StudioShell from "@/components/studio/StudioShell";
 import { apiClient } from "@/services/api-client";
 import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
+import { isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
 
 interface PaymentRow {
   id: string;
@@ -30,7 +31,7 @@ interface BillingState {
   guest: boolean;
   payments: PaymentRow[];
   dbPending: boolean;
-  videoQuota: { plan: PlanId; limit: number; used: number; remaining: number; windowStart: string; windowEnd: string } | null;
+  videoQuota: { plan: PlanId; limit: number; used: number; remaining: number; windowStart: string; windowEnd: string; freeLaunch?: boolean } | null;
 }
 
 interface CheckoutResponse {
@@ -80,6 +81,10 @@ const fmtMoney = (amount: number, currency: string) =>
 
 export default function BillingPage() {
   const [state, setState] = useState<BillingState | null>(null);
+  // Free launch window (owner, 2026-11-15): everything free till 20 Nov,
+  // paid plans return 21 Nov. Buttons stay disabled until then; the
+  // checkout API refuses orders too, so this is display, not the guard.
+  const freeLaunch = isFreeLaunchWindow();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
@@ -204,7 +209,9 @@ export default function BillingPage() {
                 </p>
                 {state.videoQuota ? (
                   <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
-                    {state.videoQuota.remaining} of {state.videoQuota.limit} videos left this month.
+                    {state.videoQuota.freeLaunch
+                      ? "Unlimited videos till 20 Nov — everything is free."
+                      : `${state.videoQuota.remaining} of ${state.videoQuota.limit} videos left this month.`}
                   </p>
                 ) : null}
                 {state.storedPlan !== state.plan ? (
@@ -243,6 +250,11 @@ export default function BillingPage() {
 
             <section className="pt-10" aria-label="Plans">
               <h2 className="font-sora text-[15px] font-bold text-ink">Plans</h2>
+              {freeLaunch ? (
+                <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
+                  Everything is free till 20 Nov — paid plans return on 21 Nov.
+                </p>
+              ) : null}
               <div className="mt-4">
                 <label htmlFor="checkout-phone" className="font-sora text-[13.5px] font-semibold text-ink">
                   Mobile number
@@ -293,11 +305,11 @@ export default function BillingPage() {
                       ) : (
                         <button
                           type="button"
-                          disabled={busyPlan !== null || state.guest}
+                          disabled={busyPlan !== null || state.guest || freeLaunch}
                           onClick={() => void buy(entry.id)}
                           className="rounded-full bg-ink px-5 py-2.5 font-sora text-[13.5px] font-semibold text-sand-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {busyPlan === entry.id ? "Opening checkout…" : state.plan === "free" ? `Get ${entry.name}` : `Switch to ${entry.name}`}
+                          {freeLaunch ? "Available 21 Nov" : busyPlan === entry.id ? "Opening checkout…" : state.plan === "free" ? `Get ${entry.name}` : `Switch to ${entry.name}`}
                         </button>
                       )}
                     </div>

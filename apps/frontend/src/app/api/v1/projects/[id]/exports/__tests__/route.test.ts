@@ -12,6 +12,7 @@ vi.mock("server-only", () => ({}));
 const state = vi.hoisted(() => ({
   guest: false,
   companionOnline: false,
+  freeLaunch: false,
   userDb: null as unknown,
   adminDb: null as unknown,
   inserts: [] as Array<{ table: string; row: Record<string, unknown> }>,
@@ -44,6 +45,19 @@ vi.mock("@/lib/api/storage", () => ({
   },
 }));
 vi.mock("@/lib/supabase/admin", () => ({ getAdmin: () => state.adminDb }));
+
+// Free launch window (owner, 2026-11-15): off by default so the quota
+// pins below test post-window enforcement; the window describe at the
+// end flips the flag on. videoQuota.ts imports the same module via a
+// relative path — vitest keys the mock on the resolved file, so one mock
+// covers both import styles.
+vi.mock("@/lib/billing/freeLaunch", () => ({
+  isFreeLaunchWindow: () => state.freeLaunch,
+  FREE_LAUNCH_UNTIL_ISO: "2026-11-20T18:29:59.000Z",
+  FREE_LAUNCH_UNTIL: new Date("2026-11-20T18:29:59.000Z"),
+  FREE_LAUNCH_END_LABEL: "20 Nov",
+  PAID_FROM_LABEL: "21 Nov",
+}));
 
 import { POST } from "../route";
 
@@ -112,6 +126,7 @@ const post = (body: unknown) =>
 beforeEach(() => {
   state.guest = false;
   state.companionOnline = false;
+  state.freeLaunch = false;
   state.userDb = fakeDb();
   state.adminDb = fakeDb();
   state.inserts = [];
@@ -269,5 +284,16 @@ describe("monthly video quota (owner decision 2026-11-14: Free 3, Starter 10, Pl
     expect(state.enqueued).toHaveLength(1);
     expect(state.upserts.filter((u) => u.table === "video_quota_events")).toHaveLength(1);
     expect(state.quotaEvents).toHaveLength(3);
+  });
+});
+
+describe("free launch window (owner, 2026-11-15)", () => {
+  it("a video export at the cap still queues and writes NO quota event", async () => {
+    state.freeLaunch = true;
+    state.quotaEvents = [{ id: "ev-1" }, { id: "ev-2" }, { id: "ev-3" }];
+    const res = await post({ kind: "mp4" });
+    expect(res.status).toBe(202);
+    expect(state.enqueued).toHaveLength(1);
+    expect(state.upserts.filter((u) => u.table === "video_quota_events")).toHaveLength(0);
   });
 });

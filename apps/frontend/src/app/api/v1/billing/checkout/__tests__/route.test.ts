@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   createArgs: [] as Array<Record<string, unknown>>,
   createImpl: null as null | ((...args: unknown[]) => Promise<unknown>),
   rateLimits: [] as Array<{ subject: string; bucket: string; max: number; windowSeconds: number }>,
+  freeLaunch: false,
 }));
 
 vi.mock("@/lib/api/auth", () => ({
@@ -60,6 +61,16 @@ vi.mock("@/lib/billing/cashfree", () => ({
 
 vi.mock("@/lib/seo", () => ({ SITE_URL: "https://captionit.in" }));
 
+// Free launch window (owner, 2026-11-15): off by default so the checkout
+// pins below test post-window behaviour; the window describe flips it on.
+vi.mock("@/lib/billing/freeLaunch", () => ({
+  isFreeLaunchWindow: () => state.freeLaunch,
+  FREE_LAUNCH_UNTIL_ISO: "2026-11-20T18:29:59.000Z",
+  FREE_LAUNCH_UNTIL: new Date("2026-11-20T18:29:59.000Z"),
+  FREE_LAUNCH_END_LABEL: "20 Nov",
+  PAID_FROM_LABEL: "21 Nov",
+}));
+
 const call = (body: Record<string, unknown> = { plan: "starter", customerPhone: "9876543210" }) =>
   POST(
     new Request("https://example.test/api/v1/billing/checkout", {
@@ -73,6 +84,7 @@ beforeEach(() => {
   state.inserted = [];
   state.createArgs = [];
   state.rateLimits = [];
+  state.freeLaunch = false;
   state.createImpl = async () => ({ paymentSessionId: "sess-1", orderStatus: "ACTIVE" });
 });
 
@@ -151,5 +163,21 @@ describe("billing checkout error surfacing", () => {
     const res = await call();
     expect(res.status).toBe(200);
     expect(state.rateLimits).toEqual([{ subject: "user-1", bucket: "billing_checkout", max: 10, windowSeconds: 3600 }]);
+  });
+});
+
+describe("free launch window (owner, 2026-11-15)", () => {
+  it("refuses checkout during the window — no pass can be bought till 21 Nov", async () => {
+    state.freeLaunch = true;
+    const res = await call();
+    const body = (await res.json()) as { success: boolean; error?: { code: string; message: string } };
+    expect(res.status).toBe(403);
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBe("FORBIDDEN");
+    expect(body.error?.message).toContain("paid plans return on 21 Nov");
+    // The guard runs before rate limiting and before any payments row.
+    expect(state.rateLimits).toHaveLength(0);
+    expect(state.inserted).toHaveLength(0);
+    expect(state.createArgs).toHaveLength(0);
   });
 });
