@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { PLAN_PRICING, PLANS } from "@capseasy/shared";
 import { Footer, Nav } from "@/components/home/Sections";
+import ComparisonTable from "@/components/pricing/ComparisonTable";
 import { currencyForCountry } from "@/lib/billing/cashfree";
 import { priceLabel, projectCountLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import { pageMetadata, productJsonLd } from "@/lib/seo";
@@ -89,6 +90,8 @@ export default async function PricingPage() {
             );
           })}
         </div>
+
+        <ComparisonTable currency={currency} />
 
         <div className="mt-14 max-w-3xl space-y-4 text-[14px] leading-relaxed text-[#FFFFEB]/70">
           <h2 className="font-sora text-[16px] font-bold text-[#FFFFEB]">How paid plans work</h2>
