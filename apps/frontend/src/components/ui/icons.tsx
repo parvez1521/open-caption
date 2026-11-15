@@ -105,6 +105,14 @@ export function EyeOff(props: IconProps) {
   );
 }
 
+export function Heart(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 21c-5-3.5-8.5-7-8.5-10.5C3.5 7 6 4.5 8.8 4.5c1.4 0 2.6.7 3.2 1.8.6-1.1 1.8-1.8 3.2-1.8 2.8 0 5.3 2.5 5.3 6 0 3.5-3.5 7-8.5 10.5z" />
+    </Icon>
+  );
+}
+
 export function Film(props: IconProps) {
   return (
     <Icon {...props}>

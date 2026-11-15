@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Save, Search } from "@/components/ui/icons";
+import { Heart, Save, Search } from "@/components/ui/icons";
+import { useFavouriteLooks } from "@/lib/favouriteLooks";
 import type { CaptionStyleV2, ProjectSettings } from "@capseasy/shared";
 import { withAlpha } from "@motion-ai/caption-engine/core";
 import { LOOKS, LOOK_SECTIONS, fontStack, loadFontFamily, resolveStyle, type LookDefinition } from "@capseasy/templates";
@@ -96,12 +97,16 @@ export const TemplatePoster: React.FC<{ look: LookDefinition }> = ({ look }) => 
 export const TemplateCard = React.memo(function TemplateCard({
   look,
   chosen,
+  favourite,
   onChoose,
+  onToggleFavourite,
   onRemove,
 }: {
   look: LookDefinition;
   chosen: boolean;
+  favourite: boolean;
   onChoose: (look: LookDefinition) => void;
+  onToggleFavourite: (look: LookDefinition) => void;
   onRemove?: (look: LookDefinition) => void;
 }) {
   const choose = () => {
@@ -133,11 +138,32 @@ export const TemplateCard = React.memo(function TemplateCard({
           {look.name}
           {look.number ? <span className="ml-1.5 font-medium text-st-faint">#{look.number}</span> : null}
         </span>
-        {onRemove ? (
-          <button type="button" aria-label={`Delete ${look.name}`} onClick={(e) => { e.stopPropagation(); onRemove(look); }} className="rounded px-1 text-xs text-st-faint hover:bg-st-or/30 hover:text-st-text">✕</button>
-        ) : chosen ? (
-          <span className="rounded-full bg-st-em px-2 py-0.5 text-[10px] font-semibold text-[#141412]">In use</span>
-        ) : null}
+        <span className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            aria-label={`Favourite ${look.name}`}
+            aria-pressed={favourite}
+            title={favourite ? `Remove ${look.name} from favourites` : `Favourite ${look.name}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavourite(look);
+            }}
+            // Enter/Space on the heart must not bubble to the card's choose handler
+            onKeyDown={(e) => e.stopPropagation()}
+            className="rounded p-1.5"
+          >
+            {favourite ? (
+              <Heart className="h-4 w-4 text-[#FFA946]" fill="currentColor" stroke="none" aria-hidden />
+            ) : (
+              <Heart className="h-4 w-4 text-st-text" aria-hidden />
+            )}
+          </button>
+          {onRemove ? (
+            <button type="button" aria-label={`Delete ${look.name}`} onClick={(e) => { e.stopPropagation(); onRemove(look); }} className="rounded px-1 text-xs text-st-faint hover:bg-st-or/30 hover:text-st-text">✕</button>
+          ) : chosen ? (
+            <span className="rounded-full bg-st-em px-2 py-0.5 text-[10px] font-semibold text-[#141412]">In use</span>
+          ) : null}
+        </span>
       </div>
       <AnimatedTemplatePreview look={look} poster={<TemplatePoster look={look} />} />
       <div className="flex flex-wrap gap-1.5 px-3.5 pb-3">
@@ -159,9 +185,16 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
     () => (mine.data ?? []).map((l) => ({ id: `user:${l.id}`, name: l.name, description: "Saved template", category: "My templates", templateId: l.template_id, style: resolveStyle(l.style_json), settings: l.settings_json })),
     [mine.data],
   );
-  const cats = useMemo(() => ["All", ...LOOK_SECTIONS.map((s) => s.label), ...(myLooks.length ? ["My templates"] : [])], [myLooks.length]);
+  const cats = useMemo(() => ["All", "Favourites", ...LOOK_SECTIONS.map((s) => s.label), ...(myLooks.length ? ["My templates"] : [])], [myLooks.length]);
   const [cat, setCat] = useState("All");
   const [q, setQ] = useState("");
+
+  // Favourites are local-only (see lib/favouriteLooks): the known ids are the
+  // built-in catalogue plus the user's saved templates, so a saved template
+  // keeps its heart and a deleted one is ignored, never shown.
+  const knownLookIds = useMemo(() => new Set([...LOOKS.map((l) => l.id), ...myLooks.map((l) => l.id)]), [myLooks]);
+  const { favourites, toggleFavourite } = useFavouriteLooks(knownLookIds);
+  const toggleFavouriteLook = useCallback((look: LookDefinition) => toggleFavourite(look.id), [toggleFavourite]);
 
   // Category chips: ONE horizontally scrollable row (never a wrapped mess), draggable with the
   // mouse like a carousel strip, native swipe on touch. A fade at the edge(s) hints there is more.
@@ -209,7 +242,9 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
   const all = [...myLooks, ...LOOKS];
   const needle = q.trim().toLowerCase();
   const section = LOOK_SECTIONS.find((s) => s.label === cat);
-  const inCat = cat === "All" ? all : cat === "My templates" ? myLooks : section ? section.lookIds.map((id) => all.find((l) => l.id === id)!).filter(Boolean) : all;
+  // Favourites is a category like any other: it narrows the pool first, then
+  // search filters within it — same as category + search already worked.
+  const inCat = cat === "All" ? all : cat === "Favourites" ? all.filter((l) => favourites.has(l.id)) : cat === "My templates" ? myLooks : section ? section.lookIds.map((id) => all.find((l) => l.id === id)!).filter(Boolean) : all;
   // "12" or "#12" finds look number 12
   const numberQuery = /^#?(\d+)$/.exec(needle)?.[1];
   const shown = inCat.filter(
@@ -285,7 +320,7 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
               aria-pressed={cat === c}
               className={`relative shrink-0 rounded-full border px-3 py-2 text-xs transition-colors before:absolute before:-inset-y-1.5 before:-inset-x-1 before:content-[''] ${cat === c ? "border-st-ink bg-st-ink text-st-panel shadow-[inset_0_-2px_0_var(--color-wb-blue)]" : "border-st-line bg-st-panel text-st-muted hover:text-st-text"}`}
             >
-              {c}
+              {c === "Favourites" ? `Favourites (${favourites.size})` : c}
             </button>
           ))}
         </div>
@@ -294,13 +329,21 @@ export const LooksPanel: React.FC<Props> = ({ currentLookId, onChoose, currentSt
         </p>
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
-        {shown.length === 0 ? <p className="py-8 text-center text-sm text-st-faint">No templates match “{q}”.</p> : null}
+        {shown.length === 0 ? (
+          cat === "Favourites" && favourites.size === 0 ? (
+            <p className="py-8 text-center text-sm text-st-faint">No favourites yet — tap the heart on any look.</p>
+          ) : (
+            <p className="py-8 text-center text-sm text-st-faint">No templates match “{q}”.</p>
+          )
+        ) : null}
         {shown.map((look) => (
           <TemplateCard
             key={look.id}
             look={look}
             chosen={look.id === currentLookId}
+            favourite={favourites.has(look.id)}
             onChoose={onChoose}
+            onToggleFavourite={toggleFavouriteLook}
             onRemove={look.category === "My templates" ? removeLook : undefined}
           />
         ))}

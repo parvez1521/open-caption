@@ -33,4 +33,12 @@ describe("house icons", () => {
     const { container: pause } = render(<icons.Pause />);
     expect(pause.querySelectorAll("svg rect").length).toBe(2);
   });
+
+  it("Heart renders a heart path and accepts a filled variant", () => {
+    const { container } = render(<icons.Heart />);
+    expect(container.querySelector("svg path")).not.toBeNull();
+    const { container: filled } = render(<icons.Heart fill="currentColor" stroke="none" />);
+    expect(filled.querySelector("svg")!.getAttribute("fill")).toBe("currentColor");
+    expect(filled.querySelector("svg")!.getAttribute("stroke")).toBe("none");
+  });
 });
