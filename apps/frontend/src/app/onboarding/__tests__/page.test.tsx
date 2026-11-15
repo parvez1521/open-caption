@@ -39,14 +39,14 @@ describe("onboarding page", () => {
 
   it("shows Q1 first with progress, then Q2 on an answer", async () => {
     render(<OnboardingPage />);
-    expect(await screen.findByText("Aap kya ho?")).toBeTruthy();
+    expect(await screen.findByText("What best describes you?")).toBeTruthy();
     expect(screen.getByText("1 of 2")).toBeTruthy();
     expect(screen.getByRole("radio", { name: "Creator" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Skip" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Back/ })).toBeNull();
 
     fireEvent.click(screen.getByRole("radio", { name: "Freelance video editor" }));
-    expect(await screen.findByText("Aapko kya chahiye?")).toBeTruthy();
+    expect(await screen.findByText("What do you want to do?")).toBeTruthy();
     expect(screen.getByText("2 of 2")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
   });
@@ -54,9 +54,9 @@ describe("onboarding page", () => {
   it("Back on Q2 returns to Q1 without marking done", async () => {
     render(<OnboardingPage />);
     fireEvent.click(await screen.findByRole("radio", { name: "Creator" }));
-    await screen.findByText("Aapko kya chahiye?");
+    await screen.findByText("What do you want to do?");
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(await screen.findByText("Aap kya ho?")).toBeTruthy();
+    expect(await screen.findByText("What best describes you?")).toBeTruthy();
     expect(window.localStorage.getItem(ONBOARDING_DONE_KEY)).toBeNull();
     expect(nav.replace).not.toHaveBeenCalled();
   });
@@ -108,13 +108,13 @@ describe("onboarding page", () => {
     render(<OnboardingPage />);
     // the guard redirects before any question renders
     await vi.waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/start"));
-    expect(screen.queryByText("Aap kya ho?")).toBeNull();
+    expect(screen.queryByText("What best describes you?")).toBeNull();
   });
 
   it("a returning user (flag set) is sent straight to /start", async () => {
     window.localStorage.setItem(ONBOARDING_DONE_KEY, "1");
     render(<OnboardingPage />);
     await vi.waitFor(() => expect(nav.replace).toHaveBeenCalledWith("/start"));
-    expect(screen.queryByText("Aap kya ho?")).toBeNull();
+    expect(screen.queryByText("What best describes you?")).toBeNull();
   });
 });
