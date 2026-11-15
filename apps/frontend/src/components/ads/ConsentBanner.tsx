@@ -1,0 +1,66 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Check, ShieldCheck } from "@/components/ui/icons";
+import { readAdConsent, writeAdConsent, type AdConsentChoice } from "@/lib/adConsent";
+
+/**
+ * First-party ad consent banner (A-13, 2026-11-15).
+ *
+ * Shows once, at the bottom of every page, only while advertising is
+ * configured (a publisher id exists) and the visitor has made no choice
+ * yet. Accept loads Google's AdSense code (via AdSenseLoader); Decline
+ * loads nothing. The choice is stored in localStorage and the banner
+ * never asks again on this browser; clearing site data resets it.
+ * GA4 is unaffected: it loads regardless of this choice.
+ * House SVG icons only, full-dark, no third-party CMP script.
+ */
+export function ConsentBanner({ enabled }: { enabled: boolean }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    setVisible(readAdConsent() === null);
+  }, [enabled]);
+
+  if (!enabled || !visible) return null;
+
+  const choose = (choice: AdConsentChoice) => {
+    writeAdConsent(choice);
+    setVisible(false);
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Advertising consent"
+      className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-[#FFFFEB]/15 bg-[#141412] p-4 text-[#FFFFEB] shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:p-5"
+    >
+      <p className="flex items-start gap-2.5 text-sm leading-snug">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#34D399]" aria-hidden />
+        <span>Ads keep Captionit free. Allow personalised ads from Google?</span>
+      </p>
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => choose("accepted")}
+          className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-[#34D399] px-4 text-sm font-semibold text-[#141412]"
+        >
+          <Check className="h-4 w-4" aria-hidden />
+          Accept
+        </button>
+        <button
+          type="button"
+          onClick={() => choose("declined")}
+          className="inline-flex min-h-10 items-center rounded-full border border-[#FFFFEB]/25 px-4 text-sm font-medium text-[#FFFFEB]/80"
+        >
+          Decline
+        </button>
+        <Link href="/cookies" className="ml-auto text-xs text-[#FFFFEB]/60 underline underline-offset-4">
+          Cookie policy
+        </Link>
+      </div>
+    </div>
+  );
+}

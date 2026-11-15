@@ -143,13 +143,13 @@ describe("securityHeaders", () => {
   });
 
   it("allows Google Analytics 4 + AdSense (2026-11-15 CSP fix)", () => {
-    // The GA4 tag (script-src) and its beacons (connect-src), plus the
-    // AdSense loader (script-src), all live in the root layout and render
-    // only when their env vars are set (lib/seo.ts gaMeasurementId /
-    // adsensePublisherId). The live site proved the gap: the tag was in the
-    // served HTML but the CSP blocked it, so GA4 Realtime showed 0 users.
-    // The CSP itself is static — it allows these hosts whether or not the
-    // env vars are set; the env gate decides whether the tags render at all.
+    // The GA4 tag (script-src) and its beacons (connect-src) live in the
+    // root layout and render only when their env var is set (lib/seo.ts
+    // gaMeasurementId / adsensePublisherId). The live site proved the gap:
+    // the tag was in the served HTML but the CSP blocked it, so GA4
+    // Realtime showed 0 users. The CSP itself is static — it allows these
+    // hosts whether or not the env vars are set; the env gate decides
+    // whether the tags render at all.
     expect(directive("script-src")).toContain("https://www.googletagmanager.com");
     expect(directive("script-src")).toContain("https://pagead2.googlesyndication.com");
     const connect = directive("connect-src");
@@ -163,13 +163,24 @@ describe("securityHeaders", () => {
       "utf8",
     );
     expect(layout).toContain("https://www.googletagmanager.com/gtag/js?id=");
-    expect(layout).toContain("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js");
+    // A-13 (2026-11-15): the AdSense script tag left the layout — the
+    // server cannot know the stored consent choice, so the loader
+    // (components/ads/AdSenseLoader.tsx) injects the script only after
+    // Accept. The layout must carry zero ad code; the loader carries the
+    // URL, and GA4 in the layout stays ungated by consent.
+    expect(layout).not.toContain("pagead2.googlesyndication.com");
+    expect(layout).not.toContain("adConsent");
+    const loader = readFileSync(
+      fileURLToPath(new URL("../../components/ads/AdSenseLoader.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(loader).toContain("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js");
     // No ad slots exist in the code yet (no adsbygoogle.push call anywhere
-    // — only the loader in app/layout.tsx), so the ad-serving
+    // — only the loader), so the ad-serving
     // hosts are deliberately NOT allowlisted; add them to
     // img-src/connect-src/frame-src when ad slots ship.
+    expect(loader).not.toContain("adsbygoogle.push");
     expect(layout).not.toContain("adsbygoogle.push");
-    expect(csp).not.toContain("googleads.g.doubleclick.net");
     expect(csp).not.toContain("tpc.googlesyndication.com");
     // Nothing new is framed: the lockdown test pins frame-src exactly.
     expect(directive("frame-src")).not.toContain("googlesyndication");
