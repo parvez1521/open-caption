@@ -9,7 +9,6 @@ import { PLAN_PRICING } from "@capseasy/shared";
 import { priceLabel } from "@/lib/billing/pricingDisplay";
 import { FAQS } from "./faqs";
 import { HeroCylinder } from "./HeroCylinder";
-import { HeroKineticCaption } from "./HeroKineticCaption";
 
 /** A preview item for a motion template, built as a plain literal so this section's static
  *  bundle stays light (the renderer itself arrives with the dynamically-imported MotionPreview). */
@@ -242,10 +241,6 @@ export function Hero() {
           150 looks · 14 languages · No watermark
         </p>
         <HinglishClaim />
-        {/* the kinetic caption itself, live: the Kinetic look rendering word by word */}
-        <div data-hero="kinetic" className="relative z-10 mt-10 max-w-[560px]">
-          <HeroKineticCaption />
-        </div>
       </div>
 
       {/* the captions are the visual: the trending looks on a rotating 3D cylinder */}
