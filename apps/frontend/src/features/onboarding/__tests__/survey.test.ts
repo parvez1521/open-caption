@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  DASHBOARD_DOORS,
   GOAL_DESTINATIONS,
   ONBOARDING_ANSWERS_KEY,
   ONBOARDING_DONE_KEY,
@@ -9,6 +10,7 @@ import {
   isOnboardingDone,
   markOnboardingDone,
   readOnboardingAnswers,
+  recommendedGoal,
   saveOnboardingAnswers,
   shouldShowSurvey,
 } from "../survey";
@@ -21,10 +23,19 @@ import {
  */
 
 describe("onboarding survey questions", () => {
-  it("asks exactly two questions, one screen at a time", () => {
+  it("asks exactly two questions, one screen at a time, in plain English", () => {
     expect(SURVEY_QUESTIONS).toHaveLength(2);
-    expect(SURVEY_QUESTIONS[0].question).toBe("Aap kya ho?");
-    expect(SURVEY_QUESTIONS[1].question).toBe("Aapko kya chahiye?");
+    expect(SURVEY_QUESTIONS[0].question).toBe("What best describes you?");
+    expect(SURVEY_QUESTIONS[1].question).toBe("What do you want to do?");
+  });
+
+  it("no Hinglish remains anywhere in the survey copy", () => {
+    const copy = JSON.stringify(SURVEY_QUESTIONS);
+    expect(copy).not.toMatch(/Aap|chahiye|kya ho|karo|chahte/i);
+    for (const q of SURVEY_QUESTIONS) {
+      expect(q.question.split(" ").length).toBeLessThanOrEqual(12);
+      for (const o of q.options) expect(o.label.split(" ").length).toBeLessThanOrEqual(12);
+    }
   });
 
   it("Q1 offers the four user types, no emojis", () => {
@@ -68,6 +79,36 @@ describe("goal destinations", () => {
     expect(SURVEY_FINISH_DESTINATION).not.toBe(destinationForGoal("transcribe"));
     expect(SURVEY_FINISH_DESTINATION).not.toBe(destinationForGoal("edit"));
     expect(SURVEY_FINISH_DESTINATION).not.toBe(destinationForGoal("captions"));
+  });
+});
+
+describe("dashboard doors — the highlight the stored answers drive", () => {
+  it("one door per goal, each pointing at its goal destination", () => {
+    expect(DASHBOARD_DOORS.map((d) => d.goal)).toEqual(["transcribe", "edit", "captions"]);
+    expect(DASHBOARD_DOORS.map((d) => d.href)).toEqual(["/transcribe", "/editor", "/captions"]);
+    for (const door of DASHBOARD_DOORS) {
+      expect(door.href).toBe(destinationForGoal(door.goal));
+    }
+  });
+
+  it("door subs reuse the survey's Q2 option labels word for word", () => {
+    const q2Labels = SURVEY_QUESTIONS[1].options.map((o) => o.label);
+    expect(DASHBOARD_DOORS.map((d) => d.sub)).toEqual(q2Labels);
+  });
+
+  it("the stored goal is the recommended door", () => {
+    expect(recommendedGoal({ userType: "creator", goal: "transcribe" })).toBe("transcribe");
+    expect(recommendedGoal({ userType: "teacher", goal: "edit" })).toBe("edit");
+    expect(recommendedGoal({ userType: "business", goal: "captions" })).toBe("captions");
+  });
+
+  it("no stored answers means no highlight, never a crash", () => {
+    expect(recommendedGoal(null)).toBeNull();
+    expect(recommendedGoal({ userType: "creator", goal: null })).toBeNull();
+  });
+
+  it("an unknown stored goal means no highlight", () => {
+    expect(recommendedGoal({ userType: null, goal: "nope" as never })).toBeNull();
   });
 });
 

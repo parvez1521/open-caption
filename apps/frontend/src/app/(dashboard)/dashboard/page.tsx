@@ -8,11 +8,23 @@ import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { User } from "@/services/types";
 import StudioShell from "@/components/studio/StudioShell";
 import ProjectsList from "@/components/workspace/ProjectsList";
+import StartDoors from "@/components/dashboard/StartDoors";
+import { readOnboardingAnswers, recommendedGoal } from "@/features/onboarding/survey";
+import type { SurveyGoal } from "@/features/onboarding/survey";
 
 export default function DashboardPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  // The onboarding survey's stored goal, read once on mount: the matching
+  // tool door below is highlighted for it. readOnboardingAnswers returns
+  // null when there are no (or corrupt) stored answers, so the doors render
+  // with no highlight instead of crashing — the survey is optional.
+  const [highlightedGoal, setHighlightedGoal] = useState<SurveyGoal | null>(null);
+
+  useEffect(() => {
+    setHighlightedGoal(recommendedGoal(readOnboardingAnswers()));
+  }, []);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -42,6 +54,8 @@ export default function DashboardPage() {
             <p className="mt-2 text-[14px] text-sand-800">{isGuest ? "Every clip you're captioning, in one place. You're exploring as a guest. Projects are saved to this guest session. A free account keeps them under your name." : "Every clip you're captioning, in one place. Projects stay saved on your account. Pick up where you left off."}</p>
           </div>
         </div>
+
+        <StartDoors recommendedGoal={highlightedGoal} />
 
         <div className="grid grid-cols-1 gap-4 pt-8 sm:grid-cols-2">
           <Link href="/exports" className="wb-panel block p-5 transition-colors hover:border-sand-300">

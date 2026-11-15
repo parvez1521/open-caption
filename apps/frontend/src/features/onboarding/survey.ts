@@ -12,7 +12,11 @@
  *
  * Destinations (resolved from the real doors, not invented) — the goal→tool
  * map the dashboard uses to offer the matching tool; the survey itself
- * always lands on the dashboard first (SURVEY_FINISH_DESTINATION):
+ * always lands on the dashboard first (SURVEY_FINISH_DESTINATION), where
+ * DASHBOARD_DOORS renders the three tool doors and highlights the one that
+ * matches the stored goal (recommendedGoal). No stored answers (skipped
+ * survey, returning user, corrupt storage) means no highlight, never a
+ * crash — the doors all render the same.
  *   transcribe → /transcribe (the standalone Transcribe tool)
  *   edit       → /editor (the Normal Editor's front door: continue the most
  *                recent project, or pick any project to edit — the "editor"
@@ -46,7 +50,7 @@ export const SURVEY_QUESTIONS: readonly [
 ] = [
   {
     id: "user-type",
-    question: "Aap kya ho?",
+    question: "What best describes you?",
     options: [
       { value: "creator", label: "Creator" },
       { value: "freelance-editor", label: "Freelance video editor" },
@@ -56,7 +60,7 @@ export const SURVEY_QUESTIONS: readonly [
   },
   {
     id: "goal",
-    question: "Aapko kya chahiye?",
+    question: "What do you want to do?",
     options: [
       { value: "transcribe", label: "Transcribe a video or audio" },
       { value: "edit", label: "Edit a video" },
@@ -77,6 +81,34 @@ export const SURVEY_FINISH_DESTINATION = "/dashboard";
 
 export function destinationForGoal(goal: SurveyGoal): string {
   return GOAL_DESTINATIONS[goal];
+}
+
+/**
+ * The dashboard's tool doors, one source — the dashboard renders these and
+ * highlights the door whose goal matches the stored survey answers. The
+ * hrefs reuse GOAL_DESTINATIONS so a door can never drift from the survey's
+ * goal map; the subs reuse the survey's Q2 option labels word for word.
+ */
+export const DASHBOARD_DOORS: readonly {
+  goal: SurveyGoal;
+  href: string;
+  label: string;
+  sub: string;
+}[] = [
+  { goal: "transcribe", href: GOAL_DESTINATIONS.transcribe, label: "Transcribe", sub: "Transcribe a video or audio" },
+  { goal: "edit", href: GOAL_DESTINATIONS.edit, label: "Editor", sub: "Edit a video" },
+  { goal: "captions", href: GOAL_DESTINATIONS.captions, label: "Captions", sub: "Add captions to a video" },
+];
+
+/**
+ * Which dashboard door the stored answers recommend, or null when there is
+ * nothing to recommend: no stored answers, a skipped survey (goal null), or
+ * a goal that is not a real door. Pure, so the dashboard and the tests share
+ * it — the dashboard never highlights on an unvalidated value.
+ */
+export function recommendedGoal(answers: SurveyAnswers | null): SurveyGoal | null {
+  if (!answers || !answers.goal) return null;
+  return answers.goal in GOAL_DESTINATIONS ? answers.goal : null;
 }
 
 /* ---------- first-visit flag + stored answers (localStorage only) ---------- */
