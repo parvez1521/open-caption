@@ -838,7 +838,11 @@ export function Footer() {
           <span>© {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.</span>
           <span className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-[#34D399]" />
-            Zero Server Cost · Local Hardware-Accelerated Rendering
+            {/* A-11 (2026-11-15): the old "Zero Server Cost" claim is gone.
+                It was misleading: the site does use servers (hosting,
+                sign-in, project storage). What is true is that rendering
+                runs locally on the visitor's device, so only that is said. */}
+            Local Hardware-Accelerated Rendering
           </span>
         </div>
 

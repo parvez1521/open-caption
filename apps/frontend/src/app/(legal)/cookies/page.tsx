@@ -10,6 +10,7 @@ const ITEMS: [string, string, string, string][] = [
   ["sb-…-auth-token", "Local storage", "Keeps you signed in (your session with our authentication provider).", "Until you sign out"],
   ["ce_tl_mode, ce_tl_snap, ce_tl_ripple", "Local storage", "Remembers your timeline view (words or lines, snapping, linked moves).", "Until you clear it"],
   ["ce_intro", "Session storage", "Shows the landing-page intro animation once per visit.", "Until you close the tab"],
+  ["captionit-ad-consent", "Local storage", "Remembers your advertising choice (Accept or Decline) so the banner does not ask again.", "Until you clear it"],
   ["_ga, _ga_<id>", "Cookie (Google Analytics 4)", "Distinguishes visits for Google Analytics 4 — page visits, approximate location, device and browser. No video, audio or transcript data.", "Up to 2 years"],
 ];
 
@@ -37,7 +38,7 @@ export default function CookiesPage() {
             </tbody>
           </table>
         </div>
-        <p>All of these are strictly necessary or remember a choice you made, so they do not need consent under most cookie laws — except the Google Analytics cookies, which are analytics, not strictly necessary. If we ever add marketing cookies, we will ask for your consent first and update this page.</p>
+        <p>All of these are strictly necessary or remember a choice you made, so they do not need consent under most cookie laws — except the Google Analytics cookies, which are analytics, not strictly necessary. If advertising is enabled, we ask first with an on-site banner (Accept or Decline) and load Google&rsquo;s ad code only after you accept.</p>
       </Sec>
 
       <Sec id="analytics" title="Analytics">
@@ -55,7 +56,7 @@ export default function CookiesPage() {
       </Sec>
 
       <Sec id="control" title="Your control">
-        <p>You can clear site data in your browser settings at any time. Clearing it signs you out and resets the editor preferences above; it does not delete your projects.</p>
+        <p>You can clear site data in your browser settings at any time. Clearing it signs you out and resets the editor preferences and your advertising choice above; it does not delete your projects.</p>
       </Sec>
     </LegalDoc>
   );

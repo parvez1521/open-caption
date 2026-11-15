@@ -8,6 +8,8 @@ import { DEFAULT_OPENGRAPH_IMAGES, DEFAULT_TWITTER_IMAGES, SITE_URL, adsensePubl
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { AdSenseLoader } from "@/components/ads/AdSenseLoader";
+import { ConsentBanner } from "@/components/ads/ConsentBanner";
 import "./globals.css";
 
 /**
@@ -38,6 +40,11 @@ const googleVerification = googleSiteVerification();
 
 // AdSense: the loader renders ONLY when NEXT_PUBLIC_ADSENSE_PUBLISHER_ID holds a
 // valid publisher id — no env, zero ad code on any page (see lib/seo.ts).
+// It is NOT a script tag here any more: the loader is a client component
+// (components/ads/AdSenseLoader.tsx) that injects the script only after
+// the visitor accepts ads in the consent banner (A-13, 2026-11-15).
+// Server rendering cannot know the stored choice, so a <script> here
+// would load Google's ad code before consent.
 const adsenseId = adsensePublisherId();
 
 // GA4: same env gate as AdSense — the loader renders ONLY when
@@ -97,10 +104,9 @@ export default function RootLayout({
         {/* first: a Google / email sign-in return goes straight to the studio, never the homepage */}
         <script dangerouslySetInnerHTML={{ __html: authReturnScript() }} />
         <script dangerouslySetInnerHTML={{ __html: introScript(process.env.NODE_ENV !== "production") }} />
-        {adsenseId ? (
-          // eslint-disable-next-line @next/next/no-sync-scripts
-          <script async src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${adsenseId}`} crossOrigin="anonymous" />
-        ) : null}
+        {/* GA4 only: the AdSense script is NOT here any more — it loads
+            through AdSenseLoader in <body>, gated on ad consent (A-13).
+            GA4 stays ungated: it loads whenever its env var is set. */}
         {gaId ? (
           <>
             {/* eslint-disable-next-line @next/next/no-sync-scripts */}
@@ -119,6 +125,8 @@ export default function RootLayout({
       >
         <a href="#main-content" className="skip-link">Skip to main content</a>
         <ServiceWorkerRegister />
+        <AdSenseLoader publisherId={adsenseId} />
+        <ConsentBanner enabled={Boolean(adsenseId)} />
         <QueryProvider>{children}</QueryProvider>
         <Analytics />
         <SpeedInsights />
