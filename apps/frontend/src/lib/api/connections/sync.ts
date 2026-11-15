@@ -11,7 +11,7 @@ import {
   type ConnectionRow,
 } from "./store";
 import { exchangeYoutubeCode, fetchYoutubeChannel, fetchYoutubeUploads, refreshYoutubeToken } from "./youtube";
-import { exchangeInstagramCode, fetchInstagramAccount, fetchInstagramMedia, INSTAGRAM_SYNC_LIMIT } from "./instagram";
+import { exchangeInstagramCode, fetchInstagramAccount, fetchInstagramMedia, INSTAGRAM_MEDIA_PAGE_SIZE } from "./instagram";
 import type { FetchImpl, SyncedPost } from "./posts";
 
 /**
@@ -188,7 +188,9 @@ export async function syncConnection(ownerId: string, platform: ConnectPlatform,
       // Instagram writes each insights batch as it lands (like the
       // YouTube page-by-page walk): a failure on a later batch leaves
       // the earlier batches' posts in the list.
-      const posts = await fetchInstagramMedia(conn.accessToken, conn.accountId, fetchImpl, INSTAGRAM_SYNC_LIMIT, async (pagePosts) => {
+      // C-02: full sync — INSTAGRAM_MEDIA_PAGE_SIZE is the per-page
+      // size only; fetchInstagramMedia walks every page, no total cap.
+      const posts = await fetchInstagramMedia(conn.accessToken, conn.accountId, fetchImpl, INSTAGRAM_MEDIA_PAGE_SIZE, async (pagePosts) => {
         try {
           synced += await writeSyncedPosts(ownerId, pagePosts);
         } catch (err) {

@@ -341,3 +341,91 @@ describe("Instagram mappers", () => {
     expect(handed).toEqual([ids.slice(0, 5), ids.slice(5, 10), ids.slice(10, 12)]);
   });
 });
+
+describe("fetchInstagramMedia paging (C-02: full sync, no 50-post cap)", () => {
+  const mediaItem = (id: string) => ({
+    id,
+    caption: `Post ${id}`,
+    timestamp: "2026-11-03T08:30:00+0000",
+    like_count: 1,
+    comments_count: 0,
+  });
+  const pageUrl = (after: string) => `https://graph.facebook.com/v23.0/ig-1/media?fields=id&limit=50&after=${after}`;
+
+  /**
+   * Paged /media stub: pages keyed by the `after` cursor ("first" = the
+   * initial request). Each page lists its items and, when there is
+   * another page, its next cursor — served as Meta serves it, a full
+   * paging.next URL. Insights always answer views=10.
+   */
+  function pagedFetch(pages: Record<string, { data: unknown[]; next?: string }>) {
+    const mediaCalls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes("/insights")) return json({ data: [{ name: "views", values: [{ value: 10 }] }] });
+      mediaCalls.push(url);
+      const after = new URL(url).searchParams.get("after") ?? "first";
+      const page = pages[after];
+      if (!page) throw new Error(`unexpected media page after=${after}`);
+      const body: Record<string, unknown> = { data: page.data };
+      if (page.next) body.paging = { cursors: { after: page.next }, next: pageUrl(page.next) };
+      return json(body);
+    }) as unknown as typeof fetch;
+    return { fetchImpl, mediaCalls };
+  }
+
+  it("walks every page via paging.next and returns all posts, in order", async () => {
+    const { fetchImpl, mediaCalls } = pagedFetch({
+      first: { data: [mediaItem("m1"), mediaItem("m2")], next: "p2" },
+      p2: { data: [mediaItem("m3")] },
+    });
+    const handed: string[][] = [];
+    const posts = await fetchInstagramMedia("tok", "ig-1", fetchImpl, 50, (batch) => {
+      handed.push(batch.map((p) => p.externalId));
+    });
+    expect(posts.map((p) => p.externalId)).toEqual(["m1", "m2", "m3"]);
+    expect(posts[0]).toMatchObject({ views: 10, likes: 1 });
+    expect(mediaCalls).toHaveLength(2);
+    expect(handed).toEqual([["m1", "m2"], ["m3"]]);
+  });
+
+  it("no 50-post cap: three full pages (150 posts) all sync", async () => {
+    const ids = Array.from({ length: 150 }, (_, i) => `m${i + 1}`);
+    const { fetchImpl, mediaCalls } = pagedFetch({
+      first: { data: ids.slice(0, 50).map(mediaItem), next: "p2" },
+      p2: { data: ids.slice(50, 100).map(mediaItem), next: "p3" },
+      p3: { data: ids.slice(100, 150).map(mediaItem) },
+    });
+    const posts = await fetchInstagramMedia("tok", "ig-1", fetchImpl, 50);
+    expect(posts).toHaveLength(150);
+    expect(posts.map((p) => p.externalId)).toEqual(ids);
+    expect(mediaCalls).toHaveLength(3);
+  });
+
+  it("a repeated page cursor stops the walk instead of paging forever", async () => {
+    const mediaCalls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes("/insights")) return json({ data: [] });
+      mediaCalls.push(url);
+      if (mediaCalls.length === 1) return json({ data: [], paging: { next: pageUrl("p2") } });
+      // Page 2 points back at page 1's URL — the same cycling shape the
+      // account-discovery guard throws on.
+      if (mediaCalls.length === 2) return json({ data: [], paging: { next: mediaCalls[0] } });
+      throw new Error("walk did not stop on the repeated cursor");
+    }) as unknown as typeof fetch;
+    await expect(fetchInstagramMedia("tok", "ig-1", fetchImpl)).rejects.toThrow("repeated page cursor");
+    expect(mediaCalls).toHaveLength(2);
+  });
+
+  it("a post repeated across pages is returned and handed over once", async () => {
+    const { fetchImpl } = pagedFetch({
+      first: { data: [mediaItem("m1"), mediaItem("m2")], next: "p2" },
+      p2: { data: [mediaItem("m2"), mediaItem("m3")] },
+    });
+    const handed: string[][] = [];
+    const posts = await fetchInstagramMedia("tok", "ig-1", fetchImpl, 50, (batch) => {
+      handed.push(batch.map((p) => p.externalId));
+    });
+    expect(posts.map((p) => p.externalId)).toEqual(["m1", "m2", "m3"]);
+    expect(handed).toEqual([["m1", "m2"], ["m3"]]);
+  });
+});
