@@ -400,7 +400,7 @@ const PIPELINE_STEPS = [
  */
 export function HowItWorks() {
   return (
-    <section id="how" className="relative px-4 py-24 sm:py-32">
+    <section id="how" className="relative scroll-mt-20 px-4 py-24 sm:py-32">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-12">
         <div data-reveal className="lg:col-span-4">
           <div className="lg:sticky lg:top-28">
@@ -609,7 +609,7 @@ function BrowserCard() {
 
 export function Privacy() {
   return (
-    <section id="privacy" className="px-4 pb-24 sm:pb-32">
+    <section id="privacy" className="scroll-mt-20 px-4 pb-24 sm:pb-32">
       <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] border border-[#FFFFEB]/12 bg-[#1E1E1B] px-6 py-14 text-[#FFFFEB] sm:px-14 sm:py-20 shadow-2xl">
         <div className="relative grid items-center gap-10 lg:grid-cols-2">
           <div className="min-w-0 lg:h-full lg:order-1">
@@ -661,7 +661,7 @@ const CONTROLS = [
  */
 export function Control() {
   return (
-    <section id="control" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+    <section id="control" className="scroll-mt-20 px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
@@ -689,7 +689,7 @@ export function Faq() {
   const [activeIdx, setActiveIdx] = useState(0);
 
   return (
-    <section id="faq" className="px-4 pb-24 sm:pb-32">
+    <section id="faq" className="scroll-mt-20 px-4 pb-24 sm:pb-32">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
@@ -742,7 +742,7 @@ export function Faq() {
  */
 export function HomePricingSection() {
   return (
-    <section id="pricing" className="border-t border-[#FFFFEB]/10 px-4 py-24 sm:py-32">
+    <section id="pricing" className="scroll-mt-20 border-t border-[#FFFFEB]/10 px-4 py-24 sm:py-32">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">

@@ -155,13 +155,29 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
   const [tMs, setTMs] = useState(0);
   const [boxW, setBoxW] = useState(0);
   const tRef = useRef(0);
+  // The overlay scale follows the box width. Measure it with a ResizeObserver,
+  // NOT on the 100ms clock tick below: the old tick measured the box 10x/s per
+  // player (four players = 40 forced synchronous layouts a second), which is
+  // layout thrash while the user scrolls (owner report 2026-11-15).
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const measure = () => setBoxW(el.getBoundingClientRect().width);
+    measure();
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(measure);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [near]);
   useEffect(() => {
     if (!near || !doc) return;
     const el = box.current;
     if (!el) return;
     tRef.current = 0;
     setTMs(0);
-    setBoxW(el.getBoundingClientRect().width);
     // Budget devices show the still, not the player: there is no <video> clock, so drive the
     // on-frame captions (and the side panels) from a looping timer instead — otherwise the
     // overlay freezes on the first page and the captions only live in the side panels.
@@ -174,7 +190,6 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
       return () => clearInterval(id);
     }
     const tick = () => {
-      setBoxW(el.getBoundingClientRect().width);
       const v = el.querySelector("video");
       if (!v) return;
       const ms = v.currentTime * 1000;
