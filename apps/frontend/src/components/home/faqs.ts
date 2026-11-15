@@ -2,7 +2,7 @@
 export const FAQS = [
   {
     q: "Is Captionit really free?",
-    a: "Yes. Captions, every look, the full editor, MP4 and SRT exports are free. No watermark. Free videos can be up to 5 minutes long. 3 finished videos a month on the free plan; exports need a free account. Paid 30-day passes raise the limits. See Pricing.",
+    a: "Yes. Captions, every look, the full editor, MP4 and SRT exports are free. No watermark. Free videos can be up to 5 minutes long. Exports need a free account. Paid plans raise the limits. See Pricing.",
   },
   {
     q: "Is my video uploaded anywhere?",

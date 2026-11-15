@@ -29,7 +29,10 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).repl
 // the sitemap listed it twice).
 // /auto-caption-generator is the first SEO tool landing page (competitor-intelligence
 // programme, 2026-11-13): an indexable public page, not an app route.
-export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
+// /auto-captions-for-reels is the second (SEO programme, 2026-11-15): a
+// Reels-specific guide + tool page for "auto captions for reels", the
+// weakest-competition long-tail in the SERP research.
+export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
 
 /** App routes behind sign-in: never indexed (metadata noindex + robots disallow).
  *  Covers every (dashboard) route in the shell nav, plus the auth-flow helpers —
@@ -145,13 +148,18 @@ export function pageMetadata({
  * Homepage SoftwareApplication JSON-LD. Honest fields only: the product is a
  * free in-browser tool today, so the offer is price 0 and there are NO
  * ratings, reviews or invented prices.
+ *
+ * The `url` defaults to the site root (the homepage). Tool landing pages
+ * that reuse this block MUST pass their own canonical — the
+ * /auto-caption-generator page used to emit the homepage URL while its
+ * canonical pointed at itself (schema-check medium finding, 2026-11-15).
  */
-export function softwareApplicationJsonLd() {
+export function softwareApplicationJsonLd(options?: { url?: string }) {
   return {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     name: BRAND_NAME,
-    url: SITE_URL,
+    url: options?.url ?? SITE_URL,
     description: BRAND_DESCRIPTION,
     applicationCategory: "MultimediaApplication",
     operatingSystem: "Web browser",

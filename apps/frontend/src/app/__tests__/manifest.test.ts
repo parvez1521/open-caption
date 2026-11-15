@@ -34,7 +34,7 @@ describe("PWA manifest", () => {
     expect(m.id).toBe("/");
     expect(m.name).toBe("Captionit");
     expect(m.short_name).toBe("Captionit");
-    expect(m.description).toContain("animated captions timed to every word");
+    expect(m.description).toContain("auto captions timed to every word");
     expect(m.start_url).toBe("/");
     expect(m.scope).toBe("/");
     expect(m.display).toBe("standalone");

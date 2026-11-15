@@ -14,7 +14,9 @@ import {
 } from "../seo";
 import { FAQS } from "../../components/home/faqs";
 import { AUTO_CAPTION_FAQS } from "../../app/auto-caption-generator/faqs";
+import { REELS_FAQS } from "../../app/auto-captions-for-reels/faqs";
 import { metadata as autoCaptionMetadata } from "../../app/auto-caption-generator/layout";
+import { metadata as reelsMetadata } from "../../app/auto-captions-for-reels/layout";
 import sitemap from "../../app/sitemap";
 import robots from "../../app/robots";
 import { GET as adsTxtGET } from "../../app/ads.txt/route";
@@ -266,10 +268,10 @@ describe("per-route metadata (shipped modules)", () => {
   });
 
   it("the homepage title and OG title agree (both the full <title> copy)", () => {
-    expect(homeMetadata.title).toEqual({ absolute: expect.stringContaining("Word-timed captions") });
-    expect(homeMetadata.openGraph?.title).toBe("Word-timed captions for Reels, Shorts and TikTok, made in your browser | Captionit");
+    expect(homeMetadata.title).toEqual({ absolute: expect.stringContaining("Auto captions") });
+    expect(homeMetadata.openGraph?.title).toBe("Auto captions for Reels, Shorts and TikTok, made in your browser | Captionit");
     expect(homeMetadata.alternates?.canonical).toBe("/");
-    expect(homeMetadata.description).toContain("animated captions timed to every word");
+    expect(homeMetadata.description).toContain("auto captions timed to every word");
     // the home-layout override replaces the root openGraph/twitter wholesale,
     // so it must re-state everything the root provides (url, siteName,
     // locale, card, images) or the homepage silently loses them.
@@ -359,7 +361,7 @@ describe("competitor-intelligence programme (2026-11-13)", () => {
   });
 
   it("/auto-caption-generator has its own title, description and canonical, and is indexable", () => {
-    expect(autoCaptionMetadata.title).toContain("Automatic Video Caption Generator");
+    expect(autoCaptionMetadata.title).toContain("Auto Caption Generator");
     expect(autoCaptionMetadata.description).toContain("150");
     expect(autoCaptionMetadata.alternates?.canonical).toBe("/auto-caption-generator");
     expect(autoCaptionMetadata.robots).toBeUndefined();
@@ -395,5 +397,54 @@ describe("competitor-intelligence programme (2026-11-13)", () => {
     }
     // It serialises cleanly — what the page embeds is what was tested.
     expect(() => JSON.parse(JSON.stringify(ld))).not.toThrow();
+  });
+});
+
+describe("SEO programme (2026-11-15)", () => {
+  it("/auto-captions-for-reels is indexable: in the sitemap at priority 0.8, not disallowed by robots", () => {
+    expect(INDEXABLE_PATHS).toContain("/auto-captions-for-reels");
+    const entries = sitemap();
+    const entry = entries.find((e) => e.url === `${SITE_URL}/auto-captions-for-reels`);
+    expect(entry).toMatchObject({ priority: 0.8, changeFrequency: "monthly" });
+    const result = robots();
+    const rules = Array.isArray(result.rules) ? result.rules[0] : result.rules;
+    const disallow = rules?.disallow as string[];
+    expect(disallow).not.toContain("/auto-captions-for-reels");
+  });
+
+  it("/auto-captions-for-reels has its own title, description and canonical, and is indexable", () => {
+    expect(reelsMetadata.title).toContain("Auto Captions for Reels");
+    expect(reelsMetadata.description).toContain("auto captions");
+    expect(reelsMetadata.alternates?.canonical).toBe("/auto-captions-for-reels");
+    expect(reelsMetadata.robots).toBeUndefined();
+    expect(reelsMetadata.title).not.toBe(autoCaptionMetadata.title);
+  });
+
+  it("the Reels page's FAQPage mirrors its visible FAQ copy exactly (same source array)", () => {
+    const ld = faqPageJsonLd(REELS_FAQS);
+    expect(ld.mainEntity).toHaveLength(REELS_FAQS.length);
+    expect(new Set(REELS_FAQS.map((f) => f.q)).size).toBe(REELS_FAQS.length);
+    ld.mainEntity.forEach((entity, i) => {
+      expect(entity.name).toBe(REELS_FAQS[i]!.q);
+      expect(entity.acceptedAnswer.text).toBe(REELS_FAQS[i]!.a);
+    });
+  });
+
+  it("no FAQ answer promises 30-day passes (the minutes model replaces them; pricing copy owns the current model)", () => {
+    for (const faqs of [FAQS, AUTO_CAPTION_FAQS, REELS_FAQS]) {
+      for (const f of faqs) {
+        expect(f.a).not.toContain("30-day pass");
+      }
+    }
+  });
+
+  it("SoftwareApplication JSON-LD takes the page's own canonical when given one (ACG/Reels fix)", () => {
+    expect(softwareApplicationJsonLd().url).toBe(SITE_URL);
+    expect(softwareApplicationJsonLd({ url: `${SITE_URL}/auto-caption-generator` }).url).toBe(
+      `${SITE_URL}/auto-caption-generator`,
+    );
+    expect(softwareApplicationJsonLd({ url: `${SITE_URL}/auto-captions-for-reels` }).url).toBe(
+      `${SITE_URL}/auto-captions-for-reels`,
+    );
   });
 });

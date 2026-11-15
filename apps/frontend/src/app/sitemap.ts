@@ -17,10 +17,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency:
       path === "/"
         ? ("weekly" as const)
-        : path === "/auto-caption-generator"
+        : path === "/auto-caption-generator" || path === "/auto-captions-for-reels"
           ? ("monthly" as const)
           : ("yearly" as const),
     // Tool landing pages outrank sign-in/legal: they are the pages built to be found.
-    priority: path === "/" ? 1 : path === "/auto-caption-generator" ? 0.8 : path === "/login" ? 0.5 : 0.3,
+    priority: path === "/" ? 1 : path === "/auto-caption-generator" || path === "/auto-captions-for-reels" ? 0.8 : path === "/login" ? 0.5 : 0.3,
   }));
 }

@@ -221,7 +221,7 @@ export function Hero() {
         </h1>
 
         <p data-hero="sub" className="mt-5 max-w-lg text-[15px] leading-relaxed text-[#FFFFEB]/70 sm:text-[17px] font-medium">
-          Captionit turns speech into animated, word-timed captions. For Shorts, Reels and TikTok. 150 looks and 14 languages. No watermark. All in the tab you already have open.
+          Captionit turns speech into auto captions, timed to every word. For Shorts, Reels and TikTok. 150 looks and 14 languages. No watermark. All in the tab you already have open.
         </p>
 
         <div data-hero="cta" className="mt-7 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -838,6 +838,7 @@ const FOOTER_COLUMNS = [
       { label: "How it works", href: "/#how" },
       { label: "Pricing", href: "/pricing" },
       { label: "Auto caption generator", href: "/auto-caption-generator" },
+      { label: "Auto captions for Reels", href: "/auto-captions-for-reels" },
       { label: "Transcribe", href: "/transcribe" },
       { label: "Looks gallery", href: "/#looks" },
       { label: "Precision controls", href: "/#control" },

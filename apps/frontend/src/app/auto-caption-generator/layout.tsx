@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { AUTO_CAPTION_FAQS } from "./faqs";
-import { faqPageJsonLd, pageMetadata, softwareApplicationJsonLd } from "@/lib/seo";
+import { faqPageJsonLd, pageMetadata, SITE_URL, softwareApplicationJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
-  title: "Automatic Video Caption Generator — Free, In Your Browser",
+  title: "Auto Caption Generator — Free, In Your Browser",
   description:
-    "Generate word-timed captions for your video. Free, in your browser. 150 animated looks. 14 languages, including Hindi and Hinglish. MP4 and SRT export. No watermark. Nothing to install.",
+    "Generate auto captions for your video with AI. Free, in your browser. 150 animated looks. 14 languages, including Hindi and Hinglish. MP4 and SRT export. No watermark. Nothing to install.",
   path: "/auto-caption-generator",
 });
 
@@ -14,9 +14,9 @@ export const metadata: Metadata = pageMetadata({
  * the same AUTO_CAPTION_FAQS array the visible FAQ section renders, so schema
  * and page copy cannot diverge. The SoftwareApplication block is the honest
  * product block shared with the homepage (free product, price 0, no ratings
- * or reviews).
+ * or reviews) — with this page's own canonical as its url, not the homepage.
  */
-const structuredData = [softwareApplicationJsonLd(), faqPageJsonLd(AUTO_CAPTION_FAQS)];
+const structuredData = [softwareApplicationJsonLd({ url: `${SITE_URL}/auto-caption-generator` }), faqPageJsonLd(AUTO_CAPTION_FAQS)];
 
 export default function AutoCaptionGeneratorLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

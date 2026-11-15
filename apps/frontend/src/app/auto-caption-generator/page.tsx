@@ -8,10 +8,8 @@ import { Footer, Nav } from "@/components/home/Sections";
  * from verified product facts only (see seo/competitor-intelligence/audit/
  * captionit-baseline.md): 150 looks, 14 languages, in-browser, free, real
  * formats and limits. No invented stats, no fake testimonials, no keyword
- * stuffing. No image is used on this page: the site's only share image still
- * carries the old "CaptionsEasy" name and "20+ looks", so reusing it would
- * show readers the wrong brand and the wrong count. Replacing that asset is
- * a separate fix, not part of this branch.
+ * stuffing. No image is used on this page: the share image is the homepage
+ * OG card, which is fine for social shares.
  *
  * Layout follows the pricing page: dark background, one column, stacked
  * sections. No three-cards-in-a-row, no bento grid, no glass card, no
@@ -22,12 +20,12 @@ export default function AutoCaptionGeneratorPage() {
     <div className="min-h-screen bg-[#141412] text-[#FFFFEB]">
       <Nav />
       <main id="main-content" className="mx-auto max-w-3xl px-5 pb-24 pt-28 sm:pt-32">
-        <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#34D399]">Automatic captions</p>
+        <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#34D399]">Auto captions</p>
         <h1 className="mt-3 font-serif text-4xl font-semibold leading-[1.08] tracking-[-0.015em] sm:text-5xl">
-          Automatic video caption generator
+          Auto caption generator
         </h1>
         <p className="mt-5 text-[16px] leading-relaxed text-[#FFFFEB]/80">
-          Drop in a short video. Get captions timed to every word, in minutes, free and in your browser. Pick one of 150 animated looks. Fix any word it heard wrong. Export an MP4 ready to post, or a subtitle file for YouTube. Nothing to install, no watermark. For transcription and the normal MP4 export, your video file is never uploaded anywhere.
+          Drop in a short video. Get auto captions timed to every word, in minutes, free and in your browser. Pick one of 150 animated looks. Fix any word it heard wrong. Export an MP4 ready to post, or a subtitle file for YouTube. Nothing to install, no watermark. For transcription and the normal MP4 export, your video file is never uploaded anywhere.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
@@ -43,6 +41,20 @@ export default function AutoCaptionGeneratorPage() {
             See pricing
           </Link>
         </div>
+
+        <section className="mt-16" aria-labelledby="what-are-auto-captions">
+          <h2 id="what-are-auto-captions" className="font-sora text-[22px] font-bold">
+            What are auto captions?
+          </h2>
+          <p className="mt-4 text-[15px] leading-relaxed text-[#FFFFEB]/70">
+            Auto captions are subtitles made automatically from the speech in a video. A speech-recognition
+            model listens to the audio, writes out what was said, and times every word to the frame where it
+            is spoken — no typing, no dragging words onto a timeline. They are the same captions you see
+            burned into Reels, Shorts and TikToks: bold words, one line at a time, moving with the speaker.
+            Most people watch short video with the sound off, so captions are what keep them watching — and
+            they make the video watchable for viewers who cannot hear it at all.
+          </p>
+        </section>
 
         <section className="mt-16" aria-labelledby="how-it-works">
           <h2 id="how-it-works" className="font-sora text-[22px] font-bold">
@@ -100,7 +112,8 @@ export default function AutoCaptionGeneratorPage() {
             <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>14 languages, including Hindi and Hinglish. Hindi and Hinglish come out in Roman script, the way most creators type; Devanagari Hindi is a separate option.</span></li>
             <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>MP4 and subtitle export from one workflow. Most tools do one or the other; here you get both.</span></li>
             <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>No watermark, nothing to install. Transcription, editing and MP4 export run in your browser. On desktop or phone.</span></li>
-            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Built for vertical video. 9:16 Reels, Shorts and TikTok first. 16:9 widescreen works the same way.</span></li>
+            <li className="flex gap-3"><span aria-hidden className="mt-[9px] h-1.5 w-1.5 shrink-0 rounded-full bg-[#34D399]" /><span>Built for vertical video. 9:16 Reels, Shorts and TikTok first. 16:9 widescreen works the same way. Posting Reels?{" "}
+            <Link className="underline decoration-[#34D399]/60 underline-offset-2" href="/auto-captions-for-reels">How auto captions for Reels work</Link>.</span></li>
           </ul>
         </section>
 
@@ -139,14 +152,13 @@ export default function AutoCaptionGeneratorPage() {
 
         <section className="mt-16" aria-labelledby="pricing-note">
           <h2 id="pricing-note" className="font-sora text-[22px] font-bold">
-            Free, with paid passes when you outgrow it
+            Free, with paid plans when you outgrow it
           </h2>
           <p className="mt-4 text-[15px] leading-relaxed text-[#FFFFEB]/70">
-            The free plan includes the full editor, all 150 looks and every AI tool. Paid plans are 30-day passes
-            that raise the limits: more projects, longer videos, bigger uploads, longer export storage. You pay once;
-            nothing renews or charges you again automatically. See{" "}
+            The free plan includes the full editor, all 150 looks and every AI tool. Paid plans raise the
+            limits: more minutes, longer videos, bigger uploads. See{" "}
             <Link className="underline decoration-[#34D399]/60 underline-offset-2" href="/pricing">Pricing</Link>{" "}
-            for the plans in your currency.
+            for the current plans in your currency.
           </p>
         </section>
 
