@@ -19,6 +19,8 @@ describe("shell nav config", () => {
     // Clipper (/clipper), AI Clipper (/ai-clipper), Reel Analyzer (/analyzer) and
     // Teleprompter (/prompter) are live routes but NOT in the nav. Their rows are
     // removed here on purpose; re-add the entry in nav.ts AND its row here to restore one.
+    // Owner order 2026-11-15 additionally removed Clipper from the editor rail
+    // (StudioPage) and the /about feature list, so no surface links to it at all.
     expect(NAV_ITEMS.map((i) => [i.group, i.label, i.href])).toEqual([
       ["primary", "Dashboard", "/dashboard"],
       ["primary", "Caption Studio", "/captions"],
@@ -36,6 +38,16 @@ describe("shell nav config", () => {
     // groups partition the flat list without dropping or duplicating an entry
     expect(NAV_GROUPS.flatMap((g) => g.items)).toEqual(NAV_ITEMS);
     expect(NAV_GROUPS.map((g) => g.id)).toEqual(["primary", "supporting"]);
+  });
+
+  it("no nav entry mentions Clipper (owner order 2026-11-15)", () => {
+    // Clipper is hidden from every user-visible surface: no id, label or href
+    // in the shell nav may name it (nor /clipper or /ai-clipper).
+    for (const item of NAV_ITEMS) {
+      expect(item.id).not.toMatch(/clipper/i);
+      expect(item.label).not.toMatch(/clipper/i);
+      expect(item.href).not.toMatch(/clipper/i);
+    }
   });
 
   it("every href maps to a real page directory under src/app", () => {

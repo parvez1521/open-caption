@@ -20,7 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setAuthorized(true);
         return;
       }
-      // First-time guest arriving on a deep link (e.g. the landing page's Clipper button):
+      // First-time guest arriving on a deep link (e.g. from the landing page):
       // run the same anonymous-session bootstrap /start performs, instead of bouncing to
       // /login before a guest session can exist. Browsers that have held a real account
       // here still go to /login — they are never handed a fresh guest account.

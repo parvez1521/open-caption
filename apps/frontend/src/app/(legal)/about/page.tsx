@@ -35,11 +35,6 @@ export default function AboutPage() {
             transitions, speed changes and an audio studio — and what you preview is what the export renders.
           </li>
           <li>
-            <strong>Clipper:</strong> find the moments worth posting from a longer video — suggestions measured
-            on the device from silence and scene changes, plus an AI Clipping Studio that ranks moments from
-            the transcript with an editorial estimate — then reframe them for vertical formats.
-          </li>
-          <li>
             <strong>Creator Studio:</strong> hook ideas, scripts, captions and hashtags, a reel analyzer, a content
             planner, a teleprompter and growth tracking — the AI writing tools run on a free model and say so when
             they fall back to templates.

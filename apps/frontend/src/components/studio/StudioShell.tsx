@@ -36,7 +36,6 @@ const NAV_ICONS: Record<string, React.ReactNode> = {
   teleprompter: (<svg {...iconProps}><rect x="3" y="4" width="18" height="13" rx="2" /><path strokeLinecap="round" d="M7 8.5h10M7 12h6M12 21l-2.5-4h5L12 21z" /></svg>),
   library: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.5" /><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-4 4 3 3-2 6 4" /></svg>),
   brand: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3l2.1 4.6L19 9l-3.6 3.3 1 4.9L12 14.7l-4.4 2.5 1-4.9L5 9l4.9-1.4L12 3z" /></svg>),
-  clipper: (<svg {...iconProps}><circle cx="6" cy="6" r="2.5" /><circle cx="6" cy="18" r="2.5" /><path d="M8.2 7.8L20 19M8.2 16.2L20 5" strokeLinecap="round" /></svg>),
   transcribe: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" d="M7 9.5v5M10.5 7.5v9M14 9.5v5M17.5 8v8" /></svg>),
   analyzer: (<svg {...iconProps}><rect x="3" y="5" width="18" height="14" rx="2" /><path strokeLinecap="round" strokeLinejoin="round" d="M7 12h2.5l2-3.5 2.5 6 1.8-2.5H17" /></svg>),
   exports: (<svg {...iconProps}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" /></svg>),

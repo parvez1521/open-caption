@@ -100,7 +100,7 @@ export const PLAN_PRICING: PlanPricing[] = [
       "10 projects",
       "Videos up to 5 minutes",
       "Exports kept for 7 days",
-      "Editor, Clipper and Creator Studio included",
+      "Editor and Creator Studio included",
     ],
   },
   {
