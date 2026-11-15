@@ -1,82 +1,34 @@
 {
-  "sol": {
-    "title": "Peru Testimonial - Sol Luciana",
-    "license": "CC BY 3.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Sol_Luciana.webm",
-    "look": "staggered_splash",
-    "lookName": "3-Line Stagger",
-    "text": "En mi caso, lo que hacemos es hacer campa\u00f1as de diferentes puntos de la ciudad, ya que la"
-  },
-  "gianna": {
-    "title": "Peru Testimonial - Gianna Garcia",
-    "license": "CC BY 3.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Gianna_Garcia.webm",
-    "look": "hormozi_box",
-    "lookName": "Jumping Box",
-    "text": "que es fomentar diversidad, conocimiento acerca de las personas trans yo trabajo mucho"
-  },
-  "jesse": {
-    "title": "Peru Testimonial - Jesse Vilela",
-    "license": "CC BY 3.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Jesse_Vilela.webm",
-    "look": "glow_stack_classic",
-    "lookName": "3-Line Glow Hero",
-    "text": "pod\u00edan acceder a sus derechos y tambi\u00e9n creo que me inicie como activista trans porque"
-  },
-  "aisha": {
-    "title": "Wikinights testimonial by Aisha",
+  "musuweu": {
+    "title": "Musuweu speaking English and Subiya",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Wikinights_testimonial_by_Aisha.webm",
+    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Musuweu_speaking_English_and_Subiya.webm",
     "look": "beast_bounce",
     "lookName": "Bouncy Single Word",
-    "text": "community project so how was your experience during weeknight sambuanga so my experience during"
+    "text": "It's Germanic So you can say English is one although it has no native speaker space a second"
   },
-  "rusita": {
-    "title": "Wikipedians speak - Konkani Wikipedian Rusita Paryekar",
-    "license": "CC BY-SA 3.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Wikipedians_speak_-_Konkani_Wikipedian_Rusita_Paryekar-en_1080p.webm",
-    "look": "vintage_cinematic",
-    "lookName": "Giant Italic Hero",
-    "text": "And after since now Wikipedia is an incubator and I got to know"
-  },
-  "william": {
-    "title": "WIKITONGUES- William speaking English",
+  "sandra": {
+    "title": "Sandra speaking English and Guyanese Creole",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_William_speaking_English.webm",
-    "look": "comic_burst",
-    "lookName": "Comic Tilt",
-    "text": "by its users or its consumers to give up any certain personal information,"
-  },
-  "daniel": {
-    "title": "Daniel speaking English",
-    "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Daniel_speaking_English.webm",
-    "look": "explainer",
-    "lookName": "Underline Sweep",
-    "text": "Hi. My name is Daniel. I am from"
-  },
-  "goldi": {
-    "title": "Goldi speaking Kumaoni, English",
-    "license": "CC BY-SA 4.0",
-    "source": "https://wikitongues.org/videos/goldi_20250409_kfy-eng/",
+    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Sandra_speaking_English_and_Guyanese_Creole.webm",
     "look": "kinetic_mix",
     "lookName": "Kinetic Big Word",
-    "text": "My only language is Kumaoni. Kumaoni is a Hindi language and UNESCO"
+    "text": "It went through and we was very poor in Guyana."
   },
-  "steve": {
-    "title": "Steve speaking English, Mandarin Chinese, Spanish, Standard Arabic, Portuguese, Russian, Japanese, French",
+  "piotr": {
+    "title": "Piotr speaking Silesian and English",
     "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Steve_speaking_English,_Mandarin,_Spanish,_Arabic,_Portuguese,_Russian,_Japanese,_and_French.webm",
-    "look": "staggered_splash",
-    "lookName": "3-Line Stagger",
-    "text": "I'm a language enthusiast. I like learning languages."
+    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Piotr_speaking_Silesian_and_English.webm",
+    "look": "kinetic_mix",
+    "lookName": "Kinetic Big Word",
+    "text": "So hello everyone, my name is Peter, I live in"
   },
-  "drluv": {
-    "title": "WIKITONGUES- DrLuv speaking English",
-    "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_DrLuv_speaking_English.webm",
-    "look": "hormozi_box",
-    "lookName": "Jumping Box",
-    "text": "not making a dime while his band is out there making"
+  "simon": {
+    "title": "Simon speaking Cumbrian",
+    "license": "CC BY 3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Simon_speaking_Cumbrian.webm",
+    "look": "apex_kinetic",
+    "lookName": "Apex Kinetic Slam",
+    "text": "So today I'm going to read a couple of entries from my diary from four or five years"
   }
 }

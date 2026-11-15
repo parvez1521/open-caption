@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 import { ClipPlayer, Frame, ShowcaseCard, Tag, fmt, lookFor, usePages, useTranscript } from "./ShowcaseKit";
 
 const ORANGE = "#FF8A00";
-const CLIP = "steve";
+const CLIP = "piotr";
 const ROW = 46;
 
 /** 03: the engine picks one key word per card; the list shows exactly what the renderer chose. */
 export function Section3() {
   const { transcript, doc } = useTranscript(CLIP);
-  const { style, settings } = useMemo(() => lookFor("staggered_splash", 1.4), []);
+  const { style, settings } = useMemo(() => lookFor("kinetic_mix", 1.4), []);
   const pages = usePages(doc, style, settings);
   const [t, setT] = useState(0);
   const idx = Math.max(0, pages.findIndex((p) => t >= p.startMs && t < p.endMs));

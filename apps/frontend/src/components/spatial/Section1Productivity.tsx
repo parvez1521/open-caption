@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 import { ClipPlayer, Frame, ShowcaseCard, Tag, fmt, lookFor, useTranscript } from "./ShowcaseKit";
 
 const EMERALD = "#34D399";
-const CLIP = "daniel";
+const CLIP = "musuweu";
 
 /** 01: every word carries its own start and end, straight from local whisper. */
 export function Section1Productivity() {
   const { transcript, doc } = useTranscript(CLIP);
-  const { style, settings } = useMemo(() => lookFor("explainer", 1.5), []);
+  const { style, settings } = useMemo(() => lookFor("beast_bounce", 1.5), []);
   const [t, setT] = useState(0);
   const words = transcript?.words ?? [];
   const dur = transcript?.durationMs ?? 6000;

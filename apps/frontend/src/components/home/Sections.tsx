@@ -242,7 +242,7 @@ export function Hero() {
           150 looks · 14 languages · No watermark
         </p>
         <HinglishClaim />
-        {/* the kinetic caption itself, live: the default Kinetic look rendering word by word */}
+        {/* the kinetic caption itself, live: the Kinetic look rendering word by word */}
         <div data-hero="kinetic" className="relative z-10 mt-10 max-w-[560px]">
           <HeroKineticCaption />
         </div>
