@@ -1,3 +1,8 @@
+"use client";
+// Client component on purpose: comparisonRows() reads LOOKS from the
+// @capseasy/templates barrel, which needs the browser (createContext +
+// Remotion in videoFrame/fonts). A Server Component importing it fails the
+// production build. The table is presentational; no server data is involved.
 import { PLAN_PRICING } from "@capseasy/shared";
 import { Check } from "@/components/ui/icons";
 import { comparisonRows } from "@/lib/billing/pricingComparison";
