@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { ClipPlayer, Frame, ShowcaseCard, Tag, lookFor, useTranscript } from "./ShowcaseKit";
 
 const INKC = "#FFFFEB";
-const CLIP = "drluv";
+const CLIP = "simon";
 const CHECKER = "repeating-conic-gradient(rgba(0,0,0,0.16) 0% 25%, rgba(255,255,235,0.4) 0% 50%) 0 0 / 14px 14px";
 
 const FORMATS = [
@@ -18,7 +18,7 @@ const FORMATS = [
 // the format cards below say what leaves the app (the captions, not a re-encode). */
 export function Section4() {
   const { transcript, doc } = useTranscript(CLIP);
-  const { style, settings } = useMemo(() => lookFor("hormozi_box", 1.6), []);
+  const { style, settings } = useMemo(() => lookFor("apex_kinetic", 1.6), []);
   const dur = transcript?.durationMs ?? 6000;
 
   return (

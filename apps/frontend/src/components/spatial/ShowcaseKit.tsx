@@ -65,9 +65,10 @@ export function lookFor(lookId: string, size = 1.35): { style: CaptionStyleV2; s
 }
 
 /** Pages exactly as the renderer lays them out (real font metrics), for the side panels and the DOM overlay.
- * The last computed pages are kept while a new look's fonts load, so a look change never blanks the
- * captions (or the panels): the previous look's words stay up until the new look is ready. First
- * load still starts empty. */
+ * Pages compute the moment a transcript exists — even before the look's fonts finish loading — so the
+ * first caption is on screen from frame 0 instead of waiting on a font fetch; when the fonts land the
+ * pages recompute with real metrics (the effect re-runs on `ready`). A look change may briefly lay
+ * out with fallback metrics, which beats a blank caption while the new fonts load. */
 export function usePages(doc: CaptionDoc | null, style: CaptionStyleV2, settings: ProjectSettings): Page[] {
   const key = [style.fontId, style.hero.fontId ?? "", ...getTemplate(style.templateId).fonts].join("|");
   const [loadedKey, setLoadedKey] = useState("");
@@ -85,7 +86,6 @@ export function usePages(doc: CaptionDoc | null, style: CaptionStyleV2, settings
       setPages([]);
       return;
     }
-    if (!ready) return; // keep the previous pages until the new look's fonts land
     setPages(computePages(doc, settings, style, { width: CLIP_W, height: CLIP_H, fps: FPS }));
   }, [doc, ready, settings, style]);
   return pages;
@@ -187,7 +187,13 @@ export function ClipPlayer({ clip, doc, durationMs, style, settings, mode = "bur
     const id = setInterval(tick, 100);
     return () => clearInterval(id);
   }, [near, doc, onTime, lowEnd, durationMs]);
-  const curPage = useMemo(() => (overlayOn ? pages.find((p) => tMs >= p.startMs && tMs < p.endMs) ?? null : null), [overlayOn, pages, tMs]);
+  // The first caption is visible from frame 0: before the first page's start time the
+  // overlay shows that first page instead of nothing, so playback never opens on a bare
+  // frame while the speaker is already talking.
+  const curPage = useMemo(() => {
+    if (!overlayOn || pages.length === 0) return null;
+    return pages.find((p) => tMs >= p.startMs && tMs < p.endMs) ?? (tMs < pages[0]!.startMs ? pages[0]! : null);
+  }, [overlayOn, pages, tMs]);
   const scale = boxW > 0 ? boxW / CLIP_W : 0;
 
   return (

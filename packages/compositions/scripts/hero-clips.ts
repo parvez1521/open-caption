@@ -40,17 +40,22 @@ const whisperData = join(process.env.LOCALAPPDATA ?? join(homedir(), ".local", "
 /** Title cards (black question slides in the Peru interviews) are skipped by starting after them.
  *  language: what is actually spoken (forcing "en" on Spanish makes whisper TRANSLATE, so captions stop matching lips).
  *  faceX: horizontal centre of the speaker in the source (0–1). from: where to start looking for speech (s). */
+/** Homepage showcase set, Nov 2026 (fix2): four NEW Wikitongues speakers — Musuweu, Sandra, Piotr,
+ *  Simon — replacing the daniel/goldi/steve/drluv set (same four people since the UGC redo; the owner
+ *  rightly called them old). English confirmed by a whisper auto-detect probe at each clip's `from`
+ *  before cutting, so the forced-"en" transcript can never be a translation of another language.
+ *  FRAMING (hard lesson from this fix): small contact-sheet thumbnails LIE about headroom — hair
+ *  blends into bright backgrounds and tight close-ups read as medium shots. Every clip here was
+ *  verified on a full-res still at its exact cut time: full head + shoulders with real margin on
+ *  all sides. Jerry, David and James were cut first and REJECTED after the 9:16 stills showed
+ *  their crowns cut at the top edge (tight close-ups throughout their videos); Iliana has the
+ *  best framing of all but only ~10s of English in 114s (outro only); Moise's English was never
+ *  found (Lingala @43s, French @65s). Earlier sets live in git history. */
 const CLIPS: { name: string; file: string; language?: string; look: string; captionY?: number; faceX: number; faceY?: number; from: number; credit: string; license: string; url: string }[] = [
-  { name: "sol", file: "sol.webm", language: "es", look: "staggered_splash", faceX: 0.57, from: 57, credit: "Peru Testimonial - Sol Luciana", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Sol_Luciana.webm" },
-  { name: "gianna", file: "gianna.webm", language: "es", look: "hormozi_box", faceX: 0.56, from: 88, credit: "Peru Testimonial - Gianna Garcia", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Gianna_Garcia.webm" },
-  { name: "jesse", file: "jesse.webm", language: "es", look: "glow_stack_classic", faceX: 0.67, from: 67, credit: "Peru Testimonial - Jesse Vilela", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:Peru_Testimonial_-_Jesse_Vilela.webm" },
-  { name: "aisha", file: "aisha.webm", look: "beast_bounce", faceX: 0.5, from: 8, credit: "Wikinights testimonial by Aisha", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Wikinights_testimonial_by_Aisha.webm" },
-  { name: "rusita", file: "rusita.webm", look: "vintage_cinematic", captionY: 0.85, faceX: 0.5, from: 30, credit: "Wikipedians speak - Konkani Wikipedian Rusita Paryekar", license: "CC BY-SA 3.0", url: "https://commons.wikimedia.org/wiki/File:Wikipedians_speak_-_Konkani_Wikipedian_Rusita_Paryekar-en_1080p.webm" },
-  { name: "william", file: "william.webm", look: "comic_burst", faceX: 0.5, from: 15, credit: "WIKITONGUES- William speaking English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_William_speaking_English.webm" },
-  { name: "daniel", file: "daniel.webm", look: "explainer", faceX: 0.5, faceY: 0.35, from: 0, credit: "Daniel speaking English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Daniel_speaking_English.webm" },
-  { name: "goldi", file: "goldi.mp4", look: "kinetic_mix", faceX: 0.5, faceY: 0.3, from: 0, credit: "Goldi speaking Kumaoni, English", license: "CC BY-SA 4.0", url: "https://wikitongues.org/videos/goldi_20250409_kfy-eng/" },
-  { name: "steve", file: "steve.webm", look: "staggered_splash", faceX: 0.47, from: 0, credit: "Steve speaking English, Mandarin Chinese, Spanish, Standard Arabic, Portuguese, Russian, Japanese, French", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:Steve_speaking_English,_Mandarin,_Spanish,_Arabic,_Portuguese,_Russian,_Japanese,_and_French.webm" },
-  { name: "drluv", file: "drluv.webm", look: "hormozi_box", faceX: 0.58, from: 120, credit: "WIKITONGUES- DrLuv speaking English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_DrLuv_speaking_English.webm" },
+  { name: "musuweu", file: "musuweu.webm", look: "beast_bounce", faceX: 0.56, from: 181, credit: "Musuweu speaking English and Subiya", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Musuweu_speaking_English_and_Subiya.webm" },
+  { name: "sandra", file: "sandra.webm", look: "kinetic_mix", faceX: 0.56, from: 22, credit: "Sandra speaking English and Guyanese Creole", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Sandra_speaking_English_and_Guyanese_Creole.webm" },
+  { name: "piotr", file: "piotr.webm", look: "kinetic_mix", faceX: 0.5, from: 96, credit: "Piotr speaking Silesian and English", license: "CC BY-SA 4.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Piotr_speaking_Silesian_and_English.webm" },
+  { name: "simon", file: "simon.webm", look: "apex_kinetic", faceX: 0.55, from: 30, credit: "Simon speaking Cumbrian", license: "CC BY 3.0", url: "https://commons.wikimedia.org/wiki/File:WIKITONGUES-_Simon_speaking_Cumbrian.webm" },
 ];
 
 // a full ffmpeg build (Remotion's bundled one leaves out filters such as setsar/fps)

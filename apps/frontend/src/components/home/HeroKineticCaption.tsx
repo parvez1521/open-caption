@@ -5,7 +5,7 @@ import { fontStack, getLook } from "@capseasy/templates";
 import { AnimatedTemplatePreview } from "@/features/studio/panels/AnimatedTemplatePreview";
 
 /**
- * Hero kinetic caption strip: the default Kinetic look (Kinetic Big Word) rendering its real
+ * Hero kinetic caption strip: the Kinetic look (Kinetic Big Word) rendering its real
  * word-by-word motion, live, through the same AnimatedTemplatePreview the picker and the
  * cylinder use. The motion is the template's own pop/scale/tilt — not a CSS imitation — over
  * that preview's five-word sample line ("Make every single word count").
@@ -19,7 +19,7 @@ export function HeroKineticCaption() {
     <div className="overflow-hidden rounded-2xl border border-[#FFFFEB]/10 bg-black shadow-[0_24px_50px_-24px_rgba(0,0,0,0.7)]">
       <div className="flex items-center justify-between gap-2 px-4 pt-3">
         <span className="text-[13px] font-bold text-[#FFFFEB]">Kinetic Big Word</span>
-        <span className="shrink-0 rounded-full bg-[#FFA946] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#141412]">Live · default look</span>
+        <span className="shrink-0 rounded-full bg-[#FFA946] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#141412]">Live</span>
       </div>
       <div className="mt-2">
         <AnimatedTemplatePreview
