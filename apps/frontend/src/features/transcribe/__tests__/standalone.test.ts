@@ -48,11 +48,11 @@ describe("standalone transcribe", () => {
     const noType = new File(["x"], "voice.wav", { type: "" });
     expect(validateTranscribeFile(noType)).toBeNull();
     expect(validateTranscribeFile(new File(["x"], "notes.pdf", { type: "application/pdf" }))).toMatch(/video or audio/);
-    // Oversize without allocating 2 GB in the test: the validator only reads
+    // Oversize without allocating 4 GB in the test: the validator only reads
     // file.size, so a small file with an oversize size exercises the same path.
     const big = new File(["x"], "big.mp4", { type: "video/mp4" });
     Object.defineProperty(big, "size", { value: TRANSCRIBE_LIMITS.maxBytes + 1 });
-    expect(validateTranscribeFile(big)).toMatch(/over the 2 GB limit/);
+    expect(validateTranscribeFile(big)).toMatch(/over the 4 GB limit/);
     expect(validateTranscribeFile(new File([], "empty.mp4", { type: "video/mp4" }))).toMatch(/empty/);
   });
 
@@ -70,8 +70,8 @@ describe("standalone transcribe", () => {
     expect(validateTranscribeFile(new File(["x"], "notes.pdf", { type: "application/pdf" }))).toMatch(/FLAC, AAC/);
   });
 
-  it("caps /transcribe at 2 GB and 15 minutes (owner decision 2026-11-14)", () => {
-    expect(TRANSCRIBE_LIMITS.maxBytes).toBe(2 * 1024 * 1024 * 1024);
+  it("caps /transcribe at 4 GB and 15 minutes (owner decision 2026-11-15: local cap raised 2 GB -> 4 GB)", () => {
+    expect(TRANSCRIBE_LIMITS.maxBytes).toBe(4 * 1024 * 1024 * 1024);
     expect(TRANSCRIBE_LIMITS.maxDurationSec).toBe(15 * 60);
   });
 

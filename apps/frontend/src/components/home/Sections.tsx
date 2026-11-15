@@ -733,10 +733,11 @@ export function Faq() {
  * the INR prices the owner quoted (₹0 / ₹299 / ₹499 / ₹799) — one currency
  * only, never ₹ and $ together. Paid plans are 30-day passes, monthly only.
  *
- * Clipper filter: plans.ts still carries the old "Editor, Clipper and
- * Creator Studio included" bullet (a parallel change is removing it there),
- * so this section drops any feature containing "Clipper" at render time and
- * prints "Editor and Creator Studio included" on every plan instead. No
+ * Clipper filter (defence only — plans.ts no longer carries a Clipper
+ * bullet since the 2026-11-15 removal): drop any feature containing
+ * "Clipper" at render time, and print "Editor and Creator Studio
+ * included" on every plan that does not already carry it. No
+ * upload-size copy is rendered here either (plans.ts has none).
  * upload-size bullet is rendered anywhere here.
  */
 export function HomePricingSection() {
@@ -755,10 +756,10 @@ export function HomePricingSection() {
         <div data-reveal className="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {PLAN_PRICING.map((entry) => {
             const isFree = entry.id === "free";
-            const features = [
-              ...entry.features.filter((f) => !f.includes("Clipper")),
-              "Editor and Creator Studio included",
-            ];
+            const filtered = entry.features.filter((f) => !f.includes("Clipper"));
+            const features = filtered.includes("Editor and Creator Studio included")
+              ? filtered
+              : [...filtered, "Editor and Creator Studio included"];
             return (
               <section
                 key={entry.id}
