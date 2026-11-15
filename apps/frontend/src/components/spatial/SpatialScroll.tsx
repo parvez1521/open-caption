@@ -43,7 +43,10 @@ export function SpatialScroll() {
           trigger: wrapperRef.current,
           start: "top top",
           end: `+=${Math.round(TOTAL * 1000)}`,
-          scrub: 1,
+          // scrub 0.4, not 1: the pinned canvas must track the scroll, not trail
+          // a full second behind it — that lag is what made the showcase feel
+          // detached and snappy on fast wheel flicks (owner report 2026-11-15)
+          scrub: 0.4,
           pin: true,
           anticipatePin: 1,
         },

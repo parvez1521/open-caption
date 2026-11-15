@@ -197,16 +197,8 @@ em,
 /* Subtle soundwave bars are static now (ban list: no decorative animation);
    the footer mark keeps the three bars without motion. */
 
-/* Lenis smooth-scroll integration */
-html.lenis, html.lenis body {
-  height: auto;
-}
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-.lenis.lenis-stopped {
-  overflow: hidden;
-}
+/* Anchor jumps stay smooth via `scroll-behavior: smooth` on html above;
+   the wheel itself is native (no smooth-scroll emulation library). */
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {

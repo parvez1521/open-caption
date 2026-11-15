@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import Lenis from "lenis";
 import { Loader } from "@/components/home/Loader";
 import { ensureGsap, prefersReducedMotion } from "@/components/home/gsap";
 import dynamic from "next/dynamic";
@@ -18,6 +17,10 @@ export default function LandingPage() {
   const onLoaderDone = useCallback(() => setReady(true), []);
   const looksRef = useRef<HTMLDivElement>(null);
   const [showcaseNear, setShowcaseNear] = useState(false);
+  // last scroll direction the nav has been tweened to (1 down / -1 up): the
+  // hide-on-scroll tween only runs when the direction actually flips, so
+  // wheel jitter doesn't restart it every tick and make the nav flicker
+  const navDir = useRef(0);
 
   // The showcase is the heaviest thing on the page (four sections, their transcripts, fonts and
   // players). Mounting it the moment the intro ends — even for visitors who never scroll — made
@@ -42,22 +45,14 @@ export default function LandingPage() {
     return () => clearTimeout(t);
   }, [showcaseNear]);
 
-  // smooth scroll, driven by GSAP's ticker so ScrollTrigger and Lenis agree on every frame
-  useEffect(() => {
-    // phones scroll natively (smooth-scroll emulation costs a frame budget they don't have)
-    if (prefersReducedMotion() || window.matchMedia("(pointer: coarse)").matches) return;
-    const { gsap, ScrollTrigger } = ensureGsap();
-    const lenis = new Lenis({ duration: 1.1, easing: (t) => 1 - Math.pow(2, -10 * t), anchors: { offset: -80 } });
-    lenis.on("scroll", ScrollTrigger.update);
-    const tick = (time: number) => lenis.raf(time * 1000);
-    gsap.ticker.add(tick);
-    gsap.ticker.lagSmoothing(0);
-    return () => {
-      gsap.ticker.remove(tick);
-      lenis.destroy();
-    };
-  }, []);
-
+  // Scrolling is NATIVE here on purpose (owner report 2026-11-15: the page felt
+  // glitchy next to SwitchRoute's smooth native scroll). Lenis used to hijack
+  // the wheel and animate scrollTop toward a target over 1.1s with an
+  // exponential ease (half the distance in the first 10% of the time), so a
+  // wheel flick lurched ~300px in 100ms and then dragged — and the pinned
+  // showcase's scrubbed timeline lagged a further second behind. Native
+  // scroll tracks the hand 1:1; ScrollTrigger follows it directly, and anchor
+  // jumps stay smooth via `scroll-behavior: smooth` in globals.css.
   // choreography: starts once the intro curtain has lifted
   useEffect(() => {
     if (!ready || !root.current) return;
@@ -77,8 +72,16 @@ export default function LandingPage() {
         ScrollTrigger.create({
           start: 120,
           end: "max",
-          onUpdate: (self) => gsap.to(nav, { yPercent: self.direction === 1 ? -130 : 0, duration: 0.45, ease: "power3.out", overwrite: true }),
-          onLeaveBack: () => gsap.to(nav, { yPercent: 0, duration: 0.3, overwrite: true }),
+          onUpdate: (self) => {
+            const dir = self.direction;
+            if (dir === 0 || dir === navDir.current) return;
+            navDir.current = dir;
+            gsap.to(nav, { yPercent: dir === 1 ? -130 : 0, duration: 0.45, ease: "power3.out", overwrite: true });
+          },
+          onLeaveBack: () => {
+            navDir.current = 0;
+            gsap.to(nav, { yPercent: 0, duration: 0.3, overwrite: true });
+          },
         });
       }
 
@@ -94,9 +97,14 @@ export default function LandingPage() {
       if (document.querySelector('[data-tier]') && document.querySelector("#pricing")) gsap.from("[data-tier]", { y: 60, opacity: 0, duration: 1, stagger: 0.15, ease: "expo.out", scrollTrigger: { trigger: "#pricing", start: "top 70%" } });
     }, root);
     // previews and fonts change layout after mount; re-measure once they settle
+    // — and again on window load, when videos and fonts have all landed, so
+    // reveal/pin positions never go stale and sections pop in late mid-scroll
     const t = setTimeout(() => ScrollTrigger.refresh(), 800);
+    const onLoad = () => ScrollTrigger.refresh();
+    window.addEventListener("load", onLoad);
     return () => {
       clearTimeout(t);
+      window.removeEventListener("load", onLoad);
       ctx.revert();
     };
   }, [ready]);
