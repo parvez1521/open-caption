@@ -69,7 +69,7 @@ function stubUnifiedFetch(opts: { accounts?: unknown; accountsPages?: unknown[];
     const u = String(url);
     const headers = new Headers(init?.headers);
     calls.push({ url: u, method: init?.method, body: typeof init?.body === "string" ? init.body : undefined, auth: headers.get("authorization") });
-    if (u.includes("graph.facebook.com/v21.0/oauth/access_token")) {
+    if (u.includes("graph.facebook.com/v23.0/oauth/access_token")) {
       const body: Record<string, unknown> = { access_token: "suat-1", token_type: "bearer" };
       if (opts.expiresIn !== null) body.expires_in = opts.expiresIn ?? 5184000;
       return json(body);
@@ -84,7 +84,7 @@ function stubUnifiedFetch(opts: { accounts?: unknown; accountsPages?: unknown[];
         },
       );
     }
-    if (u.includes(`/v21.0/${IG_ID}/media`)) {
+    if (u.includes(`/v23.0/${IG_ID}/media`)) {
       return json(
         opts.media ?? {
           data: [
@@ -141,7 +141,7 @@ describe("fetchInstagramAccount", () => {
     expect(account).toEqual({ igUserId: IG_ID, username: "tech_hacks.ai" });
     const discovery = calls.find((c) => c.url.includes("/me/assigned_instagram_accounts"));
     expect(discovery).toBeDefined();
-    expect(discovery!.url.startsWith("https://graph.facebook.com/v21.0/me/assigned_instagram_accounts")).toBe(true);
+    expect(discovery!.url.startsWith("https://graph.facebook.com/v23.0/me/assigned_instagram_accounts")).toBe(true);
     expect(discovery!.auth).toBe("Bearer suat-1");
     expect(calls.some((c) => c.url.includes("/me/accounts"))).toBe(false);
     expect(calls.some((c) => c.url.includes("graph.instagram.com"))).toBe(false);
@@ -189,7 +189,7 @@ describe("fetchInstagramMedia on graph.facebook.com", () => {
     const posts = await fetchInstagramMedia("suat-1", IG_ID, fetchImpl);
     expect(posts).toHaveLength(1);
     expect(posts[0]).toMatchObject({ externalId: "m1", title: "Hello", views: 900, reach: 700, likes: 12, comments: 3 });
-    expect(calls.every((c) => c.url.startsWith("https://graph.facebook.com/v21.0/"))).toBe(true);
+    expect(calls.every((c) => c.url.startsWith("https://graph.facebook.com/v23.0/"))).toBe(true);
     expect(calls.every((c) => !c.url.includes("graph.instagram.com"))).toBe(true);
   });
 });

@@ -34,7 +34,7 @@ import { asArray, asRecord, clampTitle, fetchJson, parseCount, type FetchImpl, t
  *     and assets. `prompt=login` shows both sign-in choices even when
  *     the browser is already signed into Facebook. Code valid 1 hour,
  *     one use.
- *  2. GET https://graph.facebook.com/v21.0/oauth/access_token
+ *  2. GET https://graph.facebook.com/v23.0/oauth/access_token
  *     ?client_id&client_secret&redirect_uri&code → a Business
  *     Integration System User Access Token, owned by the customer's
  *     business portfolio. There is NO second exchange hop (no
@@ -42,7 +42,7 @@ import { asArray, asRecord, clampTitle, fetchJson, parseCount, type FetchImpl, t
  *     configuration returns no expires_in — that means no expiry, not
  *     an error.
  *  3. Discover the shared accounts: GET
- *     https://graph.facebook.com/v21.0/me/assigned_instagram_accounts
+ *     https://graph.facebook.com/v23.0/me/assigned_instagram_accounts
  *     ?fields=id,username — under Unified Login `/me` is the system
  *     user, NOT the Instagram account, so the account must be read
  *     from this edge (paginated). An empty list is a KNOWN failure mode
@@ -72,11 +72,24 @@ import { asArray, asRecord, clampTitle, fetchJson, parseCount, type FetchImpl, t
  * the basic counts still sync.
  */
 
-export const GRAPH_VERSION = "v21.0";
+/**
+ * Graph API version (C-10, owner decision 2026-11-15): v23.0. Meta's
+ * version table lists v23.0 (released 2025-05-29) as available until
+ * 2027-10-08 — not deprecated — so v23.0 is the bump target, not the
+ * newest release (v27.0, 2026-11-04). Every Graph call goes through
+ * this one constant; nothing pins a version anywhere else.
+ */
+export const GRAPH_VERSION = "v23.0";
 const FB_GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 const FB_AUTHORIZE_URL = "https://www.facebook.com/dialog/oauth";
 
-export const INSTAGRAM_SYNC_LIMIT = 50;
+/**
+ * Page size for one /media request (C-02, owner decision 2026-11-15):
+ * a PAGE size only, NOT a total cap. fetchInstagramMedia walks every
+ * page via paging.next, so the full post list syncs no matter how many
+ * posts the account has.
+ */
+export const INSTAGRAM_MEDIA_PAGE_SIZE = 50;
 
 /** The Unified Login authorize URL: config_id selects the consent flow — no scope parameter. */
 export function instagramAuthUrl(args: { config: InstagramConfig; redirectUri: string; state: string }): string {
@@ -237,11 +250,25 @@ export function mapInstagramMedia(item: unknown, insights: InstagramInsights = N
  */
 export const INSTAGRAM_INSIGHTS_BATCH_SIZE = 5;
 
+/** One page of the /{ig-user-id}/media edge: the items plus Meta's next-page URL (paging.next), if there is another page. */
+function parseMediaPage(body: unknown): { items: unknown[]; next: string | null } {
+  const next = asRecord(asRecord(body)?.paging)?.next;
+  return { items: asArray(asRecord(body)?.data), next: typeof next === "string" && next ? next : null };
+}
+
 /**
  * Recent media with per-media insights where Meta grants them, on the
  * Facebook Graph host. An insights failure (typically: App Review still
  * pending) degrades that post's insight metrics to null — the sync
  * itself never fails over it.
+ *
+ * C-02 — FULL sync, no total cap: the /media edge is walked page by
+ * page through paging.next until Meta returns no next page, so every
+ * post syncs no matter how many the account has. The walk stops the
+ * same way fetchInstagramAccount's discovery walk stops: a next-page
+ * URL seen before means Meta is cycling cursors, so it throws instead
+ * of paging forever. A media id seen on an earlier page is skipped —
+ * the same post is never returned or handed to onPosts twice.
  *
  * `onPosts` fires per insights batch, after that batch's posts are
  * mapped, so a caller can persist progress as it lands (like the
@@ -253,41 +280,51 @@ export async function fetchInstagramMedia(
   accessToken: string,
   igUserId: string,
   fetchImpl: FetchImpl = fetch,
-  limit: number = INSTAGRAM_SYNC_LIMIT,
+  limit: number = INSTAGRAM_MEDIA_PAGE_SIZE,
   onPosts?: (posts: SyncedPost[]) => void | Promise<void>,
 ): Promise<SyncedPost[]> {
   const auth = { authorization: `Bearer ${accessToken}` };
-  const body = await fetchJson(
-    fetchImpl,
-    `${FB_GRAPH_BASE}/${encodeURIComponent(igUserId)}/media?fields=id,caption,timestamp,permalink,media_type,like_count,comments_count&limit=${limit}`,
-    { headers: auth },
-  );
-  const items = asArray(body.data);
   const posts: SyncedPost[] = [];
-  for (let i = 0; i < items.length; i += INSTAGRAM_INSIGHTS_BATCH_SIZE) {
-    const batch = items.slice(i, i + INSTAGRAM_INSIGHTS_BATCH_SIZE);
-    const mapped = await Promise.all(
-      batch.map(async (item): Promise<SyncedPost | null> => {
-        const rec = asRecord(item);
-        let insights = NO_INSIGHTS;
-        if (rec && typeof rec.id === "string") {
-          try {
-            const insightsBody: Record<string, unknown> = await fetchJson(
-              fetchImpl,
-              `${FB_GRAPH_BASE}/${encodeURIComponent(rec.id)}/insights?metric=views,reach,shares,saved`,
-              { headers: auth },
-            );
-            insights = parseInstagramInsights(insightsBody);
-          } catch {
-            insights = NO_INSIGHTS; // permission not granted yet — honest nulls, not a failed sync
+  const seenIds = new Set<string>();
+  const seenPages = new Set<string>();
+  let url: string | null =
+    `${FB_GRAPH_BASE}/${encodeURIComponent(igUserId)}/media?fields=id,caption,timestamp,permalink,media_type,like_count,comments_count&limit=${limit}`;
+  while (url) {
+    if (seenPages.has(url)) throw new Error("Instagram media sync stopped on a repeated page cursor");
+    seenPages.add(url);
+    const body = await fetchJson(fetchImpl, url, { headers: auth });
+    const { items, next } = parseMediaPage(body);
+    for (let i = 0; i < items.length; i += INSTAGRAM_INSIGHTS_BATCH_SIZE) {
+      const batch = items.slice(i, i + INSTAGRAM_INSIGHTS_BATCH_SIZE);
+      const mapped = await Promise.all(
+        batch.map(async (item): Promise<SyncedPost | null> => {
+          const rec = asRecord(item);
+          let insights = NO_INSIGHTS;
+          if (rec && typeof rec.id === "string") {
+            try {
+              const insightsBody: Record<string, unknown> = await fetchJson(
+                fetchImpl,
+                `${FB_GRAPH_BASE}/${encodeURIComponent(rec.id)}/insights?metric=views,reach,shares,saved`,
+                { headers: auth },
+              );
+              insights = parseInstagramInsights(insightsBody);
+            } catch {
+              insights = NO_INSIGHTS; // permission not granted yet — honest nulls, not a failed sync
+            }
           }
-        }
-        return mapInstagramMedia(item, insights);
-      }),
-    );
-    const batchPosts = mapped.filter((p): p is SyncedPost => p !== null);
-    posts.push(...batchPosts);
-    if (onPosts && batchPosts.length > 0) await onPosts(batchPosts);
+          return mapInstagramMedia(item, insights);
+        }),
+      );
+      const batchPosts = mapped.filter((p): p is SyncedPost => p !== null).filter((p) => {
+        if (seenIds.has(p.externalId)) return false;
+        seenIds.add(p.externalId);
+        return true;
+      });
+      posts.push(...batchPosts);
+      if (onPosts && batchPosts.length > 0) await onPosts(batchPosts);
+    }
+    if (!next || next === url) break;
+    url = next;
   }
   return posts;
 }
