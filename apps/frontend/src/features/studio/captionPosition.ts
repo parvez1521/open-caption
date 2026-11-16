@@ -39,23 +39,6 @@ export function clampCaptionPosition(p: CaptionPosition): CaptionPosition {
   return { x: round3(clamp(p.x)), y: round3(clamp(p.y)) };
 }
 
-/** The 3×3 preset grid (same shape as the overlay inspector's preset grid). */
-export const POSITION_PRESETS: { id: string; row: "Top" | "Middle" | "Bottom"; col: "Left" | "Center" | "Right"; x: number; y: number }[] = (
-  [
-    ["Top", 0.2],
-    ["Middle", 0.5],
-    ["Bottom", 0.8],
-  ] as const
-).flatMap(([row, y]) =>
-  (
-    [
-      ["Left", 0.25],
-      ["Center", 0.5],
-      ["Right", 0.75],
-    ] as const
-  ).map(([col, x]) => ({ id: `${row.toLowerCase()}-${col.toLowerCase()}`, row, col, x, y })),
-);
-
 /** Where this card's caption actually sits: its override, else the global style position. */
 export function effectiveCardPosition(page: Page | null, style: CaptionStyleV2): CaptionPosition {
   return page?.position ?? style.position;
@@ -81,6 +64,41 @@ export function clearCurrentCardPosition(doc: CaptionDoc, page: Page | null): Ca
   const firstWordId = page?.words[0]?.id;
   if (!page || !firstWordId || page.position == null) return doc;
   return setCardPosition(doc, firstWordId, null);
+}
+
+/**
+ * Bulk (owner 2026-11-16): put EVERY caption at one position — the current
+ * card's effective position, copied onto every card as its own override. The
+ * cards are the derived pages (each page's first word is its card key). A
+ * pure doc transform: one s.edit call is one undo step. Returns the SAME doc
+ * reference when every card is already there, so a no-op click records no
+ * undo step.
+ */
+export function applyPositionToAllCards(doc: CaptionDoc, pages: Page[], style: CaptionStyleV2, p: CaptionPosition): CaptionDoc {
+  const next = clampCaptionPosition(p);
+  let out = doc;
+  for (const page of pages) {
+    const firstWordId = page.words[0]?.id;
+    if (!firstWordId) continue;
+    const cur = out.cards[firstWordId]?.position ?? style.position;
+    if (cur.x === next.x && cur.y === next.y) continue;
+    out = setCardPosition(out, firstWordId, next);
+  }
+  return out;
+}
+
+/**
+ * Bulk reset: clear EVERY card's override so all cards follow the global
+ * style position again. Same no-op rule — cards without an entry have no
+ * override to clear.
+ */
+export function clearAllCardPositions(doc: CaptionDoc): CaptionDoc {
+  let out = doc;
+  for (const [firstWordId, card] of Object.entries(doc.cards)) {
+    if (card?.position == null) continue;
+    out = setCardPosition(out, firstWordId, null);
+  }
+  return out;
 }
 
 /**

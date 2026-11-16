@@ -58,7 +58,7 @@ import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError }
 import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
 import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
 import { toComposition } from "./composition";
-import { captionBoxFractions, effectiveCardPosition, setCurrentCardPosition } from "./captionPosition";
+import { captionBoxFractions, effectiveCardPosition, setCurrentCardPosition, applyPositionToAllCards, clearAllCardPositions } from "./captionPosition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
   addMarker, addSegmentEffect, addSegmentKeyframe, applyContentEffect, applyDocEffect,
@@ -219,6 +219,18 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     setSelectedId(id);
     if (id) { setSelectedOverlayId(null); setSelVideoClipId(null); setSelMarkerId(null); setSelAudioClipId(null); }
   };
+  /**
+   * A user CLICK on a caption opens the Captions section (owner 2026-11-16) —
+   * so the Edit word panel is right there. Only user clicks do this:
+   * programmatic selection (split-at-playhead, adding a word) keeps calling
+   * selectWord and never yanks the user out of Templates while the video
+   * plays. Switching when already there is a no-op; deselecting (null) never
+   * switches. Follows the selectAudioClipFromTimeline precedent below.
+   */
+  const selectWordFromUserClick = (id: string | null) => {
+    selectWord(id);
+    if (id) { setSection("captions"); setMobileTimeline(false); }
+  };
   const selectOverlay = (id: string | null) => {
     setSelectedOverlayId(id);
     if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelVideoClipId(null); setSelMarkerId(null); setSelAudioClipId(null); }
@@ -353,6 +365,18 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     if (!s.doc || !currentPage || !style) return;
     s.edit((d) => setCurrentCardPosition(d, currentPage, style, p), { coalesceKey: `card-position:${currentPage.id}` });
   }, [s, currentPage, style]);
+  // Bulk caption position (owner 2026-11-16): the Style panel's Position
+  // section is the "all captions" home. "Apply to all" copies the current
+  // card's effective position onto every card; "Reset all" clears every
+  // override so all cards follow the global style position again. Both go
+  // through s.edit as one undo step, like every other caption edit.
+  const applyPositionToAll = useCallback(() => {
+    if (!style || !currentCardPosition) return;
+    s.edit((d) => applyPositionToAllCards(d, pages, style, currentCardPosition));
+  }, [s, pages, style, currentCardPosition]);
+  const resetAllPositions = useCallback(() => {
+    s.edit((d) => clearAllCardPositions(d));
+  }, [s]);
   const selected = doc?.words.find((w) => w.id === selectedId) ?? null;
 
   const seek = useCallback((ms: number) => {
@@ -1180,6 +1204,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onMovePosition={moveCurrentCard}
       captionBox={captionBox}
       showPositionGrip={currentPage != null}
+      onCaptionTap={() => { const id = currentPage?.words[0]?.id; if (id) selectWordFromUserClick(id); }}
       onTime={setTimeMs}
       onPlayingChange={setPlaying}
       compact={!desktop}
@@ -1219,7 +1244,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const captions = doc && style ? (
     <div data-tour="captions" className="flex h-full min-h-0 flex-col">
       <div className={`min-h-0 flex-1 ${live || generatingEmpty ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
-        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWord} onSeek={seek} edit={s.edit} style={style} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} onGenerateCaptions={doc.words.length === 0 && video && !videoGone ? () => void generateCaptions() : undefined} generateBusy={generatingEmpty} generateProgress={liveView?.progress ?? 0} generateNote={genCapNote} />
+        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWordFromUserClick} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} onGenerateCaptions={doc.words.length === 0 && video && !videoGone ? () => void generateCaptions() : undefined} generateBusy={generatingEmpty} generateProgress={liveView?.progress ?? 0} generateNote={genCapNote} />
       </div>
       {live && liveView ? (
         // the captions that haven't been written yet: shimmering placeholders with the time left
@@ -1277,7 +1302,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const renderPanel = (t: PanelId) =>
     t === "captions" ? captions
     : style ? (
-      t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} />
+      t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} currentCardPosition={currentCardPosition} hasPositionOverrides={pages.some((p) => p.position != null)} onApplyPositionToAll={applyPositionToAll} onResetAllPositions={resetAllPositions} />
       : t === "templates" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
       : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} composition={composition} onRelink={device.attach} assets={mediaBin.assets} importing={mediaBin.importing} onImport={mediaBin.importFiles} onDeleteAsset={mediaBin.remove} onPlaceImage={placeImage} />
       : t === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
@@ -1432,7 +1457,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       videoAspect={width / height}
       waveState={wave.state}
       onSeek={seek}
-      onSelect={selectWord}
+      onSelect={selectWordFromUserClick}
       selectedWordIds={selectedWordIds}
       onWordSelectionChange={handleWordSelectionChange}
       onShiftWords={(ids, deltaMs) => { if (!captionsLockedRef.current) s.edit((d) => shiftWordsByIds(d, ids, deltaMs)); }}

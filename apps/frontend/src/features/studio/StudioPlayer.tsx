@@ -27,6 +27,12 @@ interface Props {
   captionBox?: { x: number; y: number; w: number; h: number } | null;
   /** false when no card is current at the playhead: the grip hides (nothing to move) */
   showPositionGrip?: boolean;
+  /**
+   * Caption click (owner 2026-11-16): tapping the caption (no drag) selects
+   * the card at the playhead — StudioPage also opens the Captions section.
+   * The play/pause toggle below still runs, so tap-to-play is unchanged.
+   */
+  onCaptionTap?: () => void;
   onTime: (ms: number) => void;
   onPlayingChange?: (playing: boolean) => void;
   /** phones: the Player's own controls would cover the captions, so a compact transport sits under the video
@@ -43,7 +49,7 @@ interface Props {
 const clamp = (v: number) => Math.min(0.95, Math.max(0.05, v));
 
 /** The same CaptionedVideo composition that renders the export, plus a drag handle to place the captions. */
-export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, captionBox = null, showPositionGrip = true, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
+export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, captionBox = null, showPositionGrip = true, onCaptionTap, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
   const innerRef = useRef<PlayerRef | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -176,8 +182,12 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
               const d = captionDragRef.current;
               captionDragRef.current = null;
               setDragging(false);
-              // a tap (no drag) keeps the Player's click-to-play behaviour
-              if (d && !d.moved) innerRef.current?.toggle();
+              // a tap (no drag) keeps the Player's click-to-play behaviour — and
+              // selects the caption (StudioPage opens the Captions section)
+              if (d && !d.moved) {
+                onCaptionTap?.();
+                innerRef.current?.toggle();
+              }
             }}
             onPointerCancel={() => { captionDragRef.current = null; setDragging(false); }}
           />

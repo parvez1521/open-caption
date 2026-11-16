@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { CaptionDocSchema, defaultStyle, type Page, type Word } from "@capseasy/shared";
 import {
+  applyPositionToAllCards,
   captionBoxFractions,
   clampCaptionPosition,
+  clearAllCardPositions,
   clearCurrentCardPosition,
   effectiveCardPosition,
   fractionFromPointer,
-  POSITION_PRESETS,
   setCurrentCardPosition,
 } from "../captionPosition";
 
@@ -41,18 +42,6 @@ describe("clampCaptionPosition — the centre stays inside the frame", () => {
     expect(clampCaptionPosition({ x: -1, y: 2 })).toEqual({ x: 0.05, y: 0.95 });
     expect(clampCaptionPosition({ x: 0.123456, y: 0.987654 })).toEqual({ x: 0.123, y: 0.95 });
     expect(clampCaptionPosition({ x: 0.5, y: 0.68 })).toEqual({ x: 0.5, y: 0.68 });
-  });
-});
-
-describe("POSITION_PRESETS — the 3×3 grid", () => {
-  it("has nine cells: Top/Middle/Bottom × Left/Center/Right", () => {
-    expect(POSITION_PRESETS).toHaveLength(9);
-    const byId = Object.fromEntries(POSITION_PRESETS.map((p) => [p.id, p]));
-    expect(byId["top-center"]).toEqual(expect.objectContaining({ x: 0.5, y: 0.2 }));
-    expect(byId["middle-center"]).toEqual(expect.objectContaining({ x: 0.5, y: 0.5 }));
-    expect(byId["bottom-center"]).toEqual(expect.objectContaining({ x: 0.5, y: 0.8 }));
-    expect(byId["middle-left"]).toEqual(expect.objectContaining({ x: 0.25, y: 0.5 }));
-    expect(byId["middle-right"]).toEqual(expect.objectContaining({ x: 0.75, y: 0.5 }));
   });
 });
 
@@ -100,6 +89,59 @@ describe("clearCurrentCardPosition — Reset", () => {
     const cleared = clearCurrentCardPosition(doc, pageOf(words, { x: 0.5, y: 0.2 }));
     expect(cleared.cards.w1?.position).toBeNull();
     expect(clearCurrentCardPosition(cleared, pageOf(words, null))).toBe(cleared);
+  });
+});
+
+describe("applyPositionToAllCards — one position for every caption", () => {
+  const words = [mkWord("w1", "hi", 0, 400), mkWord("w2", "you", 420, 800), mkWord("w3", "too", 820, 1200)];
+  const pages = [pageOf([words[0]!], null, "p1"), pageOf([words[1]!], { x: 0.5, y: 0.2 }, "p2"), pageOf([words[2]!], null, "p3")];
+
+  it("copies the position onto every card, including cards with no override yet", () => {
+    const next = applyPositionToAllCards(docWith(words), pages, style, { x: 0.25, y: 0.8 });
+    expect(next.cards.w1?.position).toEqual({ x: 0.25, y: 0.8 });
+    expect(next.cards.w2?.position).toEqual({ x: 0.25, y: 0.8 });
+    expect(next.cards.w3?.position).toEqual({ x: 0.25, y: 0.8 });
+    expect(() => CaptionDocSchema.parse(next)).not.toThrow();
+  });
+
+  it("clamps the copied position to the frame band", () => {
+    const next = applyPositionToAllCards(docWith(words), pages, style, { x: 0, y: 1 });
+    expect(next.cards.w1?.position).toEqual({ x: 0.05, y: 0.95 });
+  });
+
+  it("returns the SAME doc when every card is already at that position", () => {
+    const doc = docWith(words);
+    // the global default is the effective position of every card here
+    expect(applyPositionToAllCards(doc, pages, style, style.position)).toBe(doc);
+  });
+
+  it("skips cards already at the target but writes the rest", () => {
+    const doc = docWith(words, { w2: { position: { x: 0.25, y: 0.8 } } });
+    const next = applyPositionToAllCards(doc, pages, style, { x: 0.25, y: 0.8 });
+    expect(next.cards.w1?.position).toEqual({ x: 0.25, y: 0.8 });
+    expect(next.cards.w3?.position).toEqual({ x: 0.25, y: 0.8 });
+    // w2's entry is untouched (same object, not rewritten)
+    expect(next.cards.w2).toBe(doc.cards.w2);
+  });
+});
+
+describe("clearAllCardPositions — every card back to the global position", () => {
+  it("clears all overrides and returns the same doc when there are none", () => {
+    const words = [mkWord("w1", "hi", 0, 400), mkWord("w2", "you", 420, 800)];
+    const doc = docWith(words, { w1: { position: { x: 0.5, y: 0.2 } }, w2: { position: { x: 0.75, y: 0.8 } } });
+    const cleared = clearAllCardPositions(doc);
+    expect(cleared.cards.w1?.position).toBeNull();
+    expect(cleared.cards.w2?.position).toBeNull();
+    expect(clearAllCardPositions(cleared)).toBe(cleared);
+    const plain = docWith(words);
+    expect(clearAllCardPositions(plain)).toBe(plain);
+  });
+
+  it("a cleared doc renders every card at the global position", () => {
+    const words = [mkWord("w1", "hi", 0, 400)];
+    const doc = docWith(words, { w1: { position: { x: 0.5, y: 0.2 } } });
+    const cleared = clearAllCardPositions(doc);
+    expect(effectiveCardPosition(pageOf(words, cleared.cards.w1?.position ?? null), style)).toEqual(style.position);
   });
 });
 

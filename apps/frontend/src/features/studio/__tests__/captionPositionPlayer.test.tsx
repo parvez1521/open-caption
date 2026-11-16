@@ -8,7 +8,8 @@ import type { CaptionedVideoInput } from "@capseasy/compositions";
  * Per-card caption position (owner 2026-11-16): dragging the caption text on
  * the preview moves THAT card. The hit box sits over the current card's
  * caption box; a drag moves it (via onMovePosition), a tap keeps the Player's
- * click-to-play behaviour. The grip is the same action as a keyboard slider.
+ * click-to-play behaviour AND fires onCaptionTap (StudioPage selects the card
+ * and opens the Captions section). The grip is the same action as a keyboard slider.
  */
 
 const captured = vi.hoisted(() => ({ toggles: 0 }));
@@ -38,8 +39,9 @@ const input: CaptionedVideoInput = {
   settings: ProjectSettingsSchema.parse({ platform: "reels" }),
 };
 
-function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h: number } | null; showPositionGrip?: boolean } = {}) {
+function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h: number } | null; showPositionGrip?: boolean; onCaptionTap?: () => void } = {}) {
   const onMovePosition = vi.fn();
+  const onCaptionTap = opts.onCaptionTap ?? vi.fn();
   // undefined = the default box; null = explicitly no box
   const captionBox = opts.captionBox === undefined ? { x: 0.5, y: 0.68, w: 0.8, h: 0.1 } : opts.captionBox;
   const utils = render(
@@ -53,10 +55,11 @@ function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h:
       onMovePosition={onMovePosition}
       captionBox={captionBox}
       showPositionGrip={opts.showPositionGrip}
+      onCaptionTap={onCaptionTap}
       onTime={vi.fn()}
     />,
   );
-  return { ...utils, onMovePosition };
+  return { ...utils, onMovePosition, onCaptionTap };
 }
 
 function stubFrameRect(hitbox: HTMLElement) {
@@ -82,7 +85,7 @@ describe("StudioPlayer — caption drag hit box", () => {
 
   it("a tap on the caption (no drag) toggles play instead of moving it", () => {
     captured.toggles = 0;
-    const { onMovePosition } = renderPlayer();
+    const { onMovePosition, onCaptionTap } = renderPlayer();
     const hitbox = screen.getByTestId("caption-position-hitbox");
     stubFrameRect(hitbox);
 
@@ -91,6 +94,20 @@ describe("StudioPlayer — caption drag hit box", () => {
 
     expect(onMovePosition).not.toHaveBeenCalled();
     expect(captured.toggles).toBe(1);
+    // the tap also selects the caption (StudioPage opens the Captions section)
+    expect(onCaptionTap).toHaveBeenCalledTimes(1);
+  });
+
+  it("a drag on the caption does NOT fire the tap callback", () => {
+    const { onCaptionTap } = renderPlayer();
+    const hitbox = screen.getByTestId("caption-position-hitbox");
+    stubFrameRect(hitbox);
+
+    fireEvent.pointerDown(hitbox, { clientX: 270, clientY: 653, pointerId: 1 });
+    fireEvent.pointerMove(hitbox, { clientX: 270, clientY: 700, pointerId: 1 });
+    fireEvent.pointerUp(hitbox);
+
+    expect(onCaptionTap).not.toHaveBeenCalled();
   });
 
   it("no caption box means no hit box; no current card hides the grip", () => {

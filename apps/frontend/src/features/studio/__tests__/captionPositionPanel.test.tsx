@@ -2,14 +2,14 @@ import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { CaptionDocSchema, defaultStyle, type CaptionDoc, type Page, type Word } from "@capseasy/shared";
+import { CaptionDocSchema, type CaptionDoc, type Page, type Word } from "@capseasy/shared";
 import { CaptionsPanel } from "../panels/CaptionsPanel";
 
 /**
- * Per-card caption position (owner 2026-11-16): the Captions panel gets a
- * preset grid + Reset for the card at the playhead. Presets write the card's
- * override; Reset clears it back to the global position. The controls live
- * inside the current card's own block and only render when a style is passed.
+ * Per-card caption position, presets REMOVED (owner 2026-11-16): the
+ * "Caption position" section — heading, hint, 3×3 preset grid, Reset — is
+ * gone from the Captions panel. Dragging the caption on the preview is the
+ * only way to move a card now; the bulk actions live in the Style panel.
  */
 
 const initialDoc: CaptionDoc = CaptionDocSchema.parse({
@@ -35,7 +35,7 @@ const pageOf = (words: Word[], id = "p1", position: { x: number; y: number } | n
   styleOverride: null,
 });
 
-function renderPanel(doc: CaptionDoc, opts: { style?: boolean; locked?: boolean; currentPageId?: string } = {}) {
+function renderPanel(doc: CaptionDoc, opts: { currentPageId?: string } = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function Harness() {
     const [d, setDoc] = useState(doc);
@@ -53,11 +53,9 @@ function renderPanel(doc: CaptionDoc, opts: { style?: boolean; locked?: boolean;
           onSelect={() => {}}
           onSeek={() => {}}
           edit={(fn) => setDoc((cur) => fn(cur))}
-          style={opts.style === false ? undefined : defaultStyle()}
           heroSupported
           selectedWordIds={new Set()}
           onWordSelectionChange={() => {}}
-          locked={opts.locked}
         />
       </QueryClientProvider>
     );
@@ -65,43 +63,56 @@ function renderPanel(doc: CaptionDoc, opts: { style?: boolean; locked?: boolean;
   return render(<Harness />);
 }
 
-describe("CaptionsPanel — per-card position presets", () => {
-  it("a preset writes the current card's override (first word id) and marks itself active", () => {
+describe("CaptionsPanel — preset grid removed", () => {
+  it("no 'Caption position' section, preset grid, or Reset anywhere in the panel", () => {
     renderPanel(initialDoc);
-    expect(screen.getByTestId("card-position-controls")).toBeTruthy();
-    // the global default (0.5, 0.72) matches no preset, so Reset starts disabled
-    expect(screen.getByRole("button", { name: "Reset" })).toHaveProperty("disabled", true);
-
-    fireEvent.click(screen.getByRole("button", { name: "Top Center" }));
-
-    expect(screen.getByRole("button", { name: "Top Center" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Reset" })).toHaveProperty("disabled", false);
-  });
-
-  it("Reset clears the override back to the global position", () => {
-    renderPanel(initialDoc);
-    fireEvent.click(screen.getByRole("button", { name: "Bottom Right" }));
-    expect(screen.getByRole("button", { name: "Bottom Right" })).toHaveAttribute("aria-pressed", "true");
-
-    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
-
-    expect(screen.getByRole("button", { name: "Bottom Right" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Reset" })).toHaveProperty("disabled", true);
-  });
-
-  it("the controls render only for the current card", () => {
-    renderPanel(initialDoc, { currentPageId: "other" });
     expect(screen.queryByTestId("card-position-controls")).toBeNull();
+    expect(screen.queryByText("Caption position")).toBeNull();
+    expect(screen.queryByText(/Drag the caption on the preview/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reset" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Caption position presets" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Top Center" })).toBeNull();
   });
 
-  it("the controls do not render when no style is passed", () => {
-    renderPanel(initialDoc, { style: false });
+  it("the section stays gone even when the current card HAS an override", () => {
+    const doc = CaptionDocSchema.parse({
+      version: 2,
+      language: "en",
+      words: initialDoc.words,
+      cards: { w1: { position: { x: 0.5, y: 0.2 } } },
+    });
+    renderPanel(doc);
     expect(screen.queryByTestId("card-position-controls")).toBeNull();
+    expect(screen.queryByText("Caption position")).toBeNull();
+    // the word list itself is untouched — the card still renders and selects
+    expect(screen.getByRole("button", { name: "Dulha" })).toBeTruthy();
   });
 
-  it("a locked captions track disables the presets and Reset", () => {
-    renderPanel(initialDoc, { locked: true });
-    expect(screen.getByRole("button", { name: "Top Center" })).toHaveProperty("disabled", true);
-    expect(screen.getByRole("button", { name: "Reset" })).toHaveProperty("disabled", true);
+  it("clicking a word still selects it (the panel's own behaviour is untouched)", () => {
+    const onSelect = (id: string | null) => {
+      selected.push(id);
+    };
+    const selected: (string | null)[] = [];
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const page = pageOf(initialDoc.words);
+    render(
+      <QueryClientProvider client={qc}>
+        <CaptionsPanel
+          doc={initialDoc}
+          pages={[page]}
+          currentPageId="p1"
+          timeMs={0}
+          selectedId={null}
+          onSelect={onSelect}
+          onSeek={() => {}}
+          edit={(fn) => fn(initialDoc)}
+          heroSupported
+          selectedWordIds={new Set()}
+          onWordSelectionChange={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Dulhan?" }));
+    expect(selected).toEqual(["w2"]);
   });
 });

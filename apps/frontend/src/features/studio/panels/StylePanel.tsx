@@ -19,13 +19,25 @@ interface StyleProps {
   /** name of the look this style started from (null for a custom / legacy style) */
   lookName: string | null;
   onOpenLooks: () => void;
+  /**
+   * Bulk caption position (owner 2026-11-16): the card at the playhead's
+   * effective position (its override, else the global) — null when no card
+   * is on screen, which disables "Apply to all captions".
+   */
+  currentCardPosition?: { x: number; y: number } | null;
+  /** true when any card has a position override — false disables "Reset all positions" */
+  hasPositionOverrides?: boolean;
+  /** copy the current card's position onto every card (one undo step) */
+  onApplyPositionToAll?: () => void;
+  /** clear every card's override so all follow the global position (one undo step) */
+  onResetAllPositions?: () => void;
 }
 
 /**
  * Every control here is shown only when the current template honours it (`controlVisible`, shared with
  * packages/templates/src/controls.test.tsx, which proves each visible control changes the rendered video).
  */
-export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpenLooks }) => {
+export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpenLooks, currentCardPosition = null, hasPositionOverrides = false, onApplyPositionToAll, onResetAllPositions }) => {
   const tpl = getTemplate(style.templateId);
   const show = (id: ControlId) => controlVisible(id, tpl, style);
   const effects = effectsFor(tpl);
@@ -174,6 +186,11 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
       <Section title="Position" hint="You can also drag the handle on the video.">
         <Slider label="Vertical" value={Math.round(style.position.y * 100)} min={5} max={95} unit="%" onChange={(v) => patch((s) => ({ ...s, position: { ...s.position, y: v / 100 } }))} />
         <Slider label="Horizontal" value={Math.round(style.position.x * 100)} min={5} max={95} unit="%" onChange={(v) => patch((s) => ({ ...s, position: { ...s.position, x: v / 100 } }))} />
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={!currentCardPosition} onClick={onApplyPositionToAll} className="rounded-md bg-st-raised px-2.5 py-2 text-xs hover:bg-st-hover disabled:opacity-50 lg:py-1">Apply to all captions</button>
+          <button type="button" disabled={!hasPositionOverrides} onClick={onResetAllPositions} className="rounded-md bg-st-raised px-2.5 py-2 text-xs hover:bg-st-hover disabled:opacity-50 lg:py-1">Reset all positions</button>
+        </div>
+        <p className="text-xs text-st-faint">Apply copies this card's position to every caption.</p>
         <Slider label="Max width" value={Math.round(style.maxWidth * 100)} min={30} max={100} unit="%" onChange={(v) => patch((s) => ({ ...s, maxWidth: v / 100 }))} />
         <Slider label="Rotation" value={style.rotation} min={-15} max={15} step={0.5} unit="°" onChange={(v) => patch((s) => ({ ...s, rotation: v }))} />
       </Section>
