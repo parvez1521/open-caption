@@ -176,9 +176,9 @@ describe("recordVideoQuotaEvent", () => {
   });
 });
 
-describe("plans — the quota change did not move prices or ids", () => {
-  it("plans, prices and the 30-day pass model are unchanged", () => {
-    expect(pricingFor("starter").priceInr).toBe(299);
+describe("plans — prices match the owner's current order", () => {
+  it("Starter ₹149 by owner order 2026-11-17 (was ₹299); Plus/Pro unchanged, 30-day pass model unchanged", () => {
+    expect(pricingFor("starter").priceInr).toBe(149);
     expect(pricingFor("growth").priceInr).toBe(499);
     expect(pricingFor("pro").priceInr).toBe(799);
     expect(pricingFor("growth").id).toBe("growth");

@@ -21,7 +21,7 @@ describe("ComparisonTable", () => {
     expect(text).toContain("Longest video");
     expect(text).toContain("Projects");
     expect(text).toContain("Exports kept");
-    expect(text).toContain("₹299");
+    expect(text).toContain("₹149");
     expect(text).toContain("₹799");
     expect(text).toContain("1,000");
     expect(text).toContain("3 hours");

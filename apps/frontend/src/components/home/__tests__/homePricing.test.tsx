@@ -18,7 +18,7 @@ describe("HomePricingSection", () => {
     const text = container.textContent ?? "";
     for (const [name, price] of [
       ["Free", "₹0"],
-      ["Starter", "₹299"],
+      ["Starter", "₹149"],
       ["Plus", "₹499"],
       ["Pro", "₹799"],
     ] as const) {

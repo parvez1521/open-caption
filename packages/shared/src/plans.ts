@@ -120,8 +120,8 @@ export const PLAN_PRICING: PlanPricing[] = [
     id: "starter",
     name: "Starter",
     tagline: "More room for a posting habit.",
-    priceInr: 299,
-    priceUsd: 4,
+    priceInr: 149,
+    priceUsd: 2,
     features: [
       "10 videos a month",
       "50 projects",

@@ -58,7 +58,7 @@ const payment = (over: Partial<PaymentRow> = {}): PaymentRow => ({
   cf_order_id: "oc_1",
   cf_payment_id: null,
   plan: "starter",
-  amount: 299,
+  amount: 149,
   currency: "INR",
   status: "created",
   created_at: "2026-11-11T00:00:00Z",

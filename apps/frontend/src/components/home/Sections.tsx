@@ -726,7 +726,7 @@ export function Faq() {
  * homepage. Renders from the same PLAN_PRICING config as /pricing, so the
  * plans and prices cannot drift; /pricing keeps the full comparison table.
  * Currency: the homepage is client-rendered with no geo header, so it shows
- * the INR prices the owner quoted (₹0 / ₹299 / ₹499 / ₹799) — one currency
+ * the INR prices the owner quoted (₹0 / ₹149 / ₹499 / ₹799) — one currency
  * only, never ₹ and $ together. Paid plans are 30-day passes, monthly only.
  *
  * Clipper filter (defence only — plans.ts no longer carries a Clipper

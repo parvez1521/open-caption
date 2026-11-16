@@ -24,8 +24,8 @@ describe("pricingComparison", () => {
     expect(row(comparisonRows("INR"), "price").values).toEqual(
       PLAN_PRICING.map((p) => priceLabel(p, "INR")),
     );
-    expect(row(comparisonRows("USD"), "price").values).toEqual(["$0", "$4", "$6", "$10"]);
-    expect(row(comparisonRows("INR"), "price").values).toEqual(["₹0", "₹299", "₹499", "₹799"]);
+    expect(row(comparisonRows("USD"), "price").values).toEqual(["$0", "$2", "$6", "$10"]);
+    expect(row(comparisonRows("INR"), "price").values).toEqual(["₹0", "₹149", "₹499", "₹799"]);
   });
 
   it("quota, duration, projects and retention match PLANS exactly", () => {
@@ -91,6 +91,8 @@ describe("pricingComparison", () => {
     expect(text).not.toMatch(/\bMB\b|\bGB\b/i);
     expect(text).not.toMatch(/upload/i);
     expect(text).not.toMatch(/minute/i);
-    expect(text).not.toMatch(/₹149|₹349|₹749/);
+    // Minutes prices ₹349/₹749 must never reappear; ₹149 is now the
+    // legitimate Starter 30-day pass price (owner 2026-11-17).
+    expect(text).not.toMatch(/₹349|₹749/);
   });
 });

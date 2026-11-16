@@ -387,7 +387,7 @@ describe("competitor-intelligence programme (2026-11-13)", () => {
     // Free (one zero offer) + 3 paid plans x 2 currencies = 7 offers.
     expect(offers).toHaveLength(7);
     const pairs = offers.map((o) => `${o.priceCurrency}:${o.price}`);
-    for (const expected of ["INR:0", "INR:299", "INR:499", "INR:799", "USD:4", "USD:6", "USD:10"]) {
+    for (const expected of ["INR:0", "INR:149", "INR:499", "INR:799", "USD:2", "USD:6", "USD:10"]) {
       expect(pairs).toContain(expected);
     }
     // One currency per Offer: the geo rule is honoured in structured data too.

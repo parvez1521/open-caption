@@ -5,8 +5,8 @@ import { priceLabel, projectCountLabel, uploadLimitLabel } from "../pricingDispl
 
 describe("pricingDisplay", () => {
   it("shows exactly one currency (owner rule: never ₹ and $ together)", () => {
-    expect(priceLabel(pricingFor("starter"), "INR")).toBe("₹299");
-    expect(priceLabel(pricingFor("starter"), "USD")).toBe("$4");
+    expect(priceLabel(pricingFor("starter"), "INR")).toBe("₹149");
+    expect(priceLabel(pricingFor("starter"), "USD")).toBe("$2");
     expect(priceLabel(pricingFor("free"), "INR")).toBe("₹0");
     expect(priceLabel(pricingFor("free"), "USD")).toBe("$0");
   });
