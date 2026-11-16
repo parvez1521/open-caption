@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { canTranscribeInBrowser, isSpeechModelSaved, type BrowserStatus } from "@/features/transcribe/browserWhisper";
+import { canTranscribeInBrowser, type BrowserStatus } from "@/features/transcribe/browserWhisper";
 import { getSession, startSession, useSessionView, type SessionView } from "@/features/transcribe/session";
 import { getLocalVideo } from "@/features/upload/localVideos";
 import { studioService, type StudioJob } from "@/services/studio";
@@ -165,14 +165,6 @@ function friendlyError(job: StudioJob): string {
   return "Something interrupted the captions. Press Try again; it usually works the second time.";
 }
 
-const STAGE_TEXT: Record<BrowserStatus["stage"], string> = {
-  audio: "Listening to your video…",
-  download: "Downloading the speech model (about 90 MB, first time only)…",
-  load: "Getting everything ready…",
-  transcribe: "Writing your captions…",
-  save: "Putting the finishing touches…",
-};
-
 /** Share of the whole wait that each stage owns, so the bar moves smoothly from drop to done. */
 export const overall = (s: BrowserStatus | null, view?: Pick<SessionView, "progress">) =>
   !s ? 2 : s.stage === "audio" ? 3 + s.progress * 7 : s.stage === "download" ? 10 + s.progress * 20 : s.stage === "load" ? 30 : s.stage === "transcribe" ? 32 + (view?.progress ?? s.progress) * 66 : 99;
@@ -204,8 +196,6 @@ const Mark = () => (
 /** Captions being made in this tab, before the first window is ready. Nothing is installed and the audio never leaves the device. */
 const WritingCaptions: React.FC<{ view: SessionView; isPhone: boolean; onStop: () => void }> = ({ view, isPhone, onStop }) => {
   const status = view.status;
-  const [saved, setSaved] = useState<boolean | null>(null);
-  useEffect(() => { void isSpeechModelSaved(view.model).then(setSaved); }, [view.model]);
   const [now, setNow] = useState(() => Date.now());
   const [verb, setVerb] = useState(() => Math.floor(Math.random() * VERBS.length));
   const [display, setDisplay] = useState(2);
@@ -229,31 +219,25 @@ const WritingCaptions: React.FC<{ view: SessionView; isPhone: boolean; onStop: (
     return () => clearInterval(t);
   }, [status, view]);
 
-  const firstTime = saved === false || status?.stage === "download";
   const elapsed = (now - view.startedAt) / 1000;
   const shown = Math.max(2, Math.round(display));
   const eta = view.etaSec ?? (shown > 12 && elapsed > 6 ? (elapsed * (100 - shown)) / shown : null);
-  const title = !status ? (firstTime ? "Downloading the speech model (about 90 MB, first time only)…" : "Warming up…") : status.stage === "load" && firstTime ? "Loading the speech model…" : STAGE_TEXT[status.stage];
   return (
     <Center>
       <Mark />
-      <h2 className="text-lg font-semibold">{title}</h2>
+      <h2 className="text-lg font-semibold">Generating captions…</h2>
       <p className="mt-1 text-sm font-medium text-st-text/70" aria-live="polite">{VERBS[verb % VERBS.length]}…</p>
       <CaptionProgress
         className="mt-5"
         percent={shown}
         caption={
           <>
-            {shown}% · {eta != null ? etaText(eta) : firstTime ? "First time takes about a minute or two" : "Just a moment"}
+            {shown}% · {eta != null ? etaText(eta) : "Just a moment"}
           </>
         }
       />
       {view.resumed ? <p className="mt-2 text-xs text-st-muted">Continuing from where it stopped.</p> : null}
-      {firstTime ? (
-        <p className="mt-3 text-sm text-st-muted">This first run downloads the speech model, so it takes a little longer. Don&apos;t close this tab{isPhone ? " or lock your screen" : ""}. Next time it&apos;s instant.</p>
-      ) : (
-        <p className="mt-3 text-xs text-st-faint">{isPhone ? "Keep this tab open and your screen on." : "Keep this tab open."}</p>
-      )}
+      <p className="mt-3 text-xs text-st-faint">{isPhone ? "Keep this tab open and your screen on." : "Keep this tab open."}</p>
       <Button className="mt-4" onClick={onStop}>Stop</Button>
     </Center>
   );
