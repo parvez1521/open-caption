@@ -13,8 +13,9 @@ import {
 
 /**
  * free launch window (owner order 2026-11-15): everything free
- * until 30 Nov 2026, 23:59:59 IST; paid resumes 1 Dec (minutes pricing,
- * separate deploy). The cutoff lives in ONE place — freeLaunch.ts — and
+ * until 30 Nov 2026, 23:59:59 IST; paid resumes 1 Dec (30-day passes;
+ * minutes/subscription model dropped by owner 2026-11-17).
+ * The cutoff lives in ONE place — freeLaunch.ts — and
  * every bypass calls isFreeLaunchWindow(); the window expires on its own.
  */
 
@@ -82,7 +83,6 @@ function walkFiles(dir: string, out: string[] = []): string[] {
 }
 
 const pricingPage = readFileSync(join(process.cwd(), "src/app/pricing/page.tsx"), "utf8");
-const minutesTable = readFileSync(join(process.cwd(), "src/components/pricing/MinutesLaunchTable.tsx"), "utf8");
 const billingPage = readFileSync(join(process.cwd(), "src/app/(dashboard)/settings/billing/page.tsx"), "utf8");
 const homeSections = readFileSync(join(process.cwd(), "src/components/home/Sections.tsx"), "utf8");
 const checkoutRoute = readFileSync(join(process.cwd(), "src/app/api/v1/billing/checkout/route.ts"), "utf8");
@@ -95,19 +95,11 @@ describe("free launch copy + guards (source pins)", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("/pricing shows the free banner, the minutes table and no buyable old-pass CTA", () => {
+  it("/pricing shows the free banner and no buyable old-pass CTA — and no minutes table (subscriptions dropped, owner 2026-11-17)", () => {
     expect(pricingPage).toContain("Everything free till 30 Nov — no card needed.");
     expect(pricingPage).toContain("Available 1 Dec");
-    expect(pricingPage).toContain("<MinutesLaunchTable />");
-  });
-
-  it("the minutes table shows ₹149 / ₹349 / ₹749, labelled from 1 Dec, CTAs disabled", () => {
-    for (const price of ["₹149", "₹349", "₹749"]) expect(minutesTable).toContain(price);
-    // The heading and CTA render "From 1 Dec" / "Available 1 Dec" via
-    // PAID_FROM_LABEL — the literal strings are pinned by the render test.
-    expect(minutesTable).toContain("PAID_FROM_LABEL");
-    expect(minutesTable).toContain("minutes pricing");
-    expect(minutesTable).toContain("disabled");
+    expect(pricingPage).not.toContain("MinutesLaunchTable");
+    expect(pricingPage).not.toContain("minutes pricing");
   });
 
   it("the billing page shows unlimited during the window and disables buying", () => {

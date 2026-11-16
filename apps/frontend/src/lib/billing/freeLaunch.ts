@@ -1,8 +1,9 @@
 /**
  * free launch window (owner order 2026-11-15; extended to 30 Nov by owner
  * order 2026-11-17): everything is free
- * until 30 Nov 2026, 23:59:59 IST — then paid resumes from 1 Dec (minutes
- * pricing, a separate deploy gated on Cashfree Subscriptions approval).
+ * until 30 Nov 2026, 23:59:59 IST — then paid resumes from 1 Dec (30-day
+ * passes; minutes/subscription model dropped by owner 2026-11-17, so no
+ * Cashfree Subscriptions approval is needed for the 1 Dec launch).
  *
  * One flag, one date: every bypass (video quota, checkout, pricing CTAs)
  * calls isFreeLaunchWindow() — the date is never hardcoded anywhere else,

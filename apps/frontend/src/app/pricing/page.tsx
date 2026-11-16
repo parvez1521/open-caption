@@ -4,7 +4,6 @@ import Link from "next/link";
 import { PLAN_PRICING, PLANS } from "@capseasy/shared";
 import { Footer, Nav } from "@/components/home/Sections";
 import ComparisonTable from "@/components/pricing/ComparisonTable";
-import MinutesLaunchTable from "@/components/pricing/MinutesLaunchTable";
 import { currencyForCountry } from "@/lib/billing/cashfree";
 import { isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
 import { priceLabel, projectCountLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
@@ -109,8 +108,6 @@ export default async function PricingPage() {
             );
           })}
         </div>
-
-        <MinutesLaunchTable />
 
         <ComparisonTable currency={currency} />
 
