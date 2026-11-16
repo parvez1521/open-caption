@@ -48,6 +48,8 @@ import { SignupGate } from "./SignupGate";
 import { projectsService } from "@/services/projects";
 import { studioService } from "@/services/studio";
 import { useDeviceVideo } from "@/features/upload/useDeviceVideo";
+import { syncStatusFor, syncVideoToCloud, type VideoSyncStatus as SyncStatus } from "@/features/upload/videoSync";
+import { VideoSyncStatus } from "./VideoSyncStatus";
 import { useCompatCopy } from "@/features/upload/useCompatCopy";
 import { etaText } from "./ProcessingPanel";
 import { getSession, startSession, useSessionView } from "@/features/transcribe/session";
@@ -283,7 +285,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     if (!authService.isAuthenticated()) router.replace(`/login?redirect=${encodeURIComponent(`/projects/${projectId}`)}`);
   }, [router, projectId]);
 
-  // the video plays from this device; Supabase only stores the captions
+  // the video plays from this device first; a synced cloud copy (or an old server upload) streams when it isn't here
   const device = useDeviceVideo(data?.video ?? null);
   // "captions only": this browser can't show the picture, so nothing is played (the captions still work)
   const captionsOnly = data?.video?.previewMode === "captions-only";
@@ -1011,6 +1013,38 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     startSession({ projectId, videoId: video.id, file: blob, language: data?.project.language ?? null });
   }, [video, projectId, data?.project.language]);
 
+  // Cloud video sync: a ≤50 MB copy of the video goes to the account's storage
+  // so the project opens on a second device. A video uploaded in this session
+  // syncs itself in the background once its local save lands; a video from
+  // before sync existed waits for the explicit button (no silent backfill).
+  // A failed sync changes nothing here — the local copy keeps working.
+  const [sync, setSync] = useState<{ videoId: string | null; status: SyncStatus }>({ videoId: null, status: "unsynced" });
+  const [justUploadedId, setJustUploadedId] = useState<string | null>(null);
+  const runSync = useCallback(async (videoId: string) => {
+    const blob = await getLocalVideo(videoId);
+    if (!blob) {
+      setSync({ videoId, status: "failed" });
+      return;
+    }
+    setSync({ videoId, status: "syncing" });
+    try {
+      await syncVideoToCloud({ videoId, file: blob });
+      setSync({ videoId, status: "synced" });
+      void refetchStudio();
+    } catch {
+      setSync({ videoId, status: "failed" });
+    }
+  }, [refetchStudio]);
+  useEffect(() => {
+    const v = data?.video;
+    if (!v || v.id !== justUploadedId || v.cloudSynced || sync.videoId === v.id) return;
+    if (v.size != null && data?.limits?.syncMaxBytes != null && v.size > data.limits.syncMaxBytes) {
+      setSync({ videoId: v.id, status: "too-large" });
+      return;
+    }
+    void runSync(v.id);
+  }, [data?.video, data?.limits?.syncMaxBytes, justUploadedId, runSync, sync.videoId]);
+
   if (s.query.isLoading) return <StudioSkeleton />;
   if (s.query.error instanceof ApiError && s.query.error.status === 401) {
     router.replace(`/login?redirect=${encodeURIComponent(`/projects/${projectId}`)}`);
@@ -1023,6 +1057,14 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const videoGone = !noVideoYet && device.status === "missing";
   const hasEditor = Boolean(doc && style && input) && !videoGone;
   const save = SAVE_LABEL[s.saveState];
+  // cloud sync state for this video: the header shows it next to "Saved" —
+  // local videos only (a server upload already plays everywhere)
+  const showSync = hasEditor && !!video && video.local === true;
+  const syncStatus: SyncStatus = !showSync || !video
+    ? "synced"
+    : sync.videoId === video.id
+      ? sync.status
+      : syncStatusFor({ cloudSynced: video.cloudSynced, size: video.size, syncMaxBytes: data?.limits?.syncMaxBytes });
 
   // ---------- building blocks shared by both layouts
   const liveBanner = live && liveView ? (
@@ -1070,6 +1112,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           <span className="hidden items-center gap-1.5 text-xs text-st-muted md:inline-flex" aria-live="polite">
             <span className={`h-1.5 w-1.5 rounded-full ${save.dot}`} />{save.text}
           </span>
+        ) : null}
+        {showSync && video ? (
+          <VideoSyncStatus status={syncStatus} onSync={() => void runSync(video.id)} />
         ) : null}
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2">
@@ -1143,9 +1188,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       language={data.project.language ?? null}
       mode={startMode}
       onModeChange={setStartMode}
-      onUploaded={() => { setReplacing(false); s.resetDoc(); void s.refetch(); }}
+      onUploaded={(videoId) => { setJustUploadedId(videoId); setReplacing(false); s.resetDoc(); void s.refetch(); }}
       note={
-        videoGone ? "This project's video isn't on this device anymore. Add a video and fresh captions will be written for it."
+        videoGone ? "Video isn't on this device. Upload again — captions start fresh."
           : replacing ? "Choose the new video. Captions will be generated for it."
           : video?.status === "uploading" ? "The last upload didn't finish. Choose your video again." : undefined
       }

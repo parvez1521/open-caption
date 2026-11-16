@@ -97,7 +97,7 @@ export const DELETE = route(async (req: Request, { params }: Ctx<{ id: string }>
   ]);
 
   const [{ data: videos }, { data: exportsRows }] = await Promise.all([
-    admin.from("videos").select("id, storage_path, preview_path").eq("project_id", id),
+    admin.from("videos").select("id, storage_path, preview_path, cloud_storage_path").eq("project_id", id),
     admin.from("exports").select("storage_path").eq("project_id", id),
   ]);
   const byBucket = new Map<string, Set<string>>();
@@ -108,6 +108,7 @@ export const DELETE = route(async (req: Request, { params }: Ctx<{ id: string }>
   for (const v of videos ?? []) {
     add(v.storage_path?.startsWith(`${user.id}/`) ? "media" : "videos", v.storage_path);
     add("media", v.preview_path);
+    add("media", v.cloud_storage_path);
   }
   for (const e of (exportsRows ?? []) as { storage_path?: string | null }[]) add("media", e.storage_path);
   // listing every object the user owns is slow: only do it when this project can have stored files (videos live on the device now)

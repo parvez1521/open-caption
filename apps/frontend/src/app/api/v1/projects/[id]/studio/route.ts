@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/api/auth";
 import { notFound, ok, route, type Ctx } from "@/lib/api/http";
 import { HOUR, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
-import { effectivePlanId, planFor } from "@capseasy/shared";
+import { effectivePlanId, planFor, syncCapBytes } from "@capseasy/shared";
 
 /**
  * Everything the editor needs in one RLS-scoped call: project, playable video URL, caption document and the latest
@@ -23,7 +23,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
       .eq("id", id)
       .is("deleted_at", null)
       .maybeSingle(),
-    user.db.from("videos").select("id, storage_path, preview_path, status, width, height, fps, duration_ms, has_audio, original_filename, file_size, mime_type, probe_json").eq("project_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    user.db.from("videos").select("id, storage_path, preview_path, cloud_storage_path, status, width, height, fps, duration_ms, has_audio, original_filename, file_size, mime_type, probe_json").eq("project_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     Number.isFinite(knownRev)
       ? user.db.from("caption_documents").select("revision").eq("project_id", id).maybeSingle()
       : user.db.from("caption_documents").select("revision, doc").eq("project_id", id).maybeSingle(),
@@ -61,8 +61,12 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
   }
 
   let videoOut: Record<string, unknown> | null = null;
-  const videoUrl = video && !(video.preview_path ?? video.storage_path).startsWith("local:")
-    ? await signedGet(video.preview_path ?? video.storage_path, 2 * HOUR).catch(() => null)
+  // a synced cloud copy plays on any device; otherwise an old server upload (preview or storage path),
+  // else the on-device copy only (url stays null and the browser plays IndexedDB)
+  const cloudPath = (video as { cloud_storage_path?: string | null } | null)?.cloud_storage_path ?? null;
+  const playPath = cloudPath ?? video?.preview_path ?? video?.storage_path ?? null;
+  const videoUrl = video && playPath && !playPath.startsWith("local:")
+    ? await signedGet(playPath, 2 * HOUR).catch(() => null)
     : null;
   if (video) {
     videoOut = {
@@ -70,6 +74,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
       status: video.status,
       // on-device videos: the browser plays its own copy (IndexedDB); old uploads may already be cleaned up
       local: video.storage_path.startsWith("local:"),
+      cloudSynced: Boolean(cloudPath),
       url: videoUrl,
       width: video.width, height: video.height, fps: video.fps, durationMs: video.duration_ms,
       previewMode: (video.probe_json as { previewMode?: string } | null)?.previewMode ?? "native",
@@ -81,6 +86,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
   const active = (jobs ?? []).find((j) => j.status === "queued" || j.status === "processing");
   const latestFailed = !active && !doc ? (jobs ?? []).find((j) => j.status === "failed" && j.kind === "transcribe") : undefined;
 
+  const planId = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
   return ok({
     project,
     video: videoOut,
@@ -88,7 +94,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
     job: active ?? latestFailed ?? null,
     // video uploaded but nothing is running and there are no captions: offer "Generate captions"
     canTranscribe: Boolean(video && video.status !== "uploading" && !doc && !active),
-    limits: { maxBytes: planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at)).maxLocalBytes, maxDurationSec: planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at)).maxDurationSec },
+    limits: { maxBytes: planFor(planId).maxLocalBytes, maxDurationSec: planFor(planId).maxDurationSec, syncMaxBytes: syncCapBytes(planId) },
     cloudAvailable: false,
   });
 });

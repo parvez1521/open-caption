@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PLAN_IDS, PLAN_PERIOD_DAYS, PLAN_PRICING, PLANS, effectivePlanId, planFor, planIdFor, pricingFor } from "./plans";
+import { PLAN_IDS, PLAN_PERIOD_DAYS, PLAN_PRICING, PLANS, STORAGE_PLATFORM_FILE_CAP_BYTES, effectivePlanId, planFor, planIdFor, pricingFor, syncCapBytes } from "./plans";
 
 describe("plans config", () => {
   it("free is frozen at its long-standing limits (paid tiers never shrink it)", () => {
@@ -90,5 +90,14 @@ describe("plans config", () => {
     expect(effectivePlanId("growth", null, now)).toBe("growth");
     expect(effectivePlanId("free", "2020-01-01T00:00:00Z", now)).toBe("free");
     expect(effectivePlanId("growth", "not-a-date", now)).toBe("growth");
+  });
+
+  it("cloud sync is bounded by the 50 MB platform file cap on every tier", () => {
+    // Supabase Free bounds a single stored file at 50 MB: even Pro's 2 GB
+    // maxUploadBytes can't sync more until the Supabase project is upgraded.
+    expect(STORAGE_PLATFORM_FILE_CAP_BYTES).toBe(50 * 1024 * 1024);
+    for (const id of PLAN_IDS) expect(syncCapBytes(id)).toBe(50 * 1024 * 1024);
+    expect(syncCapBytes("gold")).toBe(50 * 1024 * 1024);
+    expect(syncCapBytes(null)).toBe(50 * 1024 * 1024);
   });
 });

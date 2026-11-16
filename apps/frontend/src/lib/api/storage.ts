@@ -36,3 +36,13 @@ export const extFromMime = (mime: string, filename: string): string => {
   const m: Record<string, string> = { "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm", "video/x-matroska": "mkv" };
   return m[mime] ?? (filename.split(".").pop() || "mp4").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) ?? "mp4";
 };
+
+/**
+ * Where a video's cloud copy lives in the `media` bucket: one deterministic
+ * object per video, so a retried sync reuses (and overwrites) the same path
+ * instead of orphaning a new object each time. The project id is the second
+ * path segment, so the project-delete cleanup (which lists the user's
+ * objects) finds it.
+ */
+export const cloudVideoPath = (ownerId: string, projectId: string, videoId: string, mime: string, filename: string): string =>
+  `${ownerId}/${projectId}/cloud/${videoId}.${extFromMime(mime, filename)}`;

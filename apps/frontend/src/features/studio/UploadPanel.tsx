@@ -17,7 +17,8 @@ import { Button } from "./controls";
 
 interface Props {
   projectId: string;
-  onUploaded: () => void;
+  /** called with the new video's id once its local save lands — the studio uses it to sync that video */
+  onUploaded: (videoId: string) => void;
   note?: string;
   limits?: { maxBytes: number; maxDurationSec: number };
   language?: string | null;
@@ -70,7 +71,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
       }, editorMode ? { editorMode: true } : undefined);
       if (done.jobId) void getSession(projectId)?.attachJob(done.jobId);
       setProgress(100);
-      onUploaded();
+      onUploaded(done.videoId);
     },
     [projectId, onUploaded, editorMode],
   );

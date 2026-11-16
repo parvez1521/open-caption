@@ -50,6 +50,8 @@ export interface StudioData {
     size: number | null;
     /** the file is kept on the user's device, not on our servers */
     local?: boolean;
+    /** a ≤50 MB copy of this video is stored for this account (plays on a second device) */
+    cloudSynced?: boolean;
     previewMode?: "native" | "converted" | "captions-only";
     needsCompat?: boolean;
   } | null;
@@ -59,7 +61,7 @@ export interface StudioData {
   canTranscribe: boolean;
   cloudAvailable: boolean;
   /** what this user may upload (videos are shrunk on the device to fit) */
-  limits?: { maxBytes: number; maxDurationSec: number };
+  limits?: { maxBytes: number; maxDurationSec: number; /** biggest file cloud sync may send (50 MB platform cap) */ syncMaxBytes?: number };
 }
 
 export interface ExportRow {
@@ -201,6 +203,21 @@ export const studioService = {
 
   async exportDownloadUrl(exportId: string): Promise<string> {
     return (await apiClient.get<{ url: string }>(`/exports/${exportId}/download`)).url;
+  },
+
+  /**
+   * Cloud video sync, step 1: ask for a signed upload URL for this video's
+   * cloud copy. Answers synced:true when the video already plays from the
+   * server (an old upload, or a previous sync) — nothing to upload then.
+   * Throws LIMIT_EXCEEDED when the video is over the sync cap.
+   */
+  requestVideoSync(videoId: string) {
+    return apiClient.post<{ synced: boolean; videoId: string; uploadUrl?: string | null; token?: string | null; path?: string; syncCapBytes: number }>(`/videos/${videoId}/sync`);
+  },
+
+  /** Cloud video sync, step 2: confirm the copy landed, so the server records it. */
+  confirmVideoSync(videoId: string) {
+    return apiClient.post<{ synced: boolean; videoId: string; path: string }>(`/videos/${videoId}/sync/confirm`);
   },
 
   listLooks() {

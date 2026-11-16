@@ -54,6 +54,19 @@ export const planIdFor = (plan: string | null | undefined): PlanId =>
 export const planFor = (plan: string | null | undefined): PlanLimits => PLANS[planIdFor(plan)];
 
 /**
+ * Supabase Free tier bounds a single stored file at 50 MB (and the project at
+ * 1 GB total) — the platform cap, independent of the plan. Cloud video sync
+ * never sends more than this, whatever the tier allows: a paid tier's bigger
+ * maxUploadBytes only matters if the Supabase project is ever upgraded to a
+ * paid tier. Until then every tier syncs at most 50 MB per video.
+ */
+export const STORAGE_PLATFORM_FILE_CAP_BYTES = 50 * 1024 * 1024;
+
+/** Biggest file cloud sync may send for a tier: the plan cap, bounded by the platform cap. */
+export const syncCapBytes = (plan: string | null | undefined): number =>
+  Math.min(STORAGE_PLATFORM_FILE_CAP_BYTES, planFor(plan).maxUploadBytes);
+
+/**
  * The tier a profile is ACTUALLY entitled to right now: a paid tier whose
  * paid period has ended (profiles.plan_expires_at in the past) counts as
  * free until it is renewed. Free never expires.
