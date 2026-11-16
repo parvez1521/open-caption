@@ -16,6 +16,17 @@ interface Props {
   durationMs: number;
   position: { x: number; y: number };
   onMovePosition: (p: { x: number; y: number }) => void;
+  /**
+   * Per-card position (owner 2026-11-16): `position` is the CURRENT card's
+   * effective position (its override, else the global style position) and
+   * onMovePosition moves THAT card only — the global position is edited from
+   * the Style panel's Vertical/Horizontal sliders. `captionBox` is that card's
+   * caption box as frame fractions (centre + size): dragging the caption text
+   * itself moves the card. Null when no card is on screen — nothing to move.
+   */
+  captionBox?: { x: number; y: number; w: number; h: number } | null;
+  /** false when no card is current at the playhead: the grip hides (nothing to move) */
+  showPositionGrip?: boolean;
   onTime: (ms: number) => void;
   onPlayingChange?: (playing: boolean) => void;
   /** phones: the Player's own controls would cover the captions, so a compact transport sits under the video
@@ -32,10 +43,12 @@ interface Props {
 const clamp = (v: number) => Math.min(0.95, Math.max(0.05, v));
 
 /** The same CaptionedVideo composition that renders the export, plus a drag handle to place the captions. */
-export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
+export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, captionBox = null, showPositionGrip = true, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
   const innerRef = useRef<PlayerRef | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  /** an in-progress press on the caption hit box: below the threshold it is a tap (play/pause), past it a drag */
+  const captionDragRef = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
   // Slice 5.5 (b): the platform safe-zone guide is PREVIEW CHROME ONLY — local state plus a
   // sibling overlay div; it is never written into `input`, so the composition the Player
   // renders (and every export renders) is identical with the guide on or off.
@@ -134,6 +147,41 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
           )}
         />
         {stageOverlay}
+        {captionBox ? (
+          <div
+            role="button"
+            aria-label="Caption (drag to move this card)"
+            data-testid="caption-position-hitbox"
+            className="absolute z-[6] touch-none"
+            style={{ left: `${captionBox.x * 100}%`, top: `${captionBox.y * 100}%`, width: `${captionBox.w * 100}%`, height: `${captionBox.h * 100}%`, transform: "translate(-50%, -50%)", cursor: "grab" }}
+            onPointerDown={(e) => {
+              try {
+                (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              } catch {
+                /* capture unsupported: the moves still arrive on this element */
+              }
+              captionDragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
+            }}
+            onPointerMove={(e) => {
+              const d = captionDragRef.current;
+              if (!d) return;
+              if (!d.moved) {
+                if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 4) return;
+                d.moved = true;
+                setDragging(true);
+              }
+              move(e);
+            }}
+            onPointerUp={() => {
+              const d = captionDragRef.current;
+              captionDragRef.current = null;
+              setDragging(false);
+              // a tap (no drag) keeps the Player's click-to-play behaviour
+              if (d && !d.moved) innerRef.current?.toggle();
+            }}
+            onPointerCancel={() => { captionDragRef.current = null; setDragging(false); }}
+          />
+        ) : null}
         {dragging ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-st-em/50" /> : null}
         {showSafeZone ? (
           <div data-safe-zone-guide="true" className="pointer-events-none absolute inset-0 z-10" aria-hidden>
@@ -158,12 +206,13 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
         >
           Safe zone
         </button>
+        {showPositionGrip ? (
         <div
           role="slider"
-          aria-label="Caption position (drag)"
+          aria-label="Caption position for this card (drag)"
           aria-valuenow={Math.round(position.y * 100)}
           tabIndex={0}
-          title={compact ? "Drag up or down to move captions" : "Drag to move captions"}
+          title={compact ? "Drag up or down to move this card's captions" : "Drag to move this card's captions"}
           className={compact
             ? `absolute right-0 z-10 flex h-11 w-7 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-l-lg bg-st-panel/85 text-st-ink shadow-md ${dragging ? "cursor-grabbing bg-st-lav" : ""}`
             : `absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 border-st-lav bg-transparent shadow-[0_0_0_3px_rgba(0,0,0,0.25)] transition ${dragging ? "scale-125 cursor-grabbing opacity-100" : "opacity-0 group-hover:opacity-90 focus:opacity-100"}`}
@@ -181,6 +230,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
         >
           {compact ? <span aria-hidden className="text-xs leading-none tracking-tighter">⇕</span> : null}
         </div>
+        ) : null}
       </div>
       </div>
       {compact ? <Transport player={innerRef} fps={fps} durationMs={durationMs} durationInFrames={durationInFrames} isPlaying={isPlaying} fallbackMs={nowMs} /> : null}

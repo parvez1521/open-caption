@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import type { CaptionDoc, Page, Word } from "@capseasy/shared";
-import { deleteWordsByIds, findMatches, findReplace, importSubtitles, mergeWithNext, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
+import type { CaptionDoc, CaptionStyleV2, Page, Word } from "@capseasy/shared";
+import { deleteWordsByIds, findMatches, findReplace, importSubtitles, mergeWithNext, mergeWithPrevious, setCardPosition, setEmphasis, setHidden, setWordText, shiftAllWords, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Button, fmtTime } from "../controls";
+import { effectiveCardPosition, POSITION_PRESETS } from "../captionPosition";
 import { EmphasisSuggestions } from "./EmphasisSuggestions";
 import { PANEL_PX_PER_MS, formatDelta, isPastThreshold, pxToMs, rangeSelection } from "../dragSelect";
 
@@ -17,6 +18,8 @@ interface Props {
   onSelect: (wordId: string | null) => void;
   onSeek: (ms: number) => void;
   edit: (fn: (d: CaptionDoc) => CaptionDoc, opts?: { coalesceKey?: string }) => void;
+  /** the project's global caption style (for the position fallback): when absent the position controls don't render */
+  style?: CaptionStyleV2 | null;
   /** false for layouts that cannot show a key word differently (typewriter) */
   heroSupported: boolean;
   /**
@@ -113,7 +116,57 @@ const SelectedWordEditor: React.FC<{
   );
 };
 
-export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, heroSupported, selectedWordIds, onWordSelectionChange, locked = false, onGenerateCaptions, generateBusy = false, generateProgress = 0, generateNote = null }) => {
+/**
+ * Per-card caption position (owner 2026-11-16): presets + Reset for the card
+ * at the playhead. Lives inside the current card's own block (the list keeps
+ * that card centred), so it never scrolls away from the card it moves. The
+ * drag on the preview does the same thing by hand; the grid is the precise
+ * version. Every preset writes the card's override; Reset clears it back to
+ * the global position. All edits go through the panel's lock-wrapped edit().
+ */
+const CardPositionControls: React.FC<{
+  page: Page;
+  style: CaptionStyleV2;
+  edit: Props["edit"];
+  locked: boolean;
+}> = ({ page, style, edit, locked }) => {
+  const firstWordId = page.words[0]?.id ?? null;
+  if (!firstWordId) return null;
+  const effective = effectiveCardPosition(page, style);
+  const hasOverride = page.position != null;
+  return (
+    <div data-testid="card-position-controls" className="mt-2 rounded-lg border border-st-line bg-st-panel p-2.5">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-st-muted">Caption position</p>
+        <Button disabled={locked || !hasOverride} className="!py-1 text-xs" onClick={() => edit((d) => setCardPosition(d, firstWordId, null))}>
+          Reset
+        </Button>
+      </div>
+      <p className="mt-0.5 text-[11px] text-st-muted">Drag the caption on the preview to move this card.</p>
+      <div className="mt-2 grid w-32 grid-cols-3 gap-1" role="group" aria-label="Caption position presets">
+        {POSITION_PRESETS.map((preset) => {
+          const active = effective.x === preset.x && effective.y === preset.y;
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              disabled={locked}
+              aria-label={`${preset.row} ${preset.col}`}
+              aria-pressed={active}
+              title={`${preset.row} ${preset.col}`}
+              onClick={() => edit((d) => setCardPosition(d, firstWordId, { x: preset.x, y: preset.y }))}
+              className={`relative h-7 rounded-md ${active ? "bg-st-ink text-st-panel" : "bg-st-raised text-st-text hover:bg-st-hover"} disabled:opacity-50`}
+            >
+              <span aria-hidden className="absolute h-1.5 w-1.5 rounded-full bg-current" style={{ left: `${preset.x * 100}%`, top: `${preset.y * 100}%`, transform: "translate(-50%, -50%)" }} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, style = null, heroSupported, selectedWordIds, onWordSelectionChange, locked = false, onGenerateCaptions, generateBusy = false, generateProgress = 0, generateNote = null }) => {
   // The lock guard lives at this ONE chokepoint: every edit this panel makes (its own
   // controls and the EmphasisSuggestions child) goes through `edit`, so wrapping it here
   // blocks them all at once — no call site can forget the check.
@@ -380,6 +433,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                 );
               })}
             </div>
+            {page.id === currentPageId && style ? <CardPositionControls page={page} style={style} edit={edit} locked={locked} /> : null}
           </div>
         ))}
 

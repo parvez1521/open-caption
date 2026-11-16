@@ -58,6 +58,7 @@ import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError }
 import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
 import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
 import { toComposition } from "./composition";
+import { captionBoxFractions, effectiveCardPosition, setCurrentCardPosition } from "./captionPosition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
   addMarker, addSegmentEffect, addSegmentKeyframe, applyContentEffect, applyDocEffect,
@@ -340,6 +341,18 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const wave = useWaveform(video?.id, video?.url, video?.size);
   const pages = useMemo(() => (doc && style && fontsReady ? computePages(doc, settings, style, canvas) : []), [doc, style, settings, canvas, fontsReady, fontEpoch]);
   const currentPage = pages.find((p) => timeMs >= p.startMs && timeMs < p.endMs) ?? null;
+  // Per-card caption position (owner 2026-11-16): the preview drag moves the
+  // card at the playhead only — its override, else the global style position.
+  // The drag commits through s.edit with a stable coalesce key per card, so
+  // one continuous drag is one undo step (the recordHistory window slides:
+  // ticks <600ms apart keep coalescing). The global position is still edited
+  // from the Style panel's Vertical/Horizontal sliders.
+  const currentCardPosition = currentPage && style ? effectiveCardPosition(currentPage, style) : null;
+  const captionBox = currentPage && style ? captionBoxFractions(currentPage, style, canvas) : null;
+  const moveCurrentCard = useCallback((p: { x: number; y: number }) => {
+    if (!s.doc || !currentPage || !style) return;
+    s.edit((d) => setCurrentCardPosition(d, currentPage, style, p), { coalesceKey: `card-position:${currentPage.id}` });
+  }, [s, currentPage, style]);
   const selected = doc?.words.find((w) => w.id === selectedId) ?? null;
 
   const seek = useCallback((ms: number) => {
@@ -1163,8 +1176,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       height={canvasSize.height}
       fps={fps}
       durationMs={durationMs}
-      position={style.position}
-      onMovePosition={(p) => s.patchStyle((st) => ({ ...st, position: p }))}
+      position={currentCardPosition ?? style.position}
+      onMovePosition={moveCurrentCard}
+      captionBox={captionBox}
+      showPositionGrip={currentPage != null}
       onTime={setTimeMs}
       onPlayingChange={setPlaying}
       compact={!desktop}
@@ -1204,7 +1219,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const captions = doc && style ? (
     <div data-tour="captions" className="flex h-full min-h-0 flex-col">
       <div className={`min-h-0 flex-1 ${live || generatingEmpty ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
-        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWord} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} onGenerateCaptions={doc.words.length === 0 && video && !videoGone ? () => void generateCaptions() : undefined} generateBusy={generatingEmpty} generateProgress={liveView?.progress ?? 0} generateNote={genCapNote} />
+        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWord} onSeek={seek} edit={s.edit} style={style} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} onGenerateCaptions={doc.words.length === 0 && video && !videoGone ? () => void generateCaptions() : undefined} generateBusy={generatingEmpty} generateProgress={liveView?.progress ?? 0} generateNote={genCapNote} />
       </div>
       {live && liveView ? (
         // the captions that haven't been written yet: shimmering placeholders with the time left
