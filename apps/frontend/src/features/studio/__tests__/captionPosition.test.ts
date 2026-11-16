@@ -3,12 +3,14 @@ import { CaptionDocSchema, defaultStyle, type Page, type Word } from "@capseasy/
 import {
   applyPositionToAllCards,
   captionBoxFractions,
+  captionFontPx,
   clampCaptionPosition,
   clearAllCardPositions,
   clearCurrentCardPosition,
   effectiveCardPosition,
   fractionFromPointer,
   setCurrentCardPosition,
+  setSelectedCardsPosition,
 } from "../captionPosition";
 
 /**
@@ -122,6 +124,41 @@ describe("applyPositionToAllCards — one position for every caption", () => {
     expect(next.cards.w3?.position).toEqual({ x: 0.25, y: 0.8 });
     // w2's entry is untouched (same object, not rewritten)
     expect(next.cards.w2).toBe(doc.cards.w2);
+  });
+});
+
+describe("setSelectedCardsPosition — a selective move touches only the picked cards", () => {
+  const words = [mkWord("w1", "hi", 0, 400), mkWord("w2", "you", 420, 800), mkWord("w3", "too", 820, 1200)];
+  const pages = [pageOf([words[0]!], null, "p1"), pageOf([words[1]!], { x: 0.5, y: 0.2 }, "p2"), pageOf([words[2]!], null, "p3")];
+
+  it("writes the override onto the selected cards only; the rest keep theirs", () => {
+    const doc = docWith(words, { w2: { position: { x: 0.5, y: 0.2 } } });
+    const next = setSelectedCardsPosition(doc, pages, style, new Set(["p1", "p3"]), { x: 0.25, y: 0.8 });
+    expect(next.cards.w1?.position).toEqual({ x: 0.25, y: 0.8 });
+    expect(next.cards.w3?.position).toEqual({ x: 0.25, y: 0.8 });
+    // p2 was not selected: its old override survives untouched
+    expect(next.cards.w2?.position).toEqual({ x: 0.5, y: 0.2 });
+    expect(() => CaptionDocSchema.parse(next)).not.toThrow();
+  });
+
+  it("clamps the stored value to the frame band", () => {
+    const next = setSelectedCardsPosition(docWith(words), pages, style, new Set(["p1"]), { x: 0, y: 1 });
+    expect(next.cards.w1?.position).toEqual({ x: 0.05, y: 0.95 });
+  });
+
+  it("returns the SAME doc when the selection is empty or every selected card is already there", () => {
+    const doc = docWith(words);
+    expect(setSelectedCardsPosition(doc, pages, style, new Set(), { x: 0.25, y: 0.8 })).toBe(doc);
+    // p2 already sits at 0.2 via its override in the doc — not just the page fixture
+    const withOverride = docWith(words, { w2: { position: { x: 0.5, y: 0.2 } } });
+    expect(setSelectedCardsPosition(withOverride, pages, style, new Set(["p2"]), { x: 0.5, y: 0.2 })).toBe(withOverride);
+  });
+});
+
+describe("captionFontPx — the drag ghost's text size", () => {
+  it("scales the style font size to the canvas", () => {
+    expect(captionFontPx(style, canvas)).toBeGreaterThan(0);
+    expect(captionFontPx(style, { width: 540, height: 960, fps: 30 })).toBeCloseTo(captionFontPx(style, canvas) / 2, 6);
   });
 });
 

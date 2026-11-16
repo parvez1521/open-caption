@@ -58,7 +58,7 @@ import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError }
 import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
 import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
 import { toComposition } from "./composition";
-import { captionBoxFractions, effectiveCardPosition, setCurrentCardPosition, applyPositionToAllCards, clearAllCardPositions } from "./captionPosition";
+import { captionBoxFractions, captionFontPx, clampCaptionPosition, effectiveCardPosition, setSelectedCardsPosition, applyPositionToAllCards, clearAllCardPositions } from "./captionPosition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
   addMarker, addSegmentEffect, addSegmentKeyframe, applyContentEffect, applyDocEffect,
@@ -200,6 +200,22 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   /** drag selection of caption words (ids, spanning cards), shared by the captions panel + timeline */
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
+  /**
+   * Multi-select of caption CARDS (page ids, picked on the timeline in line
+   * mode) — for position only, separate from selectedWordIds, which is for
+   * retiming. Empty (or exactly one) = the global behaviour: a drag moves
+   * style.position, so ALL captions move together. 2+ = only those cards
+   * move, as per-card overrides. Switching word/line mode keeps it.
+   */
+  const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  /**
+   * Live drag ghost: while a selective drag moves cards the playhead card is
+   * NOT in, the caption under the pointer cannot move on screen (it must not
+   * visibly move and then snap back), so the dragged spot is shown as a
+   * translucent preview instead. Null when the playhead card itself is moving
+   * (it follows live) or no drag is on.
+   */
+  const [dragGhost, setDragGhost] = useState<{ x: number; y: number } | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [selVideoClipId, setSelVideoClipId] = useState<string | null>(null);
   const [selMarkerId, setSelMarkerId] = useState<string | null>(null);
@@ -353,18 +369,33 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const wave = useWaveform(video?.id, video?.url, video?.size);
   const pages = useMemo(() => (doc && style && fontsReady ? computePages(doc, settings, style, canvas) : []), [doc, style, settings, canvas, fontsReady, fontEpoch]);
   const currentPage = pages.find((p) => timeMs >= p.startMs && timeMs < p.endMs) ?? null;
-  // Per-card caption position (owner 2026-11-16): the preview drag moves the
-  // card at the playhead only — its override, else the global style position.
-  // The drag commits through s.edit with a stable coalesce key per card, so
-  // one continuous drag is one undo step (the recordHistory window slides:
-  // ticks <600ms apart keep coalescing). The global position is still edited
-  // from the Style panel's Vertical/Horizontal sliders.
+  // Caption position (owner 2026-11-16, second correction): the DEFAULT is the
+  // old behaviour — a drag moves the GLOBAL style.position, so all captions
+  // move together and a new user is never confused by one caption moving and
+  // the rest staying. Only when 2+ cards are picked on the timeline does a
+  // drag write per-card overrides to just those cards (same absolute position
+  // on each, one undo step for the whole drag, same coalesce pattern as the
+  // old per-card move). Exactly one card picked still counts as "no
+  // multi-selection" and moves globally. The global move goes through
+  // patchStyle ("style" coalesce key), so one continuous drag is one undo
+  // step, like the sliders. The Style panel sliders stay global always.
   const currentCardPosition = currentPage && style ? effectiveCardPosition(currentPage, style) : null;
   const captionBox = currentPage && style ? captionBoxFractions(currentPage, style, canvas) : null;
-  const moveCurrentCard = useCallback((p: { x: number; y: number }) => {
-    if (!s.doc || !currentPage || !style) return;
-    s.edit((d) => setCurrentCardPosition(d, currentPage, style, p), { coalesceKey: `card-position:${currentPage.id}` });
-  }, [s, currentPage, style]);
+  const moveCaptionPosition = useCallback((p: { x: number; y: number }) => {
+    if (!style) return;
+    const next = clampCaptionPosition(p);
+    if (selectedCardIds.size >= 2) {
+      if (!s.doc) return;
+      s.edit((d) => setSelectedCardsPosition(d, pages, style, selectedCardIds, next), { coalesceKey: `card-position:multi:${[...selectedCardIds].sort().join(",")}` });
+      // honest live feedback: the playhead card only moves on screen when it
+      // is in the selection; otherwise show the dragged spot as a ghost.
+      if (currentPage && !selectedCardIds.has(currentPage.id)) setDragGhost(next);
+      else setDragGhost(null);
+      return;
+    }
+    s.patchStyle((st) => ({ ...st, position: next }));
+    setDragGhost(null);
+  }, [s, style, pages, selectedCardIds, currentPage]);
   // Bulk caption position (owner 2026-11-16): the Style panel's Position
   // section is the "all captions" home. "Apply to all" copies the current
   // card's effective position onto every card; "Reset all" clears every
@@ -1201,10 +1232,14 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       fps={fps}
       durationMs={durationMs}
       position={currentCardPosition ?? style.position}
-      onMovePosition={moveCurrentCard}
+      onMovePosition={moveCaptionPosition}
       captionBox={captionBox}
       showPositionGrip={currentPage != null}
       onCaptionTap={() => { const id = currentPage?.words[0]?.id; if (id) selectWordFromUserClick(id); }}
+      onPositionDragEnd={() => setDragGhost(null)}
+      dragGhost={dragGhost}
+      dragGhostText={currentPage ? currentPage.words.map((w) => w.text).join(" ") : ""}
+      dragGhostFontPx={style ? captionFontPx(style, canvas) : undefined}
       onTime={setTimeMs}
       onPlayingChange={setPlaying}
       compact={!desktop}
@@ -1460,6 +1495,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onSelect={selectWordFromUserClick}
       selectedWordIds={selectedWordIds}
       onWordSelectionChange={handleWordSelectionChange}
+      selectedCardIds={selectedCardIds}
+      onCardSelectionChange={setSelectedCardIds}
       onShiftWords={(ids, deltaMs) => { if (!captionsLockedRef.current) s.edit((d) => shiftWordsByIds(d, ids, deltaMs)); }}
       onRetimeRun={(a, b, st, en, ripple) => { if (!captionsLockedRef.current) s.edit((d) => retimeRunGiveWay(d, a, b, st, en, ripple)); }}
       onRename={(id, text) => { if (!captionsLockedRef.current) s.edit((d) => setWordText(d, id, text)); }}

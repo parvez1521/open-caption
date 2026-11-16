@@ -17,16 +17,32 @@ interface Props {
   position: { x: number; y: number };
   onMovePosition: (p: { x: number; y: number }) => void;
   /**
-   * Per-card position (owner 2026-11-16): `position` is the CURRENT card's
-   * effective position (its override, else the global style position) and
-   * onMovePosition moves THAT card only — the global position is edited from
-   * the Style panel's Vertical/Horizontal sliders. `captionBox` is that card's
-   * caption box as frame fractions (centre + size): dragging the caption text
-   * itself moves the card. Null when no card is on screen — nothing to move.
+   * Caption position (owner 2026-11-16): `position` is the CURRENT card's
+   * effective position (its override, else the global style position).
+   * onMovePosition moves ALL captions together by default (the global
+   * style.position) — only when 2+ cards are picked on the timeline does
+   * StudioPage write per-card overrides to just those cards. `captionBox` is
+   * that card's caption box as frame fractions (centre + size): dragging the
+   * caption text itself moves it. Null when no card is on screen — nothing
+   * to move.
    */
   captionBox?: { x: number; y: number; w: number; h: number } | null;
   /** false when no card is current at the playhead: the grip hides (nothing to move) */
   showPositionGrip?: boolean;
+  /** a position drag ended (pointer up / cancel, hit box or grip) — StudioPage clears the drag ghost */
+  onPositionDragEnd?: () => void;
+  /**
+   * Live ghost (owner 2026-11-16): while a selective drag moves cards the
+   * playhead card is NOT in, the caption under the pointer cannot move (it
+   * must not visibly move and then snap back), so a translucent preview of
+   * the caption follows the pointer at the dragged spot instead. Null when
+   * the playhead card itself is moving (it follows live) or no drag is on.
+   */
+  dragGhost?: { x: number; y: number } | null;
+  /** the playhead card's caption text, shown in the ghost */
+  dragGhostText?: string;
+  /** the caption's font size in frame pixels, for the ghost text */
+  dragGhostFontPx?: number;
   /**
    * Caption click (owner 2026-11-16): tapping the caption (no drag) selects
    * the card at the playhead — StudioPage also opens the Captions section.
@@ -49,7 +65,7 @@ interface Props {
 const clamp = (v: number) => Math.min(0.95, Math.max(0.05, v));
 
 /** The same CaptionedVideo composition that renders the export, plus a drag handle to place the captions. */
-export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, captionBox = null, showPositionGrip = true, onCaptionTap, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
+export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, captionBox = null, showPositionGrip = true, onCaptionTap, onPositionDragEnd, dragGhost = null, dragGhostText = "", dragGhostFontPx, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
   const innerRef = useRef<PlayerRef | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -156,7 +172,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
         {captionBox ? (
           <div
             role="button"
-            aria-label="Caption (drag to move this card)"
+            aria-label="Caption (drag to move)"
             data-testid="caption-position-hitbox"
             className="absolute z-[6] touch-none"
             style={{ left: `${captionBox.x * 100}%`, top: `${captionBox.y * 100}%`, width: `${captionBox.w * 100}%`, height: `${captionBox.h * 100}%`, transform: "translate(-50%, -50%)", cursor: "grab" }}
@@ -182,6 +198,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
               const d = captionDragRef.current;
               captionDragRef.current = null;
               setDragging(false);
+              onPositionDragEnd?.();
               // a tap (no drag) keeps the Player's click-to-play behaviour — and
               // selects the caption (StudioPage opens the Captions section)
               if (d && !d.moved) {
@@ -189,8 +206,18 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
                 innerRef.current?.toggle();
               }
             }}
-            onPointerCancel={() => { captionDragRef.current = null; setDragging(false); }}
+            onPointerCancel={() => { captionDragRef.current = null; setDragging(false); onPositionDragEnd?.(); }}
           />
+        ) : null}
+        {dragGhost && captionBox && dragGhostText ? (
+          <div
+            aria-hidden
+            data-testid="caption-position-ghost"
+            className="pointer-events-none absolute z-[7] -translate-x-1/2 -translate-y-1/2 rounded-md border border-dashed border-white/60 bg-black/45 px-2 py-1 text-center font-bold text-white/90"
+            style={{ left: `${dragGhost.x * 100}%`, top: `${dragGhost.y * 100}%`, width: `${Math.max(0.1, captionBox.w) * 100}%`, fontSize: dragGhostFontPx ? `${dragGhostFontPx}px` : undefined }}
+          >
+            {dragGhostText}
+          </div>
         ) : null}
         {dragging ? <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px bg-st-em/50" /> : null}
         {showSafeZone ? (
@@ -219,17 +246,18 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
         {showPositionGrip ? (
         <div
           role="slider"
-          aria-label="Caption position for this card (drag)"
+          aria-label="Caption position (drag)"
           aria-valuenow={Math.round(position.y * 100)}
           tabIndex={0}
-          title={compact ? "Drag up or down to move this card's captions" : "Drag to move this card's captions"}
+          title={compact ? "Drag up or down to move the captions" : "Drag to move the captions"}
           className={compact
             ? `absolute right-0 z-10 flex h-11 w-7 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-l-lg bg-st-panel/85 text-st-ink shadow-md ${dragging ? "cursor-grabbing bg-st-lav" : ""}`
             : `absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 border-st-lav bg-transparent shadow-[0_0_0_3px_rgba(0,0,0,0.25)] transition ${dragging ? "scale-125 cursor-grabbing opacity-100" : "opacity-0 group-hover:opacity-90 focus:opacity-100"}`}
           style={compact ? { top: `${position.y * 100}%` } : { left: `${position.x * 100}%`, top: `${position.y * 100}%` }}
           onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setDragging(true); }}
           onPointerMove={(e) => dragging && move(e)}
-          onPointerUp={() => setDragging(false)}
+          onPointerUp={() => { setDragging(false); onPositionDragEnd?.(); }}
+          onPointerCancel={() => { setDragging(false); onPositionDragEnd?.(); }}
           onKeyDown={(e) => {
             const step = e.shiftKey ? 0.05 : 0.01;
             if (e.key === "ArrowUp") onMovePosition({ ...position, y: clamp(position.y - step) });

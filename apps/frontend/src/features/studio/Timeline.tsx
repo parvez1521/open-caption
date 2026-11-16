@@ -5,7 +5,7 @@ import { Eye, EyeOff, FoldHorizontal, Link2, Lock, LockOpen, Magnet, Maximize2, 
 import type { AudioClip, AudioTrack, CompositionTrackKind, Page, TrackState, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
 import { formatTimecode, parseTimecode, stepFrameMs } from "./timecode";
-import { formatDelta, groupDragBounds, isPastThreshold, pxToMs, rangeSelection, toggleIds } from "./dragSelect";
+import { blocksInRange, formatDelta, groupDragBounds, isPastThreshold, pxToMs, rangeSelection, toggleIds } from "./dragSelect";
 import { overlayClipsOf, trackOf, type Composition, type OverlayClip } from "./composition";
 import { snapMove, snapValue } from "./snap";
 import { canSplitAtPlayhead } from "./playheadSplit";
@@ -38,6 +38,13 @@ interface Props {
   /** drag selection of caption words (owner correction #5), shared with the captions panel */
   selectedWordIds: Set<string>;
   onWordSelectionChange: (ids: Set<string>) => void;
+  /**
+   * Multi-select of caption CARDS (page ids, line mode) — for position only,
+   * separate from selectedWordIds (retiming). Optional: older mounts omit it
+   * and the timeline simply has no card selection. StudioPage owns the set.
+   */
+  selectedCardIds?: Set<string>;
+  onCardSelectionChange?: (ids: Set<string>) => void;
   /** commit a retime of the whole word selection, once, on pointer up (shiftWordsByIds in StudioPage) */
   onShiftWords: (ids: string[], deltaMs: number) => void;
   /** commit new timing for a run of words (one word, or a whole line), once, on pointer up */
@@ -128,6 +135,8 @@ export const TRACK_NAMES: Record<LabelTier, { captions: string; video: string; t
   narrow: { captions: "𝐈", video: "▶", text: "T", audio: "♫" },
 };
 const MIN_MS = 40;
+/** stable empty card selection for mounts that omit the prop */
+const EMPTY_SET: Set<string> = new Set();
 /** fixed track heights per tier: blocks keep editor proportions however tall the panel is
  *  (no stretched cards); mid/narrow rows grow just enough to hold the stacked label cell */
 const ROW = { ruler: 24, captions: 44, video: 52, text: 36, audio: 44, audioTrack: 36 };
@@ -146,7 +155,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fps = 30, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fps = 30, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, selectedCardIds = EMPTY_SET, onCardSelectionChange = () => {}, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -392,6 +401,63 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
     for (const b of blocks) if (b.key !== skip) t.push(b.s, b.e);
     return t;
   };
+  /**
+   * Multi-select of caption cards (owner 2026-11-16, Premiere-style): in LINE
+   * mode the user picks cards for a selective position move. A block's card
+   * is its page — found by the block's first word id, so the mapping holds
+   * whether the block came from the composition clips or the pages fallback.
+   */
+  const cardPageId = (b: Block): string | null => pages.find((p) => p.words[0]?.id === b.firstId)?.id ?? null;
+  /** a plain click (on a card, or on empty track space) clears the card selection — back to the global move */
+  const clearCardSelection = () => {
+    if (mode === "line" && selectedCardIds.size > 0) onCardSelectionChange(new Set());
+  };
+  /** Marquee select on the captions track (line mode only): drag on empty track
+   *  space draws a rectangle across card blocks, Premiere-style. A press that
+   *  never moves is a plain click — it seeks, like the old scrub did. */
+  const marqueeRef = useRef<{ startX: number; startMs: number; s: number; e: number; active: boolean } | null>(null);
+  const [marquee, setMarquee] = useState<{ s: number; e: number } | null>(null);
+  const msAtPointer = (el: HTMLElement, clientX: number) => {
+    const r = el.getBoundingClientRect();
+    return Math.max(0, Math.min(total, (clientX - r.left) / pxPerMs));
+  };
+  const marqueeScrub = {
+    onPointerDown: (e: React.PointerEvent<HTMLElement>) => {
+      if (e.button !== 0 || renaming) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      marqueeRef.current = { startX: e.clientX, startMs: msAtPointer(e.currentTarget, e.clientX), s: 0, e: 0, active: false };
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLElement>) => {
+      const m = marqueeRef.current;
+      if (!m) return;
+      const ms = msAtPointer(e.currentTarget, e.clientX);
+      if (!m.active) {
+        if (Math.abs(e.clientX - m.startX) < 4) return;
+        m.active = true;
+      }
+      m.s = Math.min(m.startMs, ms);
+      m.e = Math.max(m.startMs, ms);
+      setMarquee({ s: m.s, e: m.e });
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLElement>) => {
+      const m = marqueeRef.current;
+      marqueeRef.current = null;
+      if (!m) return;
+      if (m.active) {
+        const ids = new Set(blocksInRange(blocks, m.s, m.e).map((b) => cardPageId(b)).filter((id): id is string => id !== null));
+        onCardSelectionChange(ids);
+        setMarquee(null);
+        // swallow the click that follows a marquee drag (it must not deselect the word)
+        suppressClickRef.current = true;
+      } else {
+        // plain click on empty space: seek, and clear the card selection
+        onSeek(m.startMs);
+        clearCardSelection();
+      }
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    },
+    onPointerCancel: () => { marqueeRef.current = null; setMarquee(null); },
+  };
   // snapping via the pure helper (snap.ts); a successful snap records its target for the guide line
   const snapTo = (v: number, targets: number[]) => {
     const r = snapValue(v, targets, pxPerMs, { enabled: snap });
@@ -426,6 +492,14 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
   const beginDrag = (e: React.PointerEvent, b: Block, kind: Drag["kind"]) => {
     if (renaming) return;
     e.stopPropagation();
+    // Line mode, modifier+click on a card block toggles the CARD in the
+    // multi-select (position), not its words — no drag starts. Word mode keeps
+    // the shift-click word toggle below (retiming selection).
+    if (mode === "line" && kind === "move" && (e.shiftKey || e.metaKey || e.ctrlKey)) {
+      const pid = cardPageId(b);
+      if (pid) onCardSelectionChange(toggleIds(selectedCardIds, [pid]));
+      return;
+    }
     // Shift+click on a block adds/removes its words from the drag selection — no drag starts.
     // Selection is not an edit, so this works even when the captions track is locked.
     if (kind === "move" && e.shiftKey) {
@@ -613,6 +687,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
         onSelect(g.anchorId);
         onSeek(g.startMs + 1);
         suppressClickRef.current = true;
+        // a plain click on a card clears the card multi-selection (back to global)
+        clearCardSelection();
       }
       return;
     }
@@ -726,6 +802,13 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
             </button>
           ))}
         </div>
+        {mode === "line" && selectedCardIds.size >= 2 ? (
+          <>
+            {sep}
+            <span className="shrink-0 rounded-md bg-st-raised px-2 py-1 font-semibold text-st-text">{selectedCardIds.size} cards selected — drag a caption to move only them</span>
+            <button type="button" onClick={() => onCardSelectionChange(new Set())} aria-label="Clear card selection" className="shrink-0 rounded-md border border-st-line bg-st-panel px-2 py-1 font-semibold text-st-muted hover:text-st-text">Clear</button>
+          </>
+        ) : null}
         {sep}
         {btn("Add a word at the playhead", <Plus className={icon} />, addWord, { disabled: tracks.captions.locked })}
         {btn("Caption timing settings", <SlidersHorizontal className={icon} />, onOpenSettings)}
@@ -821,11 +904,16 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
           </div>
 
           {/* captions: words or lines */}
-          <div className={`${trackRow} ${tracks.captions.visible ? "" : "opacity-40"}`} {...scrub} onClick={() => onSelect(null)}>
+          <div className={`${trackRow} ${tracks.captions.visible ? "" : "opacity-40"}`} {...(mode === "line" ? marqueeScrub : scrub)} onClick={() => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } onSelect(null); }}>
+            {marquee ? (
+              <div aria-hidden data-testid="timeline-marquee" className="pointer-events-none absolute inset-y-1 z-10 rounded border border-[#FFA946] bg-[#FFA946]/15" style={{ left: x(marquee.s), width: Math.max(2, x(marquee.e) - x(marquee.s)) }} />
+            ) : null}
             {blocks.map((b) => {
               const live = drag?.key === b.key && !drag.group ? { s: drag.s, e: drag.e } : { s: b.s, e: b.e };
               const groupOffsetPx = drag?.group && b.wordIds.some((id) => selectedWordIds.has(id)) ? drag.dxMs * pxPerMs : 0;
               const wpx = Math.max(3, x(live.e) - x(live.s) - 1);
+              const cardId = cardPageId(b);
+              const cardSelected = mode === "line" && cardId !== null && selectedCardIds.has(cardId);
               return (
                 <div
                   key={b.key}
@@ -833,19 +921,20 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   tabIndex={0}
                   aria-label={`${b.text}  ${fmtTime(live.s)} – ${fmtTime(live.e)}`}
                   aria-pressed={b.selected}
+                  data-card-selected={cardSelected || undefined}
                   onPointerDown={(e) => beginDrag(e, b, "move")}
-                  onClick={(e) => { e.stopPropagation(); if (suppressClickRef.current) { suppressClickRef.current = false; return; } onSelect(b.firstId); onSeek(live.s + 1); }}
+                  onClick={(e) => { e.stopPropagation(); if (suppressClickRef.current) { suppressClickRef.current = false; return; } clearCardSelection(); onSelect(b.firstId); onSeek(live.s + 1); }}
                   // Keyboard path (F-03 remainder): Enter/Space selects exactly like a
                   // mouse click. Events from the rename input must pass through untouched
                   // (Space types a space there), and stopPropagation keeps Space from also
                   // toggling play/pause via StudioPage's window keydown handler.
                   onKeyDown={(e) => {
                     if ((e.target as HTMLElement).tagName === "INPUT") return;
-                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onSelect(b.firstId); onSeek(live.s + 1); }
+                    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); clearCardSelection(); onSelect(b.firstId); onSeek(live.s + 1); }
                   }}
                   onDoubleClick={(e) => { e.stopPropagation(); if (mode === "word" && !tracks.captions.locked) setRenaming(b.firstId); }}
                   title={`${b.text}  ${fmtTime(live.s)} – ${fmtTime(live.e)}${mode === "word" ? "  (double-click to edit)" : ""}`}
-                  className={`absolute top-1 bottom-1 cursor-grab touch-none overflow-hidden rounded-md border text-[11px] leading-tight ${b.inSelection ? "ring-2 ring-st-em " : ""}${b.selected ? "border-st-ink bg-st-lav text-[#FFFFEB] ring-2 ring-st-ink/20" : b.live ? "border-st-ink/30 bg-st-or text-[#141412]" : mode === "line" ? "border-st-ink/15 bg-st-hover text-[#FFFFEB] hover:bg-st-lav/60" : "border-st-ink/10 bg-st-lav/60 text-[#FFFFEB] hover:bg-st-lav"}`}
+                  className={`absolute top-1 bottom-1 cursor-grab touch-none overflow-hidden rounded-md border text-[11px] leading-tight ${cardSelected ? "ring-2 ring-[#FFA946] " : ""}${b.inSelection ? "ring-2 ring-st-em " : ""}${b.selected ? "border-st-ink bg-st-lav text-[#FFFFEB] ring-2 ring-st-ink/20" : b.live ? "border-st-ink/30 bg-st-or text-[#141412]" : mode === "line" ? "border-st-ink/15 bg-st-hover text-[#FFFFEB] hover:bg-st-lav/60" : "border-st-ink/10 bg-st-lav/60 text-[#FFFFEB] hover:bg-st-lav"}`}
                   style={{ left: x(live.s) + groupOffsetPx, width: wpx }}
                 >
                   {renaming === b.firstId ? (

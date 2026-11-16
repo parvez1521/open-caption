@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PANEL_PX_PER_MS, formatDelta, groupDragBounds, isPastThreshold, pxToMs, rangeSelection, toggleIds } from "../dragSelect";
+import { PANEL_PX_PER_MS, blocksInRange, formatDelta, groupDragBounds, isPastThreshold, pxToMs, rangeSelection, toggleIds } from "../dragSelect";
 
 // a flat word order spanning three caption "cards" — selection must not stop at card boundaries
 const IDS = ["a1", "a2", "b1", "b2", "b3", "c1"];
@@ -127,5 +127,31 @@ describe("groupDragBounds", () => {
   it("returns a zero window for an empty selection", () => {
     const r = groupDragBounds(WORDS, new Set(), 40, 5000);
     expect(r).toEqual({ contiguous: false, firstId: null, lastId: null, minDxMs: 0, maxDxMs: 0 });
+  });
+});
+
+describe("blocksInRange — marquee selection", () => {
+  const blocks = [
+    { key: "a", s: 0, e: 400 },
+    { key: "b", s: 420, e: 800 },
+    { key: "c", s: 820, e: 1200 },
+  ];
+
+  it("returns the blocks the rectangle overlaps, in order", () => {
+    expect(blocksInRange(blocks, 300, 900).map((b) => b.key)).toEqual(["a", "b", "c"]);
+    expect(blocksInRange(blocks, 0, 400).map((b) => b.key)).toEqual(["a"]);
+  });
+
+  it("works dragged backwards", () => {
+    expect(blocksInRange(blocks, 900, 300).map((b) => b.key)).toEqual(["a", "b", "c"]);
+  });
+
+  it("a block merely touched at an edge does not count", () => {
+    expect(blocksInRange(blocks, 400, 420).map((b) => b.key)).toEqual([]);
+    expect(blocksInRange(blocks, 800, 820).map((b) => b.key)).toEqual([]);
+  });
+
+  it("an empty range selects nothing", () => {
+    expect(blocksInRange(blocks, 2000, 3000)).toEqual([]);
   });
 });

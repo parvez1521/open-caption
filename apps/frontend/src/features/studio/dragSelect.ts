@@ -50,6 +50,22 @@ export function toggleIds(current: ReadonlySet<string>, ids: Iterable<string>): 
   return next;
 }
 
+/** A block's timing span — the input to blocksInRange (marquee selection). */
+export interface TimeSpan {
+  s: number;
+  e: number;
+}
+
+/**
+ * Marquee selection (owner 2026-11-16): the blocks a dragged rectangle
+ * crosses on the timeline — any block whose span overlaps the range (a block
+ * merely touched at an edge does not count). Order is the input order.
+ */
+export function blocksInRange<T extends TimeSpan>(blocks: readonly T[], startMs: number, endMs: number): T[] {
+  const [lo, hi] = startMs <= endMs ? [startMs, endMs] : [endMs, startMs];
+  return blocks.filter((b) => b.s < hi && b.e > lo);
+}
+
 /** Convert a horizontal pixel drag to milliseconds at the given scale, rounded to whole ms. */
 export function pxToMs(deltaPx: number, pxPerMs: number): number {
   if (!Number.isFinite(deltaPx) || !Number.isFinite(pxPerMs) || pxPerMs <= 0) return 0;

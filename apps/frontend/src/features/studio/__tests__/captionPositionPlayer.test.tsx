@@ -5,11 +5,15 @@ import { ProjectSettingsSchema } from "@capseasy/shared";
 import type { CaptionedVideoInput } from "@capseasy/compositions";
 
 /**
- * Per-card caption position (owner 2026-11-16): dragging the caption text on
- * the preview moves THAT card. The hit box sits over the current card's
- * caption box; a drag moves it (via onMovePosition), a tap keeps the Player's
+ * Caption position drag (owner 2026-11-16): dragging the caption text on the
+ * preview moves it (via onMovePosition — StudioPage routes it globally by
+ * default, or to just the timeline-selected cards). The hit box sits over the
+ * current card's caption box; a drag moves it, a tap keeps the Player's
  * click-to-play behaviour AND fires onCaptionTap (StudioPage selects the card
- * and opens the Captions section). The grip is the same action as a keyboard slider.
+ * and opens the Captions section). The grip is the same action as a keyboard
+ * slider. When a selective drag moves cards the playhead card is NOT in, a
+ * translucent ghost of the caption follows the pointer instead — the playhead
+ * caption must never visibly move and then snap back.
  */
 
 const captured = vi.hoisted(() => ({ toggles: 0 }));
@@ -39,9 +43,10 @@ const input: CaptionedVideoInput = {
   settings: ProjectSettingsSchema.parse({ platform: "reels" }),
 };
 
-function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h: number } | null; showPositionGrip?: boolean; onCaptionTap?: () => void } = {}) {
+function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h: number } | null; showPositionGrip?: boolean; onCaptionTap?: () => void; onPositionDragEnd?: () => void; dragGhost?: { x: number; y: number } | null; dragGhostText?: string; dragGhostFontPx?: number } = {}) {
   const onMovePosition = vi.fn();
   const onCaptionTap = opts.onCaptionTap ?? vi.fn();
+  const onPositionDragEnd = opts.onPositionDragEnd ?? vi.fn();
   // undefined = the default box; null = explicitly no box
   const captionBox = opts.captionBox === undefined ? { x: 0.5, y: 0.68, w: 0.8, h: 0.1 } : opts.captionBox;
   const utils = render(
@@ -56,10 +61,14 @@ function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h:
       captionBox={captionBox}
       showPositionGrip={opts.showPositionGrip}
       onCaptionTap={onCaptionTap}
+      onPositionDragEnd={onPositionDragEnd}
+      dragGhost={opts.dragGhost ?? null}
+      dragGhostText={opts.dragGhostText ?? ""}
+      dragGhostFontPx={opts.dragGhostFontPx}
       onTime={vi.fn()}
     />,
   );
-  return { ...utils, onMovePosition, onCaptionTap };
+  return { ...utils, onMovePosition, onCaptionTap, onPositionDragEnd };
 }
 
 function stubFrameRect(hitbox: HTMLElement) {
@@ -119,6 +128,31 @@ describe("StudioPlayer — caption drag hit box", () => {
 
   it("with a current card the grip is present as the keyboard handle", () => {
     renderPlayer();
-    expect(screen.getByRole("slider", { name: "Caption position for this card (drag)" })).toBeTruthy();
+    expect(screen.getByRole("slider", { name: "Caption position (drag)" })).toBeTruthy();
+  });
+
+  it("a drag ghost renders at the dragged spot with the caption text", () => {
+    renderPlayer({ dragGhost: { x: 0.5, y: 0.3 }, dragGhostText: "Dulha Dulhan?", dragGhostFontPx: 32 });
+    const ghost = screen.getByTestId("caption-position-ghost");
+    expect(ghost.textContent).toBe("Dulha Dulhan?");
+    expect(ghost.style.left).toBe("50%");
+    expect(ghost.style.top).toBe("30%");
+    expect(ghost.style.fontSize).toBe("32px");
+  });
+
+  it("no ghost without a drag position", () => {
+    renderPlayer({ dragGhostText: "Dulha Dulhan?" });
+    expect(screen.queryByTestId("caption-position-ghost")).toBeNull();
+  });
+
+  it("pointer up after a drag signals the drag end (StudioPage clears the ghost)", () => {
+    const onPositionDragEnd = vi.fn();
+    renderPlayer({ onPositionDragEnd });
+    const hitbox = screen.getByTestId("caption-position-hitbox");
+    stubFrameRect(hitbox);
+    fireEvent.pointerDown(hitbox, { clientX: 270, clientY: 653, pointerId: 1 });
+    fireEvent.pointerMove(hitbox, { clientX: 270, clientY: 700, pointerId: 1 });
+    fireEvent.pointerUp(hitbox);
+    expect(onPositionDragEnd).toHaveBeenCalledTimes(1);
   });
 });

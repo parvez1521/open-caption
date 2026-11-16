@@ -3,8 +3,15 @@ import type { CaptionDoc, CaptionStyleV2, Page } from "@capseasy/shared";
 import { layoutBox, scaleOf, type Canvas } from "@capseasy/templates";
 
 /**
- * Per-card caption position (owner 2026-11-16): move one card's caption to a
- * different place on screen, without moving the rest.
+ * Caption position (owner 2026-11-16): where captions sit on screen.
+ *
+ * DEFAULT (owner 2026-11-16, second correction): moving a caption moves ALL
+ * of them — the drag writes the GLOBAL style.position, never an override, so
+ * a new user is never confused by one caption moving and the rest staying.
+ * Per-card overrides are the SELECTIVE mechanism only: when 2+ caption cards
+ * are picked on the timeline (line mode), a drag writes the same override
+ * onto just those cards; every other card keeps its position. Exactly one
+ * card picked still counts as "no multi-selection" and moves globally.
  *
  * Storage: the override lives on the card in the project doc
  * (`doc.cards[firstWordId].position`, via the engine's setCardPosition) — the
@@ -64,6 +71,27 @@ export function clearCurrentCardPosition(doc: CaptionDoc, page: Page | null): Ca
   const firstWordId = page?.words[0]?.id;
   if (!page || !firstWordId || page.position == null) return doc;
   return setCardPosition(doc, firstWordId, null);
+}
+
+/**
+ * Selective move (owner 2026-11-16): put the SELECTED cards at one position —
+ * the same absolute position on each, as its own override. Cards outside the
+ * selection are untouched. A pure doc transform: one s.edit call is one undo
+ * step. Returns the SAME doc reference when every selected card is already
+ * there, so a clamped-to-zero drag records no undo step.
+ */
+export function setSelectedCardsPosition(doc: CaptionDoc, pages: Page[], style: CaptionStyleV2, selectedPageIds: ReadonlySet<string>, p: CaptionPosition): CaptionDoc {
+  const next = clampCaptionPosition(p);
+  let out = doc;
+  for (const page of pages) {
+    if (!selectedPageIds.has(page.id)) continue;
+    const firstWordId = page.words[0]?.id;
+    if (!firstWordId) continue;
+    const cur = out.cards[firstWordId]?.position ?? style.position;
+    if (cur.x === next.x && cur.y === next.y) continue;
+    out = setCardPosition(out, firstWordId, next);
+  }
+  return out;
 }
 
 /**
@@ -130,4 +158,9 @@ export function fractionFromPointer(clientX: number, clientY: number, rect: DOMR
     x: (clientX - rect.left) / rect.width,
     y: (clientY - rect.top) / rect.height,
   };
+}
+
+/** The caption's font size in frame pixels — the drag ghost's text size. */
+export function captionFontPx(style: CaptionStyleV2, canvas: Canvas): number {
+  return style.fontSize * scaleOf(canvas);
 }
