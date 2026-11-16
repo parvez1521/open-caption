@@ -2,7 +2,7 @@ import { FREE_LAUNCH_END_LABEL, PAID_FROM_LABEL, isFreeLaunchWindow } from "@/li
 
 /**
  * Minutes pricing, previewed on /pricing during the 5-day free launch
- * window (owner, 2026-11-15): what paid becomes from 21 Nov. TEMPORARY —
+ * window (owner, 2026-11-15): what paid becomes from 1 Dec. TEMPORARY —
  * the minutes deploy (separate sequence, gated on Cashfree Subscriptions
  * approval) replaces this table with the real pricing config; do not edit
  * these numbers here, edit them on that branch.

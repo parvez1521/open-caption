@@ -53,10 +53,10 @@ vi.mock("@/lib/supabase/admin", () => ({ getAdmin: () => state.adminDb }));
 // covers both import styles.
 vi.mock("@/lib/billing/freeLaunch", () => ({
   isFreeLaunchWindow: () => state.freeLaunch,
-  FREE_LAUNCH_UNTIL_ISO: "2026-11-20T18:29:59.000Z",
-  FREE_LAUNCH_UNTIL: new Date("2026-11-20T18:29:59.000Z"),
-  FREE_LAUNCH_END_LABEL: "20 Nov",
-  PAID_FROM_LABEL: "21 Nov",
+  FREE_LAUNCH_UNTIL_ISO: "2026-11-30T18:29:59.000Z",
+  FREE_LAUNCH_UNTIL: new Date("2026-11-30T18:29:59.000Z"),
+  FREE_LAUNCH_END_LABEL: "30 Nov",
+  PAID_FROM_LABEL: "1 Dec",
 }));
 
 import { POST } from "../route";

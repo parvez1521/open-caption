@@ -27,8 +27,8 @@ export const metadata: Metadata = pageMetadata({
 export default async function PricingPage() {
   const country = (await headers()).get("x-vercel-ip-country");
   const currency: DisplayCurrency = currencyForCountry(country);
-  // Free launch window (owner, 2026-11-15): everything free till 20 Nov,
-  // paid returns 21 Nov. Old passes are not buyable until then.
+  // Free launch window (owner, 2026-11-15): everything free till 30 Nov,
+  // paid returns 1 Dec. Old passes are not buyable until then.
   const freeLaunch = isFreeLaunchWindow();
 
   return (
@@ -51,7 +51,7 @@ export default async function PricingPage() {
         </p>
         {freeLaunch ? (
           <p className="mt-6 inline-block rounded-full border border-[#34D399]/60 bg-[#1C1C1A] px-4 py-2 text-[13.5px] font-semibold text-[#34D399]">
-            Everything free till 20 Nov — no card needed.
+            Everything free till 30 Nov — no card needed.
           </p>
         ) : null}
 
@@ -91,7 +91,7 @@ export default async function PricingPage() {
                     className="mt-5 inline-flex items-center justify-center rounded-full border border-white/25 px-5 py-2.5 font-sora text-[13.5px] font-semibold text-[#FFFFEB]/60"
                     aria-disabled="true"
                   >
-                    Available 21 Nov
+                    Available 1 Dec
                   </span>
                 ) : (
                   <Link

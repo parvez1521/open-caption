@@ -35,7 +35,7 @@ export interface VideoQuotaUsage {
   remaining: number;
   windowStart: string;
   windowEnd: string;
-  /** True while the 5-day free launch window is active: limits are lifted. */
+  /** True while the free launch window is active: limits are lifted. */
   freeLaunch?: boolean;
 }
 
