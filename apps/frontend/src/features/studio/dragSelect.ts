@@ -61,3 +61,75 @@ export function formatDelta(deltaMs: number): string {
   const sign = deltaMs < 0 ? "−" : "+";
   return `${sign}${(Math.abs(deltaMs) / 1000).toFixed(2)}s`;
 }
+
+/** A word's timing span, in document order — the input to groupDragBounds. */
+export interface WordSpan {
+  id: string;
+  startMs: number;
+  endMs: number;
+}
+
+/** The drag window for moving a selection of words together on the timeline. */
+export interface GroupBounds {
+  /** the selected words form one consecutive run in document order */
+  contiguous: boolean;
+  firstId: string | null;
+  lastId: string | null;
+  /** allowed shift of the selection, in ms (negative = earlier, 0 = no movement) */
+  minDxMs: number;
+  maxDxMs: number;
+}
+
+/**
+ * How far a word selection may be dragged on the timeline, in milliseconds.
+ *
+ * A contiguous run uses the give-way window: its start cannot pass the previous
+ * word's start + the minimum word length (that word keeps its minimum), and its
+ * end cannot pass the next word's end − minimum — the run's neighbours give way
+ * at the shared boundary instead of pinning the run in place. Caption words are
+ * contiguous, so the old between-neighbours clamp (prev end … next start) collapsed
+ * a single word's move window to a point and the drag silently did nothing.
+ * With ripple the later words shift along, so the end is bounded only by the video.
+ *
+ * A scattered (non-contiguous) selection has no run to give way as a whole, so it
+ * is clamped to never overlap an unselected neighbour at all: no earlier than the
+ * touching previous word's end, no later than the touching next word's start.
+ * Both cases also clamp at 0 and at the video end. Returns a zero window when
+ * nothing is selected.
+ */
+export function groupDragBounds(
+  words: readonly WordSpan[],
+  selected: ReadonlySet<string>,
+  minWordMs: number,
+  totalMs: number,
+  ripple = false,
+): GroupBounds {
+  const empty: GroupBounds = { contiguous: false, firstId: null, lastId: null, minDxMs: 0, maxDxMs: 0 };
+  if (selected.size === 0 || words.length === 0) return empty;
+  const idxs: number[] = [];
+  for (let i = 0; i < words.length; i++) if (selected.has(words[i]!.id)) idxs.push(i);
+  if (idxs.length === 0) return empty;
+  const first = words[idxs[0]!]!;
+  const last = words[idxs[idxs.length - 1]!]!;
+  const contiguous = idxs.every((v, k) => k === 0 || v === idxs[k - 1]! + 1);
+  if (contiguous) {
+    const prev = idxs[0]! > 0 ? words[idxs[0]! - 1]! : undefined;
+    const next = idxs[idxs.length - 1]! + 1 < words.length ? words[idxs[idxs.length - 1]! + 1]! : undefined;
+    const lo = prev ? prev.startMs + minWordMs : 0;
+    const hi = ripple ? totalMs : next ? next.endMs - minWordMs : totalMs;
+    const minDxMs = lo - first.startMs;
+    const maxDxMs = Math.max(minDxMs, hi - last.endMs);
+    return { contiguous, firstId: first.id, lastId: last.id, minDxMs, maxDxMs };
+  }
+  let minDxMs = -first.startMs;
+  let maxDxMs = totalMs - last.endMs;
+  for (const i of idxs) {
+    const w = words[i]!;
+    const prev = i > 0 ? words[i - 1]! : undefined;
+    const next = i + 1 < words.length ? words[i + 1]! : undefined;
+    if (prev && !selected.has(prev.id)) minDxMs = Math.max(minDxMs, prev.endMs - w.startMs);
+    if (next && !selected.has(next.id)) maxDxMs = Math.min(maxDxMs, next.startMs - w.endMs);
+  }
+  return { contiguous, firstId: first.id, lastId: last.id, minDxMs, maxDxMs: Math.max(minDxMs, maxDxMs) };
+}
+

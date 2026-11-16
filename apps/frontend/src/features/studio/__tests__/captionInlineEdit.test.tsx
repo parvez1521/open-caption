@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CaptionDocSchema, type CaptionDoc, type Page, type Word } from "@capseasy/shared";
 import { CaptionsPanel } from "../panels/CaptionsPanel";
 
@@ -9,9 +9,13 @@ import { CaptionsPanel } from "../panels/CaptionsPanel";
  * Owner report 2026-11-13 (real-user test with a friend):
  * (1) a single-word card's edit input would not accept a space / 2nd word;
  * (2) the only editor lived below the caption list, so he could not find where to edit.
- * The editor is now inline under the selected word's own card, and the bottom editor
- * is gone. These tests pin the inline path: typing a space + 2nd word, editor placement,
- * and the actions working from their new spot.
+ * The editor moved inline under the selected word's own card — and 2026-11-16 it moved
+ * again, PINNED above the list: the inline editor slid below the fold (half-cut or
+ * invisible) whenever the word sat near the bottom of the visible list, and a
+ * drag-selected range showed no editor at all (selection without a clicked word).
+ * These tests pin the pinned path: typing a space + 2nd word, editor placement,
+ * the actions working from their new spot, the drag-select fallback, and the
+ * selected word scrolling into view.
  */
 
 const initialDoc: CaptionDoc = CaptionDocSchema.parse({
@@ -37,11 +41,12 @@ const pageOf = (words: Word[], id = "p1"): Page => ({
   styleOverride: null,
 });
 
-function renderPanel() {
+function renderPanel(initial: { selectedId?: string | null; selectedWordIds?: Set<string> } = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   function Harness() {
     const [doc, setDoc] = useState(initialDoc);
-    const [selectedId, setSelectedId] = useState<string | null>("w1");
+    const [selectedId, setSelectedId] = useState<string | null>(initial.selectedId !== undefined ? initial.selectedId : "w1");
+    const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(initial.selectedWordIds ?? new Set());
     return (
       <QueryClientProvider client={qc}>
         <CaptionsPanel
@@ -54,8 +59,8 @@ function renderPanel() {
           onSeek={() => {}}
           edit={(fn) => setDoc((d) => fn(d))}
           heroSupported
-          selectedWordIds={new Set()}
-          onWordSelectionChange={() => {}}
+          selectedWordIds={selectedWordIds}
+          onWordSelectionChange={setSelectedWordIds}
         />
       </QueryClientProvider>
     );
@@ -65,18 +70,20 @@ function renderPanel() {
 
 const editInput = () => screen.getByLabelText("Edit word") as HTMLInputElement;
 
-describe("CaptionsPanel — inline word editor (owner 2026-11-13)", () => {
-  it("renders the editor under the selected word's card, not below the list", () => {
+describe("CaptionsPanel — pinned word editor (owner 2026-11-16)", () => {
+  it("renders the editor pinned above the list, never inside a card or the scrollable list", () => {
     const { container } = renderPanel();
-    const editor = screen.getByTestId("inline-word-editor");
+    const editor = screen.getByTestId("pinned-word-editor");
     const card = container.querySelector('[data-page="p1"]')!;
-    expect(card.contains(editor)).toBe(true);
+    expect(card.contains(editor)).toBe(false);
+    const list = container.querySelector(".overflow-y-auto")!;
+    expect(list.contains(editor)).toBe(false);
     // exactly one edit input in the whole panel (no leftover bottom editor)
     expect(screen.getAllByLabelText("Edit word")).toHaveLength(1);
     expect(editInput().value).toBe("Dulha");
   });
 
-  it("clicking another word moves the inline editor to that word's card", () => {
+  it("clicking another word moves the pinned editor to that word", () => {
     renderPanel();
     fireEvent.click(screen.getByText("hota"));
     expect(editInput().value).toBe("hota");
@@ -94,20 +101,36 @@ describe("CaptionsPanel — inline word editor (owner 2026-11-13)", () => {
     expect(screen.getByText("Dulha Dulhan?")).toBeTruthy();
   });
 
-  it("the actions under the selected word still work: key word, split, hide", () => {
+  it("the actions still work from the pinned spot: key word, split, hide", () => {
     const { container } = renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "☆ Make key word" }));
     expect(screen.getByRole("button", { name: "★ Key word" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Split card here" }));
     // split is a no-op on the first word, so the editor stays; hide closes it
     fireEvent.click(screen.getByRole("button", { name: "Hide word" }));
-    expect(screen.queryByTestId("inline-word-editor")).toBeNull();
+    expect(screen.queryByTestId("pinned-word-editor")).toBeNull();
     expect(container.textContent).toContain("1 hidden word");
   });
 
-  it("Escape closes the inline editor", () => {
+  it("Escape closes the pinned editor", () => {
     renderPanel();
     fireEvent.keyDown(editInput(), { key: "Escape" });
-    expect(screen.queryByTestId("inline-word-editor")).toBeNull();
+    expect(screen.queryByTestId("pinned-word-editor")).toBeNull();
+  });
+
+  it("a drag-selected range (no clicked word) shows the editor for the first selected word", () => {
+    renderPanel({ selectedId: null, selectedWordIds: new Set(["w3", "w4"]) });
+    // w3 "hota" is first in document order — and the editor is visible, not missing
+    expect(editInput().value).toBe("hota");
+    // closing it clears the range selection, so it does not pop straight back
+    fireEvent.click(screen.getByRole("button", { name: "Close editor" }));
+    expect(screen.queryByTestId("pinned-word-editor")).toBeNull();
+  });
+
+  it("selecting a word scrolls its row into view in the list", () => {
+    const spy = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: spy });
+    renderPanel({ selectedId: "w4" });
+    expect(spy).toHaveBeenCalledWith({ block: "nearest" });
   });
 });

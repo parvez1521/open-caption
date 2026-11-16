@@ -5,7 +5,7 @@ import { Eye, EyeOff, FoldHorizontal, Link2, Lock, LockOpen, Magnet, Maximize2, 
 import type { AudioClip, AudioTrack, CompositionTrackKind, Page, TrackState, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
 import { formatTimecode, parseTimecode, stepFrameMs } from "./timecode";
-import { formatDelta, pxToMs, toggleIds } from "./dragSelect";
+import { formatDelta, groupDragBounds, isPastThreshold, pxToMs, rangeSelection, toggleIds } from "./dragSelect";
 import { overlayClipsOf, trackOf, type Composition, type OverlayClip } from "./composition";
 import { snapMove, snapValue } from "./snap";
 import { canSplitAtPlayhead } from "./playheadSplit";
@@ -96,7 +96,17 @@ interface Props {
 
 type Mode = "word" | "line";
 interface Block { key: string; firstId: string; lastId: string; wordIds: string[]; text: string; s: number; e: number; selected: boolean; inSelection: boolean; live: boolean }
-type Drag = { key: string; firstId: string; lastId: string; kind: "move" | "start" | "end"; x0: number; s0: number; e0: number; min: number; max: number; s: number; e: number; group: string[] | null; dxMs: number; px: number; py: number };
+/**
+ * An in-progress caption drag. `min`/`max` are the absolute give-way bounds on the
+ * run's [s, e] window: the run's start cannot pass the previous word's start +
+ * MIN_MS and its end cannot pass the next word's end − MIN_MS — the neighbours give
+ * way at the shared boundary instead of pinning the run in place (contiguous words
+ * used to collapse this window to a point, so the drag silently did nothing).
+ * A group drag commits the contiguous run [runFirstId … runLastId] through
+ * onRetimeRun; a scattered selection falls back to onShiftWords, clamped by
+ * minDx/maxDx so it never overlaps an unselected neighbour.
+ */
+type Drag = { key: string; firstId: string; lastId: string; kind: "move" | "start" | "end"; x0: number; s0: number; e0: number; min: number; max: number; s: number; e: number; group: string[] | null; minDx: number; maxDx: number; runFirstId: string; runLastId: string; runContiguous: boolean; runS: number; runE: number; minLen: number; dxMs: number; px: number; py: number };
 
 /**
  * Track-label column tiers, by TIMELINE CONTAINER width (B-31 fix, 2026-11-11). The old
@@ -156,6 +166,13 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
   /** the ms position a drag is currently snapped to (draws the guide line), or null */
   const [snapGuide, setSnapGuide] = useState<number | null>(null);
   const guideRef = useRef<number | null>(null);
+  /** Drag-select on the captions track (owner 2026-11-16): a press on a block that is NOT in
+   *  the selection starts a range select, not a move — drag across blocks to select a run
+   *  of words, then drag any selected block to retime the whole group. Mirrors the captions
+   *  panel's gesture. `suppressClickRef` swallows the click that follows a drag (or a
+   *  plain click whose work endDrag already did), so it cannot reset the selection. */
+  const selectRef = useRef<{ anchorId: string; wordIds: string[]; startMs: number; startX: number; startY: number; active: boolean } | null>(null);
+  const suppressClickRef = useRef(false);
   const [mode, setModeState] = useState<Mode>("word");
   const [snap, setSnap] = useState(true);
   const [ripple, setRipple] = useState(false);
@@ -289,6 +306,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
   }, [pxPerMs, total]);
 
   const visible = useMemo(() => words.filter((w) => !w.hidden), [words]);
+  /** the flat visible word order (document order) — drag-select ranges are computed over this */
+  const orderedIds = useMemo(() => visible.map((w) => w.id), [visible]);
 
   // overlay blocks + the main video clip, read from the Stage-A composition view
   const overlayBlocks: OverlayClip[] = useMemo(() => (composition ? overlayClipsOf(composition) : []), [composition]);
@@ -385,20 +404,43 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
     for (const b of blocks) t.push(b.s, b.e);
     return t;
   };
+  /** the block at a timeline time (nearest edge wins in a gap) — drag-select focus lookup */
+  const blockAtTime = (ms: number): Block | null => {
+    let best: Block | null = null;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (const b of blocks) {
+      const d = ms < b.s ? b.s - ms : ms < b.e ? 0 : ms - b.e;
+      if (d < bestDist) { bestDist = d; best = b; }
+    }
+    return best;
+  };
+  /** the block under a pointer x-coordinate (same math as the asset drop handler) */
+  const blockAtPointer = (clientX: number): Block | null => {
+    const el = scrollRef.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const ms = Math.max(0, Math.min(total, (clientX - r.left + el.scrollLeft - LABEL_W) / pxPerMs));
+    return blockAtTime(ms);
+  };
 
   const beginDrag = (e: React.PointerEvent, b: Block, kind: Drag["kind"]) => {
     if (renaming) return;
-    if (tracks.captions.locked) return;
     e.stopPropagation();
     // Shift+click on a block adds/removes its words from the drag selection — no drag starts.
+    // Selection is not an edit, so this works even when the captions track is locked.
     if (kind === "move" && e.shiftKey) {
       onWordSelectionChange(toggleIds(selectedWordIds, b.wordIds));
       return;
     }
+    // Press on a block that is NOT in the selection starts a drag-SELECT, not a move:
+    // drag across blocks to select a run of words; release without moving = plain click.
+    if (kind === "move" && !b.wordIds.some((id) => selectedWordIds.has(id))) {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      selectRef.current = { anchorId: b.firstId, wordIds: b.wordIds, startMs: b.s, startX: e.clientX, startY: e.clientY, active: false };
+      return;
+    }
+    if (tracks.captions.locked) return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    const i = blocks.findIndex((v) => v.key === b.key);
-    const prev = blocks[i - 1];
-    const next = blocks[i + 1];
     onSelect(b.firstId);
     // Dragging a block that belongs to a larger word selection retimes the WHOLE selection
     // (owner correction #5); anything else keeps the single-run drag this timeline already had.
@@ -407,7 +449,18 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
         ? [...selectedWordIds]
         : null;
     if (kind === "move" && !group) onWordSelectionChange(new Set(b.wordIds));
-    setDrag({ key: b.key, firstId: b.firstId, lastId: b.lastId, kind, x0: e.clientX, s0: b.s, e0: b.e, min: prev ? prev.e : 0, max: ripple ? total : next ? next.s : total, s: b.s, e: b.e, group, dxMs: 0, px: e.clientX, py: e.clientY });
+    // Give-way bounds for the dragged run (the block, or the whole group): the run's start
+    // cannot pass the previous word's start + MIN_MS and its end cannot pass the next
+    // word's end − MIN_MS — the neighbours give way at the shared boundary instead of
+    // pinning the run in place. With ripple the later words shift along, so only the
+    // video end bounds the run. A scattered selection has no run: its delta is clamped
+    // so it never overlaps an unselected neighbour at all.
+    const bounds = groupDragBounds(visible, new Set(group ?? b.wordIds), MIN_MS, total, kind === "move" && ripple);
+    const runFirst = visible.find((w) => w.id === bounds.firstId);
+    const runLast = visible.find((w) => w.id === bounds.lastId);
+    const runS = runFirst ? runFirst.startMs : b.s;
+    const runE = runLast ? runLast.endMs : b.e;
+    setDrag({ key: b.key, firstId: b.firstId, lastId: b.lastId, kind, x0: e.clientX, s0: b.s, e0: b.e, min: runS + bounds.minDxMs, max: runE + bounds.maxDxMs, s: b.s, e: b.e, group, minDx: group ? bounds.minDxMs : 0, maxDx: group ? bounds.maxDxMs : 0, runFirstId: bounds.firstId ?? b.firstId, runLastId: bounds.lastId ?? b.lastId, runContiguous: bounds.contiguous, runS, runE, minLen: MIN_MS * b.wordIds.length, dxMs: 0, px: e.clientX, py: e.clientY });
   };
   const beginOverlayDrag = (e: React.PointerEvent, c: OverlayClip) => {
     if (renaming) return;
@@ -459,6 +512,22 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
   };
 
   const onMove = (e: React.PointerEvent) => {
+    // drag-select on the captions track: a press on an unselected block becomes a range
+    // select once the pointer passes the click threshold; the selection follows the block
+    // under the pointer (nearest edge wins in a gap). Below the threshold nothing happens.
+    if (selectRef.current) {
+      const g = selectRef.current;
+      const dx = e.clientX - g.startX;
+      const dy = e.clientY - g.startY;
+      if (!g.active) {
+        if (!isPastThreshold(dx, dy)) return;
+        g.active = true;
+        suppressClickRef.current = true;
+      }
+      const focus = blockAtPointer(e.clientX);
+      if (focus) onWordSelectionChange(rangeSelection(orderedIds, g.anchorId, focus.lastId));
+      return;
+    }
     if (aDrag) {
       const len = aDrag.e0 - aDrag.s0;
       if (aDrag.kind === "move") {
@@ -506,13 +575,16 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
     if (!drag) return;
     guideRef.current = null;
     if (drag.group) {
-      // group retime: preview the delta only — the document is committed once, on pointer up
-      setDrag({ ...drag, dxMs: pxToMs(e.clientX - drag.x0, pxPerMs), px: e.clientX, py: e.clientY });
+      // group retime: preview the delta only, clamped so the run never crosses its
+      // neighbours (give-way window) — the document is committed once, on pointer up
+      const raw = pxToMs(e.clientX - drag.x0, pxPerMs);
+      const dxMs = Math.max(drag.minDx, Math.min(drag.maxDx, raw));
+      setDrag({ ...drag, dxMs, px: e.clientX, py: e.clientY });
       return;
     }
     const d = (e.clientX - drag.x0) / pxPerMs;
     const targets = snapTargets(drag.key);
-    const minLen = MIN_MS;
+    const minLen = drag.minLen;
     let s = drag.s0;
     let en = drag.e0;
     if (drag.kind === "start") s = Math.min(drag.e0 - minLen, Math.max(drag.min, snapTo(drag.s0 + d, targets)));
@@ -526,10 +598,24 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
       s = Math.min(drag.max - len, Math.max(drag.min, ns));
       en = s + len;
     }
-    setDrag({ ...drag, s: Math.round(s), e: Math.round(en) });
+    setDrag({ ...drag, s: Math.round(s), e: Math.round(en), px: e.clientX, py: e.clientY });
     setSnapGuide(guideRef.current);
   };
   const endDrag = () => {
+    // drag-select resolution: an active drag already set the range selection; a press
+    // that never moved is a plain click — select just this block and seek (the click
+    // that follows is swallowed, its work is done here).
+    if (selectRef.current) {
+      const g = selectRef.current;
+      selectRef.current = null;
+      if (!g.active) {
+        onWordSelectionChange(new Set(g.wordIds));
+        onSelect(g.anchorId);
+        onSeek(g.startMs + 1);
+        suppressClickRef.current = true;
+      }
+      return;
+    }
     if (aDrag) {
       if (aDrag.kind === "start") { if (aDrag.s !== aDrag.s0) onTrimAudioClip?.(aDrag.id, "start", aDrag.s); }
       else if (aDrag.kind === "end") { if (aDrag.e !== aDrag.e0) onTrimAudioClip?.(aDrag.id, "end", aDrag.e); }
@@ -553,7 +639,13 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
       return;
     }
     if (drag?.group) {
-      if (drag.dxMs !== 0) onShiftWords(drag.group, drag.dxMs);
+      // A contiguous run moves as one retime (neighbours give way at the boundaries);
+      // a scattered selection shifts word-by-word, already clamped to never overlap
+      // an unselected neighbour. Either way the document is committed once, here.
+      if (drag.dxMs !== 0) {
+        if (drag.runContiguous) onRetimeRun(drag.runFirstId, drag.runLastId, drag.runS + drag.dxMs, drag.runE + drag.dxMs, false);
+        else onShiftWords(drag.group, drag.dxMs);
+      }
     } else if (drag && (drag.s !== drag.s0 || drag.e !== drag.e0)) onRetimeRun(drag.firstId, drag.lastId, drag.s, drag.e, ripple);
     setDrag(null);
     setSnapGuide(null);
@@ -670,7 +762,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
         {btn("Fit the whole video", <Maximize2 className={icon} />, () => setZoom(1), { disabled: zoom === 1 })}
       </div>
 
-      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto" onPointerMove={onMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto" onPointerMove={onMove} onPointerUp={endDrag} onPointerCancel={() => { if (selectRef.current) { selectRef.current = null; return; } endDrag(); }}>
         <div className="relative grid w-max" style={{ gridTemplateColumns: `${LABEL_W}px ${width}px`, gridTemplateRows: rows }}>
           <div className="sticky left-0 z-20 grid whitespace-nowrap border-r border-st-line bg-st-panel text-[11px] text-st-muted" style={{ gridTemplateRows: rows, gridRow: `1 / span ${rowCount}` }}>
             <div />
@@ -742,7 +834,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   aria-label={`${b.text}  ${fmtTime(live.s)} – ${fmtTime(live.e)}`}
                   aria-pressed={b.selected}
                   onPointerDown={(e) => beginDrag(e, b, "move")}
-                  onClick={(e) => { e.stopPropagation(); onSelect(b.firstId); onSeek(live.s + 1); }}
+                  onClick={(e) => { e.stopPropagation(); if (suppressClickRef.current) { suppressClickRef.current = false; return; } onSelect(b.firstId); onSeek(live.s + 1); }}
                   // Keyboard path (F-03 remainder): Enter/Space selects exactly like a
                   // mouse click. Events from the rename input must pass through untouched
                   // (Space types a space there), and stopPropagation keeps Space from also
@@ -773,10 +865,10 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                       {wpx > 60 ? <span className="truncate text-[9px] opacity-60">{mode === "line" ? `${fmtTime(live.s)}` : "𝐈 Text"}</span> : null}
                     </span>
                   ) : null}
-                  {wpx > 10 && renaming !== b.firstId ? (
+                  {wpx > 16 && renaming !== b.firstId ? (
                     <>
-                      <span onPointerDown={(e) => beginDrag(e, b, "start")} className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize bg-st-ink/10 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/40" title={`Move start of ${b.text}`} />
-                      <span onPointerDown={(e) => beginDrag(e, b, "end")} className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize bg-st-ink/10 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/40" title={`Move end of ${b.text}`} />
+                      <span onPointerDown={(e) => beginDrag(e, b, "start")} className="absolute inset-y-0 left-0 w-2.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-3 before:content-[''] hover:bg-st-ink/50" title={`Move start of ${b.text}`} />
+                      <span onPointerDown={(e) => beginDrag(e, b, "end")} className="absolute inset-y-0 right-0 w-2.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-3 before:content-[''] hover:bg-st-ink/50" title={`Move end of ${b.text}`} />
                     </>
                   ) : null}
                 </div>
@@ -971,9 +1063,12 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
         </div>
       </div>
 
-      {drag?.group ? (
+      {/* live drag readout: the previewed shift, following the pointer (single-run moves
+          and edge resizes read out the same way as group retimes, so a clamped drag
+          shows its honest clamped value instead of silently doing nothing) */}
+      {drag && (drag.group ? drag.dxMs !== 0 : drag.s !== drag.s0 || drag.e !== drag.e0) ? (
         <div aria-hidden className="pointer-events-none fixed z-50 rounded-md bg-st-ink px-2 py-1 font-mono text-xs font-semibold text-st-panel shadow-lg" style={{ left: drag.px + 14, top: drag.py + 16 }}>
-          {formatDelta(drag.dxMs)}
+          {formatDelta(drag.group ? drag.dxMs : drag.kind === "end" ? drag.e - drag.e0 : drag.s - drag.s0)}
         </div>
       ) : null}
     </div>

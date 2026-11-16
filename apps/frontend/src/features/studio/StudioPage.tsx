@@ -9,7 +9,7 @@ import { computePages } from "@capseasy/compositions";
 import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
 import { defaultVoiceMemberAvatars } from "@capseasy/motion";
-import { deleteWordsByIds, insertWordAfter, mergeWithNext, mergeWithPrevious, retimeRun, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
+import { deleteWordsByIds, insertWordAfter, mergeWithNext, mergeWithPrevious, retimeRun, retimeRunGiveWay, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Copy, EyeOff, Keyboard, Redo2, Scissors, Star, Trash2, Undo2 } from "@/components/ui/icons";
 import { Logo } from "@/components/brand/Logo";
 import { StudioSkeleton } from "@/components/brand/Skeletons";
@@ -1421,7 +1421,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       selectedWordIds={selectedWordIds}
       onWordSelectionChange={handleWordSelectionChange}
       onShiftWords={(ids, deltaMs) => { if (!captionsLockedRef.current) s.edit((d) => shiftWordsByIds(d, ids, deltaMs)); }}
-      onRetimeRun={(a, b, st, en, ripple) => { if (!captionsLockedRef.current) s.edit((d) => retimeRun(d, a, b, st, en, ripple)); }}
+      onRetimeRun={(a, b, st, en, ripple) => { if (!captionsLockedRef.current) s.edit((d) => retimeRunGiveWay(d, a, b, st, en, ripple)); }}
       onRename={(id, text) => { if (!captionsLockedRef.current) s.edit((d) => setWordText(d, id, text)); }}
       onAddWord={addWordAt}
       onSplit={() => selected && !captionsLockedRef.current && s.edit((d) => splitCardAt(d, selected.id))}

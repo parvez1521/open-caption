@@ -529,3 +529,47 @@ describe("retimeRun (timeline line/word moves)", () => {
     expect(r.words.map((w) => [w.startMs, w.endMs])).toEqual([[100, 300], [400, 600], [1100, 1300]]);
   });
 });
+
+describe("retimeRunGiveWay (timeline drags: neighbours give way)", () => {
+  it("a contiguous word moves earlier and the previous word gives way", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const d = docOf([mk("a", 0, 300, "a"), mk("b", 300, 600, "b"), mk("c", 600, 900, "c")]);
+    const out = retimeRunGiveWay(d, "b", "b", 100, 400);
+    expect(out.words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 100], [100, 400], [600, 900]]);
+  });
+  it("a word moves later and the next word gives way", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const d = docOf([mk("a", 0, 300, "a"), mk("b", 300, 600, "b"), mk("c", 600, 900, "c")]);
+    const out = retimeRunGiveWay(d, "b", "b", 500, 800);
+    expect(out.words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 300], [500, 800], [800, 900]]);
+  });
+  it("stretching an edge earlier/later grows the word and shrinks the neighbour", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const d = docOf([mk("a", 0, 300, "a"), mk("b", 300, 600, "b"), mk("c", 600, 900, "c")]);
+    expect(retimeRunGiveWay(d, "b", "b", 200, 600).words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 200], [200, 600], [600, 900]]);
+    expect(retimeRunGiveWay(d, "b", "b", 300, 750).words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 300], [300, 750], [750, 900]]);
+  });
+  it("cannot slide past a neighbour's far edge: clamped at the minimum duration", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const d = docOf([mk("a", 0, 300, "a"), mk("b", 300, 600, "b"), mk("c", 600, 900, "c")]);
+    const out = retimeRunGiveWay(d, "b", "b", -500, -200);
+    expect(out.words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 40], [40, 80], [600, 900]]);
+  });
+  it("a contiguous group moves together, neighbours giving way at the boundaries", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const d = docOf([mk("a", 0, 300, "a"), mk("b", 300, 500, "b"), mk("c", 500, 700, "c"), mk("d", 700, 1000, "d")]);
+    const out = retimeRunGiveWay(d, "b", "c", 200, 600);
+    expect(out.words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 200], [200, 400], [400, 600], [700, 1000]]);
+  });
+  it("is a no-op (same doc reference) when the window does not change", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const d = docOf([mk("a", 0, 300, "a"), mk("b", 300, 600, "b")]);
+    expect(retimeRunGiveWay(d, "b", "b", 300, 600)).toBe(d);
+  });
+  it("ripples later words when linked", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const d = docOf([mk("a", 0, 200, "a"), mk("b", 300, 500, "b"), mk("d", 1000, 1200, "d")]);
+    const r = retimeRunGiveWay(d, "a", "a", 100, 300, true);
+    expect(r.words.map((w) => [w.startMs, w.endMs])).toEqual([[100, 300], [400, 600], [1100, 1300]]);
+  });
+});

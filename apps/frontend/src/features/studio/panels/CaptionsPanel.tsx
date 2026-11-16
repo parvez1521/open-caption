@@ -58,27 +58,30 @@ type Gesture =
   | { kind: "retime"; ids: string[]; startX: number; startY: number; active: boolean; dx: number };
 
 /**
- * The single-word editor, rendered INLINE under the selected word's own card in the
- * caption list (owner 2026-11-13: the old editor lived below the list, so he and his
- * friend could not find where to edit). Same input and same actions as the old bottom
- * editor — Make key word / Split card here / Join previous / Join next / Hide word —
- * just surfaced where the word is. The input focuses itself on mount so tapping a word
- * goes straight to typing; Escape closes it. `select-text` re-enables text selection
- * inside the list's `select-none` container.
+ * The single-word editor, PINNED above the caption list (owner 2026-11-16: the old
+ * inline editor lived under the selected word's own card inside the scrollable list,
+ * so it slid below the fold — half-cut or invisible — whenever the word sat near the
+ * bottom of the visible list). Same input and same actions as before — Make key word /
+ * Split card here / Join previous / Join next / Hide word — just always fully visible
+ * while a word is selected. `autoFocus` is true only when the editor is driven by a
+ * clicked word; a drag-selected range shows the first selected word without stealing
+ * keyboard focus mid-gesture. Escape closes it. `select-text` re-enables text
+ * selection inside the list's `select-none` container.
  */
 const SelectedWordEditor: React.FC<{
   word: Word;
   locked: boolean;
   heroSupported: boolean;
   edit: Props["edit"];
+  autoFocus?: boolean;
   onClose: () => void;
-}> = ({ word, locked, heroSupported, edit, onClose }) => {
+}> = ({ word, locked, heroSupported, edit, autoFocus = true, onClose }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    inputRef.current?.focus({ preventScroll: true });
-  }, []);
+    if (autoFocus) inputRef.current?.focus({ preventScroll: true });
+  }, [autoFocus]);
   return (
-    <div data-testid="inline-word-editor" className="mt-2 select-text space-y-2 rounded-lg border border-st-line bg-st-panel p-2.5">
+    <div data-testid="pinned-word-editor" className="select-text space-y-2 rounded-lg border border-st-line bg-st-panel p-2.5">
       <p className="text-[11px] font-semibold text-st-muted">Edit word</p>
       <div className="flex items-center gap-2">
         <input
@@ -140,6 +143,18 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
   };
 
   const selected = useMemo(() => doc.words.find((w) => w.id === selectedId) ?? null, [doc, selectedId]);
+  /**
+   * The word the pinned editor edits: the clicked word, or — when a range was
+   * drag-selected without a click (panel drag-select sets selectedWordIds but not
+   * selectedId, which used to leave NO editor visible at all) — the first selected
+   * word in document order. Closing it clears whichever selection drove it.
+   */
+  const editorWord = selected ?? (selIds.length > 0 ? doc.words.find((w) => w.id === selIds[0]) ?? null : null);
+  const editorIsSingle = selected !== null;
+  const closeEditor = () => {
+    if (editorIsSingle) onSelect(null);
+    else onWordSelectionChange(new Set());
+  };
   const matchIds = useMemo(() => new Set(findMatches(doc, find)), [doc, find]);
   const hidden = useMemo(() => doc.words.filter((w) => w.hidden), [doc.words]);
   const lowConfidence = (c?: number) => c !== undefined && c < 0.5;
@@ -221,6 +236,14 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
     if (Math.abs(list.scrollTop - target) > row.offsetHeight / 2) list.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
   }, [currentPageId]);
 
+  // a clicked word's row can sit below the fold (the list follows playback, not the
+  // selection) — bring it into view so the word being edited is always visible.
+  useEffect(() => {
+    if (!selectedId) return;
+    const chip = listRef.current?.querySelector<HTMLElement>(`[data-word-id="${CSS.escape(selectedId)}"]`);
+    if (chip && typeof chip.scrollIntoView === "function") chip.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
+
   return (
     <div className="flex h-full flex-col">
       {locked ? (
@@ -296,6 +319,12 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         </p>
       ) : null}
 
+      {editorWord ? (
+        <div className="shrink-0 border-b border-st-line px-3 py-2">
+          <SelectedWordEditor key={`${editorWord.id}:${editorIsSingle ? "s" : "m"}`} word={editorWord} locked={locked} heroSupported={heroSupported} edit={edit} autoFocus={editorIsSingle} onClose={closeEditor} />
+        </div>
+      ) : null}
+
       <div
         ref={listRef}
         className="relative min-h-0 flex-1 select-none overflow-y-auto"
@@ -351,9 +380,6 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                 );
               })}
             </div>
-            {selected && page.words.some((w) => w.id === selected.id) ? (
-              <SelectedWordEditor word={selected} locked={locked} heroSupported={heroSupported} edit={edit} onClose={() => onSelect(null)} />
-            ) : null}
           </div>
         ))}
 

@@ -118,6 +118,53 @@ export function retimeRun(doc: CaptionDoc, firstId: string, lastId: string, star
 }
 
 /**
+ * Move and/or stretch a run of consecutive words to [startMs, endMs], keeping their
+ * relative timing — like retimeRun, but the run's immediate neighbours GIVE WAY at the
+ * shared boundaries (their touching edge moves to the run's new edge) instead of
+ * pinning the run between them. This is the edit the timeline drags need: caption
+ * words are contiguous, so retimeRun's between-neighbours clamp collapses a single
+ * word's move window to a point and the drag silently does nothing. Each neighbour
+ * keeps at least MIN_WORD_MS, so the run cannot slide past a neighbour's far edge.
+ * With ripple, every later word shifts by the run's end delta (like retimeRun).
+ * No-op (same doc reference) when the clamped window equals the run's current window.
+ */
+export function retimeRunGiveWay(doc: CaptionDoc, firstId: string, lastId: string, startMs: number, endMs: number, ripple = false): CaptionDoc {
+  const i0 = indexOfWord(doc, firstId);
+  const i1 = indexOfWord(doc, lastId);
+  if (i0 < 0 || i1 < i0) return doc;
+  const s0 = doc.words[i0]!.startMs;
+  const e0 = doc.words[i1]!.endMs;
+  const prev = doc.words[i0 - 1];
+  const next = doc.words[i1 + 1];
+  const count = i1 - i0 + 1;
+  const minLen = MIN_WORD_MS * count;
+  // the run's start cannot pass the previous word's start + its minimum (that word
+  // keeps at least MIN_WORD_MS); the end cannot pass the next word's end - minimum,
+  // unless ripple is on and the later words shift along instead.
+  const lo = prev ? prev.startMs + MIN_WORD_MS : 0;
+  const hi = ripple ? Number.POSITIVE_INFINITY : next ? next.endMs - MIN_WORD_MS : Number.POSITIVE_INFINITY;
+  let s = Math.max(lo, Math.min(startMs, hi - minLen));
+  let e = Math.max(s + minLen, Math.min(endMs, hi));
+  s = Math.round(s);
+  e = Math.round(e);
+  if (s === s0 && e === e0) return doc;
+  const k = (e - s) / Math.max(1, e0 - s0);
+  const at = (t: number) => Math.round(s + (t - s0) * k);
+  const delta = e - e0;
+  const words = doc.words.map((w, j) => {
+    if (j >= i0 && j <= i1) {
+      const ns = at(w.startMs);
+      return { ...w, startMs: ns, endMs: Math.max(ns + MIN_WORD_MS, at(w.endMs)) };
+    }
+    if (j === i0 - 1 && w.endMs > s) return { ...w, endMs: Math.max(w.startMs + MIN_WORD_MS, s) };
+    if (j === i1 + 1 && !ripple && w.startMs < e) return { ...w, startMs: Math.min(w.endMs - MIN_WORD_MS, e) };
+    if (ripple && j > i1) return { ...w, startMs: Math.max(0, w.startMs + delta), endMs: Math.max(MIN_WORD_MS, w.endMs + delta) };
+    return w;
+  });
+  return touch(doc, { words });
+}
+
+/**
  * Shift EVERY word in the document by the same amount (the owner's manual re-alignment tool: when a whole
  * transcript sits a little early or late against the picture, one shift fixes all of it at once). Applied
  * destructively to the stored word times, so the editor, the saved document and every export (MP4, SRT,
