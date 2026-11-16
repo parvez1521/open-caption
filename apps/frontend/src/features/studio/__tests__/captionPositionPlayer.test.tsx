@@ -45,6 +45,8 @@ const input: CaptionedVideoInput = {
 
 function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h: number } | null; showPositionGrip?: boolean; onCaptionTap?: () => void; onPositionDragEnd?: () => void; dragGhost?: { x: number; y: number } | null; dragGhostText?: string; dragGhostFontPx?: number } = {}) {
   const onMovePosition = vi.fn();
+  const onPositionDragStart = vi.fn();
+  const onNudgePosition = vi.fn();
   const onCaptionTap = opts.onCaptionTap ?? vi.fn();
   const onPositionDragEnd = opts.onPositionDragEnd ?? vi.fn();
   // undefined = the default box; null = explicitly no box
@@ -58,6 +60,8 @@ function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h:
       durationMs={10_000}
       position={{ x: 0.5, y: 0.68 }}
       onMovePosition={onMovePosition}
+      onPositionDragStart={onPositionDragStart}
+      onNudgePosition={onNudgePosition}
       captionBox={captionBox}
       showPositionGrip={opts.showPositionGrip}
       onCaptionTap={onCaptionTap}
@@ -68,7 +72,7 @@ function renderPlayer(opts: { captionBox?: { x: number; y: number; w: number; h:
       onTime={vi.fn()}
     />,
   );
-  return { ...utils, onMovePosition, onCaptionTap, onPositionDragEnd };
+  return { ...utils, onMovePosition, onPositionDragStart, onNudgePosition, onCaptionTap, onPositionDragEnd };
 }
 
 function stubFrameRect(hitbox: HTMLElement) {
@@ -154,5 +158,46 @@ describe("StudioPlayer — caption drag hit box", () => {
     fireEvent.pointerMove(hitbox, { clientX: 270, clientY: 700, pointerId: 1 });
     fireEvent.pointerUp(hitbox);
     expect(onPositionDragEnd).toHaveBeenCalledTimes(1);
+  });
+
+  it("pointerdown on the caption fires the drag start with the pointer fractions (delta rule)", () => {
+    const { onPositionDragStart } = renderPlayer();
+    const hitbox = screen.getByTestId("caption-position-hitbox");
+    stubFrameRect(hitbox);
+
+    fireEvent.pointerDown(hitbox, { clientX: 270, clientY: 653, pointerId: 1 });
+
+    expect(onPositionDragStart).toHaveBeenCalledTimes(1);
+    expect(onPositionDragStart).toHaveBeenCalledWith(expect.objectContaining({ x: 0.5, y: expect.closeTo(0.68, 3) }));
+  });
+
+  it("pointerdown on the grip fires the drag start too", () => {
+    const { onPositionDragStart } = renderPlayer();
+    const hitbox = screen.getByTestId("caption-position-hitbox");
+    stubFrameRect(hitbox);
+    const grip = screen.getByRole("slider", { name: "Caption position (drag)" });
+
+    fireEvent.pointerDown(grip, { clientX: 270, clientY: 653, pointerId: 1 });
+
+    expect(onPositionDragStart).toHaveBeenCalledTimes(1);
+    expect(onPositionDragStart).toHaveBeenCalledWith(expect.objectContaining({ x: 0.5, y: expect.closeTo(0.68, 3) }));
+  });
+
+  it("grip arrow keys are NUDGES (one step), not absolute moves", () => {
+    const { onNudgePosition, onMovePosition } = renderPlayer();
+    const grip = screen.getByRole("slider", { name: "Caption position (drag)" });
+
+    fireEvent.keyDown(grip, { key: "ArrowUp" });
+    fireEvent.keyDown(grip, { key: "ArrowRight", shiftKey: true });
+    fireEvent.keyDown(grip, { key: "ArrowDown" });
+    fireEvent.keyDown(grip, { key: "ArrowLeft" });
+
+    expect(onNudgePosition).toHaveBeenCalledTimes(4);
+    expect(onNudgePosition).toHaveBeenNthCalledWith(1, { dx: 0, dy: -0.01 });
+    expect(onNudgePosition).toHaveBeenNthCalledWith(2, { dx: 0.05, dy: 0 });
+    expect(onNudgePosition).toHaveBeenNthCalledWith(3, { dx: 0, dy: 0.01 });
+    expect(onNudgePosition).toHaveBeenNthCalledWith(4, { dx: -0.01, dy: 0 });
+    // no absolute move is fired from the keyboard any more
+    expect(onMovePosition).not.toHaveBeenCalled();
   });
 });

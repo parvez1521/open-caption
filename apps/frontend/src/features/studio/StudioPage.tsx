@@ -58,7 +58,7 @@ import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError }
 import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
 import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
 import { toComposition } from "./composition";
-import { captionBoxFractions, captionFontPx, clampCaptionPosition, effectiveCardPosition, setSelectedCardsPosition, applyPositionToAllCards, clearAllCardPositions } from "./captionPosition";
+import { captionBoxFractions, captionFontPx, clampCaptionPosition, effectiveCardPosition, setSelectedCardsPosition, shiftCardPositionsByGlobalDelta, shiftSelectedCardsByDelta, applyPositionToAllCards, clearAllCardPositions } from "./captionPosition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
   addMarker, addSegmentEffect, addSegmentKeyframe, applyContentEffect, applyDocEffect,
@@ -369,23 +369,65 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const wave = useWaveform(video?.id, video?.url, video?.size);
   const pages = useMemo(() => (doc && style && fontsReady ? computePages(doc, settings, style, canvas) : []), [doc, style, settings, canvas, fontsReady, fontEpoch]);
   const currentPage = pages.find((p) => timeMs >= p.startMs && timeMs < p.endMs) ?? null;
-  // Caption position (owner 2026-11-16, second correction): the DEFAULT is the
+  // Caption position (owner 2026-11-16, third correction): the DEFAULT is the
   // old behaviour — a drag moves the GLOBAL style.position, so all captions
   // move together and a new user is never confused by one caption moving and
   // the rest staying. Only when 2+ cards are picked on the timeline does a
   // drag write per-card overrides to just those cards (same absolute position
   // on each, one undo step for the whole drag, same coalesce pattern as the
   // old per-card move). Exactly one card picked still counts as "no
-  // multi-selection" and moves globally. The global move goes through
-  // patchStyle ("style" coalesce key), so one continuous drag is one undo
-  // step, like the sliders. The Style panel sliders stay global always.
+  // multi-selection" and moves globally.
+  //
+  // DELTA RULE: a global move moves EVERYTHING together. Cards that already
+  // have an override do NOT stay behind — they shift by the same delta as
+  // the global position (shiftCardPositionsByGlobalDelta), keeping their
+  // relative offset. The delta is computed from the POINTER's displacement
+  // since the drag started, never from an absolute pointer position: the
+  // pointer grabs the caption where it sits (its override spot), so an
+  // absolute conversion would jump the caption by (override - global) on
+  // the first tick. dragPointerRef is that start point, set by the player's
+  // onPositionDragStart (hit box + grip pointerdown) and cleared on drag
+  // end; a move without a drag start falls back to the current card's
+  // effective position as the reference, so the move still works. The live
+  // global position only exists inside patchStyle's updater (drag/slider
+  // ticks can batch before a re-render, so `style.position` in a closure
+  // may lag), so applyGlobalMove captures {old, next} there and the doc
+  // shift uses the same delta as the style change. patchStyle + edit share
+  // the "caption-position:global" coalesce key, so the whole move — style
+  // plus every shifted override — is ONE undo step. The Style panel
+  // sliders stay global always and go through the same applyGlobalMove.
+  // The grip arrow keys are nudges (one step, relative): with 2+ cards
+  // picked they shift just those cards by the step
+  // (shiftSelectedCardsByDelta), else they are a global move by the step.
   const currentCardPosition = currentPage && style ? effectiveCardPosition(currentPage, style) : null;
   const captionBox = currentPage && style ? captionBoxFractions(currentPage, style, canvas) : null;
+  const dragPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const applyGlobalMove = useCallback((computeNext: (old: { x: number; y: number }) => { x: number; y: number }) => {
+    if (!style) return;
+    const captured: { old: { x: number; y: number }; next: { x: number; y: number } } = { old: style.position, next: style.position };
+    s.patchStyle((st) => {
+      const next = clampCaptionPosition(computeNext(st.position));
+      captured.old = st.position;
+      captured.next = next;
+      return { ...st, position: next };
+    }, { coalesceKey: "caption-position:global" });
+    if (captured.next.x === captured.old.x && captured.next.y === captured.old.y) return;
+    const { old, next } = captured;
+    // No overrides anywhere = today's behaviour: only style.position changes,
+    // no doc edit at all (and no undo step). The override set cannot change
+    // mid-drag — a global move only shifts existing overrides, never creates
+    // or removes one — so the render-time doc answers this safely even when
+    // ticks batch before a re-render. The edit itself still takes an updater
+    // so it reads the LIVE doc (batched ticks shift from the previous tick's
+    // result, not from a stale render-time doc).
+    if (!s.doc || !Object.values(s.doc.cards).some((c) => c?.position != null)) return;
+    s.edit((d) => shiftCardPositionsByGlobalDelta(d, old, next), { coalesceKey: "caption-position:global" });
+  }, [s, style]);
   const moveCaptionPosition = useCallback((p: { x: number; y: number }) => {
     if (!style) return;
-    const next = clampCaptionPosition(p);
     if (selectedCardIds.size >= 2) {
       if (!s.doc) return;
+      const next = clampCaptionPosition(p);
       s.edit((d) => setSelectedCardsPosition(d, pages, style, selectedCardIds, next), { coalesceKey: `card-position:multi:${[...selectedCardIds].sort().join(",")}` });
       // honest live feedback: the playhead card only moves on screen when it
       // is in the selection; otherwise show the dragged spot as a ghost.
@@ -393,9 +435,30 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       else setDragGhost(null);
       return;
     }
-    s.patchStyle((st) => ({ ...st, position: next }));
+    // global move by pointer displacement since the drag started (see the
+    // delta-rule comment above): the caption tracks the pointer's movement
+    // exactly, and overridden cards keep their offset.
+    const ref = dragPointerRef.current ?? currentCardPosition ?? style.position;
+    const dx = p.x - ref.x;
+    const dy = p.y - ref.y;
+    dragPointerRef.current = p;
+    if (dx === 0 && dy === 0) return;
+    applyGlobalMove((old) => ({ x: old.x + dx, y: old.y + dy }));
     setDragGhost(null);
-  }, [s, style, pages, selectedCardIds, currentPage]);
+  }, [s, style, pages, selectedCardIds, currentPage, currentCardPosition, applyGlobalMove]);
+  const nudgeCaptionPosition = useCallback((d: { dx: number; dy: number }) => {
+    if (!style || (d.dx === 0 && d.dy === 0)) return;
+    if (selectedCardIds.size >= 2) {
+      if (!s.doc) return;
+      s.edit((dd) => shiftSelectedCardsByDelta(dd, pages, style, selectedCardIds, d), { coalesceKey: `card-position:multi:${[...selectedCardIds].sort().join(",")}` });
+      return;
+    }
+    applyGlobalMove((old) => ({ x: old.x + d.dx, y: old.y + d.dy }));
+  }, [s, style, pages, selectedCardIds, applyGlobalMove]);
+  const endCaptionPositionDrag = useCallback(() => {
+    dragPointerRef.current = null;
+    setDragGhost(null);
+  }, []);
   // Bulk caption position (owner 2026-11-16): the Style panel's Position
   // section is the "all captions" home. "Apply to all" copies the current
   // card's effective position onto every card; "Reset all" clears every
@@ -1233,10 +1296,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       durationMs={durationMs}
       position={currentCardPosition ?? style.position}
       onMovePosition={moveCaptionPosition}
+      onPositionDragStart={(p) => { dragPointerRef.current = p; }}
+      onNudgePosition={nudgeCaptionPosition}
       captionBox={captionBox}
       showPositionGrip={currentPage != null}
       onCaptionTap={() => { const id = currentPage?.words[0]?.id; if (id) selectWordFromUserClick(id); }}
-      onPositionDragEnd={() => setDragGhost(null)}
+      onPositionDragEnd={endCaptionPositionDrag}
       dragGhost={dragGhost}
       dragGhostText={currentPage ? currentPage.words.map((w) => w.text).join(" ") : ""}
       dragGhostFontPx={style ? captionFontPx(style, canvas) : undefined}
@@ -1337,7 +1402,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const renderPanel = (t: PanelId) =>
     t === "captions" ? captions
     : style ? (
-      t === "style" ? <StylePanel style={style} patch={s.patchStyle} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} currentCardPosition={currentCardPosition} hasPositionOverrides={pages.some((p) => p.position != null)} onApplyPositionToAll={applyPositionToAll} onResetAllPositions={resetAllPositions} />
+      t === "style" ? <StylePanel style={style} patch={s.patchStyle} onGlobalPositionChange={(fn) => applyGlobalMove(fn)} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} currentCardPosition={currentCardPosition} hasPositionOverrides={pages.some((p) => p.position != null)} onApplyPositionToAll={applyPositionToAll} onResetAllPositions={resetAllPositions} />
       : t === "templates" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
       : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} composition={composition} onRelink={device.attach} assets={mediaBin.assets} importing={mediaBin.importing} onImport={mediaBin.importFiles} onDeleteAsset={mediaBin.remove} onPlaceImage={placeImage} />
       : t === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />

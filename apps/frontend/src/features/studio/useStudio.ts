@@ -337,12 +337,16 @@ export function useStudio(projectId: string) {
   );
 
   const patchStyle = useCallback(
-    (fn: (s: CaptionStyleV2) => CaptionStyleV2) => {
+    // opts.coalesceKey: a paired doc edit can share this key so the two
+    // land as ONE undo step (the caption-position global move: style +
+    // shifted overrides together). Default "style" keeps every other
+    // caller exactly as before.
+    (fn: (s: CaptionStyleV2) => CaptionStyleV2, opts?: { coalesceKey?: string }) => {
       if (!styleRef.current) return;
       const next = resolveStyle(fn(styleRef.current));
       if (JSON.stringify(next) === JSON.stringify(styleRef.current)) return;
       // slider drags and colour wells fire continuously: one undo step per burst, not per tick
-      recordHistory("style");
+      recordHistory(opts?.coalesceKey ?? "style");
       styleRef.current = next;
       setStyleState(next);
       persist();

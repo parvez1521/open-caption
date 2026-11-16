@@ -27,6 +27,12 @@ import { layoutBox, scaleOf, type Canvas } from "@capseasy/templates";
  * never leave the frame. The caption is NOT forced inside the platform safe
  * zone: the owner may want a caption anywhere, and the safe-zone guide stays
  * a preview-only guide.
+ *
+ * Third correction (owner 2026-11-16): a global move moves EVERYTHING
+ * together. A card with an override keeps its relative offset — the move
+ * shifts the override by the same delta as the global position
+ * (shiftCardPositionsByGlobalDelta), clamped to the frame band. No
+ * overrides means only style.position changes, exactly as before.
  */
 
 export interface CaptionPosition {
@@ -92,6 +98,75 @@ export function setSelectedCardsPosition(doc: CaptionDoc, pages: Page[], style: 
     out = setCardPosition(out, firstWordId, next);
   }
   return out;
+}
+
+/**
+ * Delta rule (owner 2026-11-16, third correction): a global move moves
+ * EVERYTHING together. `oldGlobal` -> `newGlobal` is the global position
+ * change (already clamped to the frame band); every card WITH an override
+ * shifts by the SAME delta, so its relative offset to the group is kept.
+ * Cards without an override follow the new global position on their own
+ * (style.position) and are not touched here. Returns the SAME doc when
+ * nothing changes — no overrides, a zero delta, or every shift clamped to
+ * a no-op — so a plain global move writes no overrides at all.
+ */
+export function shiftCardPositionsByGlobalDelta(
+  doc: CaptionDoc,
+  oldGlobal: { x: number; y: number },
+  newGlobal: { x: number; y: number },
+): CaptionDoc {
+  const delta = { x: round3(newGlobal.x - oldGlobal.x), y: round3(newGlobal.y - oldGlobal.y) };
+  if (delta.x === 0 && delta.y === 0) return doc;
+  const cards = { ...doc.cards };
+  let changed = false;
+  for (const [id, card] of Object.entries(doc.cards)) {
+    const pos = card?.position;
+    if (!pos) continue;
+    const shifted = clampCaptionPosition({ x: pos.x + delta.x, y: pos.y + delta.y });
+    if (shifted.x === pos.x && shifted.y === pos.y) continue;
+    cards[id] = { ...card, position: shifted };
+    changed = true;
+  }
+  if (!changed) return doc;
+  return { ...doc, cards };
+}
+
+/**
+ * Selection nudge (owner 2026-11-16, third correction): the grip arrow keys
+ * move by one STEP, not to an absolute spot, so a nudge shifts each selected
+ * card by the step (relative), keeping their offsets — unlike the drag,
+ * which writes one absolute position onto all selected cards. A selected
+ * card with no override gets one at its effective position + the step.
+ * Returns the SAME doc when the selection is empty, the step is zero, or
+ * every shift clamps to a no-op.
+ */
+export function shiftSelectedCardsByDelta(
+  doc: CaptionDoc,
+  pages: Page[],
+  style: CaptionStyleV2,
+  selectedPageIds: ReadonlySet<string>,
+  delta: { dx: number; dy: number },
+): CaptionDoc {
+  if (selectedPageIds.size === 0) return doc;
+  if (delta.dx === 0 && delta.dy === 0) return doc;
+  const cards = { ...doc.cards };
+  let changed = false;
+  for (const page of pages) {
+    if (!selectedPageIds.has(page.id)) continue;
+    const firstWord = page.words[0];
+    if (!firstWord) continue;
+    // the doc is the source of truth (the page is derived from it) — the
+    // same read setSelectedCardsPosition uses
+    const current = doc.cards[firstWord.id]?.position;
+    const effective = current ?? style.position;
+    const shifted = clampCaptionPosition({ x: effective.x + delta.dx, y: effective.y + delta.dy });
+    if (current && shifted.x === current.x && shifted.y === current.y) continue;
+    if (!current && shifted.x === style.position.x && shifted.y === style.position.y) continue;
+    cards[firstWord.id] = { ...doc.cards[firstWord.id], position: shifted };
+    changed = true;
+  }
+  if (!changed) return doc;
+  return { ...doc, cards };
 }
 
 /**

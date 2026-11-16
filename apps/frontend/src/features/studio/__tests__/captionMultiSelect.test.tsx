@@ -50,7 +50,7 @@ vi.mock("../UploadPanel", () => ({
 vi.mock("../ProcessingPanel", () => ({ ProcessingPanel: () => null }));
 vi.mock("../StudioPlayer", () => ({
   StudioPlayer: React.forwardRef(function StudioPlayerStub(
-    props: { onMovePosition?: (p: { x: number; y: number }) => void; onPositionDragEnd?: () => void; dragGhost?: { x: number; y: number } | null },
+    props: { onMovePosition?: (p: { x: number; y: number }) => void; onPositionDragStart?: (p: { x: number; y: number }) => void; onNudgePosition?: (d: { dx: number; dy: number }) => void; onPositionDragEnd?: () => void; dragGhost?: { x: number; y: number } | null },
     ref: React.Ref<unknown>,
   ) {
     React.useImperativeHandle(ref, () => ({
@@ -62,7 +62,11 @@ vi.mock("../StudioPlayer", () => ({
     }));
     return (
       <div>
-        <button type="button" onClick={() => props.onMovePosition?.({ x: 0.5, y: 0.2 })}>player-move</button>
+        {/* a real drag always starts with pointerdown at the caption's spot, then moves — the stub fires both */}
+        <button type="button" onClick={() => { props.onPositionDragStart?.({ x: 0.5, y: 0.72 }); props.onMovePosition?.({ x: 0.5, y: 0.2 }); }}>player-move</button>
+        {/* a drag that starts on an overridden caption (its spot is 0.8, not the global 0.72) */}
+        <button type="button" onClick={() => { props.onPositionDragStart?.({ x: 0.5, y: 0.8 }); props.onMovePosition?.({ x: 0.5, y: 0.2 }); }}>player-drag-override</button>
+        <button type="button" onClick={() => props.onNudgePosition?.({ dx: 0, dy: -0.01 })}>player-nudge-up</button>
         <button type="button" onClick={() => props.onPositionDragEnd?.()}>player-drag-end</button>
         <span>{props.dragGhost ? `ghost:${props.dragGhost.x},${props.dragGhost.y}` : "no-ghost"}</span>
       </div>
@@ -146,6 +150,21 @@ const doc = CaptionDocSchema.parse({
   ],
 });
 
+// same words, but the playhead card (w1) already has a per-card override at 0.8
+const overriddenDoc = CaptionDocSchema.parse({
+  version: 2,
+  language: "en",
+  words: [
+    { id: "w1", text: "Dulha", startMs: 0, endMs: 400 },
+    { id: "w2", text: "Dulhan?", startMs: 420, endMs: 800 },
+    { id: "w3", text: "hota", startMs: 820, endMs: 1200 },
+    { id: "w4", text: "hai?", startMs: 1220, endMs: 1600 },
+    { id: "w5", text: "aur", startMs: 1620, endMs: 2000 },
+    { id: "w6", text: "kya?", startMs: 2020, endMs: 2400 },
+  ],
+  cards: { w1: { position: { x: 0.5, y: 0.8 } } },
+});
+
 const loadedData = {
   project: {
     id: "p1",
@@ -167,7 +186,9 @@ const loadedData = {
 };
 
 const edit = vi.fn();
-const patchStyle = vi.fn();
+// like the real patchStyle, the mock invokes the updater once (StudioPage's
+// global move captures the old/new global inside that updater)
+const patchStyle = vi.fn((fn: (s: ReturnType<typeof defaultStyle>) => ReturnType<typeof defaultStyle>, _opts?: { coalesceKey?: string }) => fn(defaultStyle()));
 const baseStudio = {
   doc,
   style: defaultStyle(),
@@ -225,9 +246,9 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-async function mountStudio() {
+async function mountStudio(studio: typeof baseStudio = baseStudio) {
   window.history.pushState({}, "", "/projects/p1");
-  studioState.current = baseStudio;
+  studioState.current = studio;
   const utils = renderStudio();
   // pages compute once the (stubbed) fonts resolve; the word list proves it
   expect(await screen.findByRole("button", { name: "Dulha" })).toBeTruthy();
@@ -320,6 +341,48 @@ describe("StudioPage — caption multi-select (owner 2026-11-16)", () => {
       fireEvent.click(screen.getByRole("button", { name: "player-move" }));
       expect(screen.getByText("no-ghost")).toBeTruthy();
       expect(screen.queryByText(/ghost:/)).toBeNull();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("a global drag moves an overridden card by the SAME delta (delta rule)", async () => {
+    const { unmount } = await mountStudio({ ...baseStudio, doc: overriddenDoc });
+    try {
+      // the drag starts on the overridden caption at 0.8 and moves to 0.2: delta -0.6
+      fireEvent.click(screen.getByRole("button", { name: "player-drag-override" }));
+      expect(patchStyle).toHaveBeenCalledTimes(1);
+      expect(edit).toHaveBeenCalledTimes(1);
+      // one undo step: the style change and the shifted overrides share one coalesce key
+      expect((patchStyle.mock.calls[0]![1] as { coalesceKey: string }).coalesceKey).toBe("caption-position:global");
+      expect((edit.mock.calls[0]![1] as { coalesceKey: string }).coalesceKey).toBe("caption-position:global");
+      // global 0.72 - 0.6 = 0.12; the override keeps its offset: 0.8 - 0.6 = 0.2
+      const nextStyle = (patchStyle.mock.calls[0]![0] as (s: ReturnType<typeof defaultStyle>) => ReturnType<typeof defaultStyle>)(defaultStyle());
+      expect(nextStyle.position).toEqual({ x: 0.5, y: 0.12 });
+      const nextDoc = (edit.mock.calls[0]![0] as (d: typeof overriddenDoc) => typeof overriddenDoc)(overriddenDoc);
+      expect(nextDoc.cards.w1?.position).toEqual({ x: 0.5, y: 0.2 });
+      // the other cards had no override: none is written for them
+      expect(nextDoc.cards.w3?.position ?? null).toBeNull();
+      expect(nextDoc.cards.w5?.position ?? null).toBeNull();
+      expect(() => CaptionDocSchema.parse(nextDoc)).not.toThrow();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("a grip arrow-key nudge shifts overrides by one step (delta rule)", async () => {
+    const { unmount } = await mountStudio({ ...baseStudio, doc: overriddenDoc });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "player-nudge-up" }));
+      expect(patchStyle).toHaveBeenCalledTimes(1);
+      expect(edit).toHaveBeenCalledTimes(1);
+      expect((patchStyle.mock.calls[0]![1] as { coalesceKey: string }).coalesceKey).toBe("caption-position:global");
+      expect((edit.mock.calls[0]![1] as { coalesceKey: string }).coalesceKey).toBe("caption-position:global");
+      // global 0.72 - 0.01 = 0.71; the override keeps its offset: 0.8 - 0.01 = 0.79
+      const nextStyle = (patchStyle.mock.calls[0]![0] as (s: ReturnType<typeof defaultStyle>) => ReturnType<typeof defaultStyle>)(defaultStyle());
+      expect(nextStyle.position).toEqual({ x: 0.5, y: 0.71 });
+      const nextDoc = (edit.mock.calls[0]![0] as (d: typeof overriddenDoc) => typeof overriddenDoc)(overriddenDoc);
+      expect(nextDoc.cards.w1?.position).toEqual({ x: 0.5, y: 0.79 });
     } finally {
       unmount();
     }

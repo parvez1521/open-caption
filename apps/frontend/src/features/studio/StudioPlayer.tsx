@@ -6,6 +6,7 @@ import { CaptionedVideo, type CaptionedVideoInput } from "@capseasy/compositions
 import type { Platform } from "@capseasy/shared";
 import { Pause, Play } from "@/components/ui/icons";
 import { fmtTime } from "./controls";
+import { fractionFromPointer } from "./captionPosition";
 import { safeZoneFor, safeZoneStyle } from "./safeZone";
 
 interface Props {
@@ -25,7 +26,19 @@ interface Props {
    * that card's caption box as frame fractions (centre + size): dragging the
    * caption text itself moves it. Null when no card is on screen — nothing
    * to move.
+   *
+   * Delta rule (third correction): a global move is a POINTER DISPLACEMENT,
+   * not an absolute position — the pointer grabs the caption where it sits
+   * (its override spot), so StudioPage needs the pointer position at drag
+   * start to measure the displacement. onPositionDragStart fires on every
+   * pointerdown that can start a position drag (hit box + grip); a move
+   * without it falls back to the current card's position as the reference.
+   * The grip arrow keys are NUDGES, not moves: onNudgePosition carries one
+   * step (±0.01, ±0.05 with shift) so StudioPage can shift by the step
+   * instead of setting an absolute position.
    */
+  onPositionDragStart?: (p: { x: number; y: number }) => void;
+  onNudgePosition?: (d: { dx: number; dy: number }) => void;
   captionBox?: { x: number; y: number; w: number; h: number } | null;
   /** false when no card is current at the playhead: the grip hides (nothing to move) */
   showPositionGrip?: boolean;
@@ -65,7 +78,7 @@ interface Props {
 const clamp = (v: number) => Math.min(0.95, Math.max(0.05, v));
 
 /** The same CaptionedVideo composition that renders the export, plus a drag handle to place the captions. */
-export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, captionBox = null, showPositionGrip = true, onCaptionTap, onPositionDragEnd, dragGhost = null, dragGhostText = "", dragGhostFontPx, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
+export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, onPositionDragStart, onNudgePosition, captionBox = null, showPositionGrip = true, onCaptionTap, onPositionDragEnd, dragGhost = null, dragGhostText = "", dragGhostFontPx, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
   const innerRef = useRef<PlayerRef | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -183,6 +196,10 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
                 /* capture unsupported: the moves still arrive on this element */
               }
               captionDragRef.current = { startX: e.clientX, startY: e.clientY, moved: false };
+              // delta rule: StudioPage measures the drag from this pointer
+              // position, so the caption tracks the pointer's movement exactly
+              const rect = boxRef.current?.getBoundingClientRect();
+              if (rect) onPositionDragStart?.(fractionFromPointer(e.clientX, e.clientY, rect));
             }}
             onPointerMove={(e) => {
               const d = captionDragRef.current;
@@ -254,16 +271,19 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
             ? `absolute right-0 z-10 flex h-11 w-7 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-l-lg bg-st-panel/85 text-st-ink shadow-md ${dragging ? "cursor-grabbing bg-st-lav" : ""}`
             : `absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 border-st-lav bg-transparent shadow-[0_0_0_3px_rgba(0,0,0,0.25)] transition ${dragging ? "scale-125 cursor-grabbing opacity-100" : "opacity-0 group-hover:opacity-90 focus:opacity-100"}`}
           style={compact ? { top: `${position.y * 100}%` } : { left: `${position.x * 100}%`, top: `${position.y * 100}%` }}
-          onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setDragging(true); }}
+          onPointerDown={(e) => { try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch { /* capture unsupported: the moves still arrive on this element */ } setDragging(true); const rect = boxRef.current?.getBoundingClientRect(); if (rect) onPositionDragStart?.(fractionFromPointer(e.clientX, e.clientY, rect)); }}
           onPointerMove={(e) => dragging && move(e)}
           onPointerUp={() => { setDragging(false); onPositionDragEnd?.(); }}
           onPointerCancel={() => { setDragging(false); onPositionDragEnd?.(); }}
           onKeyDown={(e) => {
+            // nudges (one step, relative) — NOT absolute moves: with a card
+            // override present, an absolute move from the effective position
+            // would jump the global position by (override - global)
             const step = e.shiftKey ? 0.05 : 0.01;
-            if (e.key === "ArrowUp") onMovePosition({ ...position, y: clamp(position.y - step) });
-            if (e.key === "ArrowDown") onMovePosition({ ...position, y: clamp(position.y + step) });
-            if (e.key === "ArrowLeft") onMovePosition({ ...position, x: clamp(position.x - step) });
-            if (e.key === "ArrowRight") onMovePosition({ ...position, x: clamp(position.x + step) });
+            if (e.key === "ArrowUp") onNudgePosition?.({ dx: 0, dy: -step });
+            if (e.key === "ArrowDown") onNudgePosition?.({ dx: 0, dy: step });
+            if (e.key === "ArrowLeft") onNudgePosition?.({ dx: -step, dy: 0 });
+            if (e.key === "ArrowRight") onNudgePosition?.({ dx: step, dy: 0 });
           }}
         >
           {compact ? <span aria-hidden className="text-xs leading-none tracking-tighter">⇕</span> : null}

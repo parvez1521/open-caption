@@ -9,8 +9,9 @@ import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { deleteWordsByIds, setWordText } from "@motion-ai/caption-engine/core";
+import { deleteWordsByIds, setCardPosition, setWordText } from "@motion-ai/caption-engine/core";
 import { getLook } from "@capseasy/templates";
+import { shiftCardPositionsByGlobalDelta } from "../captionPosition";
 
 const DOC = {
   version: 2,
@@ -173,5 +174,37 @@ describe("useStudio unified history", () => {
     act(() => { result.current.undo(); });
     expect(result.current.doc!.words[0]!.text).toBe("hello");
     expect(result.current.canUndo).toBe(false);
+  });
+
+  it("a global caption move (patchStyle + shifted overrides, one coalesce key) is ONE undo step", async () => {
+    const { result } = await renderStudio();
+    const KEY = "caption-position:global";
+    // the playhead card already has a per-card override at 0.8 (its own undo step)
+    act(() => { result.current.edit((d) => setCardPosition(d, "w1", { x: 0.5, y: 0.8 })); });
+    expect(result.current.doc!.cards.w1?.position).toEqual({ x: 0.5, y: 0.8 });
+    // the global move: style 0.1 up, the override shifts by the same delta — one act, one key
+    const oldPos = result.current.style!.position;
+    const newPos = { x: oldPos.x, y: Math.round((oldPos.y - 0.1) * 1000) / 1000 };
+    act(() => {
+      result.current.patchStyle((s) => ({ ...s, position: newPos }), { coalesceKey: KEY });
+      result.current.edit((d) => shiftCardPositionsByGlobalDelta(d, oldPos, newPos), { coalesceKey: KEY });
+    });
+    expect(result.current.style!.position).toEqual(newPos);
+    expect(result.current.doc!.cards.w1?.position).toEqual({ x: 0.5, y: 0.7 });
+    // ONE undo reverts BOTH — the style and the shifted override together
+    act(() => { result.current.undo(); });
+    expect(result.current.style!.position).toEqual(oldPos);
+    expect(result.current.doc!.cards.w1?.position).toEqual({ x: 0.5, y: 0.8 });
+    expect(result.current.canUndo).toBe(true); // the override-setup step is still there
+    // a second undo removes the override itself
+    act(() => { result.current.undo(); });
+    expect(result.current.doc!.cards.w1?.position ?? null).toBeNull();
+    expect(result.current.canUndo).toBe(false);
+    // redo replays both steps in order
+    act(() => { result.current.redo(); });
+    expect(result.current.doc!.cards.w1?.position).toEqual({ x: 0.5, y: 0.8 });
+    act(() => { result.current.redo(); });
+    expect(result.current.style!.position).toEqual(newPos);
+    expect(result.current.doc!.cards.w1?.position).toEqual({ x: 0.5, y: 0.7 });
   });
 });

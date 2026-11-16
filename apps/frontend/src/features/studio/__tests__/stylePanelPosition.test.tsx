@@ -20,7 +20,7 @@ vi.mock("@/services/studio", () => ({
   },
 }));
 
-function renderStyle(opts: { currentCardPosition?: { x: number; y: number } | null; hasPositionOverrides?: boolean } = {}) {
+function renderStyle(opts: { currentCardPosition?: { x: number; y: number } | null; hasPositionOverrides?: boolean; onGlobalPositionChange?: (fn: (pos: { x: number; y: number }) => { x: number; y: number }) => void } = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const patch = vi.fn((fn: (s: ReturnType<typeof defaultStyle>) => ReturnType<typeof defaultStyle>) => fn(defaultStyle()));
   const onApplyPositionToAll = vi.fn();
@@ -36,10 +36,11 @@ function renderStyle(opts: { currentCardPosition?: { x: number; y: number } | nu
         hasPositionOverrides={opts.hasPositionOverrides ?? true}
         onApplyPositionToAll={onApplyPositionToAll}
         onResetAllPositions={onResetAllPositions}
+        onGlobalPositionChange={opts.onGlobalPositionChange}
       />
     </QueryClientProvider>,
   );
-  return { ...utils, patch, onApplyPositionToAll, onResetAllPositions };
+  return { ...utils, patch, onApplyPositionToAll, onResetAllPositions, onGlobalPositionChange: opts.onGlobalPositionChange };
 }
 
 describe("StylePanel — bulk caption position", () => {
@@ -71,5 +72,19 @@ describe("StylePanel — bulk caption position", () => {
     const next = patch.mock.results[0]!.value as ReturnType<typeof defaultStyle>;
     expect(next.position.y).toBe(0.2);
     expect(next.position.x).toBe(defaultStyle().position.x);
+  });
+
+  it("with onGlobalPositionChange the Vertical slider routes through it (delta rule), not patch", () => {
+    const onGlobalPositionChange = vi.fn((fn: (pos: { x: number; y: number }) => { x: number; y: number }) => fn(defaultStyle().position));
+    const { patch } = renderStyle({ onGlobalPositionChange });
+    const vertical = screen.getByLabelText("Vertical (exact value in %)") as HTMLInputElement;
+    fireEvent.change(vertical, { target: { value: "20" } });
+    fireEvent.blur(vertical);
+    expect(onGlobalPositionChange).toHaveBeenCalledTimes(1);
+    expect(patch).not.toHaveBeenCalled();
+    // the updater maps the live global position, so the caller can shift
+    // overridden cards by the same delta (0.72 -> 0.2)
+    const fn = onGlobalPositionChange.mock.calls[0]![0] as (pos: { x: number; y: number }) => { x: number; y: number };
+    expect(fn({ x: 0.5, y: 0.72 })).toEqual({ x: 0.5, y: 0.2 });
   });
 });

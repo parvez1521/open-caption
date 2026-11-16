@@ -11,6 +11,8 @@ import {
   fractionFromPointer,
   setCurrentCardPosition,
   setSelectedCardsPosition,
+  shiftCardPositionsByGlobalDelta,
+  shiftSelectedCardsByDelta,
 } from "../captionPosition";
 
 /**
@@ -152,6 +154,68 @@ describe("setSelectedCardsPosition — a selective move touches only the picked 
     // p2 already sits at 0.2 via its override in the doc — not just the page fixture
     const withOverride = docWith(words, { w2: { position: { x: 0.5, y: 0.2 } } });
     expect(setSelectedCardsPosition(withOverride, pages, style, new Set(["p2"]), { x: 0.5, y: 0.2 })).toBe(withOverride);
+  });
+});
+
+describe("shiftCardPositionsByGlobalDelta — a global move moves overridden cards too", () => {
+  const words = [mkWord("w1", "hi", 0, 400), mkWord("w2", "you", 420, 800), mkWord("w3", "too", 820, 1200)];
+
+  it("shifts every override by the same delta as the global position", () => {
+    const doc = docWith(words, { w2: { position: { x: 0.5, y: 0.2 } }, w3: { position: { x: 0.25, y: 0.8 } } });
+    const next = shiftCardPositionsByGlobalDelta(doc, { x: 0.5, y: 0.72 }, { x: 0.5, y: 0.2 });
+    // global moved up 0.52; both overrides move up 0.52 too
+    expect(next.cards.w2?.position).toEqual({ x: 0.5, y: 0.05 });
+    expect(next.cards.w3?.position).toEqual({ x: 0.25, y: 0.28 });
+    // w1 has no override: no entry is written for it
+    expect(next.cards.w1).toBeUndefined();
+    expect(() => CaptionDocSchema.parse(next)).not.toThrow();
+  });
+
+  it("clamps a shifted override to the frame band instead of leaving it", () => {
+    const doc = docWith(words, { w2: { position: { x: 0.5, y: 0.9 } } });
+    const next = shiftCardPositionsByGlobalDelta(doc, { x: 0.5, y: 0.72 }, { x: 0.5, y: 0.95 });
+    expect(next.cards.w2?.position).toEqual({ x: 0.5, y: 0.95 });
+  });
+
+  it("returns the SAME doc when there are no overrides, the delta is zero, or every shift is a no-op", () => {
+    const plain = docWith(words);
+    expect(shiftCardPositionsByGlobalDelta(plain, { x: 0.5, y: 0.72 }, { x: 0.5, y: 0.2 })).toBe(plain);
+    const withOverride = docWith(words, { w2: { position: { x: 0.5, y: 0.2 } } });
+    expect(shiftCardPositionsByGlobalDelta(withOverride, { x: 0.5, y: 0.72 }, { x: 0.5, y: 0.72 })).toBe(withOverride);
+    // the override is already at the band edge and the shift would push past it
+    const atEdge = docWith(words, { w2: { position: { x: 0.5, y: 0.95 } } });
+    expect(shiftCardPositionsByGlobalDelta(atEdge, { x: 0.5, y: 0.72 }, { x: 0.5, y: 0.95 })).toBe(atEdge);
+  });
+});
+
+describe("shiftSelectedCardsByDelta — a nudge shifts selected cards by one step", () => {
+  const words = [mkWord("w1", "hi", 0, 400), mkWord("w2", "you", 420, 800), mkWord("w3", "too", 820, 1200)];
+  const pages = [pageOf([words[0]!], null, "p1"), pageOf([words[1]!], { x: 0.5, y: 0.2 }, "p2"), pageOf([words[2]!], null, "p3")];
+
+  it("shifts each selected card by the step, keeping their offsets; the rest stay", () => {
+    const doc = docWith(words, { w2: { position: { x: 0.5, y: 0.2 } } });
+    const next = shiftSelectedCardsByDelta(doc, pages, style, new Set(["p1", "p2"]), { dx: 0, dy: -0.01 });
+    // p1 had no override (effective = global 0.72) → now 0.71 as an override
+    expect(next.cards.w1?.position).toEqual({ x: 0.5, y: 0.71 });
+    // p2 keeps its offset: 0.2 - 0.01
+    expect(next.cards.w2?.position).toEqual({ x: 0.5, y: 0.19 });
+    // p3 was not selected: untouched
+    expect(next.cards.w3).toBeUndefined();
+    expect(() => CaptionDocSchema.parse(next)).not.toThrow();
+  });
+
+  it("clamps a shifted card to the frame band", () => {
+    const doc = docWith(words, { w2: { position: { x: 0.5, y: 0.95 } } });
+    const next = shiftSelectedCardsByDelta(doc, pages, style, new Set(["p2"]), { dx: 0, dy: 0.05 });
+    expect(next.cards.w2?.position).toEqual({ x: 0.5, y: 0.95 });
+  });
+
+  it("returns the SAME doc when the selection is empty, the step is zero, or every shift is a no-op", () => {
+    const doc = docWith(words, { w2: { position: { x: 0.5, y: 0.2 } } });
+    expect(shiftSelectedCardsByDelta(doc, pages, style, new Set(), { dx: 0, dy: -0.01 })).toBe(doc);
+    expect(shiftSelectedCardsByDelta(doc, pages, style, new Set(["p2"]), { dx: 0, dy: 0 })).toBe(doc);
+    const atEdge = docWith(words, { w2: { position: { x: 0.5, y: 0.95 } } });
+    expect(shiftSelectedCardsByDelta(atEdge, pages, style, new Set(["p2"]), { dx: 0, dy: 0.05 })).toBe(atEdge);
   });
 });
 

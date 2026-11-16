@@ -31,13 +31,26 @@ interface StyleProps {
   onApplyPositionToAll?: () => void;
   /** clear every card's override so all follow the global position (one undo step) */
   onResetAllPositions?: () => void;
+  /**
+   * Delta rule (owner 2026-11-16): the Vertical/Horizontal sliders are
+   * global moves, so they take a function updater for the position — the
+   * caller (StudioPage) applies the delta to the global position AND shifts
+   * every overridden card by the same delta, as one undo step. Absent, the
+   * sliders fall back to patching style.position directly (the panel stays
+   * usable on its own).
+   */
+  onGlobalPositionChange?: (fn: (pos: { x: number; y: number }) => { x: number; y: number }) => void;
 }
 
 /**
  * Every control here is shown only when the current template honours it (`controlVisible`, shared with
  * packages/templates/src/controls.test.tsx, which proves each visible control changes the rendered video).
  */
-export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpenLooks, currentCardPosition = null, hasPositionOverrides = false, onApplyPositionToAll, onResetAllPositions }) => {
+export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpenLooks, currentCardPosition = null, hasPositionOverrides = false, onApplyPositionToAll, onResetAllPositions, onGlobalPositionChange }) => {
+  // a global position move: the caller applies the delta to the global
+  // position and shifts every overridden card by the same delta (one undo
+  // step); without a caller, patch style.position directly
+  const movePosition = onGlobalPositionChange ?? ((fn: (pos: { x: number; y: number }) => { x: number; y: number }) => patch((s) => ({ ...s, position: fn(s.position) })));
   const tpl = getTemplate(style.templateId);
   const show = (id: ControlId) => controlVisible(id, tpl, style);
   const effects = effectsFor(tpl);
@@ -184,8 +197,8 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
       ) : null}
 
       <Section title="Position" hint="You can also drag the handle on the video.">
-        <Slider label="Vertical" value={Math.round(style.position.y * 100)} min={5} max={95} unit="%" onChange={(v) => patch((s) => ({ ...s, position: { ...s.position, y: v / 100 } }))} />
-        <Slider label="Horizontal" value={Math.round(style.position.x * 100)} min={5} max={95} unit="%" onChange={(v) => patch((s) => ({ ...s, position: { ...s.position, x: v / 100 } }))} />
+        <Slider label="Vertical" value={Math.round(style.position.y * 100)} min={5} max={95} unit="%" onChange={(v) => movePosition((pos) => ({ ...pos, y: v / 100 }))} />
+        <Slider label="Horizontal" value={Math.round(style.position.x * 100)} min={5} max={95} unit="%" onChange={(v) => movePosition((pos) => ({ ...pos, x: v / 100 }))} />
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={!currentCardPosition} onClick={onApplyPositionToAll} className="rounded-md bg-st-raised px-2.5 py-2 text-xs hover:bg-st-hover disabled:opacity-50 lg:py-1">Apply to all captions</button>
           <button type="button" disabled={!hasPositionOverrides} onClick={onResetAllPositions} className="rounded-md bg-st-raised px-2.5 py-2 text-xs hover:bg-st-hover disabled:opacity-50 lg:py-1">Reset all positions</button>
