@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { OverlayView } from "./overlays";
-import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, chatStackAt, chatTicksAt, countdownAt, counterAt, cursorChoreoAt, easeInOutCubic, easeOutQuint, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, postCardAt, repostAt, searchBarAt, shareFlightAt, socialSeededUnit, springOut, typingAt, upvoteAt, voiceCardAt } from "./social";
+import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, calloutAt, chatStackAt, chatTicksAt, countdownAt, counterAt, cursorChoreoAt, easeInOutCubic, easeOutQuint, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, postCardAt, progressFillAt, repostAt, searchBarAt, shareFlightAt, socialSeededUnit, springOut, typingAt, upvoteAt, voiceCardAt } from "./social";
 
 /**
  * Animated Social Media overlays: phases are pure functions of the item's own window, so the same
@@ -127,6 +127,32 @@ describe("follow-up helpers (chatTicksAt / countdownAt / shareFlightAt)", () => 
   });
 });
 
+describe("Motion Graphics Pack helpers (calloutAt / progressFillAt)", () => {
+  it("callout pops in on a spring, holds at full size mid-window, then exits", () => {
+    expect(calloutAt(0, 4000).pop).toBe(0);
+    expect(calloutAt(0, 4000).visible).toBe(false);
+    expect(calloutAt(200, 4000).pop).toBeGreaterThan(calloutAt(100, 4000).pop);
+    expect(calloutAt(2000, 4000).pop).toBe(1);
+    expect(calloutAt(2000, 4000).visible).toBe(true);
+    expect(calloutAt(2000, 4000)).toEqual(calloutAt(2000, 4000));
+    expect(calloutAt(3900, 4000).visible).toBe(true);
+    expect(calloutAt(3999, 4000).exiting).toBeGreaterThan(0.9);
+  });
+  it("progress fill is 0% near the start and ~100% near the end, monotonic and looping-free", () => {
+    expect(progressFillAt(0, 4000)).toEqual({ progress: 0, pct: 0 });
+    expect(progressFillAt(100, 4000).pct).toBeLessThanOrEqual(3);
+    let prev = -1;
+    for (let t = 0; t <= 4000; t += 200) {
+      const p = progressFillAt(t, 4000);
+      expect(p.progress).toBeGreaterThanOrEqual(prev);
+      prev = p.progress;
+    }
+    expect(progressFillAt(3900, 4000).pct).toBeGreaterThanOrEqual(95);
+    expect(progressFillAt(4000, 4000)).toEqual({ progress: 1, pct: 100 });
+    expect(progressFillAt(2000, 4000)).toEqual(progressFillAt(2000, 4000));
+  });
+});
+
 describe("counterAt (Counter / Odometer)", () => {
   it("counts from -> to monotonically and lands exactly, with grouped formatting", () => {
     let prev = -1;
@@ -219,6 +245,29 @@ describe("SocialOverlayView (static markup — the same tree every render path d
     expect((html.match(/<svg/g) ?? []).length).toBeGreaterThanOrEqual(6);
     expect(html).toBe(render(it2, 2600));
   });
+  it("callout bubble shows its line mid-window with a pointer tail, popped to full size", () => {
+    const it2 = item("callout", "Watch this part");
+    const mid = render(it2, 2000);
+    expect(mid).toContain("Watch this part");
+    expect(mid).toContain("opacity:1");
+    expect(mid).toContain("scale(1.000)");
+    expect(mid).toContain("rotate(45deg)"); // the pointer tail
+    const early = render(it2, 100);
+    expect(early).toContain("Watch this part");
+    expect(early).not.toContain("scale(1.000)");
+    expect(mid).not.toBe(early);
+  });
+  it("progress fill shows its label and a bar at 0% near the start, ~100% near the end", () => {
+    const it2 = item("progress-fill", "Loading the good part");
+    const start = render(it2, 100);
+    expect(start).toContain("Loading the good part");
+    expect(start).toContain("width:2.5%");
+    expect(start).toContain(">3%<");
+    const end = render(it2, 3900);
+    expect(end).toContain("width:97.5%");
+    expect(end).toContain(">98%<");
+    expect(end).not.toBe(start);
+  });
   it("counter renders rolling digit columns and its label", () => {
     const it2 = item("counter", "0\n50000\nfollowers");
     const html = render(it2, 3900);
@@ -290,9 +339,9 @@ describe("SocialOverlayView (static markup — the same tree every render path d
       expect(late, `${meta.id} does not animate between 350ms and 2650ms`).not.toBe(early);
     }
   });
-  it("SOCIAL_META covers 46 variants with unique ids", () => {
-    expect(SOCIAL_META).toHaveLength(46);
-    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(46);
+  it("SOCIAL_META covers 48 variants with unique ids", () => {
+    expect(SOCIAL_META).toHaveLength(48);
+    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(48);
     for (const m of SOCIAL_META) { expect(m.label.length).toBeGreaterThan(0); expect(m.hint.length).toBeGreaterThan(0); expect(m.defaultColor).toMatch(/^#[0-9A-Fa-f]{6}$/); }
   });
   it("new helpers are pure, seeded and deterministic", () => {

@@ -44,7 +44,7 @@ describe("motion registry integrity", () => {
     }
   });
   it("Wave 1.5 fills the facebook / x / discord parity categories with one entry each", () => {
-    expect(MOTION_TEMPLATES).toHaveLength(46);
+    expect(MOTION_TEMPLATES).toHaveLength(48);
     const cats = listMotionCategories();
     expect(cats.find((c) => c.category === "facebook")).toEqual({ category: "facebook", count: 1 });
     expect(cats.find((c) => c.category === "x")).toEqual({ category: "x", count: 1 });
@@ -59,6 +59,14 @@ describe("motion registry integrity", () => {
     expect(getMotionTemplate("post-card")!.fields.some((f) => f.kind === "image")).toBe(true);
     expect(getMotionTemplate("repost-card")!.fields.some((f) => f.kind === "image")).toBe(true);
     expect(getMotionTemplate("voice-card")!.fields.some((f) => f.kind === "image")).toBe(false);
+  });
+  it("Motion Graphics Pack entries live in the effects category with a 4000 ms default", () => {
+    expect(getMotionTemplate("callout")).toMatchObject({ category: "effects", defaultDurationMs: 4000, defaultText: "Watch this part", defaultColor: "#FFA946" });
+    expect(getMotionTemplate("progress-fill")).toMatchObject({ category: "effects", defaultDurationMs: 4000, defaultText: "Loading the good part", defaultColor: "#34D399" });
+    expect(getMotionTemplate("callout")!.tags).toContain("callout");
+    expect(getMotionTemplate("progress-fill")!.tags).toContain("progress");
+    expect(defaultMotionConfig("callout")).toEqual({ variant: "callout", text: "Watch this part", color: "#FFA946", durationMs: 4000 });
+    expect(defaultMotionConfig("progress-fill")).toEqual({ variant: "progress-fill", text: "Loading the good part", color: "#34D399", durationMs: 4000 });
   });
   it("category counts are derived and sum to the registry size", () => {
     const cats = listMotionCategories();
