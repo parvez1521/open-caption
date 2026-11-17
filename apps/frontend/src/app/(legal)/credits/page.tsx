@@ -32,7 +32,9 @@ export default function CreditsPage() {
           The starter pack&apos;s files are CC0 (public domain) works by the authors below, recorded
           per file at ingestion. The meme sounds are our own original synthesized effects — generated
           in code in the style of the classic sounds, never copies of the famous recordings — and are
-          likewise dedicated CC0. CC0 needs no attribution — these credits are kept so the record
+          likewise dedicated CC0. The everyday sound effects added 2026-11-18 are the same: 29
+          original syntheses made in code, covering whooshes, pops, clicks, dings, risers,
+          downlifters, impacts, ticks, glitches and a boing. CC0 needs no attribution — these credits are kept so the record
           stays checkable. The same record travels with each copy added to a project&apos;s media bin.
         </p>
         <ul className="space-y-3">

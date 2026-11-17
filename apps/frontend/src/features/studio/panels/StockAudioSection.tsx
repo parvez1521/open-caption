@@ -135,6 +135,7 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
 
   const starterItems = items.filter((i) => i.group === "starter");
   const memeItems = items.filter((i) => i.group === "meme");
+  const sfxItems = items.filter((i) => i.group === "sfx");
 
   return (
     <div className="space-y-5">
@@ -157,6 +158,18 @@ export const StockAudioSection: React.FC<StockAudioSectionProps> = ({ projectId,
             recordings are other people&apos;s uploads, so they are not in this pack.
           </p>
           <div className="mt-2 space-y-1.5">{memeItems.map(renderPackItem)}</div>
+        </div>
+      ) : null}
+
+      {/* ------------------------------------------------ everyday SFX */}
+      {sfxItems.length ? (
+        <div>
+          <p className={`text-sm font-medium ${txt}`}>Everyday sound effects</p>
+          <p className={`mt-1 text-xs ${faint}`}>
+            The most-used short-form sounds — whooshes, pops, clicks, dings, risers and impacts —
+            synthesized by us in code, CC0. No recordings, nothing borrowed.
+          </p>
+          <div className="mt-2 space-y-1.5">{sfxItems.map(renderPackItem)}</div>
         </div>
       ) : null}
 

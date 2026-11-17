@@ -28,6 +28,13 @@ import manifest from "../../../public/stock-sfx/manifest.json";
  * ship instead, each labelled "original synthesis" in its title, format and
  * UI copy, and dedicated CC0 by Captionit as author. The validator below
  * pins that labelling so a synth item can never pose as a found recording.
+ *
+ * Everyday SFX group (2026-11-18): 29 more original syntheses in the same
+ * style, covering the most-used short-form sounds (whoosh, pop, click,
+ * ding, riser, downlifter, impact, tick, glitch, boing). Generator:
+ * `apps/frontend/scripts/synthesize-sfx-2026-11-18.py` (re-runnable; it
+ * regenerates the .ogg files and rewrites the manifest records). Same
+ * labelling rules as the meme group.
  */
 
 export interface StockSfxItem {
@@ -47,7 +54,7 @@ export interface StockSfxItem {
   format: string;
   durationMs: number;
   /** which bundled group the item renders under */
-  group: "starter" | "meme";
+  group: "starter" | "meme" | "sfx";
   /** where the file came from: a Kenney CC0 pack, or our own synthesis (2026-11-11) */
   licenceSource: "kenney" | "synth";
 }
@@ -107,7 +114,7 @@ export function validateStockManifest(items: readonly StockSfxItem[]): string[] 
     if (it.licence !== "CC0 1.0") problems.push(`${tag}: licence is "${it.licence}", not CC0 1.0 — only CC0 ships bundled`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(it.retrievedAt ?? "")) problems.push(`${tag}: retrieval date missing or not an ISO date`);
     if (!(it.durationMs > 0 && it.durationMs <= 30_000)) problems.push(`${tag}: duration ${it.durationMs}ms is not a sane SFX length`);
-    if (it.group !== "starter" && it.group !== "meme") problems.push(`${tag}: group "${it.group}" is not a bundled group`);
+    if (it.group !== "starter" && it.group !== "meme" && it.group !== "sfx") problems.push(`${tag}: group "${it.group}" is not a bundled group`);
     // A synthesized item must SAY so — it can never pose as a found recording:
     // author is Captionit and the title carries the synthesis label.
     if (it.licenceSource === "synth") {
@@ -119,7 +126,9 @@ export function validateStockManifest(items: readonly StockSfxItem[]): string[] 
   }
   const starter = items.filter((i) => i.group === "starter").length;
   const meme = items.filter((i) => i.group === "meme").length;
+  const sfx = items.filter((i) => i.group === "sfx").length;
   if (starter < 8 || starter > 15) problems.push(`pack has ${starter} starter items — the starter pack is meant to stay small (8–15)`);
   if (meme > 12) problems.push(`pack has ${meme} meme items — the meme group is meant to stay small (≤12)`);
+  if (sfx > 0 && (sfx < 20 || sfx > 40)) problems.push(`pack has ${sfx} everyday-SFX items — the group is meant to stay between 20 and 40`);
   return problems;
 }
