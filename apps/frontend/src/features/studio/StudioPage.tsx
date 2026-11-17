@@ -1848,7 +1848,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                   : rightTab === "titles" ? <TitlesPanel {...overlayPanelProps} />
                   : rightTab === "stickers" ? <StickersPanel {...overlayPanelProps} />
                   : rightTab === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
-                  : rightTab === "reels" ? <ReelTemplatesPanel {...overlayPanelProps} currentLookId={s.lookId} onChooseLook={s.chooseLook} />
+                  : rightTab === "reels" ? <ReelTemplatesPanel {...overlayPanelProps} currentLookId={s.lookId} onChooseLook={(lookId) => { const look = getLook(lookId); if (look) s.chooseLook(look); }} />
                   : rightTab === "graphics" ? <MotionPackPanel {...overlayPanelProps} />
                   : rightTab === "transitions" ? (
                     <TransitionsPanel

@@ -52,20 +52,20 @@ export const ReelTemplatesPanel: React.FC<ReelTemplatesPanelProps> = ({
     const applied = applyReelTemplate(template, playheadMs, durationMs);
     let overlays = applied.overlays;
     let bgOverlayId: string | null = null;
-    let bgId: string | null = null;
+    let newBgAssetId: string | null = null;
     if (template.background && bgAssetId) {
       const asset = images.find((a) => a.id === bgAssetId);
       if (asset) {
         const bg = makeReelBackgroundOverlay(asset, template, playheadMs, durationMs);
         overlays = [bg, ...applied.overlays];
         bgOverlayId = bg.id;
-        bgId = asset.id;
+        newBgAssetId = asset.id;
       }
     }
     const oldIds = new Set(instance?.overlays.map((o) => o.id) ?? []);
     patch({ overlays: [...settings.overlays.filter((o) => !oldIds.has(o.id)), ...overlays] });
     onChooseLook?.(template.lookId);
-    setInstance({ templateId: template.id, paramMap: applied.paramMap, overlays, bgOverlayId, bgId });
+    setInstance({ templateId: template.id, paramMap: applied.paramMap, overlays, bgOverlayId, bgAssetId: newBgAssetId });
   };
 
   const changeParam = (key: string, field: "text" | "color", value: string) => {
@@ -93,7 +93,7 @@ export const ReelTemplatesPanel: React.FC<ReelTemplatesPanelProps> = ({
     }
     const ids = new Set(instance.overlays.map((o) => o.id));
     patch({ overlays: [...settings.overlays.filter((o) => !ids.has(o.id)), ...overlays] });
-    setInstance({ ...instance, overlays, bgOverlayId, bgId: assetId || null });
+    setInstance({ ...instance, overlays, bgOverlayId, bgAssetId: assetId || null });
   };
 
   const paramValue = (entry: ReelParamMapEntry): string => {
@@ -159,7 +159,7 @@ export const ReelTemplatesPanel: React.FC<ReelTemplatesPanelProps> = ({
               {appliedTemplate.background.label}
               <select
                 aria-label={appliedTemplate.background.label}
-                value={instance.bgId ?? ""}
+                value={instance.bgAssetId ?? ""}
                 onChange={(e) => changeBackground(e.target.value)}
                 className="mt-1 block w-full rounded-lg border border-st-line bg-st-raised px-3 py-2 text-[13px] text-st-text"
               >

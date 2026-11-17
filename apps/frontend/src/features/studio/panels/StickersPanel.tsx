@@ -21,7 +21,7 @@ export const StickersPanel: React.FC<OverlayPanelProps> = ({ settings, patch, se
   const set = STICKER_SETS[0]!;
   const shapes = stickerShapes();
   const placed = (composition ? overlayItemsOf(composition, "shape") : settings.overlays.filter((o) => o.kind === "shape"))
-    .filter((o) => o.kind === "shape" && set.shapes.includes(o.shape));
+    .filter((o) => o.kind === "shape" && o.shape !== undefined && set.shapes.includes(o.shape));
   const selected = placed.find((o) => o.id === selectedId) ?? null;
 
   return (

@@ -194,8 +194,8 @@ export const OverlayShapeSvg: React.FC<{ shape: OverlayShape; color: string; siz
       ) : null}
       {shape === "target" ? (
         <>
-          <circle cx={50} cy={50} r={40} fill="none" {...strokeProps} strokeWidth={8} />
-          <circle cx={50} cy={50} r={24} fill="none" {...strokeProps} strokeWidth={8} />
+          <circle cx={50} cy={50} r={40} {...strokeProps} strokeWidth={8} />
+          <circle cx={50} cy={50} r={24} {...strokeProps} strokeWidth={8} />
           <circle cx={50} cy={50} r={9} fill={color} />
         </>
       ) : null}
@@ -231,7 +231,7 @@ export const OverlayShapeSvg: React.FC<{ shape: OverlayShape; color: string; siz
       ) : null}
       {shape === "play" ? (
         <>
-          <circle cx={50} cy={50} r={38} fill="none" {...strokeProps} strokeWidth={8} />
+          <circle cx={50} cy={50} r={38} {...strokeProps} strokeWidth={8} />
           <polygon fill={color} points="41,30 73,50 41,70" />
         </>
       ) : null}
@@ -246,8 +246,8 @@ export const OverlayShapeSvg: React.FC<{ shape: OverlayShape; color: string; siz
       ) : null}
       {shape === "trophy" ? (
         <>
-          <path d="M28 18 Q10 18 12 32 Q14 44 28 42" fill="none" {...strokeProps} />
-          <path d="M72 18 Q90 18 88 32 Q86 44 72 42" fill="none" {...strokeProps} />
+          <path d="M28 18 Q10 18 12 32 Q14 44 28 42" {...strokeProps} />
+          <path d="M72 18 Q90 18 88 32 Q86 44 72 42" {...strokeProps} />
           <path fill={color} d="M28 12 H72 V40 Q72 58 50 58 Q28 58 28 40 Z" />
           <rect x={46} y={58} width={8} height={14} fill={color} />
           <rect x={34} y={72} width={32} height={10} rx={3} fill={color} />
@@ -272,7 +272,7 @@ export const OverlayShapeSvg: React.FC<{ shape: OverlayShape; color: string; siz
       ) : null}
       {shape === "clock" ? (
         <>
-          <circle cx={50} cy={50} r={38} fill="none" {...strokeProps} strokeWidth={8} />
+          <circle cx={50} cy={50} r={38} {...strokeProps} strokeWidth={8} />
           <path d="M50 50 V28" {...strokeProps} strokeWidth={8} />
           <path d="M50 50 L68 61" {...strokeProps} strokeWidth={8} />
         </>
@@ -293,26 +293,26 @@ export const OverlayShapeSvg: React.FC<{ shape: OverlayShape; color: string; siz
       {shape === "coffee" ? (
         <>
           <path d="M38 26 Q34 20 38 14 M54 26 Q50 20 54 14" {...strokeProps} strokeWidth={5} />
-          <path d="M72 44 Q90 44 90 56 Q90 68 72 68" fill="none" {...strokeProps} />
+          <path d="M72 44 Q90 44 90 56 Q90 68 72 68" {...strokeProps} />
           <path fill={color} d="M22 34 H72 V70 Q72 82 60 82 H34 Q22 82 22 70 Z" />
         </>
       ) : null}
       {shape === "umbrella" ? (
         <>
           <path fill={color} d="M8 52 A42 42 0 0 1 92 52 Q80 44 70 52 Q60 44 50 52 Q40 44 30 52 Q20 44 8 52 Z" />
-          <path d="M50 52 V86 Q50 94 42 94 Q36 94 36 88" fill="none" {...strokeProps} />
+          <path d="M50 52 V86 Q50 94 42 94 Q36 94 36 88" {...strokeProps} />
         </>
       ) : null}
       {shape === "key" ? (
         <>
-          <circle cx={28} cy={32} r={15} fill="none" {...strokeProps} strokeWidth={8} />
+          <circle cx={28} cy={32} r={15} {...strokeProps} strokeWidth={8} />
           <path d="M40 44 L84 88" {...strokeProps} strokeWidth={9} />
           <path d="M62 62 L72 52 M74 74 L84 64" {...strokeProps} />
         </>
       ) : null}
       {shape === "lock" ? (
         <>
-          <path d="M32 44 V34 A18 18 0 0 1 68 34 V44" fill="none" {...strokeProps} strokeWidth={8} />
+          <path d="M32 44 V34 A18 18 0 0 1 68 34 V44" {...strokeProps} strokeWidth={8} />
           <rect x={20} y={44} width={60} height={40} rx={8} fill={color} />
           <circle cx={50} cy={60} r={6} fill="#141412" />
           <rect x={47} y={62} width={6} height={12} fill="#141412" />
