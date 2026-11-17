@@ -1,10 +1,10 @@
 import React from "react";
 import { Img } from "remotion";
-import type { OverlayItem, OverlayShape } from "@capseasy/shared";
+import type { OverlayFont, OverlayItem, OverlayShape } from "@capseasy/shared";
 import { SocialOverlayView } from "./social";
 
 /**
- * The app's own overlay shape set: twenty-one simple geometric SVGs drawn for Captionit (not copied from any
+ * The app's own overlay shape set: thirty-three simple geometric SVGs drawn for Captionit (not copied from any
  * icon library). One definition serves the composition render (preview + MP4 export) and the studio's
  * Elements gallery, so what the gallery shows is exactly what renders. No blend modes anywhere: the
  * in-browser renderer ignores mix-blend-mode, which would make preview and export diverge.
@@ -31,6 +31,19 @@ export const OVERLAY_SHAPE_META: { id: OverlayShape; label: string }[] = [
   { id: "plus", label: "Plus" },
   { id: "cross", label: "Cross" },
   { id: "badge", label: "Badge" },
+  // Studio stickers batch (2026-11-18): house-drawn sticker art, same SVG family
+  { id: "burst", label: "Burst" },
+  { id: "bolt", label: "Lightning bolt" },
+  { id: "crown", label: "Crown" },
+  { id: "flame", label: "Flame" },
+  { id: "thumbs-up", label: "Thumbs up" },
+  { id: "curved-arrow", label: "Curved arrow" },
+  { id: "sun", label: "Sun" },
+  { id: "explosion", label: "Explosion" },
+  { id: "ribbon", label: "Ribbon" },
+  { id: "tag", label: "Tag" },
+  { id: "pin", label: "Pin" },
+  { id: "target", label: "Target" },
 ];
 
 const STROKE = 7;
@@ -104,6 +117,69 @@ export const OverlayShapeSvg: React.FC<{ shape: OverlayShape; color: string; siz
           fill={color}
           points="50,4 58,14 70,9 74,21 87,20 87,33 97,38 91,49 97,60 87,65 87,78 74,77 70,89 58,84 50,94 42,84 30,89 26,77 13,78 13,65 3,60 9,49 3,38 13,33 13,20 26,21 30,9 42,14"
         />
+      ) : null}
+      {shape === "burst" ? (
+        <polygon
+          fill={color}
+          points="96,50 75.1,56.7 89.8,73 68.4,68.4 73,89.8 56.7,75.1 50,96 43.3,75.1 27,89.8 31.6,68.4 10.2,73 24.9,56.7 4,50 24.9,43.3 10.2,27 31.6,31.6 27,10.2 43.3,24.9 50,4 56.7,24.9 73,10.2 68.4,31.6 89.8,27 75.1,43.3"
+        />
+      ) : null}
+      {shape === "bolt" ? <polygon fill={color} points="56,6 24,54 44,54 40,94 76,44 54,44" /> : null}
+      {shape === "crown" ? (
+        <>
+          <polygon fill={color} points="12,74 12,36 30,50 50,22 70,50 88,36 88,74" />
+          <rect x={12} y={78} width={76} height={9} rx={2} fill={color} />
+        </>
+      ) : null}
+      {shape === "flame" ? (
+        <path
+          fill={color}
+          d="M50 8 C58 24 72 34 72 54 A22 22 0 1 1 28 54 C28 44 34 40 38 32 C42 38 44 40 46 40 C44 28 46 16 50 8 Z"
+        />
+      ) : null}
+      {shape === "thumbs-up" ? (
+        <>
+          <rect x={26} y={48} width={48} height={38} rx={10} fill={color} />
+          <path fill={color} d="M34 50 L34 34 Q34 22 46 22 Q54 22 52 32 L48 48 Z" />
+        </>
+      ) : null}
+      {shape === "curved-arrow" ? (
+        <>
+          <path d="M14 78 Q 30 22 74 30" {...strokeProps} strokeWidth={9} />
+          <path d="M60 20 L78 30 L62 44" {...strokeProps} strokeWidth={9} />
+        </>
+      ) : null}
+      {shape === "sun" ? (
+        <>
+          <circle cx={50} cy={50} r={20} fill={color} />
+          <path d="M50 8 V20 M50 80 V92 M8 50 H20 M80 50 H92 M20 20 L29 29 M71 71 L80 80 M80 20 L71 29 M29 71 L20 80" {...strokeProps} strokeWidth={7} />
+        </>
+      ) : null}
+      {shape === "explosion" ? (
+        <polygon
+          fill={color}
+          points="94,50 77.7,61.5 81,81 61.5,77.7 50,94 38.5,77.7 19,81 22.3,61.5 6,50 22.3,38.5 19,19 38.5,22.3 50,6 61.5,22.3 81,19 77.7,38.5"
+        />
+      ) : null}
+      {shape === "ribbon" ? <path fill={color} d="M12 24 H88 V56 L50 72 L12 56 Z" /> : null}
+      {shape === "tag" ? (
+        <>
+          <path fill={color} d="M14 14 H56 L88 46 L46 88 L14 56 Z" />
+          <circle cx={32} cy={32} r={7} fill="#141412" />
+        </>
+      ) : null}
+      {shape === "pin" ? (
+        <>
+          <path fill={color} d="M50 6 A26 26 0 0 1 76 32 C76 52 50 92 50 92 C50 92 24 52 24 32 A26 26 0 0 1 50 6 Z" />
+          <circle cx={50} cy={32} r={10} fill="#141412" />
+        </>
+      ) : null}
+      {shape === "target" ? (
+        <>
+          <circle cx={50} cy={50} r={40} fill="none" {...strokeProps} strokeWidth={8} />
+          <circle cx={50} cy={50} r={24} fill="none" {...strokeProps} strokeWidth={8} />
+          <circle cx={50} cy={50} r={9} fill={color} />
+        </>
       ) : null}
     </svg>
   );
@@ -203,6 +279,23 @@ export function overlayAnimStyle(item: OverlayItem, localMs: number): React.CSSP
 export const TEXT_DEFAULT_FONT_PX = 64;
 
 /**
+ * Text-overlay typefaces (2026-11-18, for the 50-title registry): system font stacks only —
+ * no webfont downloads, no licences to clear. Absent `font` = sans, the pre-existing look.
+ */
+export const OVERLAY_FONT_STACKS: Record<OverlayFont, string> = {
+  sans: "'Plus Jakarta Sans', 'Segoe UI', sans-serif",
+  serif: "Georgia, 'Times New Roman', serif",
+  mono: "'JetBrains Mono', ui-monospace, 'SF Mono', monospace",
+  hand: "'Segoe Script', 'Brush Script MT', 'Comic Sans MS', cursive",
+};
+export const OVERLAY_FONT_OPTIONS: { id: OverlayFont; label: string }[] = [
+  { id: "sans", label: "Sans" },
+  { id: "serif", label: "Serif" },
+  { id: "mono", label: "Mono" },
+  { id: "hand", label: "Handwritten" },
+];
+
+/**
  * One overlay item, centre-anchored at (x, y) fractions of the canvas. `sc` is the composition's
  * scale factor (short edge / 1080), so sizes follow the same reference-px convention as captions.
  */
@@ -233,7 +326,7 @@ export const OverlayView: React.FC<{ item: OverlayItem; sc: number; assetSrc?: s
     return frame(
       <div
         style={{
-          fontFamily: "'Plus Jakarta Sans', 'Segoe UI', sans-serif",
+          fontFamily: OVERLAY_FONT_STACKS[item.font ?? "sans"],
           fontWeight: 700,
           fontSize: (item.fontSize ?? TEXT_DEFAULT_FONT_PX) * sc,
           lineHeight: 1.15,

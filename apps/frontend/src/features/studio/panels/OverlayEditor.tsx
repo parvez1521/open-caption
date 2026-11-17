@@ -2,7 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import type { OverlayItem } from "@capseasy/shared";
-import { OVERLAY_ENTER_ANIMS, OVERLAY_EXIT_ANIMS, SOCIAL_META } from "@capseasy/compositions";
+import { OVERLAY_ENTER_ANIMS, OVERLAY_EXIT_ANIMS, OVERLAY_FONT_OPTIONS, SOCIAL_META } from "@capseasy/compositions";
 import { getMotionTemplate } from "@capseasy/motion";
 import { MotionTemplateFields } from "@/features/motion/MotionTemplateFields";
 import type { MediaAssetRecord } from "../mediaStore";
@@ -237,6 +237,19 @@ export const OverlayEditor: React.FC<{
       <Slider label="Rotation" value={item.rotation} min={-45} max={45} step={1} unit="°" onChange={(v) => set({ rotation: v })} />
       <Slider label="Opacity" value={Math.round((item.opacity ?? 1) * 100)} min={10} max={100} step={1} unit="%" onChange={(v) => set({ opacity: v / 100 })} />
       {item.kind === "text" ? <Slider label="Size" value={item.fontSize ?? 64} min={24} max={140} onChange={(v) => set({ fontSize: v })} /> : null}
+      {item.kind === "text" ? (
+        <label className="block text-sm text-st-text/90">
+          <span className="mb-1 block text-xs text-st-muted">Font</span>
+          <select
+            aria-label="Font"
+            value={item.font ?? "sans"}
+            onChange={(e) => set({ font: e.target.value === "sans" ? undefined : (e.target.value as OverlayItem["font"]) })}
+            className="w-full rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm text-st-text outline-none focus:border-st-lav"
+          >
+            {OVERLAY_FONT_OPTIONS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+          </select>
+        </label>
+      ) : null}
       {item.kind !== "image" && !(item.kind === "social" && template) ? <ColorField label="Colour" value={item.color} onChange={(v) => set({ color: v })} /> : null}
       {/* Package 3 item I.5: entrance/exit animation for EVERY overlay kind — the same
           In/Out preset system as the captions (Package 2 item D), box-applicable subset */}

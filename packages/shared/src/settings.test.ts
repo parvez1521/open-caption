@@ -83,6 +83,14 @@ describe("OverlayItemSchema", () => {
     expect(() => OverlayItemSchema.parse({ ...base, rotation: 60 })).toThrow();
   });
 
+  it("accepts a text font family and rejects an unknown one", () => {
+    expect(OverlayItemSchema.parse({ ...base, font: "serif" }).font).toBe("serif");
+    expect(OverlayItemSchema.parse({ ...base, font: "mono" }).font).toBe("mono");
+    expect(OverlayItemSchema.parse({ ...base, font: "hand" }).font).toBe("hand");
+    expect(OverlayItemSchema.parse(base).font).toBeUndefined();
+    expect(() => OverlayItemSchema.parse({ ...base, font: "comic" })).toThrow();
+  });
+
   it("rejects a non-hex colour", () => {
     expect(() => OverlayItemSchema.parse({ ...base, color: "red" })).toThrow();
     expect(() => OverlayItemSchema.parse({ ...base, color: "#FFF" })).toThrow();

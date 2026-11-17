@@ -34,11 +34,19 @@ describe("OverlayView (static markup — the same tree the Player and the web-re
     expect(html).toContain("font-size:40px");
   });
 
+  it("renders each text font family from its system stack (absent = sans)", () => {
+    expect(renderToStaticMarkup(<OverlayView item={textItem} sc={1} />)).toContain("Plus Jakarta Sans");
+    expect(renderToStaticMarkup(<OverlayView item={{ ...textItem, font: "serif" }} sc={1} />)).toContain("Georgia");
+    expect(renderToStaticMarkup(<OverlayView item={{ ...textItem, font: "mono" }} sc={1} />)).toContain("JetBrains Mono");
+    expect(renderToStaticMarkup(<OverlayView item={{ ...textItem, font: "hand" }} sc={1} />)).toContain("Segoe Script");
+  });
+
   it("renders every shape in the set as an SVG painted with the item colour", () => {
     expect(OVERLAY_SHAPE_META.map((s) => s.id)).toEqual([...OVERLAY_SHAPES]);
-    // Package 2 item F: the original nine plus twelve new creator shapes
-    expect(OVERLAY_SHAPES).toHaveLength(21);
-    for (const id of ["rounded-rectangle", "ellipse", "diamond", "chevron", "double-arrow", "speech-bubble", "underline-bar", "corner-brackets", "progress-bar", "plus", "cross", "badge"] as const) {
+    // Package 2 item F: the original nine plus twelve new creator shapes, plus the
+    // 2026-11-18 studio stickers batch (twelve house-drawn stickers)
+    expect(OVERLAY_SHAPES).toHaveLength(33);
+    for (const id of ["rounded-rectangle", "ellipse", "diamond", "chevron", "double-arrow", "speech-bubble", "underline-bar", "corner-brackets", "progress-bar", "plus", "cross", "badge", "burst", "bolt", "crown", "flame", "thumbs-up", "curved-arrow", "sun", "explosion", "ribbon", "tag", "pin", "target"] as const) {
       expect(OVERLAY_SHAPES).toContain(id);
     }
     for (const shape of OVERLAY_SHAPES) {

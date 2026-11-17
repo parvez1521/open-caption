@@ -37,9 +37,18 @@ export const NEUTRAL_VIDEO_ADJUST: VideoAdjust = {
 export const OVERLAY_SHAPES = ["ring", "circle", "arrow", "check", "star", "heart", "rectangle", "scribble-underline", "triangle",
   // Package 2 item F batch: everyday creator geometry, same hand-drawn SVG family
   "rounded-rectangle", "ellipse", "diamond", "chevron", "double-arrow", "speech-bubble", "underline-bar",
-  "corner-brackets", "progress-bar", "plus", "cross", "badge"] as const;
+  "corner-brackets", "progress-bar", "plus", "cross", "badge",
+  // Studio stickers batch (2026-11-18): house-drawn SVG stickers — our own artwork, no
+  // third-party art, no licence to clear. Drawn in packages/compositions OverlayShapeSvg.
+  "burst", "bolt", "crown", "flame", "thumbs-up", "curved-arrow", "sun", "explosion", "ribbon", "tag", "pin", "target"] as const;
 export const OverlayShapeSchema = z.enum(OVERLAY_SHAPES);
 export type OverlayShape = z.infer<typeof OverlayShapeSchema>;
+
+/** Text-overlay typefaces (2026-11-18, for the 50-title registry): system font stacks only —
+ *  no downloads, no licences to clear. Absent = sans, the pre-existing look. */
+export const OVERLAY_FONTS = ["sans", "serif", "mono", "hand"] as const;
+export const OverlayFontSchema = z.enum(OVERLAY_FONTS);
+export type OverlayFont = z.infer<typeof OverlayFontSchema>;
 
 /**
  * Animated "Social Media" overlay variants (2026-11-10): original drawn graphics (pill/card/bell/heart/
@@ -95,6 +104,8 @@ export const OverlayItemSchema = z
       .regex(/^#[0-9a-fA-F]{6}$/, "colour must be a #rrggbb hex value")
       .default("#FFFFFF"),
     fontSize: z.number().min(12).max(300).optional(),
+    /** Text overlays only: typeface family (system stacks, no downloads). Absent = sans. */
+    font: OverlayFontSchema.optional(),
     /**
      * Package 3 item I.5 — entrance/exit animation for EVERY overlay kind, in the SAME
      * motion system as the captions' In/Out (Package 2 item D): the same preset vocabulary
