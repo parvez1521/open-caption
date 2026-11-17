@@ -88,6 +88,9 @@ export function Nav() {
           ))}
         </nav>
         <div className="flex items-center gap-2">
+          <a href="/downloads/captionit.apk" download className="hidden items-center whitespace-nowrap rounded-full border border-[#34D399]/60 px-4 py-2 text-sm font-bold text-[#34D399] sm:flex">
+            Download for Android
+          </a>
           <Link href={signedIn ? "/dashboard" : "/login"} className="hidden whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold text-[#FFFFEB]/80 transition hover:text-[#FFFFEB] sm:block">{signedIn ? "Dashboard" : "Sign in"}</Link>
           {/* phones: this moves into the menu */}
           <Link href="/start?choose=1" onClick={warmModel} className="hidden items-center gap-1.5 whitespace-nowrap rounded-full bg-[#34D399] px-4 py-2 text-sm font-bold text-[#141412] sm:flex">
@@ -106,6 +109,7 @@ export function Nav() {
           {NAV_LINKS.map(([label, href]) => (
             <a key={href} href={href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 text-base font-semibold text-[#FFFFEB] hover:bg-[#262622]/60">{label}</a>
           ))}
+          <a href="/downloads/captionit.apk" download onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 text-base font-semibold text-[#34D399]">Download for Android</a>
           <div className="mt-1 grid gap-2 border-t border-[#FFFFEB]/10 pt-2 sm:hidden">
             <Link href="/start?choose=1" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-5 py-3.5 text-base font-bold text-[#141412]">
               Start free <span aria-hidden>→</span>

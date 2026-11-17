@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.captionit.app",
+      "sha256_cert_fingerprints": [
+        "41:46:56:5D:EB:C5:A4:FA:CB:D1:AE:81:B2:1B:3D:84:EC:72:5D:89:B5:1F:24:3E:6A:8C:42:B9:A8:71:80:B3"
+      ]
+    }
+  }
+]
