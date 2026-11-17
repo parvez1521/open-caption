@@ -140,8 +140,12 @@ export function derivePages(doc: CaptionDoc, settings: ProjectSettings, opts: De
     const first = g[0]!;
     const last = g[g.length - 1]!;
     const nextStart = merged[i + 1]?.[0]?.startMs;
+    // A manual break is the user saying "these cards are separate" (split here, or a
+    // boundary left by deleting / trimming words): never bridge the hold across it, or
+    // the earlier card fills a gap the user deliberately emptied.
+    const nextStartsManual = nextStart != null && manual.has(merged[i + 1]![0]!.id);
     let end = Math.max(last.endMs + settings.holdMs, first.startMs + readMs(g));
-    if (settings.gapBehavior === "hold" && nextStart != null && nextStart - last.endMs <= bridge) end = Math.max(end, nextStart);
+    if (settings.gapBehavior === "hold" && !nextStartsManual && nextStart != null && nextStart - last.endMs <= bridge) end = Math.max(end, nextStart);
     if (nextStart != null) end = Math.min(end, nextStart);
     end = Math.max(end, Math.min(last.endMs, nextStart ?? last.endMs), first.startMs + 1);
 

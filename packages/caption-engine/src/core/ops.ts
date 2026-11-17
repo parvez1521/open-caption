@@ -4,6 +4,18 @@ import { newId, type CaptionDoc, type Emotion, type Word } from "@capseasy/share
 
 const MIN_WORD_MS = 40;
 
+/**
+ * A gap wider than this that an edit opens between two surviving words is a hard card
+ * boundary (see derivePages): the earlier card must not hold across it. It matches the
+ * default pause that grouping already splits on, so the mark never changes grouping —
+ * it only stops the hold-bridge from filling a gap the user deliberately emptied.
+ */
+const HARD_BREAK_GAP_MS = 400;
+
+/** Add `id` to the doc's manual breaks (a hard card boundary) when it is not there yet. */
+const withHardBreak = (doc: CaptionDoc, id: string): string[] =>
+  doc.manualBreaks.includes(id) ? doc.manualBreaks : [...doc.manualBreaks, id];
+
 const touch = (doc: CaptionDoc, patch: Partial<CaptionDoc>): CaptionDoc => ({
   ...doc,
   ...patch,
@@ -65,6 +77,7 @@ export function retimeWord(doc: CaptionDoc, id: string, startMs: number, endMs: 
   if (i < 0) return doc;
   const prev = doc.words[i - 1];
   const next = doc.words[i + 1];
+  const orig = doc.words[i]!;
   const lo = prev ? prev.startMs + MIN_WORD_MS : 0;
   const hi = next ? next.endMs - MIN_WORD_MS : Number.POSITIVE_INFINITY;
   const s = Math.round(Math.max(lo, Math.min(startMs, hi - MIN_WORD_MS)));
@@ -75,7 +88,11 @@ export function retimeWord(doc: CaptionDoc, id: string, startMs: number, endMs: 
     if (k === i + 1 && w.startMs < e) return { ...w, startMs: Math.min(w.endMs - MIN_WORD_MS, e) };
     return w;
   });
-  return touch(doc, { words });
+  // A right-edge trim shortens the word on purpose: the next card must not hold back
+  // across the gap the trim opened. Moves and stretches leave no boundary.
+  const nextStart = words[i + 1]?.startMs;
+  const trimmedShorter = next != null && nextStart != null && e < orig.endMs && Math.abs(s - orig.startMs) < 1 && nextStart - e > HARD_BREAK_GAP_MS;
+  return touch(doc, { words, manualBreaks: trimmedShorter ? withHardBreak(doc, next.id) : doc.manualBreaks });
 }
 
 /**
@@ -114,7 +131,12 @@ export function retimeRun(doc: CaptionDoc, firstId: string, lastId: string, star
     if (ripple && j > i1) return { ...w, startMs: Math.max(0, w.startMs + delta), endMs: Math.max(MIN_WORD_MS, w.endMs + delta) };
     return w;
   });
-  return touch(doc, { words });
+  // A right-edge trim shortens the run on purpose (start untouched, end earlier): the
+  // next card must not hold back across the gap the trim opened. Moves, stretches and
+  // ripple edits (where the following words shift along) leave no boundary.
+  const nextStart = words[i1 + 1]?.startMs;
+  const trimmedShorter = !ripple && next != null && nextStart != null && e < e0 && Math.abs(s - s0) < 1 && nextStart - e > HARD_BREAK_GAP_MS;
+  return touch(doc, { words, manualBreaks: trimmedShorter ? withHardBreak(doc, next.id) : doc.manualBreaks });
 }
 
 /**
@@ -216,9 +238,23 @@ export function deleteWordsByIds(doc: CaptionDoc, ids: Iterable<string>): Captio
   if (!doc.words.some((w) => set.has(w.id))) return doc;
   const cards = { ...doc.cards };
   for (const id of set) delete cards[id];
+  const manualBreaks = doc.manualBreaks.filter((x) => !set.has(x));
+  // Deleting words opens a gap between the surviving neighbours: when that gap is wide
+  // enough to be a card boundary on its own, mark the first surviving word after each
+  // deleted run as a hard break, so the earlier card does not hold across the emptied
+  // stretch. Tight deletions (a filler inside a run) leave no mark and keep one card.
+  for (let i = 0; i < doc.words.length; i++) {
+    if (!set.has(doc.words[i]!.id)) continue;
+    if (i > 0 && set.has(doc.words[i - 1]!.id)) continue; // only the start of each deleted run
+    const prev = doc.words[i - 1];
+    const next = doc.words.slice(i).find((w) => !set.has(w.id));
+    if (prev && next && next.startMs - prev.endMs > HARD_BREAK_GAP_MS && !manualBreaks.includes(next.id)) {
+      manualBreaks.push(next.id);
+    }
+  }
   return touch(doc, {
     words: doc.words.filter((w) => !set.has(w.id)),
-    manualBreaks: doc.manualBreaks.filter((x) => !set.has(x)),
+    manualBreaks,
     noBreakAfter: doc.noBreakAfter.filter((x) => !set.has(x)),
     cards,
   });

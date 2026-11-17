@@ -4,7 +4,7 @@ import {
   autoEmoji, clearAutoEmoji, emojiFor,
   applyFillerFilter, applyProfanity, breakLines, contrastRatio, derivePages, detectEmotion, findReplace, fromWhisperVerboseJson,
   fromWhisperCaptions, importSubtitles, insertWordAfter, legacyStyleToV2, legacyTranscriptToDoc, mergeWithNext, mergeWithPrevious, normalizeTokens,
-  pageAt, pickHeroIndex, readMs, retimeWord, setHidden, setWordText, shiftAllWords, shiftWordsByIds, deleteWordsByIds, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
+  pageAt, pickHeroIndex, readMs, retimeRun, retimeWord, setHidden, setWordText, shiftAllWords, shiftWordsByIds, deleteWordsByIds, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
 } from "./index";
 
 const mk = (text: string, startMs: number, endMs: number, id = text + startMs): Word => ({ id, text, startMs, endMs });
@@ -164,6 +164,47 @@ describe("derivePages", () => {
     // clear: the card leaves in the gap, but only once it has been up long enough to read
     expect(clear[0]!.endMs).toBe(readMs([words[0]!]));
     expect(clear[0]!.endMs).toBeLessThan(1000);
+  });
+
+  it("does not bridge the hold across a manual break", () => {
+    const words = [mk("a", 0, 200), mk("b", 1000, 1200)];
+    const pages = derivePages(docOf(words, { manualBreaks: ["b1000"] }), settings({ maxWordsPerCard: 1, gapBehavior: "hold", holdMs: 100 }));
+    // a manual split is the user saying "separate cards": the first card ends at its
+    // read floor, it must not stretch to the next card and fill the gap
+    expect(pages[0]!.endMs).toBe(readMs([words[0]!]));
+    expect(pages[0]!.endMs).toBeLessThan(1000);
+  });
+
+  it("deleting words leaves a hard boundary so the earlier card does not hold across the gap", () => {
+    const words = [mk("Hello", 0, 400), mk("everyone,", 400, 900), mk("filler", 900, 1500), mk("founder", 2000, 2400)];
+    const after = deleteWordsByIds(docOf(words), ["filler900"]);
+    expect(after.manualBreaks).toContain("founder2000");
+    const pages = derivePages(after, settings({ maxWordsPerCard: 6 }));
+    expect(pages).toHaveLength(2);
+    // first card ends at last word + hold (1400), NOT stretched to the next card (2000)
+    expect(pages[0]!.endMs).toBe(1400);
+    expect(pages[1]!.startMs).toBe(2000);
+  });
+
+  it("deleting a word inside a tight run does not split the card", () => {
+    const words = [mk("hello", 0, 300), mk("um", 300, 500), mk("world", 500, 800)];
+    const after = deleteWordsByIds(docOf(words), ["um300"]);
+    expect(after.manualBreaks).not.toContain("world500");
+    expect(derivePages(after, settings({ maxWordsPerCard: 6 }))).toHaveLength(1);
+  });
+
+  it("trimming a run shorter leaves a hard boundary so the card end follows the new end", () => {
+    const words = [mk("a", 0, 200), mk("b", 200, 400), mk("c", 1000, 1200)];
+    const after = retimeRun(docOf(words), "a0", "b200", 0, 300);
+    expect(after.manualBreaks).toContain("c1000");
+    const pages = derivePages(after, settings({ maxWordsPerCard: 2 }));
+    expect(pages[0]!.endMs).toBeLessThan(1000);
+  });
+
+  it("moving a run does not leave a hard boundary", () => {
+    const words = [mk("a", 0, 200), mk("b", 200, 400), mk("c", 1000, 1200)];
+    const after = retimeRun(docOf(words), "a0", "b200", 100, 500);
+    expect(after.manualBreaks).not.toContain("c1000");
   });
 
   it("reveals every word of a card well before it ends, overlapping the next with the previous", () => {
