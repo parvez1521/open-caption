@@ -50,6 +50,23 @@
  *   hosts (googleads.g.doubleclick.net, tpc.googlesyndication.com) are
  *   deliberately NOT allowlisted — add them to img-src/connect-src/frame-src
  *   when ad slots ship.
+ * - Puter.js AI Generator (2026-11-17, /ai-generator): the page loads the
+ *   SDK from js.puter.com (script-src). The shipped bundle
+ *   (https://js.puter.com/v2/, fetched 2026-11-17) names its own origins:
+ *   `defaultAPIOrigin` is https://api.puter.com — every AI call POSTs to
+ *   `${APIOrigin}/drivers/call` (connect-src) — and `defaultGUIOrigin` is
+ *   https://puter.com, the origin the SDK's auth popup iframe loads
+ *   (frame-src; the bundle's allowed postMessage origins are puter.com and
+ *   desktop.puter.com, but only puter.com is ever framed or navigated to).
+ *   Generated images arrive as blob:/data: URLs (the SDK builds the
+ *   returned HTMLImageElement from the bytes via createObjectURL), so
+ *   img-src needs no new host. Generated video is different: the SDK sets
+ *   the returned HTMLVideoElement's src to the provider's hosted https: URL
+ *   (or a data: URI) and no provider storage host is named in the bundle or
+ *   in docs.puter.com/AI/txt2vid/ — so media-src deliberately gains NO new
+ *   host; a provider-hosted clip URL may be blocked by media-src in
+ *   production, and the component handles that honestly with an
+ *   open-in-new-tab fallback instead of pretending the clip played.
  *
  * Known trade-off, deliberate: `script-src` keeps `'unsafe-inline'` because the Next.js App Router
  * emits inline bootstrap scripts and the root layout ships two small constant inline scripts;
@@ -84,6 +101,11 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     // Only the loader — no ad slots exist in the code yet, so no other
     // ad-serving host is allowlisted (see the header comment).
     "https://pagead2.googlesyndication.com",
+    // Puter.js AI Generator (/ai-generator): the SDK loader itself, loaded
+    // per-page via next/script in features/ai-generator/AiGenerator.tsx.
+    // Evidence: the loader URL is the documented https://js.puter.com/v2/
+    // and the shipped bundle references its own origin (js.puter.com).
+    "https://js.puter.com",
   ];
   const directives: Array<[string, string[]]> = [
     ["default-src", ["'self'"]],
@@ -158,6 +180,11 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         // (2026-11-15).
         "https://www.google-analytics.com",
         "https://*.google-analytics.com",
+        // Puter.js AI Generator: the SDK's API origin. Evidence: the
+        // shipped https://js.puter.com/v2/ bundle (fetched 2026-11-17)
+        // sets defaultAPIOrigin to https://api.puter.com and every AI
+        // call (chat, txt2img, txt2vid) POSTs to ${APIOrigin}/drivers/call.
+        "https://api.puter.com",
       ],
     ],
     ["worker-src", ["'self'", "blob:"]],
@@ -178,7 +205,11 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     // checkout modal (billing), and Google's pre-built sign-in button iframe
     // (accounts.google.com renders the button; the chooser itself is a
     // top-level Google navigation, not a frame). Everything else stays unframable.
-    ["frame-src", ["https://sdk.cashfree.com", "https://payments.cashfree.com", "https://accounts.google.com"]],
+    // Puter.js AI Generator: the SDK's auth popup is an iframe on its GUI
+    // origin https://puter.com (the bundle's defaultGUIOrigin; the auth
+    // OIDC start path is checked against that origin). Evidence: the shipped
+    // https://js.puter.com/v2/ bundle (fetched 2026-11-17).
+    ["frame-src", ["https://sdk.cashfree.com", "https://payments.cashfree.com", "https://accounts.google.com", "https://puter.com"]],
     ["frame-ancestors", ["'none'"]],
   ];
   return directives.map(([name, values]) => `${name} ${values.join(" ")}`).join("; ");

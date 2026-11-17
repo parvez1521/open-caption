@@ -32,7 +32,9 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).repl
 // /auto-captions-for-reels is the second (SEO programme, 2026-11-15): a
 // Reels-specific guide + tool page for "auto captions for reels", the
 // weakest-competition long-tail in the SERP research.
-export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
+// /ai-generator is the third (2026-11-17): a public text/image/video
+// generator powered by Puter.js, no login.
+export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/ai-generator", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
 
 /** App routes behind sign-in: never indexed (metadata noindex + robots disallow).
  *  Covers every (dashboard) route in the shell nav, plus the auth-flow helpers —
