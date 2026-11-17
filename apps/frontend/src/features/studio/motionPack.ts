@@ -15,7 +15,8 @@ export interface MotionPackGroup {
 
 export const MOTION_PACK_GROUPS: MotionPackGroup[] = [
   { id: "lower-thirds", title: "Lower Thirds", ids: ["lower-third", "lower-third-bar"] },
-  { id: "callouts", title: "Callouts", ids: ["callout"] },
+  { id: "callouts", title: "Callouts", ids: ["callout", "quote-card"] },
+  { id: "reviews", title: "Reviews", ids: ["rating-stars"] },
   { id: "subscribe-cta", title: "Subscribe & CTA", ids: ["subscribe-pill", "subscribe-banner", "cursor-subscribe", "follow-banner"] },
   { id: "counters", title: "Counters", ids: ["counter", "like-pop"] },
   { id: "text-reveals", title: "Text Reveals", ids: ["kinetic-title", "glitch-title", "type-title"] },

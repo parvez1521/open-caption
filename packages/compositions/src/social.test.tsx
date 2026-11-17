@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { OverlayView } from "./overlays";
-import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, calloutAt, chatStackAt, chatTicksAt, countdownAt, counterAt, cursorChoreoAt, easeInOutCubic, easeOutQuint, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, postCardAt, progressFillAt, repostAt, searchBarAt, shareFlightAt, socialSeededUnit, springOut, typingAt, upvoteAt, voiceCardAt } from "./social";
+import { SOCIAL_META, SocialOverlayView, audioBarsAt, bellRingDeg, calloutAt, chatStackAt, chatTicksAt, countdownAt, counterAt, cursorChoreoAt, easeInOutCubic, easeOutQuint, formCardAt, glitchAt, kineticTitleAt, liveViewersAt, neonFlickerAt, orbitAngle, overlayPhase, particleBurstAt, postCardAt, progressFillAt, ratingStarsAt, repostAt, searchBarAt, shareFlightAt, socialSeededUnit, springOut, typingAt, upvoteAt, voiceCardAt } from "./social";
 
 /**
  * Animated Social Media overlays: phases are pure functions of the item's own window, so the same
@@ -127,7 +127,7 @@ describe("follow-up helpers (chatTicksAt / countdownAt / shareFlightAt)", () => 
   });
 });
 
-describe("Motion Graphics Pack helpers (calloutAt / progressFillAt)", () => {
+describe("Motion Graphics Pack helpers (calloutAt / progressFillAt / ratingStarsAt)", () => {
   it("callout pops in on a spring, holds at full size mid-window, then exits", () => {
     expect(calloutAt(0, 4000).pop).toBe(0);
     expect(calloutAt(0, 4000).visible).toBe(false);
@@ -150,6 +150,18 @@ describe("Motion Graphics Pack helpers (calloutAt / progressFillAt)", () => {
     expect(progressFillAt(3900, 4000).pct).toBeGreaterThanOrEqual(95);
     expect(progressFillAt(4000, 4000)).toEqual({ progress: 1, pct: 100 });
     expect(progressFillAt(2000, 4000)).toEqual(progressFillAt(2000, 4000));
+  });
+  it("rating stars fill one by one in order, all five filled well before the end", () => {
+    expect(ratingStarsAt(0, 4000).stars).toHaveLength(5);
+    expect(ratingStarsAt(0, 4000).filledCount).toBe(0);
+    expect(ratingStarsAt(300, 4000).filledCount).toBe(0);
+    const mid = ratingStarsAt(2000, 4000);
+    expect(mid.filledCount).toBe(3);
+    expect(mid.stars.map((s) => s.filled)).toEqual([true, true, true, false, false]);
+    for (let i = 1; i < 5; i++) expect(mid.stars[i]!.p).toBeLessThanOrEqual(mid.stars[i - 1]!.p);
+    expect(ratingStarsAt(3000, 4000).filledCount).toBe(5);
+    expect(ratingStarsAt(3900, 4000).filledCount).toBe(5);
+    expect(ratingStarsAt(2000, 4000)).toEqual(ratingStarsAt(2000, 4000));
   });
 });
 
@@ -268,6 +280,43 @@ describe("SocialOverlayView (static markup — the same tree every render path d
     expect(end).toContain(">98%<");
     expect(end).not.toBe(start);
   });
+  it("quote card meta exists and the cream card shows the quote under a big emerald mark", () => {
+    expect(SOCIAL_META.find((m) => m.id === "quote-card")).toEqual({
+      id: "quote-card", label: "Quote Card",
+      hint: "Cream card with a big quote mark and your words under it, for testimonials. Lines: quote text (line 2 optional).",
+      defaultText: "Say it in their words", defaultColor: "#34D399",
+    });
+    const it2 = item("quote-card", "Say it in their words", { color: "#34D399" });
+    const mid = render(it2, 2000);
+    expect(mid).toContain("Say it in their words");
+    expect(mid).toContain("background-color:#FFFFEB");
+    expect(mid).toContain("color:#34D399");
+    expect(mid).toContain("“");
+    expect(mid).toContain("scale(1.000)");
+    const early = render(it2, 100);
+    expect(early).toContain("Say it in their words");
+    expect(early).not.toContain("scale(1.000)");
+    expect(mid).not.toBe(early);
+  });
+  it("rating stars meta exists and five drawn stars fill one by one with the line under them", () => {
+    expect(SOCIAL_META.find((m) => m.id === "rating-stars")).toEqual({
+      id: "rating-stars", label: "Rating Stars",
+      hint: "Five stars that fill one by one on the beat, with your line under them. Line: rating text.",
+      defaultText: "5 out of 5", defaultColor: "#FFA946",
+    });
+    const it2 = item("rating-stars", "5 out of 5");
+    const early = render(it2, 300);
+    expect(early).toContain("5 out of 5");
+    expect((early.match(/<polygon/g) ?? []).length).toBe(5);
+    expect((early.match(/fill="none"/g) ?? []).length).toBe(5);
+    const mid = render(it2, 2000);
+    expect((mid.match(/fill="#FFA946"/g) ?? []).length).toBe(3);
+    expect((mid.match(/fill="none"/g) ?? []).length).toBe(2);
+    const late = render(it2, 3900);
+    expect((late.match(/fill="#FFA946"/g) ?? []).length).toBe(5);
+    expect(late).not.toContain('fill="none"');
+    expect(mid).toBe(render(it2, 2000));
+  });
   it("counter renders rolling digit columns and its label", () => {
     const it2 = item("counter", "0\n50000\nfollowers");
     const html = render(it2, 3900);
@@ -339,9 +388,9 @@ describe("SocialOverlayView (static markup — the same tree every render path d
       expect(late, `${meta.id} does not animate between 350ms and 2650ms`).not.toBe(early);
     }
   });
-  it("SOCIAL_META covers 48 variants with unique ids", () => {
-    expect(SOCIAL_META).toHaveLength(48);
-    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(48);
+  it("SOCIAL_META covers 50 variants with unique ids", () => {
+    expect(SOCIAL_META).toHaveLength(50);
+    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(50);
     for (const m of SOCIAL_META) { expect(m.label.length).toBeGreaterThan(0); expect(m.hint.length).toBeGreaterThan(0); expect(m.defaultColor).toMatch(/^#[0-9A-Fa-f]{6}$/); }
   });
   it("new helpers are pure, seeded and deterministic", () => {

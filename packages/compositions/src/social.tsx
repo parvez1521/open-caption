@@ -59,6 +59,8 @@ export const SOCIAL_META: { id: OverlaySocialVariant; label: string; hint: strin
   { id: "countdown-pop", label: "Countdown Pop", hint: "3 · 2 · 1 countdown — each number springs in inside a shrinking ring — then your final word lands. Line: final word.", defaultText: "GO!", defaultColor: "#FF4D2E" },
   { id: "callout", label: "Callout Bubble", hint: "Callout bubble with a pointer tail that pops in, holds, then leaves. Line: callout text.", defaultText: "Watch this part", defaultColor: "#FFA946" },
   { id: "progress-fill", label: "Progress Fill", hint: "Horizontal bar filling 0 to 100% across the item's own window, with a label above it. Line: label.", defaultText: "Loading the good part", defaultColor: "#34D399" },
+  { id: "quote-card", label: "Quote Card", hint: "Cream card with a big quote mark and your words under it, for testimonials. Lines: quote text (line 2 optional).", defaultText: "Say it in their words", defaultColor: "#34D399" },
+  { id: "rating-stars", label: "Rating Stars", hint: "Five stars that fill one by one on the beat, with your line under them. Line: rating text.", defaultText: "5 out of 5", defaultColor: "#FFA946" },
 ];
 
 export interface OverlayPhases {
@@ -395,6 +397,22 @@ export function progressFillAt(localMs: number, durationMs: number) {
   return { progress, pct: Math.round(progress * 100) };
 }
 
+/**
+ * Rating stars: each star springs in (and fills) in turn — star i starts at
+ * 12% + i·13% of the window and pops over 300 ms — so all five are filled
+ * well before the end. Pure in (localMs, durationMs, count).
+ */
+export function ratingStarsAt(localMs: number, durationMs: number, count = 5) {
+  const dur = Math.max(1, durationMs);
+  const n = Math.max(0, Math.min(5, Math.floor(count)));
+  const stars = Array.from({ length: n }, (_, i) => {
+    const start = dur * (0.12 + i * 0.13);
+    const p = springOut(clamp01((localMs - start) / 300));
+    return { index: i, p, filled: p >= 1, scale: 0.7 + 0.3 * p };
+  });
+  return { stars, filledCount: stars.filter((s) => s.filled).length };
+}
+
 /** Audio bars: 16 seeded bars, height 0..1 as a pure function of localMs. */
 export function audioBarsAt(localMs: number, seed: number, count = 16) {
   return Array.from({ length: count }, (_, i) => {
@@ -455,6 +473,13 @@ const ThumbPath: React.FC<{ color: string; filled: boolean; size: number }> = ({
 const Check: React.FC<{ color: string; size: number }> = ({ color, size }) => (
   <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden style={{ display: "inline-block", verticalAlign: "-0.12em" }}>
     <path d="M21 53 L41 73 L79 28" fill="none" stroke={color} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/** Our own five-point star (same polygon the orbit badge uses for its centre star), drawn for this app. */
+const StarPath: React.FC<{ color: string; filled: boolean; size: number }> = ({ color, filled, size }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden style={{ display: "block" }}>
+    <polygon points="50,8 62,38 92,39 68,58 77,87 50,70 23,87 32,58 8,39 38,38" fill={filled ? color : "none"} stroke={color} strokeWidth={5} strokeLinejoin="round" />
   </svg>
 );
 
@@ -1336,6 +1361,33 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
           <span style={{ display: "block", height: 14 * sc, borderRadius: 7 * sc, backgroundColor: "#2A2A27", overflow: "hidden" }}>
             <span style={{ display: "block", height: "100%", width: `${(pf.progress * 100).toFixed(1)}%`, backgroundColor: accent, borderRadius: 7 * sc }} />
           </span>
+        </div>
+      );
+    }
+    case "quote-card": {
+      const quote = ls.filter(Boolean).join("\n") || "Say it in their words";
+      const scale = 0.6 + 0.4 * springOut(ph.enterT);
+      return (
+        <div style={{ ...root, width: 560 * sc, transform: `translateY(${enterY.toFixed(1)}px) scale(${scale.toFixed(3)})` }}>
+          <span style={{ display: "block", backgroundColor: "#FFFFEB", borderRadius: 20 * sc, padding: `${10 * sc}px ${26 * sc}px ${22 * sc}px`, boxShadow: "0 10px 34px rgba(0,0,0,0.42)" }}>
+            <span style={{ display: "block", fontWeight: 900, fontSize: 110 * sc, lineHeight: 0.75, color: accent, height: 62 * sc, overflow: "hidden" }}>{"\u201C"}</span>
+            <span style={{ display: "block", fontWeight: 700, fontSize: 32 * sc, lineHeight: 1.35, color: "#141412", whiteSpace: "pre-wrap" }}>{quote}</span>
+          </span>
+        </div>
+      );
+    }
+    case "rating-stars": {
+      const rs = ratingStarsAt(localMs, dur);
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 * sc, width: 520 * sc }}>
+          <span style={{ display: "flex", gap: 8 * sc }}>
+            {rs.stars.map((s) => (
+              <span key={s.index} style={{ transform: `scale(${s.scale.toFixed(3)})`, display: "block" }}>
+                <StarPath color={accent} filled={s.filled} size={64 * sc} />
+              </span>
+            ))}
+          </span>
+          <span style={{ fontWeight: 800, fontSize: 32 * sc, textAlign: "center" }}>{line(ls, 0, "5 out of 5")}</span>
         </div>
       );
     }

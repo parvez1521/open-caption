@@ -114,6 +114,8 @@ export const MOTION_TEMPLATES: MotionTemplate[] = [
   entry({ variant: "countdown-pop", title: "Countdown Pop", category: "effects", description: "3 · 2 · 1 springing in inside a shrinking ring, then your final word.", defaultText: "GO!", defaultColor: "#FF4D2E", maxLines: 1, tags: ["countdown", "numbers", "go"], featured: true }),
   entry({ variant: "callout", title: "Callout Bubble", category: "effects", description: "Callout bubble with a pointer tail that pops in, holds, then leaves.", defaultText: "Watch this part", defaultColor: "#FFA946", maxLines: 1, tags: ["callout", "bubble", "pointer"], duration: 4000 }),
   entry({ variant: "progress-fill", title: "Progress Fill", category: "effects", description: "Horizontal bar that fills from 0 to 100% across the clip, with a label above it.", defaultText: "Loading the good part", defaultColor: "#34D399", maxLines: 1, tags: ["progress", "bar", "fill"], duration: 4000 }),
+  entry({ variant: "quote-card", title: "Quote Card", category: "effects", description: "Cream quote card with a big quote mark and your words under it, for testimonials.", defaultText: "Say it in their words", defaultColor: "#34D399", maxLines: 2, tags: ["quote", "testimonial", "review"], duration: 4000 }),
+  entry({ variant: "rating-stars", title: "Rating Stars", category: "effects", description: "Five stars that fill one by one on the beat, with your rating line under them.", defaultText: "5 out of 5", defaultColor: "#FFA946", maxLines: 1, tags: ["rating", "stars", "review"], duration: 4000 }),
 ];
 
 export const MOTION_TEMPLATE_IDS: OverlaySocialVariant[] = MOTION_TEMPLATES.map((t) => t.id);

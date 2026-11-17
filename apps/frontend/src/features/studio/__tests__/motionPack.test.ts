@@ -8,19 +8,20 @@ import { MOTION_PACK_GROUPS, motionPackTemplateIds, motionPackTemplates } from "
  * their exact template lists, and that every listed id really exists in the registry.
  */
 describe("MOTION_PACK_GROUPS", () => {
-  it("has exactly the six everyday-use groups, in order", () => {
+  it("has exactly the seven everyday-use groups, in order", () => {
     expect(MOTION_PACK_GROUPS.map((g) => g.id)).toEqual([
-      "lower-thirds", "callouts", "subscribe-cta", "counters", "text-reveals", "progress",
+      "lower-thirds", "callouts", "reviews", "subscribe-cta", "counters", "text-reveals", "progress",
     ]);
     expect(MOTION_PACK_GROUPS.map((g) => g.title)).toEqual([
-      "Lower Thirds", "Callouts", "Subscribe & CTA", "Counters", "Text Reveals", "Progress",
+      "Lower Thirds", "Callouts", "Reviews", "Subscribe & CTA", "Counters", "Text Reveals", "Progress",
     ]);
   });
 
   it("lists exactly these templates per group", () => {
     const byId = new Map(MOTION_PACK_GROUPS.map((g) => [g.id, g.ids]));
     expect(byId.get("lower-thirds")).toEqual(["lower-third", "lower-third-bar"]);
-    expect(byId.get("callouts")).toEqual(["callout"]);
+    expect(byId.get("callouts")).toEqual(["callout", "quote-card"]);
+    expect(byId.get("reviews")).toEqual(["rating-stars"]);
     expect(byId.get("subscribe-cta")).toEqual(["subscribe-pill", "subscribe-banner", "cursor-subscribe", "follow-banner"]);
     expect(byId.get("counters")).toEqual(["counter", "like-pop"]);
     expect(byId.get("text-reveals")).toEqual(["kinetic-title", "glitch-title", "type-title"]);
@@ -31,7 +32,7 @@ describe("MOTION_PACK_GROUPS", () => {
     for (const id of motionPackTemplateIds()) {
       expect(getMotionTemplate(id), id).toBeDefined();
     }
-    expect(motionPackTemplateIds()).toHaveLength(14);
+    expect(motionPackTemplateIds()).toHaveLength(16);
   });
 
   it("groups are non-empty and no id is listed twice", () => {
@@ -49,6 +50,8 @@ describe("MOTION_PACK_GROUPS", () => {
     for (const id of motionPackTemplateIds()) expect(registryIds.has(id)).toBe(true);
     expect(motionPackTemplates(MOTION_PACK_GROUPS[0]!)[0]!.title).toBe("Lower Third");
     expect(motionPackTemplates(MOTION_PACK_GROUPS[1]!)[0]!.title).toBe("Callout Bubble");
-    expect(motionPackTemplates(MOTION_PACK_GROUPS[5]!)[0]!.title).toBe("Progress Fill");
+    expect(motionPackTemplates(MOTION_PACK_GROUPS[1]!)[1]!.title).toBe("Quote Card");
+    expect(motionPackTemplates(MOTION_PACK_GROUPS[2]!)[0]!.title).toBe("Rating Stars");
+    expect(motionPackTemplates(MOTION_PACK_GROUPS[6]!)[0]!.title).toBe("Progress Fill");
   });
 });

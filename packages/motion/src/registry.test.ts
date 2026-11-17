@@ -44,7 +44,7 @@ describe("motion registry integrity", () => {
     }
   });
   it("Wave 1.5 fills the facebook / x / discord parity categories with one entry each", () => {
-    expect(MOTION_TEMPLATES).toHaveLength(48);
+    expect(MOTION_TEMPLATES).toHaveLength(50);
     const cats = listMotionCategories();
     expect(cats.find((c) => c.category === "facebook")).toEqual({ category: "facebook", count: 1 });
     expect(cats.find((c) => c.category === "x")).toEqual({ category: "x", count: 1 });
@@ -67,6 +67,14 @@ describe("motion registry integrity", () => {
     expect(getMotionTemplate("progress-fill")!.tags).toContain("progress");
     expect(defaultMotionConfig("callout")).toEqual({ variant: "callout", text: "Watch this part", color: "#FFA946", durationMs: 4000 });
     expect(defaultMotionConfig("progress-fill")).toEqual({ variant: "progress-fill", text: "Loading the good part", color: "#34D399", durationMs: 4000 });
+  });
+  it("Motion Graphics Pack expansion adds quote-card + rating-stars in effects at 4000 ms", () => {
+    expect(getMotionTemplate("quote-card")).toMatchObject({ category: "effects", defaultDurationMs: 4000, defaultText: "Say it in their words", defaultColor: "#34D399" });
+    expect(getMotionTemplate("rating-stars")).toMatchObject({ category: "effects", defaultDurationMs: 4000, defaultText: "5 out of 5", defaultColor: "#FFA946" });
+    expect(getMotionTemplate("quote-card")!.tags).toContain("quote");
+    expect(getMotionTemplate("rating-stars")!.tags).toContain("stars");
+    expect(defaultMotionConfig("quote-card")).toEqual({ variant: "quote-card", text: "Say it in their words", color: "#34D399", durationMs: 4000 });
+    expect(defaultMotionConfig("rating-stars")).toEqual({ variant: "rating-stars", text: "5 out of 5", color: "#FFA946", durationMs: 4000 });
   });
   it("category counts are derived and sum to the registry size", () => {
     const cats = listMotionCategories();
