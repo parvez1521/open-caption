@@ -6,6 +6,9 @@ export { buildAdjustOverlays, buildSegmentEffects, buildVideoFilter, composition
 export type { CanvasSettings, RenderVideoSegment, SegmentEffectsResult, SegmentTransform, SegmentTransition } from "./overlayMath";
 export { KEYFRAME_EASING_FNS, sampleChannel, sampleSegmentAnimation } from "./keyframes";
 export type { SampledSegmentAnimation } from "./keyframes";
-export { BlurPresentation, blurPresentation, ZoomPresentation, zoomPresentation } from "./transitions";
+export { BlurPresentation, blurPresentation, ParamPresentation, paramPresentation, fadeParamPresentation, wipeParamPresentation, slideParamPresentation, zoomParamPresentation, blurParamPresentation, glitchPresentation, lightLeakPresentation, rotatePresentation, shapePresentation, stingerPresentation, paramTransitionStyle, ZoomPresentation, zoomPresentation } from "./transitions";
+export type { ParamTransitionProps, TransitionBase, TransitionDirection, TransitionParams, TransitionShape } from "./transitions";
+export { TRANSITION_CATEGORIES, TRANSITION_REGISTRY, presentationForRegistryEntry, presentationForTransition, transitionRegistryEntry, transitionsInCategory } from "./transitionRegistry";
+export type { TransitionCategoryId, TransitionRegistryEntry } from "./transitionRegistry";
 export { IMAGE_BASE_PX, OVERLAY_ENTER_ANIMS, OVERLAY_EXIT_ANIMS, OVERLAY_FONT_OPTIONS, OVERLAY_FONT_STACKS, OVERLAY_SHAPE_META, OverlayShapeSvg, OverlayView, SHAPE_BASE_PX, TEXT_DEFAULT_FONT_PX, overlayAnimStyle } from "./overlays";
 export { SOCIAL_META, SocialOverlayView, overlayPhase, easeOutQuint, easeInOutCubic, springOut, cursorChoreoAt, shareFlightAt, chatTicksAt, countdownAt, bellRingDeg, counterAt, chatStackAt, orbitAngle, searchBarAt, socialSeededUnit, shade, typingAt, kineticTitleAt, glitchAt, neonFlickerAt, particleBurstAt, liveViewersAt, upvoteAt, formCardAt, audioBarsAt, postCardAt, repostAt, voiceCardAt } from "./social";

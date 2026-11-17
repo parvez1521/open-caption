@@ -1,10 +1,7 @@
 import React, { useMemo } from "react";
 import { AbsoluteFill, Img, OffthreadVideo, Sequence, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from "remotion";
 import { Video as MediaVideo } from "@remotion/media";
-import { TransitionSeries, linearTiming, type TransitionPresentation } from "@remotion/transitions";
-import { fade } from "@remotion/transitions/fade";
-import { slide } from "@remotion/transitions/slide";
-import { wipe } from "@remotion/transitions/wipe";
+import { TransitionSeries, linearTiming } from "@remotion/transitions";
 import { CaptionDocSchema, type CaptionStyleV2, OverlayItemSchema, ProjectSettingsSchema, VideoAdjustSchema, type CaptionDoc, type Page, type ProjectSettings } from "@capseasy/shared";
 import { applyFillerFilter, applyProfanity, derivePages } from "@motion-ai/caption-engine/core";
 import { EMOJI_FONT, PageView, VideoFrameBus, VideoFrameContext, famCss, getTemplate, layoutBox, measure, resolveStyle, scaleOf, useFontsReady, wordGapEm, wordGapPx, type Canvas } from "@capseasy/templates";
@@ -31,27 +28,10 @@ import {
   type RenderVideoSegment,
   type SegmentEffectsResult,
   type SegmentTransform,
-  type SegmentTransitionType,
 } from "./overlayMath";
 import { sampleSegmentAnimation } from "./keyframes";
 import { OverlayView } from "./overlays";
-import { blurPresentation, zoomPresentation } from "./transitions";
-
-/** The installed @remotion/transitions 4.0.484 presentation for a stored transition type. */
-function presentationFor(type: SegmentTransitionType): TransitionPresentation<Record<string, unknown>> {
-  switch (type) {
-    case "fade":
-      return fade() as unknown as TransitionPresentation<Record<string, unknown>>;
-    case "slide":
-      return slide({ direction: "from-right" }) as unknown as TransitionPresentation<Record<string, unknown>>;
-    case "wipe":
-      return wipe() as unknown as TransitionPresentation<Record<string, unknown>>;
-    case "zoom":
-      return zoomPresentation();
-    case "blur":
-      return blurPresentation();
-  }
-}
+import { presentationForTransition } from "./transitionRegistry";
 
 /** Doc -> what the audience should see (filters are display-time, so the stored doc is never mutated). */
 export function prepareDoc(doc: CaptionDoc, settings: ProjectSettings): CaptionDoc {
@@ -417,7 +397,7 @@ export const CaptionedVideo: React.FC<CaptionedVideoInput> = ({ src = null, doc:
               children.push(
                 <TransitionSeries.Transition
                   key={`t-${segment.id}`}
-                  presentation={presentationFor(transitionIn.type)}
+                  presentation={presentationForTransition(transitionIn)}
                   timing={linearTiming({ durationInFrames: tFrames })}
                 />,
               );
