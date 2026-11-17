@@ -31,12 +31,24 @@ export interface MotionGroup {
   disabled?: boolean;
 }
 
-const Preview: React.FC<{ kind: "enter" | "exit"; type: string; className?: string }> = ({ kind, type, className = "" }) =>
-  type === "none" ? (
-    <span className={`grid place-items-center bg-st-raised text-[11px] font-medium text-st-muted ${className}`}>No animation</span>
-  ) : (
-    <video src={`/motion/${kind}-${type}.mp4`} autoPlay loop muted playsInline preload="metadata" aria-hidden className={`bg-side object-cover ${className}`} />
+/**
+ * A tile that never renders blank: if its MP4 is missing or fails to load, the
+ * motion name shows as static text on the same lavender tile (missing previews
+ * used to render as empty tiles — e.g. glitch-slice / typewriter / jelly).
+ */
+const Preview: React.FC<{ kind: "enter" | "exit"; type: string; className?: string }> = ({ kind, type, className = "" }) => {
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => setFailed(false), [kind, type]);
+  if (type === "none") {
+    return <span className={`grid place-items-center bg-st-raised text-[11px] font-medium text-st-muted ${className}`}>No animation</span>;
+  }
+  if (failed) {
+    return <span className={`grid place-items-center bg-side px-1 text-center text-[11px] font-medium text-st-muted ${className}`}>{motionName(type, kind)}</span>;
+  }
+  return (
+    <video src={`/motion/${kind}-${type}.mp4`} autoPlay loop muted playsInline preload="metadata" aria-hidden onError={() => setFailed(true)} className={`bg-side object-cover ${className}`} />
   );
+};
 
 interface Props {
   label: string;

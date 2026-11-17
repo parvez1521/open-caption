@@ -50,11 +50,11 @@ const browser = await openBrowser("chrome");
 
 const jobs: { file: string; style: CaptionStyleV2; doc: ReturnType<typeof words>; durationMs: number; holdMs: number; fromMs?: number }[] = [];
 for (const type of ENTRANCES) {
-  if (type === "none" || type === "typewriter" || (only && !only.includes(type))) continue;
+  if (type === "none" || (only && !only.includes(type))) continue;
   // a touch slower and smoother than the studio default so each motion is readable at tile size
   const durationMs = type.startsWith("letter-") ? LETTER_DEFAULT_MS : 480;
   // the card arrives at 250 ms, holds, then the clip loops
-  jobs.push({ file: `enter-${type}`, style: base({ entrance: { type, durationMs, stagger: type.startsWith("letter-") || type === "wave" ? "char" : "none", easing: "outCubic" }, exit: { type: "none", durationMs: 0 } }), doc: words(250), durationMs: 1600, holdMs: 1000 });
+  jobs.push({ file: `enter-${type}`, style: base({ entrance: { type, durationMs, stagger: type.startsWith("letter-") || type === "wave" || type === "typewriter" ? "char" : "none", easing: "outCubic" }, exit: { type: "none", durationMs: 0 } }), doc: words(250), durationMs: 1600, holdMs: 1000 });
 }
 for (const type of EXITS) {
   if (type === "none" || (only && !only.includes(type))) continue;

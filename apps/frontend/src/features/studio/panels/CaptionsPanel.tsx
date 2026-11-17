@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { CaptionDoc, Page, Word } from "@capseasy/shared";
 import { deleteWordsByIds, findMatches, findReplace, importSubtitles, mergeWithNext, mergeWithPrevious, setEmphasis, setHidden, setWordText, shiftAllWords, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
 import { Button, fmtTime } from "../controls";
-import { EmphasisSuggestions } from "./EmphasisSuggestions";
 import { PANEL_PX_PER_MS, formatDelta, isPastThreshold, pxToMs, rangeSelection } from "../dragSelect";
 
 interface Props {
@@ -114,9 +113,9 @@ const SelectedWordEditor: React.FC<{
 };
 
 export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, heroSupported, selectedWordIds, onWordSelectionChange, locked = false, onGenerateCaptions, generateBusy = false, generateProgress = 0, generateNote = null }) => {
-  // The lock guard lives at this ONE chokepoint: every edit this panel makes (its own
-  // controls and the EmphasisSuggestions child) goes through `edit`, so wrapping it here
-  // blocks them all at once — no call site can forget the check.
+  // The lock guard lives at this ONE chokepoint: every edit this panel makes
+  // goes through `edit`, so wrapping it here blocks them all at once — no call
+  // site can forget the check.
   const edit: Props["edit"] = (fn, opts) => {
     if (!locked) editProp(fn, opts);
   };
@@ -310,8 +309,6 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           </div>
         ) : null}
       </div>
-
-      {doc.words.length > 0 ? <EmphasisSuggestions doc={doc} edit={edit} heroSupported={heroSupported} /> : null}
 
       {pages.length > 0 ? (
         <p className="shrink-0 border-b border-st-line px-3 py-2 text-xs text-st-muted">
