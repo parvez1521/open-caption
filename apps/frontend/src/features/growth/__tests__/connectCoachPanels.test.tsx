@@ -197,11 +197,12 @@ describe("GrowthCoach", () => {
     expectEveryCallAuthed();
   });
 
-  it("welcome state: headline, the honest free-AI badge, central composer and starter chips", async () => {
+  it("welcome state: headline, central composer and starter chips, with no model badge", async () => {
     stubFetch(() => envelope({ configured: true, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" }));
     render(<GrowthCoach starters={["Why did reach drop last week?"]} />);
     expect(await screen.findByRole("heading", { name: /Ask about your channel/ })).toBeTruthy();
-    expect(screen.getByText("Free AI · GPT-OSS 120B (Groq)")).toBeTruthy();
+    expect(screen.queryByText("Free AI · GPT-OSS 120B (Groq)")).toBeNull();
+    expect(screen.queryByText(/GPT-OSS 120B/)).toBeNull();
     expect(screen.getByLabelText("Ask about your analytics")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Why did reach drop last week?" })).toBeTruthy();
     expectEveryCallAuthed();

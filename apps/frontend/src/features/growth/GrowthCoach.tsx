@@ -205,11 +205,6 @@ export function GrowthCoach({ starters }: { starters: string[] }) {
             <p className="mt-3 max-w-[52ch] text-center text-[13.5px] leading-relaxed text-sand-700">
               Answers come only from your own posts — connect an account above and sync, then ask.
             </p>
-            {status?.configured ? (
-              <span className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-sand-300 bg-sand-100 px-2.5 py-1 font-sora text-[11px] font-semibold text-sand-800">
-                Free AI · {status.modelName} ({status.provider})
-              </span>
-            ) : null}
             <div className="mt-8 flex w-full justify-center">{composer("welcome")}</div>
             <div className="mt-5">{starterChips("center")}</div>
             {error ? (

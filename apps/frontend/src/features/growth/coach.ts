@@ -222,9 +222,9 @@ export function buildCoachPrompt(
 export function starterQuestions(posts: ReadonlyArray<GrowthPost>, sections: CoachSections): string[] {
   if (posts.length === 0) {
     return [
-      "What should I start tracking?",
-      "How do I bring in my past posts?",
-      "What does connecting YouTube or Instagram add?",
+      "How can I grow my channel faster?",
+      "What should I post to get more views?",
+      "How do I turn viewers into followers?",
     ];
   }
   const out: string[] = [];

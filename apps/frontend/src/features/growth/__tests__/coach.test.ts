@@ -200,9 +200,9 @@ describe("the verified UI map", () => {
 describe("starterQuestions", () => {
   it("empty data offers the getting-started set", () => {
     expect(starterQuestions([], sectionsOf([]))).toEqual([
-      "What should I start tracking?",
-      "How do I bring in my past posts?",
-      "What does connecting YouTube or Instagram add?",
+      "How can I grow my channel faster?",
+      "What should I post to get more views?",
+      "How do I turn viewers into followers?",
     ]);
   });
 
