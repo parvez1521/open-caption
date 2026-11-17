@@ -70,6 +70,8 @@ export const OVERLAY_SOCIAL_VARIANTS = [
   "chat-ticks", "dm-typing", "lower-third-bar", "logo-mark", "type-title", "countdown-pop",
   // Motion Graphics Pack (2026-11-18): everyday callout + progress graphics.
   "callout", "progress-fill",
+  // Motion Graphics Pack expansion (2026-11-18, overnight): quote + rating graphics.
+  "quote-card", "rating-stars",
 ] as const;
 export const OverlaySocialVariantSchema = z.enum(OVERLAY_SOCIAL_VARIANTS);
 export type OverlaySocialVariant = z.infer<typeof OverlaySocialVariantSchema>;
@@ -310,9 +312,52 @@ export const IDENTITY_SEGMENT_TRANSFORM: SegmentTransform = {
  * A transition INTO a segment from its predecessor (Stage C / Phase 4 Run 2). At render the
  * two clips overlap by `durationMs`, so a transition compresses the total composition
  * duration (see {@link compositionDurationMs}). Only meaningful on segments at index ≥ 1.
+ *
+ * The `type` is either one of the 5 legacy base types (fade/wipe/slide/zoom/blur — every
+ * project stored before 2026-11-18 keeps parsing exactly as before) or one of the 100
+ * premium registry ids in {@link TRANSITION_REGISTRY_IDS} (10 per category, defined in
+ * `packages/compositions/src/transitionRegistry.ts`, which is the single source for the
+ * names / parameters / default durations). The id list lives here, in shared, so the
+ * schema can validate a stored registry id without importing the compositions package.
  */
+export const TRANSITION_REGISTRY_IDS = [
+  // Dissolve / Fade (10)
+  "dissolve-cross", "dissolve-black", "dissolve-white", "dissolve-ember", "dissolve-emerald",
+  "dissolve-zoom", "dissolve-blur", "dissolve-bloom", "dissolve-ink", "dissolve-warm",
+  // Wipe (10)
+  "wipe-left", "wipe-right", "wipe-up", "wipe-down", "wipe-diag-down",
+  "wipe-diag-up", "wipe-left-soft", "wipe-right-soft", "wipe-up-soft", "wipe-down-soft",
+  // Slide (10)
+  "slide-right", "slide-left", "slide-up", "slide-down", "slide-right-short",
+  "slide-left-short", "slide-up-short", "slide-down-short", "slide-diag-down", "slide-diag-up",
+  // Zoom (10)
+  "zoom-in-soft", "zoom-in", "zoom-in-hard", "zoom-in-deep", "zoom-out-soft",
+  "zoom-out", "zoom-out-hard", "zoom-out-deep", "zoom-in-blur", "zoom-out-blur",
+  // Glitch (10)
+  "glitch-light", "glitch", "glitch-hard", "glitch-extreme", "glitch-slices-5",
+  "glitch-slices-8", "glitch-shift-left", "glitch-shift-right", "glitch-hard-left", "glitch-hard-right",
+  // Blur (10)
+  "blur-soft", "blur", "blur-strong", "blur-heavy", "blur-mist",
+  "blur-zoom-in", "blur-zoom-out", "blur-slide-right", "blur-slide-left", "blur-dip",
+  // Light (10)
+  "light-white", "light-cream", "light-amber", "light-orange", "light-gold",
+  "light-peach", "light-emerald", "light-mint", "light-teal", "light-ice",
+  // 3D (10)
+  "flip-horizontal", "flip-vertical", "flip-horizontal-soft", "flip-vertical-soft", "spin-90",
+  "spin-180", "spin-360", "tilt-left", "tilt-right", "cube-up",
+  // Shape (10)
+  "iris-circle", "iris-circle-out", "iris-diamond", "iris-diamond-out", "iris-square",
+  "iris-square-out", "iris-hexagon", "iris-triangle", "iris-circle-soft", "iris-diamond-soft",
+  // Stinger (10)
+  "stinger-white", "stinger-orange", "stinger-emerald", "stinger-black", "stinger-gold",
+  "stinger-double-orange", "stinger-triple", "stinger-flash-white", "stinger-flash-orange", "stinger-cream",
+] as const;
+export type TransitionRegistryId = (typeof TRANSITION_REGISTRY_IDS)[number];
+
+const SEGMENT_TRANSITION_TYPES = ["fade", "wipe", "slide", "zoom", "blur", ...TRANSITION_REGISTRY_IDS] as const;
+
 export const SegmentTransitionSchema = z.object({
-  type: z.enum(["fade", "wipe", "slide", "zoom", "blur"]),
+  type: z.enum(SEGMENT_TRANSITION_TYPES),
   durationMs: z.number().int().min(100).max(2000),
 });
 export type SegmentTransition = z.infer<typeof SegmentTransitionSchema>;
