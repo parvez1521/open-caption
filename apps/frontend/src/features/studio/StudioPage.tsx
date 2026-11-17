@@ -29,17 +29,11 @@ import { SettingsPanel, StylePanel } from "./panels/StylePanel";
 import { MediaPanel } from "./panels/MediaPanel";
 import { AiGeneratePanel } from "./panels/AiGeneratePanel";
 import { SoundEffectsPanel } from "./panels/SoundEffectsPanel";
-import { TextPanel } from "./panels/TextPanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
 import { MotionStudioPanel } from "./panels/MotionStudioPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
 import { AudioPanel } from "./panels/AudioPanel";
 import { TranslatePanel } from "./panels/TranslatePanel";
-import { TrimPanel } from "./panels/TrimPanel";
-import { PolishPanel } from "./panels/PolishPanel";
-import { EditAssistantPanel } from "./panels/EditAssistantPanel";
-import { polishCommitSettings, type PolishProjectState } from "./polish";
-import { removeRangesFromVideo, trimRangeEffects, type TrimRange } from "./trim";
 import { ProcessingPanel } from "./ProcessingPanel";
 import { StudioPlayer } from "./StudioPlayer";
 import { OverlayStageLayer } from "./OverlayStageLayer";
@@ -105,7 +99,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "aiedit" | "text" | "elements" | "adjust" | "audio" | "sfx" | "translate" | "trim" | "polish" | "assistant";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "aiedit" | "elements" | "adjust" | "audio" | "sfx" | "translate";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -114,20 +108,16 @@ const railIcon = (children: React.ReactNode) => (
 /** The left-rail sections. Exported for the rail pin in __tests__/railSections.test.ts. */
 export const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?: "templates" | "style" }[] = [
   { id: "media", label: "Media", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M3 16l5-4 4 3 3-2 6 5" /></>) },
-  { id: "aiedit", label: "AI Edit", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" /></>) },
+  { id: "aiedit", label: "Generate Image/Video", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" /></>) },
   { id: "captions", label: "Captions", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 10h6M7 14h10" /></>) },
   { id: "translate", label: "Translate", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.3 3.9 5.2 3.9 8.5s-1.3 6.2-3.9 8.5c-2.6-2.3-3.9-5.2-3.9-8.5s1.3-6.2 3.9-8.5z" /></>) },
   { id: "templates", label: "Templates", tour: "templates", icon: railIcon(<><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="8" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" /></>) },
   { id: "style", label: "Style", tour: "style", icon: railIcon(<text x="12" y="17" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor" stroke="none">Aa</text>) },
-  { id: "text", label: "Text", icon: railIcon(<path d="M5 5h14M12 5v14" />) },
   { id: "elements", label: "Elements", icon: railIcon(<><circle cx="8" cy="8" r="3.5" /><rect x="13" y="13" width="8" height="8" rx="1" /><path d="M17.5 3.5l3 5h-6z" /></>) },
   { id: "adjust", label: "Adjust", icon: railIcon(<><path d="M4 8h9M19 8h1M4 16h3M13 16h7" /><circle cx="16" cy="8" r="2" /><circle cx="10" cy="16" r="2" /></>) },
   { id: "audio", label: "Audio", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /></>) },
   { id: "sfx", label: "Sound FX", icon: railIcon(<><path d="M9 18.5V7l10-2v10.5" /><circle cx="6.5" cy="18.5" r="2.5" /><circle cx="16.5" cy="15.5" r="2.5" /></>) },
   { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
-  { id: "trim", label: "Trim", icon: railIcon(<><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" /><path d="M3 21l7-7" /></>) },
-  { id: "polish", label: "Polish", icon: railIcon(<><path d="M4 20c2.5.5 5-.5 6-2.5L20.5 8a2.12 2.12 0 0 0-3-3L7 15.5C5 16.5 4 18 4 20z" /><path d="M13.5 6.5l3 3" /></>) },
-  { id: "assistant", label: "Assistant", icon: railIcon(<><path d="M20 4H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4v4l5.5-4H20a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1z" /><path d="M7.5 9h9M7.5 12.5h5" /></>) },
 ];
 
 const SAVE_LABEL: Record<SaveState, { text: string; dot: string }> = {
@@ -543,16 +533,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     }
     const projected = projectComposition(comp, settings);
     s.editAll({ ...(nextDoc ? { doc: nextDoc } : {}), settings: projected });
-  };
-
-  /* ---------- Phase 5 (A3): trim fillers & pauses — the checked ranges are cut
-   * from the video partition AND followed by captions/markers/overlays/audio through
-   * the rangeRemove effects, all in commitComposition's single editAll step. */
-  const applyTrim = (ranges: TrimRange[]) => {
-    if (!editorComp || ranges.length === 0) return;
-    const videoComp = removeRangesFromVideo(editorComp, ranges);
-    if (videoComp === editorComp && editorComp.videoClips.length > 0) return;
-    commitComposition(videoComp, trimRangeEffects(ranges));
   };
 
   /* ---------- Run 3 audio wiring: every AudioPanel / Timeline audio callback is an
@@ -1472,7 +1452,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       : t === "templates" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
       : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} composition={composition} onRelink={device.attach} assets={mediaBin.assets} importing={mediaBin.importing} onImport={mediaBin.importFiles} onDeleteAsset={mediaBin.remove} onPlaceImage={placeImage} />
       : t === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
-      : t === "text" ? <TextPanel {...overlayPanelProps} />
       : t === "elements" ? <ElementsPanel {...overlayPanelProps} />
       : t === "adjust" ? <AdjustPanel settings={settings} patch={s.patchSettings} />
       : t === "audio" ? (editorComp ? (
@@ -1515,32 +1494,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         />
       ) : null)
       : t === "translate" ? (doc ? <TranslatePanel projectId={projectId} doc={doc} settings={settings} patch={s.patchSettings} translations={translations} onTranslated={(lang, tdoc) => setTranslations((prev) => ({ ...prev, [lang]: tdoc }))} /> : null)
-      : t === "trim" ? (doc ? <TrimPanel doc={doc} peaks={wave.peaks} durationMs={durationMs} onSeek={seek} onApply={applyTrim} /> : null)
-      : t === "polish" ? (doc && style && editorComp ? (
-        <PolishPanel
-          state={{ doc, comp: editorComp, settings, style, lookId: s.lookId }}
-          sourceTitle={data.project.title}
-          peaks={wave.peaks}
-          hopMs={1000 / PEAKS_PER_SECOND}
-          onCommit={(next: PolishProjectState) => {
-            // ONE editAll for the whole pass (doc + projected settings + look),
-            // so a single Ctrl+Z undoes an apply — and likewise a per-step revert.
-            s.editAll({ doc: next.doc, settings: polishCommitSettings(next), style: next.style, lookId: next.lookId });
-          }}
-        />
-      ) : null)
-      : t === "assistant" ? (doc && style && editorComp ? (
-        <EditAssistantPanel
-          state={{ doc, comp: editorComp, settings, style, lookId: s.lookId }}
-          peaks={wave.peaks}
-          hopMs={1000 / PEAKS_PER_SECOND}
-          onCommit={(next: PolishProjectState) => {
-            // A8: same commit path as Polish — ONE editAll for the whole plan,
-            // so a single Ctrl+Z undoes an assistant apply.
-            s.editAll({ doc: next.doc, settings: polishCommitSettings(next), style: next.style, lookId: next.lookId });
-          }}
-        />
-      ) : null)
       : t === "aiedit" ? (
         <AiGeneratePanel
           projectId={projectId}
