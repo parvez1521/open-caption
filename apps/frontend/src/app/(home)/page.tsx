@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Loader } from "@/components/home/Loader";
 import { ensureGsap, prefersReducedMotion } from "@/components/home/gsap";
 import dynamic from "next/dynamic";
-import { ClosingCta, Control, Faq, FeatureAnimations, Footer, Hero, HomePricingSection, HowItWorks, MotionStudioSection, Nav, Privacy, ToolDoors, TranscribeSection } from "@/components/home/Sections";
+import { ClosingCta, Control, Faq, FeatureAnimations, Footer, Hero, HowItWorks, MotionStudioSection, Nav, Privacy, ToolDoors, TranscribeSection } from "@/components/home/Sections";
 
 const SpatialScroll = dynamic(
   () => import("@/components/spatial/SpatialScroll").then((m) => m.SpatialScroll),
@@ -130,7 +130,8 @@ export default function LandingPage() {
       <Privacy />
       <Faq />
       <ClosingCta />
-      <HomePricingSection />
+      {/* HomePricingSection hidden for now (owner order 2026-11-17): component stays live in
+          components/home/Sections.tsx — re-add it here to restore the section. */}
       <Footer />
     </main>
   );
