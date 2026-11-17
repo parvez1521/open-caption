@@ -101,7 +101,7 @@ function AiClipperPageInner() {
             ) : projects.length === 0 ? (
               <div className="rounded-xl border border-dashed border-[#FFFFEB]/20 bg-[#1C1C1A] px-8 py-16 text-center">
                 <p className="text-2xl font-bold text-[#FFFFEB]">No long video yet.</p>
-                <p className="mx-auto mt-2 max-w-md text-[14px] text-[#FFFFEB]/70">Start with a new long video above. Upload it in the studio. Let the captions finish. The ranked clips will appear here.</p>
+                <p className="mx-auto mt-2 max-w-md text-[14px] text-[#FFFFEB]/70">Start with a new long video above. Upload it — or paste a direct video link — in the studio. Let the captions finish. The ranked clips will appear here.</p>
               </div>
             ) : (
               <>

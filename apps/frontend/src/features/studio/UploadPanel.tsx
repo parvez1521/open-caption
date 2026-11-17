@@ -9,6 +9,7 @@ import { studioService } from "@/services/studio";
 import { track } from "@/lib/track";
 import { ApiError } from "@/services/api-client";
 import { PrepareError, prepareVideo, type PrepareStage, type PreparedVideo } from "@/features/upload/prepareVideo";
+import { fetchMediaLink } from "@/features/upload/fetchMediaLink";
 import { formatClockMs, needsFootageSwapDriftWarning } from "./footageSwap";
 import { START_DOORS, type ProjectStartMode } from "./projectMode";
 import { transcribePreflightWarning } from "./preflight";
@@ -60,6 +61,10 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   }, [lang, editorMode]);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** paste-a-link: the URL being fetched, and its own error (kept apart from upload errors) */
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
   /** pre-flight hold: a long clip on a constrained device waits here for the user's call — nothing is uploaded or transcribed until they choose */
   const [warn, setWarn] = useState<{ ready: PreparedVideo; spoken: SpeechLanguage | null; message: string } | null>(null);
   /** duration drift: the new cut is a different length, so caption timing may drift — the user confirms the keep */
@@ -146,6 +151,25 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   );
   /** a video picked before the language was: ask first, then start (the editor door never asks; the keep path needs no language — nothing is transcribed) */
   const pick = (f: File) => (editorMode || replaceMode === "keep" ? void start(f, null) : lang ? void start(f, lang) : setPending(f));
+  /** paste a link: fetch the file in this browser, then take the exact path a picked file takes */
+  const submitLink = useCallback(async () => {
+    const raw = linkUrl.trim();
+    if (!raw || linkBusy) return;
+    setLinkError(null);
+    setLinkBusy(true);
+    const ctrl = new AbortController();
+    abortRef.current = () => ctrl.abort();
+    try {
+      const file = await fetchMediaLink(raw, limits, ctrl.signal);
+      setLinkUrl("");
+      pick(file);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setLinkError(e instanceof Error ? e.message : "Couldn't fetch this link. Try again.");
+    } finally {
+      setLinkBusy(false);
+    }
+  }, [linkUrl, linkBusy, limits, pick]);
   const choose = (l: SpeechLanguage) => {
     setLang(l);
     saveSpeechLanguage(l);
@@ -161,11 +185,11 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
           e.preventDefault();
           setOver(false);
           const f = e.dataTransfer.files?.[0];
-          if (f && !busy) pick(f);
+          if (f && !busy && !linkBusy) pick(f);
         }}
         className={`w-full max-w-xl rounded-2xl border-2 border-dashed p-10 text-center transition ${over ? "border-st-ink bg-st-lav/40" : "border-st-hover bg-st-panel"}`}
       >
-        {onModeChange && !busy && !prep ? (
+        {onModeChange && !busy && !prep && !linkBusy ? (
           <div className="mx-auto mb-5 grid max-w-md grid-cols-3 gap-1 rounded-xl border border-st-line bg-st-raised/60 p-1" role="radiogroup" aria-label="How this project starts">
             {START_DOORS.map((o) => (
               <button
@@ -221,7 +245,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
           <Upload className="h-6 w-6" />
         </div>
         <h2 className="text-lg font-semibold">
-          {prep?.stage === "check" ? "Checking your video…" : prep?.stage === "convert" ? "Preparing your video…" : busy ? "Saving your video…" : "Drop your video here"}
+          {linkBusy ? "Fetching your video…" : prep?.stage === "check" ? "Checking your video…" : prep?.stage === "convert" ? "Preparing your video…" : busy ? "Saving your video…" : "Drop your video here"}
         </h2>
         <p className="mt-1 text-sm text-st-muted">
           {prep?.stage === "convert"
@@ -284,10 +308,37 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
             {pending ? (
               <p className="mt-3 text-xs text-st-muted">Pick the language and <span className="font-medium text-st-text">{pending.name}</span> starts right away.</p>
             ) : (
-              <Button tone="primary" className="mt-5 inline-flex items-center gap-2 !px-5 !py-2.5" onClick={() => inputRef.current?.click()}>
+              <Button tone="primary" className="mt-5 inline-flex items-center gap-2 !px-5 !py-2.5" disabled={linkBusy} onClick={() => inputRef.current?.click()}>
                 <Upload className="h-4 w-4" aria-hidden /> Choose a video
               </Button>
             )}
+            <div className="mx-auto mt-6 max-w-md text-left">
+              <label htmlFor="upload-link" className="block text-sm font-medium text-st-text">Or paste a direct video link</label>
+              <div className="mt-2 flex gap-2">
+                <input
+                  id="upload-link"
+                  type="url"
+                  inputMode="url"
+                  autoComplete="off"
+                  value={linkUrl}
+                  disabled={busy || linkBusy}
+                  onChange={(e) => setLinkUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void submitLink(); } }}
+                  placeholder="https://…/video.mp4"
+                  className="min-w-0 flex-1 rounded-xl border border-st-line bg-st-panel px-3 py-2.5 text-sm text-st-text placeholder:text-st-faint disabled:opacity-50"
+                />
+                <Button tone="primary" disabled={busy || linkBusy || !linkUrl.trim()} onClick={() => void submitLink()}>
+                  {linkBusy ? "Fetching…" : "Add from link"}
+                </Button>
+              </div>
+              <p className="mt-2 text-[11px] text-st-muted">Direct MP4 or WebM links only. YouTube links don&apos;t work.</p>
+              {linkError ? <p role="alert" className="mt-2 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">{linkError}</p> : null}
+              {linkBusy ? (
+                <button type="button" onClick={() => abortRef.current?.()} className="mt-2 text-[13px] font-semibold text-st-muted underline underline-offset-4">
+                  Cancel fetch
+                </button>
+              ) : null}
+            </div>
             <ul className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-st-muted">
               <li className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Video file stays on your device</li>
               <li className="flex items-center gap-1.5"><BadgeCheck className="h-3.5 w-3.5" aria-hidden /> No watermark</li>
