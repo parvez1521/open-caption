@@ -4,6 +4,8 @@ import { effectiveDurationMs, framesForDurationMs } from "@capseasy/shared";
 import { CaptionedVideo } from "./CaptionedVideo";
 import { compositionDurationMs, type RenderVideoSegment } from "./overlayMath";
 import { CaptionedVideoProps } from "./props";
+import { HomeGrowthStudio } from "./home/HomeGrowthStudio";
+import { HomeSwapCaptions } from "./home/HomeSwapCaptions";
 
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 
@@ -68,6 +70,24 @@ export const Root: React.FC = () => (
       height={1920}
       defaultProps={CaptionedVideoProps.parse({ mode: "overlay" })}
       calculateMetadata={calculateMetadata as unknown as CalculateMetadataFunction<Record<string, unknown>>}
+    />
+    <Composition
+      id="HomeSwapCaptions"
+      component={HomeSwapCaptions}
+      durationInFrames={240}
+      fps={30}
+      width={1280}
+      height={720}
+      defaultProps={{}}
+    />
+    <Composition
+      id="HomeGrowthStudio"
+      component={HomeGrowthStudio}
+      durationInFrames={240}
+      fps={30}
+      width={1280}
+      height={720}
+      defaultProps={{}}
     />
   </>
 );

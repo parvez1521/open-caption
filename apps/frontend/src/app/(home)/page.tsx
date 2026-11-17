@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Loader } from "@/components/home/Loader";
 import { ensureGsap, prefersReducedMotion } from "@/components/home/gsap";
 import dynamic from "next/dynamic";
-import { ClosingCta, Control, Faq, Footer, Hero, HomePricingSection, HowItWorks, MotionStudioSection, Nav, Privacy, ToolDoors, TranscribeSection } from "@/components/home/Sections";
+import { ClosingCta, Control, Faq, FeatureAnimations, Footer, Hero, HomePricingSection, HowItWorks, MotionStudioSection, Nav, Privacy, ToolDoors, TranscribeSection } from "@/components/home/Sections";
 
 const SpatialScroll = dynamic(
   () => import("@/components/spatial/SpatialScroll").then((m) => m.SpatialScroll),
@@ -121,6 +121,7 @@ export default function LandingPage() {
       <TranscribeSection />
       <MotionStudioSection />
       <Control />
+      <FeatureAnimations />
       {/* the heavy showcase (live players) mounts after the intro, so the intro and hero entrance get the main thread */}
       {/* the #looks anchor lives outside the late-mounting showcase, so nav and footer links always land */}
       <div id="looks" ref={looksRef} className="scroll-mt-20">

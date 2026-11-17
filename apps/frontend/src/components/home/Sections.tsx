@@ -681,6 +681,76 @@ export function Control() {
   );
 }
 
+/**
+ * Feature animations: the two things the studio does after the first
+ * caption — a footage swap keeps the timeline, Growth Studio plans the week.
+ * The videos are rendered Remotion compositions (packages/compositions,
+ * `pnpm home-animations`), served as plain looping MP4s. Rows carry
+ * data-feature so the #features reveal hook in page.tsx applies.
+ */
+export function FeatureAnimations() {
+  return (
+    <section id="features" className="scroll-mt-20 px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+      <div className="mx-auto max-w-6xl">
+        <div data-reveal className="max-w-2xl">
+          <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
+            Tweaked the cut? <em className="font-normal italic text-[#34D399]">Keep the captions.</em>
+          </h2>
+          <p className="mt-4 text-base leading-relaxed text-[#FFFFEB]/70">
+            The work doesn&apos;t end when the captions are done. Two things the studio does next.
+          </p>
+        </div>
+        <div className="mt-12 space-y-16 sm:space-y-20">
+          <div data-feature className="grid items-center gap-8 lg:grid-cols-2">
+            <video
+              src="/home/swap-captions.mp4"
+              className="aspect-video w-full overflow-hidden rounded-2xl border border-[#FFFFEB]/10 bg-[#141412]"
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="metadata"
+              aria-label="Animation: replacing footage while the captions stay on the same timeline"
+            />
+            <div>
+              <h3 className="font-styled text-2xl font-bold text-[#FFFFEB] sm:text-3xl">Same captions. New cut.</h3>
+              <p className="mt-3 max-w-[54ch] text-base leading-relaxed text-[#FFFFEB]/70">
+                Re-cut the footage in your editor and drop the new version back in. The caption timeline stays pinned — no re-transcribe, no re-timing.
+              </p>
+              <Link href="/start?choose=1" onClick={warmModel} className="mt-5 inline-flex items-center gap-2 font-semibold text-[#34D399]">
+                Replace footage in the Studio <span aria-hidden>→</span>
+              </Link>
+            </div>
+          </div>
+          <div data-feature className="grid items-center gap-8 lg:grid-cols-2">
+            <div className="lg:order-2">
+              <video
+                src="/home/growth-studio.mp4"
+                className="aspect-video w-full overflow-hidden rounded-2xl border border-[#FFFFEB]/10 bg-[#141412]"
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                aria-label="Animation: a weekly posting plan, rising views, and the next clip queued"
+              />
+            </div>
+            <div className="lg:order-1">
+              <h3 className="font-styled text-2xl font-bold text-[#FFFFEB] sm:text-3xl">Post. Track. Repeat.</h3>
+              <p className="mt-3 max-w-[54ch] text-base leading-relaxed text-[#FFFFEB]/70">
+                Growth Studio turns your posted clips into a weekly plan — best times to post, top posts, and the next clip already queued.
+              </p>
+              <Link href="/growth" className="mt-5 inline-flex items-center gap-2 font-semibold text-[#34D399]">
+                Open Growth Studio <span aria-hidden>→</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function Faq() {
   const [activeIdx, setActiveIdx] = useState(0);
 

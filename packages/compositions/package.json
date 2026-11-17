@@ -12,6 +12,7 @@
     "still": "tsx scripts/stills.ts",
     "previews": "tsx scripts/look-previews.ts",
     "motion-previews": "tsx scripts/motion-previews.ts",
+    "home-animations": "tsx scripts/home-animations.ts",
     "hero-clips": "tsx scripts/hero-clips.ts"
   },
   "dependencies": {
