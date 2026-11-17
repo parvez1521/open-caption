@@ -17,6 +17,7 @@ import { AUTO_CAPTION_FAQS } from "../../app/auto-caption-generator/faqs";
 import { REELS_FAQS } from "../../app/auto-captions-for-reels/faqs";
 import { metadata as autoCaptionMetadata } from "../../app/auto-caption-generator/layout";
 import { metadata as reelsMetadata } from "../../app/auto-captions-for-reels/layout";
+import { metadata as aiGeneratorMetadata } from "../../app/ai-generator/layout";
 import sitemap from "../../app/sitemap";
 import robots from "../../app/robots";
 import { GET as adsTxtGET } from "../../app/ads.txt/route";
@@ -397,6 +398,28 @@ describe("competitor-intelligence programme (2026-11-13)", () => {
     }
     // It serialises cleanly — what the page embeds is what was tested.
     expect(() => JSON.parse(JSON.stringify(ld))).not.toThrow();
+  });
+});
+
+describe("AI Generator page (2026-11-17)", () => {
+  it("/ai-generator is indexable: in the sitemap at priority 0.8, not disallowed by robots", () => {
+    expect(INDEXABLE_PATHS).toContain("/ai-generator");
+    const entries = sitemap();
+    const entry = entries.find((e) => e.url === `${SITE_URL}/ai-generator`);
+    expect(entry).toMatchObject({ priority: 0.8, changeFrequency: "monthly" });
+    const result = robots();
+    const rules = Array.isArray(result.rules) ? result.rules[0] : result.rules;
+    const disallow = rules?.disallow as string[];
+    expect(disallow).not.toContain("/ai-generator");
+  });
+
+  it("/ai-generator has its own title, description and canonical, and is indexable", () => {
+    expect(aiGeneratorMetadata.title).toContain("AI Generator");
+    expect(aiGeneratorMetadata.description).toContain("Puter");
+    expect(aiGeneratorMetadata.alternates?.canonical).toBe("/ai-generator");
+    expect(aiGeneratorMetadata.robots).toBeUndefined();
+    // Honest copy: no "unlimited free" anywhere in the metadata.
+    expect(`${aiGeneratorMetadata.title} ${aiGeneratorMetadata.description}`.toLowerCase()).not.toContain("unlimited");
   });
 });
 

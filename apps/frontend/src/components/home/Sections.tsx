@@ -259,6 +259,7 @@ const DOORS = [
   { href: "/start?mode=editor", tag: "Editor", title: "Edit a video", body: "The plain editor, no captions attached. Cut, trim and arrange." },
   { href: "/transcribe", tag: "Transcribe", title: "Transcribe", body: "A file in, a timed transcript out, in 14 languages." },
   { href: "/auto-caption-generator", tag: "Captions", title: "Auto caption generator", body: "How automatic captions work, what they cost, and what they cannot do." },
+  { href: "/ai-generator", tag: "AI", title: "AI Generator", body: "Write a prompt and get text, an image or a short video clip, using your own free Puter account." },
 ];
 
 export function ToolDoors() {
@@ -909,6 +910,7 @@ const FOOTER_COLUMNS = [
       { label: "Pricing", href: "/pricing" },
       { label: "Auto caption generator", href: "/auto-caption-generator" },
       { label: "Auto captions for Reels", href: "/auto-captions-for-reels" },
+      { label: "AI Generator", href: "/ai-generator" },
       { label: "Transcribe", href: "/transcribe" },
       { label: "Looks gallery", href: "/#looks" },
       { label: "Precision controls", href: "/#control" },

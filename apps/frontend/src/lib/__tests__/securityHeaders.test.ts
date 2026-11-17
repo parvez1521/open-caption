@@ -34,10 +34,11 @@ describe("securityHeaders", () => {
     expect(directive("object-src")).toBe("'none'");
     expect(directive("frame-ancestors")).toBe("'none'");
     // frame-src names exactly the framed hosts — Cashfree checkout (billing)
-    // plus Google's pre-built sign-in button iframe (2026-11-13 branding fix).
+    // plus Google's pre-built sign-in button iframe (2026-11-13 branding fix)
+    // plus Puter's auth popup iframe (2026-11-17 AI Generator).
     // No wildcard, no 'self', nothing else may be framed.
     expect(directive("frame-src")).toBe(
-      "https://sdk.cashfree.com https://payments.cashfree.com https://accounts.google.com",
+      "https://sdk.cashfree.com https://payments.cashfree.com https://accounts.google.com https://puter.com",
     );
     expect(directive("base-uri")).toBe("'self'");
     expect(directive("form-action")).toBe(
@@ -193,6 +194,32 @@ describe("securityHeaders", () => {
     expect(pp).toContain("microphone=(self)");
     expect(pp).toContain("geolocation=()");
     expect(pp).toContain("payment=()");
+  });
+
+  it("allows the Puter.js AI Generator (2026-11-17) and nothing beyond its named origins", () => {
+    // Evidence: the shipped https://js.puter.com/v2/ bundle (fetched
+    // 2026-11-17) — the loader (script-src), defaultAPIOrigin api.puter.com
+    // for every AI call (connect-src), defaultGUIOrigin puter.com for the
+    // auth popup iframe (frame-src). Generated images arrive as blob:/data:
+    // URLs (SDK createObjectURL), so img-src gains no host; generated video
+    // src is a provider-hosted https: URL whose storage host is named
+    // nowhere in the bundle or docs, so media-src deliberately gains none
+    // either — the component falls back to open-in-new-tab instead.
+    expect(directive("script-src")).toContain("https://js.puter.com");
+    expect(directive("connect-src")).toContain("https://api.puter.com");
+    expect(directive("frame-src")).toContain("https://puter.com");
+    expect(directive("frame-src")).not.toContain("desktop.puter.com");
+    expect(directive("media-src")).not.toContain("puter");
+    expect(directive("img-src")).not.toContain("puter");
+    // Regression: the loader URL in the component must be the host this
+    // policy allows — a mismatch is exactly the 2026-11-15 GA4 failure
+    // (tag in the HTML, blocked by CSP, feature silently dead).
+    const generator = readFileSync(
+      fileURLToPath(new URL("../../features/ai-generator/AiGenerator.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(generator).toContain('src="https://js.puter.com/v2/"');
+    expect(directive("frame-ancestors")).toBe("'none'");
   });
 
   it("allows the PWA: same-origin manifest and service worker (2026-11-13)", () => {
