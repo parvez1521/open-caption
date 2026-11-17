@@ -169,6 +169,25 @@ describe("ExportModal — square preview cards", () => {
     expect(await screen.findByRole("button", { name: /Export SRT/ })).toBeTruthy();
   });
 
+  it("opens with no format pre-selected and the Render button already visible", async () => {
+    renderModal();
+    const group = await screen.findByRole("group", { name: "Export format" });
+    const cards = within(group).getAllByRole("button");
+    for (const card of cards) {
+      expect(card.getAttribute("aria-pressed")).toBe("false");
+      expect(card.className).not.toContain("border-st-em");
+    }
+    // the MP4 card keeps its badge but no longer looks pre-selected
+    const mp4 = within(group).getByRole("button", { name: /MP4/ });
+    expect(mp4.className).not.toContain("bg-st-lav/40");
+    // the Render button is on screen from the start, off until a format is picked
+    const renderBtn = screen.getByRole("button", { name: "Render" });
+    expect(renderBtn.getAttribute("disabled")).not.toBeNull();
+    fireEvent.click(mp4);
+    const renderMp4 = await screen.findByRole("button", { name: "Render MP4" });
+    expect(renderMp4.getAttribute("disabled")).toBeNull();
+  });
+
   it("a queued overlay shows a small Queued badge, not a sentence", async () => {
     renderModal();
     const group = await screen.findByRole("group", { name: "Export format" });

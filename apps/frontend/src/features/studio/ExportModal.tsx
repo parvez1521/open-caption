@@ -40,7 +40,7 @@ const FPS_OPTIONS: Array<{ id: 30 | 60; label: string; hint: string }> = [
 
 /** Same resolution either way: this only trades sharpness for file size. */
 const QUALITY_OPTIONS = [
-  { id: "high", label: "Best", hint: "Sharpest picture, biggest file. Best for posting to Reels, Shorts or TikTok." },
+  { id: "high", label: "Best", hint: "Sharpest picture, biggest file." },
   { id: "balanced", label: "Balanced", hint: "Looks almost the same, file about a third smaller." },
   { id: "small", label: "Smaller file", hint: "Smallest file, slightly softer. Good for WhatsApp or slow internet." },
 ] as const;
@@ -81,7 +81,9 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const allOptions: ExportOption[] = [...EXPORT_OPTIONS, ...translatedTextOptions(translationTracks)];
   /** busy identity is the option KEY (kind, or kind:language for translated rows), not just the kind */
   const [busyKind, setBusyKind] = useState<string | null>(null);
-  /** picked option KEY: choosing an option only selects it — rendering starts from the Render button below */
+  /** picked option KEY: choosing an option only selects it — rendering starts from the Render button below.
+   *  Nothing is pre-selected on open (owner 2026-11-17): the "Most popular" badge stays, but the card
+   *  must not look selected until it is tapped. */
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const selected = allOptions.find((o) => optionKey(o) === selectedKey) ?? null;
   /** the selected option's Render button label: video renders "Render", text files "Export" */
@@ -349,33 +351,33 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
     <>
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div ref={dialogRef} role="dialog" aria-label="Export" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
-        <div className="flex items-center justify-between border-b border-st-line px-5 py-4">
+        <div className="flex items-center justify-between border-b border-st-line px-4 py-3">
           <h2 className="text-lg font-semibold">Export</h2>
           <button onClick={onClose} aria-label="Close" className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
           {saving ? <p className="mb-3 rounded-lg bg-st-raised/70 px-3 py-2 text-xs text-st-muted">Saving your latest edits first…</p> : null}
-          <div className="mb-3 text-sm text-st-text/80">
+          <div className="mb-2 text-sm text-st-text/80">
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               <span>Video quality</span>
               <div role="radiogroup" aria-label="Video quality" className="grid grid-cols-3 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
                 {QUALITY_OPTIONS.map((q) => (
-                  <button key={q.id} role="radio" aria-checked={quality === q.id} onClick={() => setQuality(q.id)} className={`rounded-md px-2.5 py-2 text-xs sm:py-1 ${quality === q.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{q.label}</button>
+                  <button key={q.id} role="radio" aria-checked={quality === q.id} onClick={() => setQuality(q.id)} className={`rounded-md px-2.5 py-1.5 text-xs sm:py-1 ${quality === q.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{q.label}</button>
                 ))}
               </div>
             </div>
             <p className="mt-1 text-xs text-st-faint sm:text-right">{QUALITY_OPTIONS.find((q) => q.id === quality)?.hint}</p>
           </div>
 
-          <div className="mb-3 text-sm text-st-text/80">
+          <div className="mb-2 text-sm text-st-text/80">
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               <span>Resolution</span>
               <div role="radiogroup" aria-label="Export resolution" className="grid grid-cols-4 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
                 {RESOLUTION_OPTIONS.map((r) => {
                   const blocked = r.id === "4k" && blocked4kReason !== null;
                   return (
-                    <button key={r.id} role="radio" aria-checked={effectiveResolution === r.id} aria-disabled={blocked || undefined} disabled={blocked} title={blocked ? blocked4kReason ?? undefined : undefined} onClick={() => onExportSettings({ ...exportSettings, resolution: r.id })} className={`whitespace-nowrap rounded-md px-2.5 py-2 text-xs sm:py-1 ${effectiveResolution === r.id ? "bg-st-lav text-obsidian" : "text-st-text/80"} ${blocked ? "opacity-40" : ""}`}>{EXPORT_RESOLUTION_LABEL[r.id]}</button>
+                    <button key={r.id} role="radio" aria-checked={effectiveResolution === r.id} aria-disabled={blocked || undefined} disabled={blocked} title={blocked ? blocked4kReason ?? undefined : undefined} onClick={() => onExportSettings({ ...exportSettings, resolution: r.id })} className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs sm:py-1 ${effectiveResolution === r.id ? "bg-st-lav text-obsidian" : "text-st-text/80"} ${blocked ? "opacity-40" : ""}`}>{EXPORT_RESOLUTION_LABEL[r.id]}</button>
                   );
                 })}
               </div>
@@ -384,18 +386,18 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             {blocked4kReason ? <p className="mt-1 text-xs text-st-faint sm:text-right">{blocked4kReason}</p> : exportNote ? <p className="mt-1 text-xs text-st-faint sm:text-right">{exportNote}</p> : null}
           </div>
 
-          <div className="mb-3 text-sm text-st-text/80">
+          <div className="mb-2 text-sm text-st-text/80">
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               <span>Frame rate</span>
               <div role="radiogroup" aria-label="Export frame rate" className="grid grid-cols-2 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
                 {FPS_OPTIONS.map((f) => (
-                  <button key={f.id} role="radio" aria-checked={exportSettings.fps === f.id} onClick={() => onExportSettings({ ...exportSettings, fps: f.id })} className={`whitespace-nowrap rounded-md px-2.5 py-2 text-xs sm:py-1 ${exportSettings.fps === f.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{f.label}</button>
+                  <button key={f.id} role="radio" aria-checked={exportSettings.fps === f.id} onClick={() => onExportSettings({ ...exportSettings, fps: f.id })} className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs sm:py-1 ${exportSettings.fps === f.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{f.label}</button>
                 ))}
               </div>
             </div>
             <p className="mt-1 text-xs text-st-faint sm:text-right">{FPS_OPTIONS.find((f) => f.id === exportSettings.fps)?.hint}</p>
           </div>
-          <div className="mb-4 rounded-xl bg-st-raised/50 p-3 text-sm text-st-text/80">
+          <div className="mb-3 rounded-xl bg-st-raised/50 p-2.5 text-sm text-st-text/80">
             <label className="flex min-h-8 cursor-pointer items-center gap-2">
               <input type="checkbox" checked={trim} onChange={(e) => setTrim(e.target.checked)} className="accent-[#34D399]" />
               Only export part of the video
@@ -412,7 +414,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             ) : null}
           </div>
 
-          <p className="mb-3 text-xs leading-relaxed text-st-faint">
+          <p className="mb-2 text-xs leading-relaxed text-st-faint">
             Quality, resolution, frame rate and trim apply to the video formats (MP4 and the two
             overlays). The text files below always contain all your captions, in full.
           </p>
@@ -430,7 +432,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
                   aria-pressed={isSelected}
                   title={unavailable ? (mp4Block?.reason ?? web?.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari.") : undefined}
                   onClick={() => setSelectedKey(key)}
-                  className={`relative flex aspect-square flex-col overflow-hidden rounded-xl border text-left disabled:opacity-50 ${isSelected ? "border-st-em bg-st-em/10" : o.popular ? "border-st-ink bg-st-lav/40 hover:bg-st-lav/60" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
+                  className={`relative flex aspect-square flex-col overflow-hidden rounded-xl border text-left disabled:opacity-50 ${isSelected ? "border-st-em bg-st-em/10" : "border-st-line bg-st-raised/50 hover:border-st-ink/30 hover:bg-st-lav/30"}`}
                 >
                   {isSelected ? <span aria-hidden className="absolute left-1.5 top-1.5 z-10 grid h-5 w-5 place-items-center rounded-full bg-st-em text-[11px] font-bold text-[#141412]">✓</span> : null}
                   {o.popular ? <span className="absolute right-1.5 top-1.5 z-10 rounded-full bg-st-or px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#141412]">Most popular</span> : null}
@@ -445,11 +447,12 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
               );
             })}
           </div>
-          {selected ? (
-            <Button tone="primary" className="mt-3 w-full !py-3 text-sm font-semibold" disabled={renderDisabled} onClick={() => void start(selected)}>
-              {busyKind === optionKey(selected) ? "Working…" : renderLabel(selected)}
-            </Button>
-          ) : null}
+          {/** the Render button is always visible (owner 2026-11-17): it stays off until a format is
+           *  picked, then runs that format — it never appears only after a tap. */}
+          <Button tone="primary" className="mt-3 w-full !py-3 text-sm font-semibold" disabled={renderDisabled} onClick={() => selected && void start(selected)}>
+            {selected ? (busyKind === optionKey(selected) ? "Working…" : renderLabel(selected)) : "Render"}
+          </Button>
+          {!selected ? <p className="mt-1.5 text-center text-xs text-st-faint">Pick a format above to render it.</p> : null}
           {quota ? (
             <p className="mt-2 text-xs text-st-muted">
               {quota.remaining} of {quota.limit} videos left this month.
