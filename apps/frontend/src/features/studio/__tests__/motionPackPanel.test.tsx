@@ -72,7 +72,7 @@ describe("MotionPackPanel", () => {
     const labels = addButtons(view.container).map((b) => b.getAttribute("aria-label")).sort();
     const expected = MOTION_PACK_GROUPS.flatMap((g) => g.ids.map((id) => `Add ${getMotionTemplate(id)!.title}`)).sort();
     expect(labels).toEqual(expected);
-    expect(labels).toHaveLength(14);
+    expect(labels).toHaveLength(16);
     for (const group of MOTION_PACK_GROUPS) {
       expect(view.container.textContent).toContain(group.title);
     }
