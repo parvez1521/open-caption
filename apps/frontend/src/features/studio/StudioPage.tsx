@@ -31,6 +31,11 @@ import { AiGeneratePanel } from "./panels/AiGeneratePanel";
 import { SoundEffectsPanel } from "./panels/SoundEffectsPanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
 import { MotionStudioPanel } from "./panels/MotionStudioPanel";
+import { TitlesPanel } from "./panels/TitlesPanel";
+import { StickersPanel } from "./panels/StickersPanel";
+import { ReelTemplatesPanel } from "./panels/ReelTemplatesPanel";
+import { MotionPackPanel } from "./panels/MotionPackPanel";
+import { TransitionsPanel } from "./panels/TransitionsPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
 import { AudioPanel } from "./panels/AudioPanel";
 import { TranslatePanel } from "./panels/TranslatePanel";
@@ -186,7 +191,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // right column (desktop): Motion Studio lives there permanently; the segment inspector
   // shares the column as a second tab that takes focus when a segment is selected. The
   // column collapses to a slim strip so the centre can reclaim the width on demand.
-  const [rightTab, setRightTab] = useState<"motion" | "inspector">("motion");
+  const [rightTab, setRightTab] = useState<"motion" | "inspector" | "titles" | "stickers" | "sfx" | "reels" | "graphics" | "transitions">("motion");
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [mobileTimeline, setMobileTimeline] = useState(false);
   const [timeMs, setTimeMs] = useState(0);
@@ -1753,13 +1758,13 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           ) : (
             <aside aria-label="Right panel" className="flex min-h-0 w-[264px] shrink-0 flex-col border-l border-st-line bg-st-panel 2xl:w-[300px]">
               <div className="flex shrink-0 items-center gap-1 border-b border-st-line px-2 py-1.5">
-                <div role="tablist" aria-label="Right panel tabs" className="flex items-center gap-1">
+                <div role="tablist" aria-label="Right panel tabs" className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto [scrollbar-width:none]">
                   <button
                     type="button"
                     role="tab"
                     aria-selected={rightTab === "motion"}
                     onClick={() => setRightTab("motion")}
-                    className={`relative rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
                   >
                     Motion
                   </button>
@@ -1769,11 +1774,65 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                       role="tab"
                       aria-selected={rightTab === "inspector"}
                       onClick={() => setRightTab("inspector")}
-                      className={`relative rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                      className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
                     >
                       Inspector
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "titles"}
+                    onClick={() => setRightTab("titles")}
+                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "titles" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  >
+                    Titles
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "stickers"}
+                    onClick={() => setRightTab("stickers")}
+                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "stickers" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  >
+                    Stickers
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "sfx"}
+                    onClick={() => setRightTab("sfx")}
+                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "sfx" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  >
+                    Sounds
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "reels"}
+                    onClick={() => setRightTab("reels")}
+                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "reels" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  >
+                    Reels
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "graphics"}
+                    onClick={() => setRightTab("graphics")}
+                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "graphics" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  >
+                    Graphics
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightTab === "transitions"}
+                    onClick={() => setRightTab("transitions")}
+                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "transitions" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                  >
+                    Transitions
+                  </button>
                 </div>
                 <button
                   type="button"
@@ -1785,7 +1844,23 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                 </button>
               </div>
               <div className="flex min-h-0 flex-1 flex-col">
-                {rightTab === "inspector" && segmentInspector ? segmentInspector : <MotionStudioPanel {...overlayPanelProps} />}
+                {rightTab === "inspector" && segmentInspector ? segmentInspector
+                  : rightTab === "titles" ? <TitlesPanel {...overlayPanelProps} />
+                  : rightTab === "stickers" ? <StickersPanel {...overlayPanelProps} />
+                  : rightTab === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
+                  : rightTab === "reels" ? <ReelTemplatesPanel {...overlayPanelProps} currentLookId={s.lookId} onChooseLook={s.chooseLook} />
+                  : rightTab === "graphics" ? <MotionPackPanel {...overlayPanelProps} />
+                  : rightTab === "transitions" ? (
+                    <TransitionsPanel
+                      currentTransition={selSegmentView?.transitionIn ?? null}
+                      onApplyTransition={(transition) => { if (!editorComp || !selSegmentView) return; const r = setSegmentTransition(editorComp, selSegmentView.id, transition); commitComposition(r.comp, r.docEffect); }}
+                      onClearTransition={() => { if (!editorComp || !selSegmentView) return; const r = setSegmentTransition(editorComp, selSegmentView.id, null); commitComposition(r.comp, r.docEffect); }}
+                      onSplitAtPlayhead={splitVideoAtPlayhead}
+                      transitionsDisabled={!selSegmentView || selClipIndex < 1}
+                      splitDisabled={!editorComp || videoLocked}
+                    />
+                  )
+                  : <MotionStudioPanel {...overlayPanelProps} />}
               </div>
             </aside>
           )}
