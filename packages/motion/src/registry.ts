@@ -112,6 +112,8 @@ export const MOTION_TEMPLATES: MotionTemplate[] = [
   entry({ variant: "logo-mark", title: "Logo Mark", category: "logo", description: "Monogram reveal: a ring draws around the brand's first letter.", defaultText: "YOUR BRAND", defaultColor: "#34D399", maxLines: 1, tags: ["logo", "monogram", "reveal"] }),
   entry({ variant: "type-title", title: "Type Title", category: "text", description: "Big title typed out, then an accent underline sweeps in.", defaultText: "WATCH THIS FIRST", defaultColor: "#FFFFEB", maxLines: 1, tags: ["title", "typing", "typewriter"] }),
   entry({ variant: "countdown-pop", title: "Countdown Pop", category: "effects", description: "3 · 2 · 1 springing in inside a shrinking ring, then your final word.", defaultText: "GO!", defaultColor: "#FF4D2E", maxLines: 1, tags: ["countdown", "numbers", "go"], featured: true }),
+  entry({ variant: "callout", title: "Callout Bubble", category: "effects", description: "Callout bubble with a pointer tail that pops in, holds, then leaves.", defaultText: "Watch this part", defaultColor: "#FFA946", maxLines: 1, tags: ["callout", "bubble", "pointer"], duration: 4000 }),
+  entry({ variant: "progress-fill", title: "Progress Fill", category: "effects", description: "Horizontal bar that fills from 0 to 100% across the clip, with a label above it.", defaultText: "Loading the good part", defaultColor: "#34D399", maxLines: 1, tags: ["progress", "bar", "fill"], duration: 4000 }),
 ];
 
 export const MOTION_TEMPLATE_IDS: OverlaySocialVariant[] = MOTION_TEMPLATES.map((t) => t.id);

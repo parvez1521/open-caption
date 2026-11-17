@@ -68,6 +68,8 @@ export const OVERLAY_SOCIAL_VARIANTS = [
   "cursor-click", "cursor-follow", "cursor-subscribe", "cursor-like",
   "share-pop", "save-pop", "follow-plus", "gift-pop", "bell-reminder", "watch-next",
   "chat-ticks", "dm-typing", "lower-third-bar", "logo-mark", "type-title", "countdown-pop",
+  // Motion Graphics Pack (2026-11-18): everyday callout + progress graphics.
+  "callout", "progress-fill",
 ] as const;
 export const OverlaySocialVariantSchema = z.enum(OVERLAY_SOCIAL_VARIANTS);
 export type OverlaySocialVariant = z.infer<typeof OverlaySocialVariantSchema>;

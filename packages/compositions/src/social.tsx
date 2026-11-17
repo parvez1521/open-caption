@@ -57,6 +57,8 @@ export const SOCIAL_META: { id: OverlaySocialVariant; label: string; hint: strin
   { id: "logo-mark", label: "Logo Mark", hint: "Monogram reveal: a ring draws itself around the brand's first letter, then the brand line fades in under it. Line: brand text.", defaultText: "YOUR BRAND", defaultColor: "#34D399" },
   { id: "type-title", label: "Type Title", hint: "Big title typed out character by character; an accent underline sweeps in when the typing lands. Line: title text.", defaultText: "WATCH THIS FIRST", defaultColor: "#FFFFEB" },
   { id: "countdown-pop", label: "Countdown Pop", hint: "3 · 2 · 1 countdown — each number springs in inside a shrinking ring — then your final word lands. Line: final word.", defaultText: "GO!", defaultColor: "#FF4D2E" },
+  { id: "callout", label: "Callout Bubble", hint: "Callout bubble with a pointer tail that pops in, holds, then leaves. Line: callout text.", defaultText: "Watch this part", defaultColor: "#FFA946" },
+  { id: "progress-fill", label: "Progress Fill", hint: "Horizontal bar filling 0 to 100% across the item's own window, with a label above it. Line: label.", defaultText: "Loading the good part", defaultColor: "#34D399" },
 ];
 
 export interface OverlayPhases {
@@ -373,6 +375,24 @@ export function countdownAt(localMs: number, durationMs: number) {
   const step = Math.min(3, Math.max(0, Math.floor(localMs / stepMs)));
   const inStep = clamp01((localMs - step * stepMs) / Math.min(340, stepMs));
   return { step, label: step < 3 ? String(3 - step) : null, p: springOut(inStep), ringP: clamp01((localMs - step * stepMs) / stepMs) };
+}
+
+/**
+ * Callout bubble: pops in on a spring over the enter window, holds at full size,
+ * then leaves with the shared exit fade. Pure in (localMs, durationMs).
+ */
+export function calloutAt(localMs: number, durationMs: number) {
+  const ph = overlayPhase(localMs, durationMs);
+  return { pop: springOut(ph.enterT), entered: ph.enter, exiting: ph.exit, visible: ph.enter > 0 && ph.exit < 1 };
+}
+
+/**
+ * Progress fill: looping-free 0→1 across the item's own window (progress =
+ * localMs / durationMs), with the whole-percent label. Pure in (localMs, durationMs).
+ */
+export function progressFillAt(localMs: number, durationMs: number) {
+  const progress = clamp01(localMs / Math.max(1, durationMs));
+  return { progress, pct: Math.round(progress * 100) };
 }
 
 /** Audio bars: 16 seeded bars, height 0..1 as a pure function of localMs. */
@@ -1290,6 +1310,32 @@ export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localM
             <circle cx={150} cy={150} r={128} fill="none" stroke={accent} strokeWidth={10} strokeLinecap="round" strokeDasharray={`${(C * (1 - cd.ringP)).toFixed(1)} ${C.toFixed(1)}`} transform="rotate(-90 150 150)" opacity={isWord ? 0 : 1} />
           </svg>
           <span style={{ fontWeight: 900, fontSize: (isWord ? 96 : 158) * sc, lineHeight: 1, color: isWord ? accent : CARD_FG, transform: `scale(${cd.p.toFixed(3)})`, opacity: clamp01(cd.p * 1.6) }}>{isWord ? line(ls, 0, "GO!") : cd.label}</span>
+        </div>
+      );
+    }
+    case "callout": {
+      const ca = calloutAt(localMs, dur);
+      const scale = 0.6 + 0.4 * ca.pop;
+      return (
+        <div style={{ ...root, position: "relative", width: 520 * sc, transform: `translateY(${enterY.toFixed(1)}px) scale(${scale.toFixed(3)})` }}>
+          <span style={{ display: "block", backgroundColor: CARD_BG, borderRadius: 20 * sc, padding: `${16 * sc}px ${24 * sc}px`, fontWeight: 800, fontSize: 31 * sc, lineHeight: 1.3, boxShadow: "0 10px 34px rgba(0,0,0,0.42)", borderLeft: `${8 * sc}px solid ${accent}` }}>
+            {line(ls, 0, "Watch this part")}
+          </span>
+          <span style={{ position: "absolute", left: 56 * sc, bottom: -13 * sc, width: 26 * sc, height: 26 * sc, backgroundColor: CARD_BG, transform: "rotate(45deg)" }} />
+        </div>
+      );
+    }
+    case "progress-fill": {
+      const pf = progressFillAt(localMs, dur);
+      return (
+        <div style={{ ...root, display: "flex", flexDirection: "column", gap: 12 * sc, width: 560 * sc }}>
+          <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 * sc }}>
+            <span style={{ fontWeight: 800, fontSize: 28 * sc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{line(ls, 0, "Loading the good part")}</span>
+            <span style={{ fontWeight: 900, fontSize: 28 * sc, color: accent, fontVariantNumeric: "tabular-nums" }}>{pf.pct}%</span>
+          </span>
+          <span style={{ display: "block", height: 14 * sc, borderRadius: 7 * sc, backgroundColor: "#2A2A27", overflow: "hidden" }}>
+            <span style={{ display: "block", height: "100%", width: `${(pf.progress * 100).toFixed(1)}%`, backgroundColor: accent, borderRadius: 7 * sc }} />
+          </span>
         </div>
       );
     }
