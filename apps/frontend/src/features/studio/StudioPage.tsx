@@ -27,6 +27,7 @@ import { CaptionsPanel } from "./panels/CaptionsPanel";
 import { LooksPanel } from "./panels/LooksPanel";
 import { SettingsPanel, StylePanel } from "./panels/StylePanel";
 import { MediaPanel } from "./panels/MediaPanel";
+import { AiGeneratePanel } from "./panels/AiGeneratePanel";
 import { SoundEffectsPanel } from "./panels/SoundEffectsPanel";
 import { TextPanel } from "./panels/TextPanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
@@ -63,7 +64,7 @@ import { buildEditorComposition, projectComposition, type EditorComposition } fr
 import {
   addMarker, addSegmentEffect, addSegmentKeyframe, applyContentEffect, applyDocEffect,
   canRippleDeleteVideoSegment, deleteOverlayClip,
-  duplicateOverlayClip, duplicateVideoSegment, insertStillSegmentAt, moveOverlayClip, moveSegmentEffect,
+  duplicateOverlayClip, duplicateVideoSegment, insertStillSegmentAt, insertVideoSegmentAt, moveOverlayClip, moveSegmentEffect,
   overlayTrackOf,
   removeMarker, removeSegmentEffect, removeSegmentKeyframe, rippleDeleteOverlayClip,
   rippleDeleteVideoSegment, setSegmentPlaybackRate,
@@ -104,7 +105,7 @@ import { shouldShowTutorial } from "./tutorial";
  * the panel registry (`renderPanel` in StudioPage). Future sections (Audio, Effects, Transitions)
  * and the right inspector slot in beside these, not into a new tab row.
  */
-type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "text" | "elements" | "adjust" | "audio" | "sfx" | "translate" | "trim" | "polish" | "assistant";
+type PanelId = "captions" | "templates" | "style" | "timing" | "media" | "aiedit" | "text" | "elements" | "adjust" | "audio" | "sfx" | "translate" | "trim" | "polish" | "assistant";
 
 const railIcon = (children: React.ReactNode) => (
   <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>{children}</svg>
@@ -113,6 +114,7 @@ const railIcon = (children: React.ReactNode) => (
 /** The left-rail sections. Exported for the rail pin in __tests__/railSections.test.ts. */
 export const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?: "templates" | "style" }[] = [
   { id: "media", label: "Media", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M3 16l5-4 4 3 3-2 6 5" /></>) },
+  { id: "aiedit", label: "AI Edit", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" /></>) },
   { id: "captions", label: "Captions", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 10h6M7 14h10" /></>) },
   { id: "translate", label: "Translate", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5c2.6 2.3 3.9 5.2 3.9 8.5s-1.3 6.2-3.9 8.5c-2.6-2.3-3.9-5.2-3.9-8.5s1.3-6.2 3.9-8.5z" /></>) },
   { id: "templates", label: "Templates", tour: "templates", icon: railIcon(<><rect x="3" y="3" width="8" height="8" rx="1.5" /><rect x="13" y="3" width="8" height="8" rx="1.5" /><rect x="3" y="13" width="8" height="8" rx="1.5" /><rect x="13" y="13" width="8" height="8" rx="1.5" /></>) },
@@ -1423,6 +1425,16 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     setMobileTimeline(false);
   };
   const placeImage = (asset: { id: string; name: string }) => placeImageAt(asset, getPlayerMs());
+  // AI Edit: insert a Puter-generated clip as a B-roll segment at the playhead — the
+  // op splits the clip under the playhead and the rangeInsert effect shifts later
+  // captions / markers / overlays / audio along, so nothing drifts out of sync.
+  const insertAiVideoAt = (asset: { id: string; name: string; durationMs: number }, atMs: number): boolean => {
+    if (!editorComp || videoLocked) return false;
+    const r = insertVideoSegmentAt(editorComp, atMs, asset.durationMs, asset.id);
+    if (r.comp === editorComp) return false;
+    commitComposition(r.comp, r.docEffect);
+    return true;
+  };
   // media-bin drop on the timeline: image -> overlay at the drop point; video -> take over as
   // the project source through the same device attach path as MediaPanel's "Use as source";
   // audio -> placed at the drop point on the first audio track (a "Music" track is created
@@ -1529,6 +1541,17 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           }}
         />
       ) : null)
+      : t === "aiedit" ? (
+        <AiGeneratePanel
+          projectId={projectId}
+          getTimeMs={getPlayerMs}
+          hasVideo={Boolean(video) && !videoGone}
+          videoLocked={videoLocked}
+          onImportMedia={mediaBin.importFiles}
+          onPlaceImage={placeImage}
+          onInsertVideo={insertAiVideoAt}
+        />
+      )
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
     ) : null;
 

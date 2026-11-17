@@ -12,7 +12,7 @@ import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { useBrandNav } from "@/components/brand/BrandNav";
 
 /**
- * Video Editor entry: the editor itself is per-project (at /projects/[id]).
+ * AI Edit entry: the editor itself is per-project (at /projects/[id]).
  * This page is the honest front door — continue the most recent project,
  * or pick any project to edit.
  */
@@ -42,7 +42,7 @@ export default function VideoEditorPage() {
       <div className="px-4 sm:px-10 py-8 sm:py-10 max-w-5xl mx-auto">
         <div className="pb-8 border-b border-sand-200">
           <h1 className="font-serif text-3xl sm:text-4xl font-semibold tracking-[-0.015em] text-ink">
-            Video <em className="italic text-sand-600">Editor</em>
+            AI <em className="italic text-sand-600">Edit</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800">The editor opens per project. Captions, templates, overlays and adjust, all in one studio.</p>
         </div>

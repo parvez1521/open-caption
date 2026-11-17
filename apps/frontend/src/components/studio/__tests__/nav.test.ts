@@ -24,7 +24,7 @@ describe("shell nav config", () => {
     expect(NAV_ITEMS.map((i) => [i.group, i.label, i.href])).toEqual([
       ["primary", "Dashboard", "/dashboard"],
       ["primary", "Caption Studio", "/captions"],
-      ["primary", "Video Editor", "/editor"],
+      ["primary", "AI Edit", "/editor"],
       ["primary", "Motion Studio", "/motion"],
       ["primary", "Growth Studio", "/growth"],
       ["primary", "Content Planner", "/planner"],
@@ -93,7 +93,7 @@ describe("isNavActive", () => {
     expect(isNavActive("/dashboard", byId("library"))).toBe(false);
   });
 
-  it("keeps Video Editor active on per-project editor routes", () => {
+  it("keeps AI Edit active on per-project editor routes", () => {
     expect(isNavActive("/projects/abc-123", byId("editor"))).toBe(true);
     expect(isNavActive("/projects/abc-123", byId("captions"))).toBe(false);
   });

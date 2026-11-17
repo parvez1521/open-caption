@@ -791,6 +791,65 @@ export function insertStillSegmentAt(
   return done(relayout(comp, clips), { type: "rangeInsert", atMs: at, durationMs: dur });
 }
 
+/**
+ * Insert a GENERATED video segment at timeline position `atMs`, playing media-bin
+ * asset `assetId` for `durationMs` (the asset's probed length). Same mechanics as
+ * {@link insertStillSegmentAt} — split the clip under the playhead first, insert
+ * the new clip at the boundary, re-lay the partition — except the new clip is a
+ * real video (`still: false`), so it plays its source span at rate 1. This is
+ * the AI Edit "add to timeline" path for a Puter-generated clip: the clip joins
+ * the partition like any other segment, so it shows in the preview and burns
+ * into export through the existing composition paths.
+ * docEffect: `rangeInsert` at `atMs` with the clip's duration — captions,
+ * markers, overlays and audio after the insertion point shift later by it.
+ * Refusals (no-op): `atMs` outside [0, composition duration], `durationMs` <
+ * {@link MIN_VIDEO_MS}, no video clips at all, or a split point too close to
+ * a clip edge.
+ */
+export function insertVideoSegmentAt(
+  comp: EditorComposition,
+  atMs: number,
+  durationMs: number,
+  assetId: string,
+): VideoOpResult {
+  const at = roundMs(atMs);
+  const dur = roundMs(durationMs);
+  if (dur < MIN_VIDEO_MS) return noOp(comp);
+  if (at < 0 || at > comp.durationMs) return noOp(comp);
+  if (comp.videoClips.length === 0) return noOp(comp);
+
+  let base = comp;
+  const insideIdx = comp.videoClips.findIndex((c) => at > c.startMs && at < c.startMs + c.durationMs);
+  if (insideIdx >= 0) {
+    const split = splitVideoClipAt(comp, at);
+    if (split.comp === comp) return noOp(comp);
+    base = split.comp;
+  }
+  // first clip whose timeline END is past `at`: the new clip goes before it
+  // (at a boundary that is the following clip; at the end, none → append)
+  const insertIdx = base.videoClips.findIndex((c) => c.startMs + c.durationMs > at);
+  const videoClip: EditorVideoClip = {
+    id: newId(),
+    kind: "video",
+    startMs: at,
+    durationMs: dur,
+    sourceInMs: 0,
+    sourceOutMs: dur,
+    playbackRate: 1,
+    transform: { ...IDENTITY_SEGMENT_TRANSFORM },
+    transitionIn: null,
+    assetId,
+    still: false,
+    keyframes: [],
+    effects: [],
+  };
+  const clips =
+    insertIdx < 0
+      ? [...base.videoClips, videoClip]
+      : [...base.videoClips.slice(0, insertIdx), videoClip, ...base.videoClips.slice(insertIdx)];
+  return done(relayout(comp, clips), { type: "rangeInsert", atMs: at, durationMs: dur });
+}
+
 /* ------------------------------------------------------------------ */
 /* audio retiming (Phase 9, W5 — closes the A3 deferral)               */
 /* ------------------------------------------------------------------ */

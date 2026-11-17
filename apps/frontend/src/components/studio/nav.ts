@@ -45,7 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", group: "primary", activeMatch: ["/dashboard"] },
   { id: "captions", label: "Caption Studio", href: "/captions", group: "primary", activeMatch: ["/captions"] },
   // The editor itself is per-project at /projects/[id], so the editor entry stays active there too.
-  { id: "editor", label: "Video Editor", href: "/editor", group: "primary", activeMatch: ["/editor", "/projects"] },
+  { id: "editor", label: "AI Edit", href: "/editor", group: "primary", activeMatch: ["/editor", "/projects"] },
   { id: "motion", label: "Motion Studio", href: "/motion", group: "primary", activeMatch: ["/motion"] },
   { id: "growth", label: "Growth Studio", href: "/growth", group: "primary", activeMatch: ["/growth"] },
   { id: "planner", label: "Content Planner", href: "/planner", group: "primary", activeMatch: ["/planner"] },

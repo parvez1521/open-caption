@@ -21,6 +21,7 @@ import {
   duplicateOverlayClip,
   duplicateVideoSegment,
   insertStillSegmentAt,
+  insertVideoSegmentAt,
   moveOverlayClip,
   overlayTrackOf,
   removeMarker,
@@ -1161,6 +1162,58 @@ describe("Run 2: insertStillSegmentAt", () => {
     expect(split.videoClips[1]).toMatchObject({ still: true, sourceInMs: 0, sourceOutMs: 1000, durationMs: 1000 });
     expect(split.videoClips[2]).toMatchObject({ still: true, sourceInMs: 1000, sourceOutMs: 3000, durationMs: 2000 });
     expectValidPartition(split, segmentedSettings);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* AI Edit: insertVideoSegmentAt (generated clip as a B-roll segment)    */
+/* ------------------------------------------------------------------ */
+
+describe("AI Edit: insertVideoSegmentAt", () => {
+  it("inside a clip: splits first, inserts the generated clip with a rangeInsert effect", () => {
+    const comp = segmentedComp();
+    const before = snapshot(comp);
+    const { comp: out, docEffect } = insertVideoSegmentAt(comp, 20_000, 5000, "ai-clip");
+    expect(docEffect).toEqual({ type: "rangeInsert", atMs: 20_000, durationMs: 5000 });
+    expect(out.videoClips.map((c) => [c.startMs, c.durationMs])).toEqual([
+      [0, 15_000],
+      [15_000, 5000],
+      [20_000, 5000],
+      [25_000, 10_000],
+      [35_000, 15_000],
+    ]);
+    const inserted = out.videoClips[2]!;
+    expect(inserted).toMatchObject({ still: false, assetId: "ai-clip", sourceInMs: 0, sourceOutMs: 5000, playbackRate: 1, transitionIn: null });
+    expect(out.durationMs).toBe(50_000);
+    expectValidPartition(out, segmentedSettings);
+    expectUnmutated(comp, before);
+  });
+
+  it("at a boundary and at the very end, without splitting", () => {
+    const comp = segmentedComp();
+    const atBoundary = insertVideoSegmentAt(comp, 15_000, 5000, "s1").comp;
+    expect(atBoundary.videoClips.map((c) => c.still)).toEqual([false, false, false, false]);
+    expect(atBoundary.videoClips[1]).toMatchObject({ startMs: 15_000, durationMs: 5000, assetId: "s1" });
+    const atEnd = insertVideoSegmentAt(comp, 45_000, 5000, "s2").comp;
+    expect(atEnd.videoClips[atEnd.videoClips.length - 1]).toMatchObject({ still: false, startMs: 45_000, durationMs: 5000 });
+    expect(atEnd.durationMs).toBe(50_000);
+    expectValidPartition(atEnd, segmentedSettings);
+  });
+
+  it("refuses outside the timeline, a too-short clip, and a split point too close to an edge", () => {
+    const comp = segmentedComp();
+    expect(insertVideoSegmentAt(comp, 99_999, 5000, "x").comp).toBe(comp);
+    expect(insertVideoSegmentAt(comp, -100, 5000, "x").comp).toBe(comp);
+    expect(insertVideoSegmentAt(comp, 20_000, 20, "x").comp).toBe(comp);
+    expect(insertVideoSegmentAt(comp, 15_020, 5000, "x").comp).toBe(comp); // 20 ms from seg-2's start edge
+  });
+
+  it("projects to stored segments carrying the asset id (so preview and export play it)", () => {
+    const comp = insertVideoSegmentAt(segmentedComp(), 20_000, 5000, "ai-clip").comp;
+    const projected = projectComposition(comp, segmentedSettings);
+    const stored = projected.composition!.videoSegments;
+    expect(stored).toHaveLength(5);
+    expect(stored[2]).toMatchObject({ assetId: "ai-clip", sourceInMs: 0, sourceOutMs: 5000, still: false });
   });
 });
 
