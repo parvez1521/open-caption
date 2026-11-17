@@ -3,7 +3,7 @@
  * projects service so the old dashboard keeps working while the studio moves to the new pipeline.
  */
 
-import type { CaptionDoc, CaptionStyleV2, CompositionSettings, CreatableExportKind, ProjectSettings } from "@capseasy/shared";
+import type { CaptionDoc, CaptionStyleV2, CompositionSettings, CreatableExportKind, Probe, ProjectSettings } from "@capseasy/shared";
 import { apiClient, ApiError } from "./api-client";
 import type { PreparedVideo } from "@/features/upload/prepareVideo";
 import { saveLocalVideo } from "@/features/upload/localVideos";
@@ -127,6 +127,20 @@ export const studioService = {
     ]);
     onProgress(100);
     return { ...done, videoId: reg.videoId };
+  },
+
+  /**
+   * Replace footage, keep captions: update the video row behind an EXISTING video
+   * with the new file's metadata. The caller saves the new bytes in IndexedDB under
+   * the same video id first. Never registers a new video, never touches the caption
+   * document, never starts a transcribe job; the cloud copy (if any) is cleared so
+   * the Sync flow re-uploads the new footage.
+   */
+  async replaceVideoFootage(
+    videoId: string,
+    body: { filename: string; size: number; mime: string; probe?: Probe },
+  ): Promise<{ videoId: string }> {
+    return apiClient.post<{ videoId: string }>(`/videos/${videoId}/replace-footage`, { json: body });
   },
 
   async saveDocument(projectId: string, expectedRevision: number, doc: CaptionDoc): Promise<number> {

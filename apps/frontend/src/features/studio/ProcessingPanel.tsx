@@ -72,7 +72,7 @@ export const ProcessingPanel: React.FC<Props> = ({ projectId, job, canTranscribe
         {view.detail ? <p className="mt-2 break-words text-[11px] text-st-faint">{view.detail}</p> : null}
         <div className="mt-5 flex justify-center gap-2">
           <Button tone="primary" onClick={() => getSession(projectId)?.retry()}>Try again</Button>
-          <Button onClick={onReplaceVideo}>Upload a different video</Button>
+          <Button onClick={onReplaceVideo}>Replace footage</Button>
         </div>
       </Center>
     );
@@ -86,7 +86,7 @@ export const ProcessingPanel: React.FC<Props> = ({ projectId, job, canTranscribe
         <p className="mt-2 text-sm text-st-muted">Nothing is lost: pick up where it left off whenever you like.</p>
         <div className="mt-5 flex justify-center gap-2">
           <Button tone="primary" onClick={() => getSession(projectId)?.retry()}>Continue</Button>
-          <Button onClick={onReplaceVideo}>Upload a different video</Button>
+          <Button onClick={onReplaceVideo}>Replace footage</Button>
         </div>
       </Center>
     );
@@ -110,7 +110,7 @@ export const ProcessingPanel: React.FC<Props> = ({ projectId, job, canTranscribe
         <p className="mt-2 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">{friendlyError(job)}</p>
         <div className="mt-5 flex justify-center gap-2">
           <Button tone="primary" disabled={busy} onClick={() => act(() => studioService.retryJob(job.id))}>Try again</Button>
-          <Button onClick={onReplaceVideo}>Upload a different video</Button>
+          <Button onClick={onReplaceVideo}>Replace footage</Button>
         </div>
       </Center>
     );
@@ -139,7 +139,7 @@ export const ProcessingPanel: React.FC<Props> = ({ projectId, job, canTranscribe
         <p className="mt-2 text-sm text-st-muted">This project doesn&apos;t have captions yet. They&apos;re made right here in your browser, privately.</p>
         <div className="mt-5 flex justify-center gap-2">
           <Button tone="primary" disabled={busy} onClick={() => act(() => studioService.transcribe(projectId))}>Generate captions</Button>
-          <Button onClick={onReplaceVideo}>Upload a different video</Button>
+          <Button onClick={onReplaceVideo}>Replace footage</Button>
         </div>
       </Center>
     );

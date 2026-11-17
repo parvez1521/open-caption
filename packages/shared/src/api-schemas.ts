@@ -32,6 +32,19 @@ export const CreateVideoBody = z.object({
 
 export const CompleteVideoBody = z.object({ needsProxy: z.boolean().optional(), editorMode: z.boolean().optional() }).default({});
 
+/**
+ * Replace footage, keep captions: swap the file behind an EXISTING video row.
+ * Same fields as CreateVideoBody, but it updates the row in place — it never
+ * registers a new video, never deletes the caption document, and never starts
+ * a transcribe job. The client saves the new bytes under the same video id.
+ */
+export const ReplaceFootageBody = z.object({
+  filename: z.string().min(1).max(300),
+  size: z.number().int().positive(),
+  mime: z.string(),
+  probe: ProbeSchema.optional(),
+});
+
 export const SaveDocumentBody = z.object({
   expectedRevision: z.number().int().nonnegative(),
   doc: CaptionDocSchema,

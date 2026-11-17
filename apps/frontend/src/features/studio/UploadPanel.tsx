@@ -9,6 +9,7 @@ import { studioService } from "@/services/studio";
 import { track } from "@/lib/track";
 import { ApiError } from "@/services/api-client";
 import { PrepareError, prepareVideo, type PrepareStage, type PreparedVideo } from "@/features/upload/prepareVideo";
+import { formatClockMs, needsFootageSwapDriftWarning } from "./footageSwap";
 import { START_DOORS, type ProjectStartMode } from "./projectMode";
 import { transcribePreflightWarning } from "./preflight";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
@@ -26,12 +27,22 @@ interface Props {
    *  the upload opens the Studio directly, no transcription, no language question. */
   mode?: ProjectStartMode;
   onModeChange?: (m: ProjectStartMode) => void;
+  /** Replace mode: the panel offers "keep my captions" vs "start fresh". Absent for a first upload. */
+  videoId?: string | null;
+  replaceMode?: "keep" | "fresh";
+  onReplaceModeChange?: (m: "keep" | "fresh") => void;
+  /** the current video's length, for the drift warning when the new cut is a different length */
+  previousDurationMs?: number | null;
+  /** keep is only possible for a video stored on this device (a server upload keeps its old bytes elsewhere) */
+  keepAllowed?: boolean;
+  /** Keep path: swap the bytes + video row for the prepared file, captions untouched. */
+  onKeepFootage?: (ready: PreparedVideo) => Promise<void>;
 }
 
 const DEFAULT_LIMITS = { maxBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60 };
 
 /** Drag & drop / pick a video: checked and saved on this device — the file itself is never uploaded, only its name, size, length and format are registered with the project — then captions start, or, through the Normal Editor door, the editor opens directly with no transcription. */
-export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null, mode = "captions", onModeChange }) => {
+export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null, mode = "captions", onModeChange, videoId = null, replaceMode, onReplaceModeChange, previousDurationMs = null, keepAllowed = true, onKeepFootage }) => {
   const editorMode = mode === "editor";
   // get the speech model ready while they pick a video, so captions start the moment it's in.
   // Desktop loads it into memory; phones only download the files (their memory is for the video).
@@ -51,6 +62,8 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
   const [error, setError] = useState<string | null>(null);
   /** pre-flight hold: a long clip on a constrained device waits here for the user's call — nothing is uploaded or transcribed until they choose */
   const [warn, setWarn] = useState<{ ready: PreparedVideo; spoken: SpeechLanguage | null; message: string } | null>(null);
+  /** duration drift: the new cut is a different length, so caption timing may drift — the user confirms the keep */
+  const [drift, setDrift] = useState<{ ready: PreparedVideo; spoken: SpeechLanguage | null } | null>(null);
   const [over, setOver] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [prep, setPrep] = useState<PrepareStage | null>(null);
@@ -76,6 +89,18 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
     [projectId, onUploaded, editorMode],
   );
 
+  /** Keep path: swap the footage under the same video id, captions untouched. */
+  const runKeep = useCallback(
+    async (ready: PreparedVideo) => {
+      if (!onKeepFootage || !videoId) return;
+      setProgress(0);
+      await onKeepFootage(ready);
+      setProgress(100);
+      onUploaded(videoId);
+    },
+    [onKeepFootage, videoId, onUploaded],
+  );
+
   const start = useCallback(
     async (file: File, spoken: SpeechLanguage | null) => {
       setError(null);
@@ -91,6 +116,16 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         // check (and if needed shrink / convert) on this device first: bad files never get uploaded
         const ready = await prepareVideo(file, limits, setPrep, ctrl.signal);
         setPrep(null);
+        // keep path: no transcription, so no pre-flight and no language question — but a
+        // different-length cut warns first, because caption timing may drift
+        if (replaceMode === "keep") {
+          if (needsFootageSwapDriftWarning(previousDurationMs, ready.durationMs)) {
+            setDrift({ ready, spoken });
+            return;
+          }
+          await runKeep(ready);
+          return;
+        }
         // pre-flight (Phase 2B): a long clip on a constrained device warns BEFORE
         // anything is uploaded or transcribed — the user picks "Start anyway" or cancels
         if (!editorMode && ready.hasAudio) {
@@ -107,10 +142,10 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         setError(e instanceof PrepareError || e instanceof ApiError || e instanceof Error ? e.message : "Upload failed. Please try again.");
       }
     },
-    [projectId, onUploaded, limits, runPrepared, editorMode],
+    [projectId, onUploaded, limits, runPrepared, runKeep, editorMode, replaceMode, previousDurationMs],
   );
-  /** a video picked before the language was: ask first, then start (the editor door never asks) */
-  const pick = (f: File) => (editorMode ? void start(f, null) : lang ? void start(f, lang) : setPending(f));
+  /** a video picked before the language was: ask first, then start (the editor door never asks; the keep path needs no language — nothing is transcribed) */
+  const pick = (f: File) => (editorMode || replaceMode === "keep" ? void start(f, null) : lang ? void start(f, lang) : setPending(f));
   const choose = (l: SpeechLanguage) => {
     setLang(l);
     saveSpeechLanguage(l);
@@ -144,6 +179,42 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
                 <span className="block text-[11px] leading-tight text-st-muted">{o.sub}</span>
               </button>
             ))}
+          </div>
+        ) : null}
+        {replaceMode !== undefined && !busy && !prep ? (
+          <div className="mx-auto mb-5 max-w-md rounded-xl border border-st-line bg-st-raised/60 p-2 text-left" role="radiogroup" aria-label="What happens to your captions">
+            <button
+              role="radio"
+              aria-checked={replaceMode === "keep"}
+              disabled={!keepAllowed}
+              onClick={() => onReplaceModeChange?.("keep")}
+              className={`flex w-full items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition ${replaceMode === "keep" ? "bg-st-panel shadow-sm" : "opacity-70 hover:opacity-100"} ${keepAllowed ? "" : "cursor-not-allowed opacity-40"}`}
+            >
+              <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border ${replaceMode === "keep" ? "border-st-ink bg-st-ink text-st-panel" : "border-st-hover"}`} aria-hidden>
+                {replaceMode === "keep" ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-st-text">Keep my captions</span>
+                <span className="block text-[11px] leading-tight text-st-muted">Captions stay on the same timeline. No re-transcribe.</span>
+              </span>
+            </button>
+            <button
+              role="radio"
+              aria-checked={replaceMode === "fresh"}
+              onClick={() => onReplaceModeChange?.("fresh")}
+              className={`flex w-full items-start gap-2.5 rounded-lg px-3 py-2.5 text-left transition ${replaceMode === "fresh" ? "bg-st-panel shadow-sm" : "opacity-70 hover:opacity-100"}`}
+            >
+              <span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border ${replaceMode === "fresh" ? "border-st-ink bg-st-ink text-st-panel" : "border-st-hover"}`} aria-hidden>
+                {replaceMode === "fresh" ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-st-text">Start fresh with new captions</span>
+                <span className="block text-[11px] leading-tight text-st-muted">The old captions are deleted and new ones are generated.</span>
+              </span>
+            </button>
+            {!keepAllowed ? (
+              <p className="px-3 pb-1 pt-1 text-[11px] leading-relaxed text-st-muted">This video was uploaded to our servers — captions can only be kept for videos stored on this device.</p>
+            ) : null}
           </div>
         ) : null}
         <div className={`mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-st-line bg-st-lav/60 text-obsidian transition-transform ${over ? "scale-110" : ""}`} aria-hidden>
@@ -195,9 +266,21 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
               <Button onClick={() => setWarn(null)}>Cancel</Button>
             </div>
           </div>
+        ) : drift ? (
+          <div role="alert" className="mx-auto mt-5 max-w-md rounded-xl border border-st-or/60 bg-st-or/15 px-3 py-3 text-left">
+            <p className="text-sm text-st-text">
+              The new video is {formatClockMs(drift.ready.durationMs)} — the old one was {formatClockMs(previousDurationMs ?? 0)}. The lengths don&apos;t match, so your caption timing may drift.
+            </p>
+            <p className="mt-1 text-xs text-st-muted">Colour grading and small tweaks keep the audio identical, so timings usually hold. A re-cut or trimmed version can shift them.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button tone="primary" onClick={() => { const d = drift; setDrift(null); void runKeep(d.ready); }}>Keep captions anyway</Button>
+              <Button onClick={() => { const d = drift; setDrift(null); onReplaceModeChange?.("fresh"); void runPrepared(d.ready, d.spoken); }}>Regenerate captions instead</Button>
+              <Button onClick={() => setDrift(null)}>Cancel</Button>
+            </div>
+          </div>
         ) : (
           <>
-            {editorMode ? null : <LanguageChoice value={lang} onChange={choose} asking={!!pending} />}
+            {editorMode || replaceMode === "keep" ? null : <LanguageChoice value={lang} onChange={choose} asking={!!pending} />}
             {pending ? (
               <p className="mt-3 text-xs text-st-muted">Pick the language and <span className="font-medium text-st-text">{pending.name}</span> starts right away.</p>
             ) : (

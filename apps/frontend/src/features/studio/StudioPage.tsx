@@ -76,6 +76,8 @@ import {
 } from "./segmentView";
 import { SegmentInspector, type SegmentProductionState } from "./panels/SegmentInspector";
 import { getLocalVideo } from "@/features/upload/localVideos";
+import type { PreparedVideo } from "@/features/upload/prepareVideo";
+import { resolveUploadOutcome } from "./footageSwap";
 import { listProjectAssets, saveAsset } from "./mediaStore";
 import { splitWordIdAtPlayhead } from "./playheadSplit";
 import { resolveDeleteAction } from "./deleteSelection";
@@ -308,6 +310,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const [title, setTitle] = useState("");
   const [fontsReady, setFontsReady] = useState(false);
   const [replacing, setReplacing] = useState(false);
+  /** replace dialog choice: keep the caption timeline (default) or start fresh */
+  const [replaceMode, setReplaceMode] = useState<"keep" | "fresh">("keep");
   const playerRef = useRef<PlayerRef>(null);
 
   useEffect(() => {
@@ -1176,6 +1180,36 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     void runSync(v.id);
   }, [data?.video, data?.limits?.syncMaxBytes, justUploadedId, runSync, sync.videoId]);
 
+  // Replace footage, keep captions: the new bytes land in IndexedDB under the SAME video id
+  // (device.attach) and the video row is updated in place — the caption doc, look and
+  // settings are never touched, no re-transcription. The cloud copy (if any) was cleared
+  // by the replace call, so the header Sync flow re-uploads the new footage.
+  // (Declared before the early returns below: hooks must run on every render, loaded or not.)
+  const handleKeepFootage = useCallback(async (ready: PreparedVideo) => {
+    const v = data?.video;
+    if (!v) throw new Error("This project has no video to replace.");
+    await device.attach(ready.file);
+    const mime =
+      ready.file.type ||
+      (ready.file.name.toLowerCase().endsWith(".mov") ? "video/quicktime" : ready.file.name.toLowerCase().endsWith(".mkv") ? "video/x-matroska" : "video/mp4");
+    await studioService.replaceVideoFootage(v.id, {
+      filename: ready.file.name,
+      size: ready.file.size,
+      mime,
+      probe: {
+        durationMs: ready.durationMs,
+        width: ready.width,
+        height: ready.height,
+        rotation: ready.rotation,
+        videoCodec: ready.videoCodec,
+        audioCodec: ready.audioCodec,
+        hasAudio: ready.hasAudio,
+        previewMode: ready.previewMode,
+        needsCompat: ready.needsCompat,
+      },
+    });
+  }, [data?.video, device]);
+
   if (s.query.isLoading) return <StudioSkeleton />;
   if (s.query.error instanceof ApiError && s.query.error.status === 401) {
     router.replace(`/login?redirect=${encodeURIComponent(`/projects/${projectId}`)}`);
@@ -1321,6 +1355,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     />
   ) : null;
 
+  // keep is only possible for a video stored on this device: a server upload still
+  // streams its old bytes elsewhere, so swapping its local copy would leave two truths
+  const keepAllowed = data?.video?.local === true;
+  const effectiveReplaceMode = keepAllowed ? replaceMode : "fresh";
+
   const stage = player ?? (noVideoYet || replacing || videoGone ? (
     <UploadPanel
       projectId={projectId}
@@ -1328,12 +1367,27 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       language={data.project.language ?? null}
       mode={startMode}
       onModeChange={setStartMode}
-      onUploaded={(videoId) => { setJustUploadedId(videoId); setReplacing(false); s.resetDoc(); void s.refetch(); }}
+      onUploaded={(videoId) => {
+        setJustUploadedId(videoId);
+        setReplacing(false);
+        // same video id = footage swap, captions stay; a new id = fresh upload, old captions go
+        if (resolveUploadOutcome({ uploadedVideoId: videoId, currentVideoId: data?.video?.id ?? null }) === "reset") s.resetDoc();
+        void s.refetch();
+      }}
       note={
         videoGone ? "Video isn't on this device. Upload again — captions start fresh."
-          : replacing ? "Choose the new video. Captions will be generated for it."
-          : video?.status === "uploading" ? "The last upload didn't finish. Choose your video again." : undefined
+          : replacing
+            ? effectiveReplaceMode === "keep"
+              ? "Choose the new version of your video. Your captions stay on the same timeline."
+              : "Choose the new video. Captions will be generated for it."
+            : video?.status === "uploading" ? "The last upload didn't finish. Choose your video again." : undefined
       }
+      videoId={data?.video?.id ?? null}
+      replaceMode={replacing ? effectiveReplaceMode : undefined}
+      onReplaceModeChange={setReplaceMode}
+      previousDurationMs={data?.video?.durationMs ?? null}
+      keepAllowed={keepAllowed}
+      onKeepFootage={handleKeepFootage}
     />
   ) : (
     <ProcessingPanel projectId={projectId} job={data.job} canTranscribe={data.canTranscribe} onChanged={() => void s.refetch()} onReplaceVideo={() => setReplacing(true)} videoId={video?.id ?? null} local={!!data.video?.local} language={data.project.language ?? null} />
