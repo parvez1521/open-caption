@@ -4,7 +4,7 @@ import type { OverlayFont, OverlayItem, OverlayShape } from "@capseasy/shared";
 import { SocialOverlayView } from "./social";
 
 /**
- * The app's own overlay shape set: thirty-three simple geometric SVGs drawn for Captionit (not copied from any
+ * The app's own overlay shape set: fifty simple geometric SVGs drawn for Captionit (not copied from any
  * icon library). One definition serves the composition render (preview + MP4 export) and the studio's
  * Elements gallery, so what the gallery shows is exactly what renders. No blend modes anywhere: the
  * in-browser renderer ignores mix-blend-mode, which would make preview and export diverge.
@@ -44,6 +44,24 @@ export const OVERLAY_SHAPE_META: { id: OverlayShape; label: string }[] = [
   { id: "tag", label: "Tag" },
   { id: "pin", label: "Pin" },
   { id: "target", label: "Target" },
+  // Studio stickers expansion (2026-11-18): 17 more house-drawn stickers, same SVG family
+  { id: "megaphone", label: "Megaphone" },
+  { id: "music-note", label: "Music note" },
+  { id: "mic", label: "Microphone" },
+  { id: "camera", label: "Camera" },
+  { id: "play", label: "Play" },
+  { id: "rocket", label: "Rocket" },
+  { id: "trophy", label: "Trophy" },
+  { id: "gift", label: "Gift" },
+  { id: "bell", label: "Bell" },
+  { id: "clock", label: "Clock" },
+  { id: "gem", label: "Gem" },
+  { id: "puzzle", label: "Puzzle piece" },
+  { id: "coffee", label: "Coffee" },
+  { id: "umbrella", label: "Umbrella" },
+  { id: "key", label: "Key" },
+  { id: "lock", label: "Lock" },
+  { id: "thumbs-down", label: "Thumbs down" },
 ];
 
 const STROKE = 7;
@@ -179,6 +197,131 @@ export const OverlayShapeSvg: React.FC<{ shape: OverlayShape; color: string; siz
           <circle cx={50} cy={50} r={40} fill="none" {...strokeProps} strokeWidth={8} />
           <circle cx={50} cy={50} r={24} fill="none" {...strokeProps} strokeWidth={8} />
           <circle cx={50} cy={50} r={9} fill={color} />
+        </>
+      ) : null}
+      {shape === "megaphone" ? (
+        <>
+          <polygon fill={color} points="18,40 70,22 70,78 18,60" />
+          <rect x={26} y={60} width={13} height={26} rx={3} fill={color} />
+          <path d="M80 36 Q88 50 80 64" {...strokeProps} strokeWidth={6} />
+        </>
+      ) : null}
+      {shape === "music-note" ? (
+        <>
+          <rect x={58} y={12} width={8} height={60} fill={color} />
+          <polygon fill={color} points="66,12 88,24 82,46 66,36" />
+          <ellipse cx={47} cy={74} rx={15} ry={10} fill={color} transform="rotate(-18 47 74)" />
+        </>
+      ) : null}
+      {shape === "mic" ? (
+        <>
+          <rect x={36} y={8} width={28} height={46} rx={14} fill={color} />
+          <path d="M38 22 H62 M38 31 H62 M38 40 H62" stroke="#141412" strokeWidth={4} strokeLinecap="round" />
+          <path d="M50 54 V72" {...strokeProps} />
+          <path d="M34 80 H66" {...strokeProps} />
+        </>
+      ) : null}
+      {shape === "camera" ? (
+        <>
+          <rect x={34} y={24} width={32} height={12} rx={3} fill={color} />
+          <rect x={10} y={34} width={80} height={48} rx={8} fill={color} />
+          <circle cx={50} cy={58} r={15} fill="#141412" />
+          <circle cx={50} cy={58} r={6} fill={color} />
+        </>
+      ) : null}
+      {shape === "play" ? (
+        <>
+          <circle cx={50} cy={50} r={38} fill="none" {...strokeProps} strokeWidth={8} />
+          <polygon fill={color} points="41,30 73,50 41,70" />
+        </>
+      ) : null}
+      {shape === "rocket" ? (
+        <>
+          <polygon fill={color} points="32,50 14,74 32,66" />
+          <polygon fill={color} points="68,50 86,74 68,66" />
+          <path fill={color} d="M50 6 C64 20 69 38 69 56 L31 56 C31 38 36 20 50 6 Z" />
+          <circle cx={50} cy={38} r={8} fill="#141412" />
+          <polygon fill={color} points="41,56 50,80 59,56" />
+        </>
+      ) : null}
+      {shape === "trophy" ? (
+        <>
+          <path d="M28 18 Q10 18 12 32 Q14 44 28 42" fill="none" {...strokeProps} />
+          <path d="M72 18 Q90 18 88 32 Q86 44 72 42" fill="none" {...strokeProps} />
+          <path fill={color} d="M28 12 H72 V40 Q72 58 50 58 Q28 58 28 40 Z" />
+          <rect x={46} y={58} width={8} height={14} fill={color} />
+          <rect x={34} y={72} width={32} height={10} rx={3} fill={color} />
+        </>
+      ) : null}
+      {shape === "gift" ? (
+        <>
+          <ellipse cx={37} cy={23} rx={13} ry={8} fill={color} transform="rotate(-28 37 23)" />
+          <ellipse cx={63} cy={23} rx={13} ry={8} fill={color} transform="rotate(28 63 23)" />
+          <rect x={12} y={32} width={76} height={14} rx={4} fill={color} />
+          <rect x={16} y={46} width={68} height={38} rx={4} fill={color} />
+          <rect x={45} y={32} width={10} height={52} fill="#141412" opacity={0.55} />
+        </>
+      ) : null}
+      {shape === "bell" ? (
+        <>
+          <circle cx={50} cy={11} r={5} fill={color} />
+          <path fill={color} d="M50 16 C66 22 78 36 78 54 V64 H22 V54 C22 36 34 22 50 16 Z" />
+          <rect x={20} y={64} width={60} height={6} rx={3} fill={color} />
+          <circle cx={50} cy={78} r={7} fill={color} />
+        </>
+      ) : null}
+      {shape === "clock" ? (
+        <>
+          <circle cx={50} cy={50} r={38} fill="none" {...strokeProps} strokeWidth={8} />
+          <path d="M50 50 V28" {...strokeProps} strokeWidth={8} />
+          <path d="M50 50 L68 61" {...strokeProps} strokeWidth={8} />
+        </>
+      ) : null}
+      {shape === "gem" ? (
+        <>
+          <polygon fill={color} points="50,10 86,38 50,90 14,38" />
+          <path d="M14 38 H86 M50 10 L36 38 L50 90 M50 10 L64 38 L50 90" stroke="#141412" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={0.55} />
+        </>
+      ) : null}
+      {shape === "puzzle" ? (
+        <>
+          <rect x={20} y={28} width={60} height={52} rx={6} fill={color} />
+          <circle cx={50} cy={28} r={11} fill={color} />
+          <circle cx={80} cy={54} r={11} fill={color} />
+        </>
+      ) : null}
+      {shape === "coffee" ? (
+        <>
+          <path d="M38 26 Q34 20 38 14 M54 26 Q50 20 54 14" {...strokeProps} strokeWidth={5} />
+          <path d="M72 44 Q90 44 90 56 Q90 68 72 68" fill="none" {...strokeProps} />
+          <path fill={color} d="M22 34 H72 V70 Q72 82 60 82 H34 Q22 82 22 70 Z" />
+        </>
+      ) : null}
+      {shape === "umbrella" ? (
+        <>
+          <path fill={color} d="M8 52 A42 42 0 0 1 92 52 Q80 44 70 52 Q60 44 50 52 Q40 44 30 52 Q20 44 8 52 Z" />
+          <path d="M50 52 V86 Q50 94 42 94 Q36 94 36 88" fill="none" {...strokeProps} />
+        </>
+      ) : null}
+      {shape === "key" ? (
+        <>
+          <circle cx={28} cy={32} r={15} fill="none" {...strokeProps} strokeWidth={8} />
+          <path d="M40 44 L84 88" {...strokeProps} strokeWidth={9} />
+          <path d="M62 62 L72 52 M74 74 L84 64" {...strokeProps} />
+        </>
+      ) : null}
+      {shape === "lock" ? (
+        <>
+          <path d="M32 44 V34 A18 18 0 0 1 68 34 V44" fill="none" {...strokeProps} strokeWidth={8} />
+          <rect x={20} y={44} width={60} height={40} rx={8} fill={color} />
+          <circle cx={50} cy={60} r={6} fill="#141412" />
+          <rect x={47} y={62} width={6} height={12} fill="#141412" />
+        </>
+      ) : null}
+      {shape === "thumbs-down" ? (
+        <>
+          <rect x={26} y={14} width={48} height={38} rx={10} fill={color} />
+          <path fill={color} d="M34 50 L34 66 Q34 78 46 78 Q54 78 52 68 L48 52 Z" />
         </>
       ) : null}
     </svg>

@@ -2,10 +2,12 @@ import type { OverlayShape } from "@capseasy/shared";
 import { OVERLAY_SHAPE_META } from "@capseasy/compositions";
 
 /**
- * The sticker registry: the 12 house-drawn sticker shapes that already live in the
- * shared schema + renderer (OVERLAY_SHAPES in packages/shared, OverlayShapeSvg in
- * packages/compositions/src/overlays.tsx). Our own artwork, drawn in-house for
- * Captionit — no third-party art, nothing downloaded, no licence to clear.
+ * The sticker registry: all 50 house-drawn shapes that live in the shared schema
+ * + renderer (OVERLAY_SHAPES in packages/shared, OverlayShapeSvg in
+ * packages/compositions/src/overlays.tsx) — the 21 original shapes, the 12
+ * studio stickers batch (2026-11-18) and the 17-shape expansion (2026-11-18).
+ * Our own artwork, drawn in-house for Captionit — no third-party art, nothing
+ * downloaded, no licence to clear.
  *
  * Licence: CC0 — drawn in-house for Captionit, free for any use.
  * Source: House-drawn SVG in packages/compositions/src/overlays.tsx (OverlayShapeSvg).
@@ -15,6 +17,27 @@ import { OVERLAY_SHAPE_META } from "@capseasy/compositions";
  * preview AND MP4 export.
  */
 export const STICKER_SHAPE_IDS = [
+  "ring",
+  "circle",
+  "arrow",
+  "check",
+  "star",
+  "heart",
+  "rectangle",
+  "scribble-underline",
+  "triangle",
+  "rounded-rectangle",
+  "ellipse",
+  "diamond",
+  "chevron",
+  "double-arrow",
+  "speech-bubble",
+  "underline-bar",
+  "corner-brackets",
+  "progress-bar",
+  "plus",
+  "cross",
+  "badge",
   "burst",
   "bolt",
   "crown",
@@ -27,6 +50,23 @@ export const STICKER_SHAPE_IDS = [
   "tag",
   "pin",
   "target",
+  "megaphone",
+  "music-note",
+  "mic",
+  "camera",
+  "play",
+  "rocket",
+  "trophy",
+  "gift",
+  "bell",
+  "clock",
+  "gem",
+  "puzzle",
+  "coffee",
+  "umbrella",
+  "key",
+  "lock",
+  "thumbs-down",
 ] as const satisfies readonly OverlayShape[];
 
 export interface StickerSet {
@@ -49,7 +89,7 @@ export const STICKER_SETS: StickerSet[] = [
   },
 ];
 
-/** The 12 sticker shapes with their labels from OVERLAY_SHAPE_META, in registry order. */
+/** The 50 sticker shapes with their labels from OVERLAY_SHAPE_META, in registry order. */
 export function stickerShapes(): { id: OverlayShape; label: string }[] {
   return STICKER_SETS[0]!.shapes.map((id) => ({
     id,

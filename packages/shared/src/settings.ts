@@ -40,7 +40,10 @@ export const OVERLAY_SHAPES = ["ring", "circle", "arrow", "check", "star", "hear
   "corner-brackets", "progress-bar", "plus", "cross", "badge",
   // Studio stickers batch (2026-11-18): house-drawn SVG stickers — our own artwork, no
   // third-party art, no licence to clear. Drawn in packages/compositions OverlayShapeSvg.
-  "burst", "bolt", "crown", "flame", "thumbs-up", "curved-arrow", "sun", "explosion", "ribbon", "tag", "pin", "target"] as const;
+  "burst", "bolt", "crown", "flame", "thumbs-up", "curved-arrow", "sun", "explosion", "ribbon", "tag", "pin", "target",
+  // Studio stickers expansion (2026-11-18): 17 more house-drawn stickers, same SVG family,
+  // taking the sticker set from 12 to 29 new shapes and the shape set from 33 to 50.
+  "megaphone", "music-note", "mic", "camera", "play", "rocket", "trophy", "gift", "bell", "clock", "gem", "puzzle", "coffee", "umbrella", "key", "lock", "thumbs-down"] as const;
 export const OverlayShapeSchema = z.enum(OVERLAY_SHAPES);
 export type OverlayShape = z.infer<typeof OverlayShapeSchema>;
 
@@ -344,7 +347,7 @@ export const TRANSITION_REGISTRY_IDS = [
   "light-peach", "light-emerald", "light-mint", "light-teal", "light-ice",
   // 3D (10)
   "flip-horizontal", "flip-vertical", "flip-horizontal-soft", "flip-vertical-soft", "spin-90",
-  "spin-180", "spin-360", "tilt-left", "tilt-right", "cube-up",
+  "spin-180", "spin-360", "tilt-left", "tilt-right", "tilt-up",
   // Shape (10)
   "iris-circle", "iris-circle-out", "iris-diamond", "iris-diamond-out", "iris-square",
   "iris-square-out", "iris-hexagon", "iris-triangle", "iris-circle-soft", "iris-diamond-soft",

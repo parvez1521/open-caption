@@ -1,6 +1,6 @@
 /**
  * StickersPanel (2026-11-18): the House Stickers set inside the editor's right
- * column. Pins: all 12 stickers are offered with the licence line on the surface,
+ * column. Pins: all 50 stickers are offered with the licence line on the surface,
  * and clicking one adds it at the playhead through the shared overlay path
  * (makeShapeOverlay + patch + select).
  */
@@ -29,9 +29,9 @@ function renderPanel() {
 const addButtons = (root: HTMLElement) => [...root.querySelectorAll("button")].filter((b) => (b.getAttribute("aria-label") ?? "").startsWith("Add "));
 
 describe("StickersPanel", () => {
-  it("offers all 12 house stickers and shows the licence line", () => {
+  it("offers all 50 house stickers and shows the licence line", () => {
     const { view } = renderPanel();
-    expect(addButtons(view.container)).toHaveLength(12);
+    expect(addButtons(view.container)).toHaveLength(50);
     expect(view.container.textContent).toContain("CC0");
     expect(view.container.textContent).toContain("drawn in-house for Captionit");
     view.unmount();
