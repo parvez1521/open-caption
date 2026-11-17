@@ -99,9 +99,11 @@ export default function StudioShell({ children }: { children: React.ReactNode })
   const isGuest = user ? !user.email : false;
   const healthy = health ? health.database && health.queue : undefined;
   return (
-    <div className="min-h-screen bg-dune-white md:flex">
-      {/* Mobile top bar (sidebar is hidden below md) — solid surface, no blur */}
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-sand-200 bg-sand-50 px-4 py-3 md:hidden">
+    <div className="min-h-screen bg-dune-white lg:flex">
+      {/* Mobile top bar (sidebar is hidden below lg) — solid surface, no blur.
+          lg, not md: the fixed 240px sidebar squeezed the create form at
+          tablet widths (768–1023px), so the top bar covers that range. */}
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-sand-200 bg-sand-50 px-4 py-3 lg:hidden">
         <Link href="/dashboard" aria-label="Captionit projects">
           <Logo height={24} />
         </Link>
@@ -124,7 +126,7 @@ export default function StudioShell({ children }: { children: React.ReactNode })
       </header>
 
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sand-200 bg-sand-50 md:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-sand-200 bg-sand-50 lg:flex">
         <div className="px-5 py-6">
           <Link href="/dashboard" aria-label="Captionit projects">
             <Logo height={26} />

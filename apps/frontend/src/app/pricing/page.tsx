@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { PLAN_PRICING, PLANS } from "@capseasy/shared";
+import { PLAN_PRICING } from "@capseasy/shared";
 import { Footer, Nav } from "@/components/home/Sections";
 import ComparisonTable from "@/components/pricing/ComparisonTable";
 import { currencyForCountry } from "@/lib/billing/cashfree";
 import { isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
-import { priceLabel, projectCountLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
+import { priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import { pageMetadata, productJsonLd } from "@/lib/seo";
 
 export const metadata: Metadata = pageMetadata({
@@ -57,7 +57,6 @@ export default async function PricingPage() {
         <div className="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {PLAN_PRICING.map((entry) => {
             const price = priceLabel(entry, currency);
-            const limits = PLANS[entry.id];
             const isFree = entry.id === "free";
             return (
               <section
@@ -67,7 +66,14 @@ export default async function PricingPage() {
                 }`}
                 aria-label={`${entry.name} plan`}
               >
-                <h2 className="font-sora text-[17px] font-bold">{entry.name}</h2>
+                <h2 className="font-sora text-[17px] font-bold">
+                  {entry.name}
+                  {entry.id === "growth" && (
+                    <span className="ml-2 rounded-full bg-[#34D399] px-2 py-0.5 align-middle text-[11px] font-bold text-[#0B1512]">
+                      Best value
+                    </span>
+                  )}
+                </h2>
                 <p className="mt-1 text-[13px] leading-relaxed text-[#FFFFEB]/60">{entry.tagline}</p>
                 <p className="mt-5">
                   <span className="font-serif text-4xl font-semibold">{price}</span>
@@ -81,10 +87,6 @@ export default async function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                <p className="mt-6 border-t border-white/10 pt-4 text-[12px] leading-relaxed text-[#FFFFEB]/55">
-                  Up to {projectCountLabel(limits.maxProjects)} projects · videos to {Math.round(limits.maxDurationSec / 60)} min · exports kept {limits.exportRetentionDays}{" "}
-                  days
-                </p>
                 {freeLaunch && !isFree ? (
                   <span
                     className="mt-5 inline-flex items-center justify-center rounded-full border border-white/25 px-5 py-2.5 font-sora text-[13.5px] font-semibold text-[#FFFFEB]/60"

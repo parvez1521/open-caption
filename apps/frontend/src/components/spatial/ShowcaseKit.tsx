@@ -285,7 +285,9 @@ export interface ShowcaseProps {
 }
 
 const rise = (d: number) => ({
-  initial: { opacity: 0, y: 14, filter: "blur(6px)" },
+  // Opacity floor 0.4 (not 0): while a card scrolls into view the copy
+  // stays readable mid-animation instead of fading to near-invisible.
+  initial: { opacity: 0.4, y: 14, filter: "blur(2px)" },
   whileInView: { opacity: 1, y: 0, filter: "blur(0px)" },
   viewport: { once: true, amount: 0.3 },
   transition: { delay: d, duration: 0.6, ease: [0.22, 1, 0.36, 1] as const },

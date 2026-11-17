@@ -174,12 +174,19 @@ describe("AiGenerator", () => {
 
   it("SDK-unreachable state when Puter.js never appears", async () => {
     // No window.puter and no script load: the component polls for the SDK
-    // and, after 20 s with nothing, says so honestly instead of spinning.
+    // and, after 10 s with nothing, says so honestly instead of spinning —
+    // with a retry that waits again instead of leaving the page dead.
     vi.useFakeTimers();
     render(<AiGenerator />);
     expect(document.querySelector('script[src="https://js.puter.com/v2/"]')).not.toBeNull();
     await act(async () => {
-      vi.advanceTimersByTime(21000);
+      vi.advanceTimersByTime(11000);
+    });
+    expect(screen.getByText(/Puter\.js could not be loaded — check your connection and try again\./)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Try loading again" }));
+    expect(screen.getByText("Loading Puter.js…")).toBeTruthy();
+    await act(async () => {
+      vi.advanceTimersByTime(11000);
     });
     vi.useRealTimers();
     expect(screen.getByText(/Puter\.js could not be loaded — check your connection and try again\./)).toBeTruthy();

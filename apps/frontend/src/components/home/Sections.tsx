@@ -50,11 +50,11 @@ export function Logo({ light = false }: { light?: boolean }) {
 }
 
 const NAV_LINKS = [
-  ["How it works", "#how"],
-  ["Editor", "#control"],
-  ["Looks", "#looks"],
-  ["On your device", "#privacy"],
-  ["FAQ", "#faq"],
+  ["How it works", "/#how"],
+  ["Editor", "/#control"],
+  ["Looks", "/#looks"],
+  ["On your device", "/#privacy"],
+  ["FAQ", "/#faq"],
 ] as const;
 
 /** Signed in to a real account in this browser? Read straight from Supabase's stored session so the landing page doesn't load the auth SDK. */
@@ -102,11 +102,11 @@ export function Nav() {
         </div>
       </header>
       {open ? (
-        <nav className="animate-fade-in-up mx-auto mt-2 grid max-w-6xl gap-1 rounded-2xl border border-[#FFFFEB]/10 bg-[#1E1E1B] p-3 shadow-lg lg:hidden">
+        <nav className="animate-fade-in-up mx-auto mt-2 grid max-w-6xl gap-1 rounded-2xl border border-[#FFFFEB]/10 bg-[#1E1E1B] p-2 shadow-lg lg:hidden">
           {NAV_LINKS.map(([label, href]) => (
-            <a key={href} href={href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-3 text-base font-semibold text-[#FFFFEB] hover:bg-[#262622]/60">{label}</a>
+            <a key={href} href={href} onClick={() => setOpen(false)} className="rounded-xl px-3 py-2.5 text-base font-semibold text-[#FFFFEB] hover:bg-[#262622]/60">{label}</a>
           ))}
-          <div className="mt-2 grid gap-2 border-t border-[#FFFFEB]/10 pt-3 sm:hidden">
+          <div className="mt-1 grid gap-2 border-t border-[#FFFFEB]/10 pt-2 sm:hidden">
             <Link href="/start?choose=1" onClick={() => setOpen(false)} className="flex items-center justify-center gap-2 rounded-full bg-[#34D399] px-5 py-3.5 text-base font-bold text-[#141412]">
               Start free <span aria-hidden>→</span>
             </Link>
@@ -264,7 +264,7 @@ const DOORS = [
 
 export function ToolDoors() {
   return (
-    <section className="px-4 pb-24 sm:pb-32">
+    <section className="px-4 pb-16 sm:pb-24">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-3xl font-bold tracking-tight text-[#FFFFEB] sm:text-4xl">Start with what you need.</h2>
@@ -397,7 +397,7 @@ const PIPELINE_STEPS = [
  */
 export function HowItWorks() {
   return (
-    <section id="how" className="relative scroll-mt-20 px-4 py-24 sm:py-32">
+    <section id="how" className="relative scroll-mt-20 px-4 py-16 sm:py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-12 lg:grid-cols-12">
         <div data-reveal className="lg:col-span-4">
           <div className="lg:sticky lg:top-28">
@@ -440,7 +440,7 @@ export function ClipperSection() {
     ["4:02–4:57", "the example everyone replays"],
   ];
   return (
-    <section id="clipper" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+    <section id="clipper" className="px-4 py-16 sm:py-24 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
           <div className="lg:order-2">
@@ -489,7 +489,7 @@ export function ClipperSection() {
 
 export function TranscribeSection() {
   return (
-    <section id="transcribe" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+    <section id="transcribe" className="px-4 py-16 sm:py-24 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="grid items-center gap-10 lg:grid-cols-2">
           <div className="rounded-[2rem] border border-[#FFFFEB]/10 bg-[#1E1E1B] p-6 sm:p-8 lg:order-1">
@@ -540,7 +540,7 @@ export function MotionStudioSection() {
     [],
   );
   return (
-    <section id="motion" className="px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+    <section id="motion" className="px-4 py-16 sm:py-24 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
@@ -606,7 +606,7 @@ function BrowserCard() {
 
 export function Privacy() {
   return (
-    <section id="privacy" className="scroll-mt-20 px-4 pb-24 sm:pb-32">
+    <section id="privacy" className="scroll-mt-20 px-4 pb-16 sm:pb-24">
       <div data-reveal className="relative mx-auto max-w-6xl overflow-hidden rounded-[2.5rem] border border-[#FFFFEB]/12 bg-[#1E1E1B] px-6 py-14 text-[#FFFFEB] sm:px-14 sm:py-20 shadow-2xl">
         <div className="relative grid items-center gap-10 lg:grid-cols-2">
           <div className="min-w-0 lg:h-full lg:order-1">
@@ -658,7 +658,7 @@ const CONTROLS = [
  */
 export function Control() {
   return (
-    <section id="control" className="scroll-mt-20 px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+    <section id="control" className="scroll-mt-20 px-4 py-16 sm:py-24 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
@@ -691,7 +691,7 @@ export function Control() {
  */
 export function FeatureAnimations() {
   return (
-    <section id="features" className="scroll-mt-20 px-4 py-24 sm:py-32 border-t border-[#FFFFEB]/10">
+    <section id="features" className="scroll-mt-20 px-4 py-16 sm:py-24 border-t border-[#FFFFEB]/10">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
@@ -756,7 +756,7 @@ export function Faq() {
   const [activeIdx, setActiveIdx] = useState(0);
 
   return (
-    <section id="faq" className="scroll-mt-20 px-4 pb-24 sm:pb-32">
+    <section id="faq" className="scroll-mt-20 px-4 pb-16 sm:pb-24">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
@@ -812,7 +812,7 @@ export function HomePricingSection() {
   // when the window ends on 1 Dec.
   const freeLaunch = isFreeLaunchWindow();
   return (
-    <section id="pricing" className="scroll-mt-20 border-t border-[#FFFFEB]/10 px-4 py-24 sm:py-32">
+    <section id="pricing" className="scroll-mt-20 border-t border-[#FFFFEB]/10 px-4 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl">
         <div data-reveal className="max-w-2xl">
           <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
@@ -844,7 +844,14 @@ export function HomePricingSection() {
                 }`}
                 aria-label={`${entry.name} plan`}
               >
-                <h3 className="font-sora text-[17px] font-bold">{entry.name}</h3>
+                <h3 className="font-sora text-[17px] font-bold">
+                  {entry.name}
+                  {entry.id === "growth" && (
+                    <span className="ml-2 rounded-full bg-[#34D399] px-2 py-0.5 align-middle text-[11px] font-bold text-[#0B1512]">
+                      Best value
+                    </span>
+                  )}
+                </h3>
                 <p className="mt-1 text-[13px] leading-relaxed text-[#FFFFEB]/60">{entry.tagline}</p>
                 <p className="mt-5">
                   <span className="font-serif text-4xl font-semibold">{priceLabel(entry, "INR")}</span>

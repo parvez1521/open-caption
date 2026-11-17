@@ -72,13 +72,17 @@ export default function AiGenerator() {
   const [videoFailed, setVideoFailed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const sdkTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // The Script onLoad/onError callbacks are the primary signal, but the SDK
   // can already be present (back/forward navigation, cached script), so
-  // also poll for window.puter briefly after mount. After 20 s with no SDK,
-  // say so honestly instead of spinning forever.
-  useEffect(() => {
+  // also poll for window.puter briefly after mount. After 10 s with no SDK,
+  // say so honestly instead of spinning forever — and offer a retry, so a
+  // slow phone connection does not look broken.
+  const startSdkWait = useCallback(() => {
+    if (sdkTimer.current) clearInterval(sdkTimer.current);
+    setSdkStatus("loading");
     if (getPuter()) {
       setSdkStatus("ready");
       return;
@@ -88,15 +92,26 @@ export default function AiGenerator() {
       if (getPuter()) {
         if (sdkTimer.current) clearInterval(sdkTimer.current);
         setSdkStatus("ready");
-      } else if (Date.now() - started > 20000) {
+      } else if (Date.now() - started > 10000) {
         if (sdkTimer.current) clearInterval(sdkTimer.current);
         setSdkStatus((s) => (s === "ready" ? s : "failed"));
       }
     }, 500);
+  }, []);
+
+  useEffect(() => {
+    startSdkWait();
     return () => {
       if (sdkTimer.current) clearInterval(sdkTimer.current);
     };
-  }, []);
+  }, [startSdkWait]);
+
+  // Retry after a failed load: remount the script tag (new key) and wait
+  // again from scratch. The prompt stays put — only the SDK load restarts.
+  const retryLoad = useCallback(() => {
+    setLoadAttempt((a) => a + 1);
+    startSdkWait();
+  }, [startSdkWait]);
 
   const refreshSignedIn = useCallback(() => {
     const puter = getPuter();
@@ -206,6 +221,7 @@ export default function AiGenerator() {
   return (
     <div>
       <Script
+        key={loadAttempt}
         src="https://js.puter.com/v2/"
         strategy="afterInteractive"
         onLoad={handleScriptLoad}
@@ -213,9 +229,18 @@ export default function AiGenerator() {
       />
 
       {sdkStatus === "failed" ? (
-        <p role="alert" className="rounded-2xl border border-white/10 bg-[#1C1C1A] p-5 text-[15px] leading-relaxed text-[#FFFFEB]/80">
-          Puter.js could not be loaded — check your connection and try again.
-        </p>
+        <div role="alert" className="rounded-2xl border border-white/10 bg-[#1C1C1A] p-5">
+          <p className="text-[15px] leading-relaxed text-[#FFFFEB]/80">
+            Puter.js could not be loaded — check your connection and try again.
+          </p>
+          <button
+            type="button"
+            onClick={retryLoad}
+            className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full border border-white/25 px-5 py-2.5 font-sora text-[14px] font-semibold text-[#FFFFEB]"
+          >
+            Try loading again
+          </button>
+        </div>
       ) : (
         <>
           <div role="tablist" aria-label="What to generate" className="flex gap-2">
@@ -263,7 +288,7 @@ export default function AiGenerator() {
               <button
                 type="button"
                 onClick={handleSignIn}
-                className="mt-4 inline-flex items-center justify-center rounded-full border border-white/25 px-6 py-3 font-sora text-[14px] font-semibold text-[#FFFFEB]"
+                className="mt-4 inline-flex min-h-[44px] items-center justify-center rounded-full bg-[#34D399] px-6 py-3 font-sora text-[14px] font-bold text-[#0B1512]"
               >
                 Sign in with Puter
               </button>
