@@ -1,7 +1,7 @@
 /**
- * Stickers registry (2026-11-18): one set, House Stickers — all 50 house-drawn
+ * Stickers registry (2026-11-18): one set, House Stickers — all 110 house-drawn
  * shapes that live in the shared schema + renderer (the 21 original shapes, the
- * 12 studio stickers batch and the 17-shape expansion). Pins: exactly 50 shapes,
+ * 12 studio stickers batch and the 17-shape expansion). Pins: exactly 110 shapes,
  * every id is a real OVERLAY_SHAPES id with a label in OVERLAY_SHAPE_META, the
  * set carries a licence, and makeShapeOverlay output for every sticker shape
  * passes OverlayItemSchema.
@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { OVERLAY_SHAPES, OverlayItemSchema } from "@capseasy/shared";
 import { OVERLAY_SHAPE_META } from "@capseasy/compositions";
-import { STICKER_SETS, stickerShapes } from "../stickers";
+import { STICKER_SETS, stickerCategories, stickerShapes } from "../stickers";
 import { makeShapeOverlay } from "../panels/overlayItems";
 
 const EXPECTED_IDS = [
@@ -63,16 +63,76 @@ const EXPECTED_IDS = [
   "key",
   "lock",
   "thumbs-down",
+  "arrow-up",
+  "arrow-down",
+  "arrow-left",
+  "arrow-turn",
+  "sparkle",
+  "shooting-star",
+  "star-outline",
+  "heart-broken",
+  "heart-sparkle",
+  "heart-arrow",
+  "heart-outline",
+  "face-smile",
+  "face-laugh",
+  "face-wink",
+  "face-love",
+  "face-cool",
+  "face-surprise",
+  "face-sad",
+  "face-sleepy",
+  "party-popper",
+  "balloon",
+  "fireworks",
+  "cake",
+  "bunting",
+  "party-hat",
+  "share-arrow",
+  "link",
+  "hashtag",
+  "chat-heart",
+  "hand-pointer",
+  "check-badge",
+  "hexagon",
+  "pentagon",
+  "octagon",
+  "blob",
+  "squiggle",
+  "leaf",
+  "flower",
+  "tree",
+  "mountain",
+  "rainbow",
+  "pizza",
+  "burger",
+  "ice-cream",
+  "donut",
+  "strawberry",
+  "cupcake",
+  "cat-face",
+  "dog-face",
+  "bird",
+  "fish",
+  "butterfly",
+  "paw-print",
+  "football",
+  "basketball",
+  "medal",
+  "dumbbell",
+  "headphones",
+  "guitar",
+  "music-double",
 ] as const;
 
 describe("STICKER_SETS", () => {
-  it("has one set, House Stickers, with the 50 sticker shapes", () => {
+  it("has one set, House Stickers, with the 110 sticker shapes", () => {
     expect(STICKER_SETS).toHaveLength(1);
     const set = STICKER_SETS[0]!;
     expect(set.id).toBe("house-stickers");
     expect(set.name).toBe("House Stickers");
     expect([...set.shapes]).toEqual([...EXPECTED_IDS]);
-    expect(set.shapes).toHaveLength(50);
+    expect(set.shapes).toHaveLength(110);
   });
 
   it("carries a licence string and names the in-house source", () => {
@@ -81,6 +141,25 @@ describe("STICKER_SETS", () => {
     expect(set.licence).toContain("drawn in-house");
     expect(set.source).toContain("packages/compositions/src/overlays.tsx");
     expect(set.source).toContain("OverlayShapeSvg");
+  });
+
+  it("every sticker has a label, a default colour, a category and tags in OVERLAY_SHAPE_META", () => {
+    for (const s of stickerShapes()) {
+      expect(s.label.trim().length, s.id).toBeGreaterThan(0);
+      expect(s.color, s.id).toMatch(/^#[0-9A-Fa-f]{6}$/);
+      expect(s.category, s.id).toBeTruthy();
+      expect(s.tags.length, s.id).toBeGreaterThan(0);
+    }
+  });
+
+  it("every category in the registry has a label and at least one sticker", () => {
+    const cats = stickerCategories();
+    expect(cats.length).toBeGreaterThanOrEqual(12);
+    for (const c of cats) {
+      expect(c.label.trim().length).toBeGreaterThan(0);
+      expect(c.count).toBeGreaterThan(0);
+    }
+    expect(cats.reduce((n, c) => n + c.count, 0)).toBe(110);
   });
 
   it("every sticker id is in OVERLAY_SHAPES and has a label in OVERLAY_SHAPE_META", () => {
@@ -92,18 +171,18 @@ describe("STICKER_SETS", () => {
     }
   });
 
-  it("all 50 sticker ids are unique and match OVERLAY_SHAPES exactly", () => {
+  it("all 110 sticker ids are unique and match OVERLAY_SHAPES exactly", () => {
     const ids = [...STICKER_SETS[0]!.shapes];
-    expect(new Set(ids).size).toBe(50);
+    expect(new Set(ids).size).toBe(110);
     expect([...OVERLAY_SHAPES].sort()).toEqual([...ids].sort());
-    expect(new Set(OVERLAY_SHAPE_META.map((s) => s.id)).size).toBe(50);
+    expect(new Set(OVERLAY_SHAPE_META.map((s) => s.id)).size).toBe(110);
   });
 });
 
 describe("stickerShapes()", () => {
-  it("returns the 50 shapes with their labels from OVERLAY_SHAPE_META, in registry order", () => {
+  it("returns the 110 shapes with their labels from OVERLAY_SHAPE_META, in registry order", () => {
     const shapes = stickerShapes();
-    expect(shapes).toHaveLength(50);
+    expect(shapes).toHaveLength(110);
     expect(shapes.map((s) => s.id)).toEqual([...EXPECTED_IDS]);
     for (const s of shapes) {
       expect(s.label).toBe(OVERLAY_SHAPE_META.find((m) => m.id === s.id)!.label);

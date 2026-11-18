@@ -43,7 +43,24 @@ export const OVERLAY_SHAPES = ["ring", "circle", "arrow", "check", "star", "hear
   "burst", "bolt", "crown", "flame", "thumbs-up", "curved-arrow", "sun", "explosion", "ribbon", "tag", "pin", "target",
   // Studio stickers expansion (2026-11-18): 17 more house-drawn stickers, same SVG family,
   // taking the sticker set from 12 to 29 new shapes and the shape set from 33 to 50.
-  "megaphone", "music-note", "mic", "camera", "play", "rocket", "trophy", "gift", "bell", "clock", "gem", "puzzle", "coffee", "umbrella", "key", "lock", "thumbs-down"] as const;
+  "megaphone", "music-note", "mic", "camera", "play", "rocket", "trophy", "gift", "bell", "clock", "gem", "puzzle", "coffee", "umbrella", "key", "lock", "thumbs-down",
+  // Studio stickers expansion 2 (2026-11-18): 60 more colourful house-drawn stickers across
+  // 12 categories (arrows, stars, hearts, faces, celebration, social, shapes, nature, food,
+  // animals, sport, music), taking the shape set from 50 to 110. Drawn in
+  // packages/compositions OverlayShapeSvg; each carries a fixed palette in
+  // OVERLAY_SHAPE_META (colourful by default, still recolourable by the editor).
+  "arrow-up", "arrow-down", "arrow-left", "arrow-turn",
+  "sparkle", "shooting-star", "star-outline",
+  "heart-broken", "heart-sparkle", "heart-arrow", "heart-outline",
+  "face-smile", "face-laugh", "face-wink", "face-love", "face-cool", "face-surprise", "face-sad", "face-sleepy",
+  "party-popper", "balloon", "fireworks", "cake", "bunting", "party-hat",
+  "share-arrow", "link", "hashtag", "chat-heart", "hand-pointer", "check-badge",
+  "hexagon", "pentagon", "octagon", "blob", "squiggle",
+  "leaf", "flower", "tree", "mountain", "rainbow",
+  "pizza", "burger", "ice-cream", "donut", "strawberry", "cupcake",
+  "cat-face", "dog-face", "bird", "fish", "butterfly", "paw-print",
+  "football", "basketball", "medal", "dumbbell",
+  "headphones", "guitar", "music-double"] as const;
 export const OverlayShapeSchema = z.enum(OVERLAY_SHAPES);
 export type OverlayShape = z.infer<typeof OverlayShapeSchema>;
 

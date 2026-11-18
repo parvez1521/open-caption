@@ -44,9 +44,10 @@ describe("OverlayView (static markup — the same tree the Player and the web-re
   it("renders every shape in the set as an SVG painted with the item colour", () => {
     expect(OVERLAY_SHAPE_META.map((s) => s.id)).toEqual([...OVERLAY_SHAPES]);
     // Package 2 item F: the original nine plus twelve new creator shapes, plus the
-    // 2026-11-18 studio stickers batch (twelve house-drawn stickers) and the
-    // 17-shape expansion (megaphone through thumbs-down)
-    expect(OVERLAY_SHAPES).toHaveLength(50);
+    // 2026-11-18 studio stickers batch (twelve house-drawn stickers), the
+    // 17-shape expansion (megaphone through thumbs-down) and the 60-shape
+    // colourful expansion 2 (arrow-up through music-double)
+    expect(OVERLAY_SHAPES).toHaveLength(110);
     for (const id of ["rounded-rectangle", "ellipse", "diamond", "chevron", "double-arrow", "speech-bubble", "underline-bar", "corner-brackets", "progress-bar", "plus", "cross", "badge", "burst", "bolt", "crown", "flame", "thumbs-up", "curved-arrow", "sun", "explosion", "ribbon", "tag", "pin", "target", "megaphone", "music-note", "mic", "camera", "play", "rocket", "trophy", "gift", "bell", "clock", "gem", "puzzle", "coffee", "umbrella", "key", "lock", "thumbs-down"] as const) {
       expect(OVERLAY_SHAPES).toContain(id);
     }
