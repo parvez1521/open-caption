@@ -166,6 +166,8 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
+  /** CAP-T09: the join a transition drag is hovering over (row drop target), for the highlight. */
+  const [dragOverJoinId, setDragOverJoinId] = useState<string | null>(null);
   const [viewW, setViewW] = useState(0);
   const [tier, setTier] = useState<LabelTier>("wide");
   const LABEL_W = LABEL_WIDTHS[tier];
@@ -781,6 +783,37 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
   const tiles = frames.length ? Math.ceil(x(total) / tileW) : 0;
 
   const ASSET_MIME = "application/x-opencaption-asset";
+
+  // CAP-T09: the whole video track row is a drop target, not just the 14×18 px
+  // cut-marker button. A drop lands on the nearest join within 14 px of the
+  // drop point; while a transition drag hovers near a join, that marker lights
+  // up. The marker itself stays the precise target (its handlers stop
+  // propagation, so a drop on it never also fires the row handler).
+  const DROP_CUT_SNAP_PX = 14;
+  const msFromClientX = (clientX: number): number | null => {
+    const el = scrollRef.current;
+    if (!el) return null;
+    const px = clientX - el.getBoundingClientRect().left + el.scrollLeft - LABEL_W;
+    return Math.max(0, Math.min(total, px / pxPerMs));
+  };
+  const nearestJoinAtMs = (ms: number): EditorVideoClip | null => {
+    let best: EditorVideoClip | null = null;
+    let bestPx = Infinity;
+    for (const c of displayVideoClips.slice(1)) {
+      const dPx = Math.abs(c.startMs - ms) * pxPerMs;
+      if (dPx < bestPx) { bestPx = dPx; best = c; }
+    }
+    return bestPx <= DROP_CUT_SNAP_PX ? best : null;
+  };
+  const parseTransitionPayload = (e: React.DragEvent): TransitionDragPayload | null => {
+    const raw = e.dataTransfer.getData(TRANSITION_DRAG_MIME);
+    if (!raw) return null;
+    try {
+      const payload = JSON.parse(raw) as Partial<TransitionDragPayload>;
+      if (typeof payload.type !== "string" || !Number.isFinite(payload.durationMs)) return null;
+      return { type: payload.type, durationMs: payload.durationMs! };
+    } catch { return null; }
+  };
   return (
     <div
       role="region"
@@ -974,7 +1007,34 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
 
           {/* video: filmstrip under Stage-B segment blocks (one block per video clip in the
               partition; blocks select, 6px boundary handles trim — segment bodies never move) */}
-          <div className={`${trackRow} cursor-ew-resize ${tracks.video.visible ? "" : "opacity-40"}`} {...scrub}>
+          <div
+            className={`${trackRow} cursor-ew-resize ${tracks.video.visible ? "" : "opacity-40"}`}
+            {...scrub}
+            onDragOver={(e) => {
+              if (!onDropTransition || !e.dataTransfer.types.includes(TRANSITION_DRAG_MIME)) return;
+              const ms = msFromClientX(e.clientX);
+              const join = ms == null ? null : nearestJoinAtMs(ms);
+              if (!join) { setDragOverJoinId(null); return; }
+              e.preventDefault();
+              e.stopPropagation();
+              setDragOverJoinId(join.id);
+            }}
+            onDragLeave={(e) => {
+              if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget as Node)) return;
+              setDragOverJoinId(null);
+            }}
+            onDrop={(e) => {
+              if (!onDropTransition) return;
+              const payload = parseTransitionPayload(e);
+              const ms = msFromClientX(e.clientX);
+              const join = ms == null ? null : nearestJoinAtMs(ms);
+              setDragOverJoinId(null);
+              if (!payload || !join) return;
+              e.preventDefault();
+              e.stopPropagation();
+              onDropTransition(join.id, payload);
+            }}
+          >
             <div className="absolute inset-y-1 left-0 flex overflow-hidden rounded-md bg-[#0B0B0A] ring-1 ring-st-ink/20" style={{ width: x(mainClipMs) }}>
               {Array.from({ length: tiles }, (_, i) => {
                 const at = ((i + 0.5) * tileW) / pxPerMs;
@@ -1079,7 +1139,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   const label = `Cut after Clip ${i}`;
                   return (
                     <React.Fragment key={`cut-${c.id}`}>
-                      <span aria-hidden className={`pointer-events-none absolute inset-y-0 z-10 w-px ${selected ? "bg-st-em" : "bg-white/40"}`} style={{ left: x(c.startMs) }} />
+                      <span aria-hidden className={`pointer-events-none absolute inset-y-0 z-10 w-px ${selected || dragOverJoinId === c.id ? "bg-st-em" : "bg-white/40"}`} style={{ left: x(c.startMs) }} />
                       <button
                         type="button"
                         aria-label={label}
@@ -1091,24 +1151,22 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                           if (onDropTransition && e.dataTransfer.types.includes(TRANSITION_DRAG_MIME)) {
                             e.preventDefault();
                             e.stopPropagation();
+                            setDragOverJoinId(c.id);
                           }
                         }}
                         onDrop={(e) => {
                           if (!onDropTransition) return;
-                          const raw = e.dataTransfer.getData(TRANSITION_DRAG_MIME);
-                          if (!raw) return;
+                          const payload = parseTransitionPayload(e);
+                          setDragOverJoinId(null);
+                          if (!payload) return;
                           e.preventDefault();
                           e.stopPropagation();
-                          try {
-                            const payload = JSON.parse(raw) as Partial<TransitionDragPayload>;
-                            if (typeof payload.type !== "string" || !Number.isFinite(payload.durationMs)) return;
-                            onDropTransition(c.id, { type: payload.type, durationMs: payload.durationMs! });
-                          } catch { /* not a transition payload */ }
+                          onDropTransition(c.id, payload);
                         }}
                         className="absolute top-0 z-30 grid h-[18px] w-[14px] -translate-x-1/2 place-items-center"
                         style={{ left: x(c.startMs) }}
                       >
-                        <span aria-hidden className={`block h-2 w-2 rotate-45 rounded-[1px] ${selected ? "bg-st-em" : "bg-white/70"}`} />
+                        <span aria-hidden className={`block h-2 w-2 rotate-45 rounded-[1px] ${selected || dragOverJoinId === c.id ? "bg-st-em" : "bg-white/70"}`} />
                       </button>
                     </React.Fragment>
                   );

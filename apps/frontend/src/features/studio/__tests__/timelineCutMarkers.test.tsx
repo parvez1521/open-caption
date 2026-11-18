@@ -132,3 +132,48 @@ describe("Timeline cut markers", () => {
     expect(queryByRole("button", { name: /Cut after Clip/ })).toBeNull();
   });
 });
+
+describe("Timeline video-row drop target (CAP-T09)", () => {
+  const payload = JSON.stringify({ type: "dissolve-cross", durationMs: 300 });
+  const drag = { types: [TRANSITION_DRAG_MIME], getData: (t: string) => (t === TRANSITION_DRAG_MIME ? payload : "") };
+  function dragEvent(type: string, clientX: number): Event {
+    const ev = new MouseEvent(type, { bubbles: true, cancelable: true, clientX }) as MouseEvent & { dataTransfer?: unknown };
+    Object.defineProperty(ev, "dataTransfer", { value: drag });
+    return ev;
+  }
+  // jsdom's DragEvent constructor drops clientX, so drag events are built as
+  // MouseEvents above. ResizeObserver never fires, so the tier stays "wide"
+  // (LABEL_W 148) and viewW stays 0 (pxPerMs = 200/6000 = 1/30 at zoom 1).
+  // A cut's marker renders at left x(cutMs); the scroll container's
+  // scrollLeft is live-read (jsdom's zero clientWidth leaves it at 49.33).
+  function clientXNear(marker: HTMLElement, dxPx: number): number {
+    const scroller = marker.closest(".overflow-auto") as HTMLElement;
+    return 148 - scroller.scrollLeft + parseFloat(marker.style.left || "0") + dxPx;
+  }
+
+  it("dropping a card on the video row near a cut applies it at that cut", () => {
+    const { getByRole, onDropTransition } = renderTimeline(threeClipComp);
+    const marker = getByRole("button", { name: "Cut after Clip 1" });
+    fireEvent(marker.parentElement!, dragEvent("drop", clientXNear(marker, 5)));
+    expect(onDropTransition).toHaveBeenCalledTimes(1);
+    expect(onDropTransition).toHaveBeenCalledWith("b", { type: "dissolve-cross", durationMs: 300 });
+  });
+
+  it("dropping on the row far from any cut does nothing", () => {
+    const { getByRole, onDropTransition } = renderTimeline(threeClipComp);
+    const marker = getByRole("button", { name: "Cut after Clip 1" });
+    // 50 px past cut 1: 16.7 px from cut 2 — outside the 14 px snap radius
+    fireEvent(marker.parentElement!, dragEvent("drop", clientXNear(marker, 50)));
+    expect(onDropTransition).not.toHaveBeenCalled();
+  });
+
+  it("dragging over the row near a cut highlights that cut's marker until the drag leaves", () => {
+    const { getByRole } = renderTimeline(threeClipComp);
+    const marker = getByRole("button", { name: "Cut after Clip 1" });
+    expect(marker.querySelector("span")!.className).not.toContain("bg-st-em");
+    fireEvent(marker.parentElement!, dragEvent("dragover", clientXNear(marker, 5)));
+    expect(marker.querySelector("span")!.className).toContain("bg-st-em");
+    fireEvent(marker.parentElement!, dragEvent("dragleave", clientXNear(marker, 5)));
+    expect(marker.querySelector("span")!.className).not.toContain("bg-st-em");
+  });
+});
