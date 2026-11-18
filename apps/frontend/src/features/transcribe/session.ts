@@ -4,7 +4,7 @@ import { useSyncExternalStore } from "react";
 import { fromWhisperCaptions } from "@motion-ai/caption-engine/core";
 import type { Word } from "@capseasy/shared";
 import { apiClient } from "@/services/api-client";
-import { decodeAudio, dropWorker, sendToWorker, speechWorker, withRetry, type BrowserStatus, type Out } from "./browserWhisper";
+import { createSpeechWorker, decodeAudio, dropWorker, sendToWorker, withRetry, type BrowserStatus, type Out } from "./browserWhisper";
 import { MODELS, PROJECT_LANGUAGE, markWebgpuBroken, modelKeyOf, speechLanguageOf, webgpuMarkedBroken, type SpeechLanguage, type SpeechModel } from "./runtime";
 import { dropRepeatedRuns } from "./speech";
 import { mark, note, report } from "./timing";
@@ -368,7 +368,10 @@ export class TranscriptionSession {
     } else this.raw = [];
     this.set({ phase: "running" });
 
-    const worker = speechWorker();
+    // PER-05-B: this run's OWN worker — never the shared one, so a second run in
+    // the same tab cannot steal this run's handler and this run's failure cannot
+    // terminate another run's worker. The model reloads from the browser's file cache.
+    const worker = createSpeechWorker();
     this.worker = worker;
     const forceWasm = webgpuMarkedBroken();
     const start = (audio?: Float32Array) =>

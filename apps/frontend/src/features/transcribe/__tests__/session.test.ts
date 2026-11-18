@@ -13,7 +13,7 @@ vi.mock("../browserWhisper", () => ({
   decodeAudio: vi.fn(async () => new Float32Array(0)),
   dropWorker: vi.fn(),
   sendToWorker: (_w: unknown, m: unknown) => sent.push(m),
-  speechWorker: () => fakeWorker,
+  createSpeechWorker: () => fakeWorker,
   withRetry: async <T,>(fn: () => Promise<T>) => fn(),
 }));
 vi.mock("@/features/upload/localVideos", () => ({

@@ -34,9 +34,20 @@ export async function decodeAudio(src: Blob): Promise<Float32Array> {
 /**
  * One speech worker per tab, kept alive between runs so a model that was preloaded (or used once) stays in memory.
  * Stopping a run terminates it; the next run starts a fresh one.
+ *
+ * Two different runs must NEVER share that worker (PER-05-B): each session used
+ * to assign `worker.onmessage` on the shared worker, so a second run starting in
+ * the same tab overwrote the first run's handler, and a failing session's
+ * `dropWorker` terminated the worker out from under the other run. So a run now
+ * gets its OWN worker from `createSpeechWorker` and owns it end to end; the
+ * shared worker is only the warm preload target (preloadSpeechModel) and is
+ * never handed to a session. `dropWorker` still only clears the shared slot
+ * when the worker being dropped IS the shared one.
  */
 let shared: Worker | null = null;
 export const speechWorker = () => (shared ??= new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" }));
+/** A fresh worker for one transcription run; the caller owns it and drops it when the run ends. */
+export const createSpeechWorker = () => new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" });
 export const dropWorker = (w: Worker) => {
   w.terminate();
   if (shared === w) {
