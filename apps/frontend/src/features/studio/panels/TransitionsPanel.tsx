@@ -51,6 +51,12 @@ export interface TransitionsPanelProps {
   hasJoins?: boolean;
   /** Select the first join in the timeline (offered when no join is selected). */
   onSelectFirstJoin?: () => void;
+  /**
+   * CAP-T05: the live cap for the selected join's transition
+   * (`min(neighbour durations) - 1`). The duration slider stops at the cap
+   * instead of inviting a drag the op can only silently clamp.
+   */
+  transitionDurationCapMs?: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -320,10 +326,15 @@ export const TransitionsPanel: React.FC<TransitionsPanelProps> = ({
   selectedJoinLabel,
   hasJoins = false,
   onSelectFirstJoin,
+  transitionDurationCapMs,
 }) => {
   // selectedJoinLabel === undefined: legacy caller, no join info — fall back to the
   // old disabled flag. === null: the caller reports no join selected.
   const noJoinSelected = selectedJoinLabel === undefined ? transitionsDisabled : selectedJoinLabel === null;
+  // CAP-T05: the slider's max is the live cap (never above the 2000 ms schema
+  // bound, never below the 100 ms floor); without a cap the schema bound stands.
+  const durationMaxMs = transitionDurationCapMs == null ? 2000 : Math.max(100, Math.min(2000, transitionDurationCapMs));
+  const durationCapped = transitionDurationCapMs != null && transitionDurationCapMs < 2000;
   const hint = selectedJoinLabel
     ? `Applying to ${selectedJoinLabel}. Drag onto a cut in the timeline, or tap to apply at the selected cut.`
     : "Drag onto a cut in the timeline, or tap to apply at the selected cut.";
@@ -362,11 +373,16 @@ export const TransitionsPanel: React.FC<TransitionsPanelProps> = ({
               label="Duration"
               value={currentTransition.durationMs}
               min={100}
-              max={2000}
+              max={durationMaxMs}
               step={50}
               unit=" ms"
               onChange={(v) => onApplyTransition({ type: currentTransition.type, durationMs: v })}
             />
+            {durationCapped ? (
+              <p className="text-[12px] leading-snug text-st-muted">
+                Max {durationMaxMs} ms — a neighbouring clip is too short for a longer transition.
+              </p>
+            ) : null}
             <Button onClick={onClearTransition} disabled={transitionsDisabled}>
               Plain cut
             </Button>

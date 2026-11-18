@@ -230,6 +230,19 @@ const tinyNeighbourSettings = ProjectSettingsSchema.parse({
   },
 });
 
+/** seg-2 is 300 ms and already holds the clamped 299 ms transition (CAP-T05). */
+const cappedSettings = ProjectSettingsSchema.parse({
+  overlays: [],
+  composition: {
+    version: 1,
+    videoSegments: [
+      { id: "seg-1", sourceInMs: 0, sourceOutMs: 15000 },
+      { id: "seg-2", sourceInMs: 15000, sourceOutMs: 15300, transitionIn: { type: "dissolve-cross", durationMs: 299 } },
+    ],
+    markers: [],
+  },
+});
+
 const edit = vi.fn();
 const editAll = vi.fn();
 
@@ -426,6 +439,23 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
     }
   });
 
+  it("a past-cap apply surfaces the honest cap message, not 'Already applied' (CAP-T05)", async () => {
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio(cappedSettings);
+    const { unmount } = renderStudio();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "timeline-cut-2" }));
+      expect(await screen.findByText("Applying to Cut after Clip 1")).toBeTruthy();
+      // the card's default 300 ms is past the 299 ms cap; the stored 299 ms is
+      // the clamp, not an already-applied 300 ms
+      fireEvent.click(screen.getByRole("button", { name: "Apply Cross Dissolve" }));
+      expect(editAll).not.toHaveBeenCalled();
+      expect(screen.getByRole("status")).toHaveTextContent("Capped at 299 ms — neighbouring clip too short for 300 ms.");
+    } finally {
+      unmount();
+    }
+  });
+
   it("tiny neighbouring clip surfaces a message instead of silence", async () => {
     window.history.pushState({}, "", "/projects/p1");
     studioState.current = makeStudio(tinyNeighbourSettings);
@@ -481,6 +511,19 @@ describe("transitionApplyBlocker — no-op reasons", () => {
     expect(transitionApplyBlocker(c, "gone", { type: "dissolve-cross", durationMs: 300 })).toMatch(/gone/);
     expect(transitionApplyBlocker(c, "b", { type: "dissolve-cross", durationMs: 300 })).toBeNull();
     expect(transitionApplyBlocker(null, "b", { type: "dissolve-cross", durationMs: 300 })).toMatch(/no timeline/);
+  });
+
+  it("a past-cap drag is reported as capped, not 'Already applied' (CAP-T05)", () => {
+    const capped = comp([
+      { id: "a", durationMs: 15000 },
+      { id: "b", durationMs: 300, transitionIn: { type: "dissolve-cross", durationMs: 299 } },
+    ]);
+    // the stored 299 ms IS the clamp of a 500 ms request — dragging to 500 again
+    // is a request the neighbours cannot honour, not an already-applied one
+    expect(transitionApplyBlocker(capped, "b", { type: "dissolve-cross", durationMs: 500 })).toBe(
+      "Capped at 299 ms — neighbouring clip too short for 500 ms.",
+    );
+    expect(transitionApplyBlocker(capped, "b", { type: "dissolve-cross", durationMs: 299 })).toBe("Already applied.");
   });
 
   it("tiny cap and identical apply", () => {

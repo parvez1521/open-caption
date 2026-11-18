@@ -74,6 +74,12 @@ export interface SegmentInspectorProps {
   onUpdateEffect: (id: string, patch: { amount?: number; enabled?: boolean; color?: string }) => void;
   onRemoveEffect: (id: string) => void;
   onMoveEffect: (id: string, dir: -1 | 1) => void;
+  /**
+   * CAP-T05: the live cap for this segment's transition in
+   * (`min(neighbour durations) - 1`). The duration slider stops at the cap
+   * instead of inviting a drag the op can only silently clamp.
+   */
+  transitionDurationCapMs?: number;
 }
 
 const KEYFRAME_PROPERTY_OPTIONS: { value: SegmentKeyframeProperty; label: string }[] = [
@@ -121,7 +127,7 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
   onDuplicate, onRippleDelete, onReverse, onFreeze,
   keyframes, effects, onAddKeyframe, onUpdateKeyframe, onRemoveKeyframe,
   onAddEffect, onUpdateEffect, onRemoveEffect, onMoveEffect,
-  onAutoZooms, autoZoomCount,
+  onAutoZooms, autoZoomCount, transitionDurationCapMs,
 }) => {
   const t = segment.transform;
   const [kfProperty, setKfProperty] = React.useState<SegmentKeyframeProperty>("scale");
@@ -196,7 +202,12 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
             }}
           />
           {segment.transitionIn ? (
-            <Slider label="Duration" value={segment.transitionIn.durationMs} min={100} max={2000} step={50} unit=" ms" onChange={(v) => onTransition({ type: segment.transitionIn!.type, durationMs: v })} />
+            <>
+              <Slider label="Duration" value={segment.transitionIn.durationMs} min={100} max={transitionDurationCapMs == null ? 2000 : Math.max(100, Math.min(2000, transitionDurationCapMs))} step={50} unit=" ms" onChange={(v) => onTransition({ type: segment.transitionIn!.type, durationMs: v })} />
+              {transitionDurationCapMs != null && transitionDurationCapMs < 2000 ? (
+                <p className="text-xs text-st-faint">Max {Math.max(100, Math.min(2000, transitionDurationCapMs))} ms — a neighbouring clip is too short for a longer transition.</p>
+              ) : null}
+            </>
           ) : null}
         </Section>
       ) : null}

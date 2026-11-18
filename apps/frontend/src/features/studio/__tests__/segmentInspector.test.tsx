@@ -30,7 +30,7 @@ const view = (p: Partial<SegmentView> = {}): SegmentView => ({
 function setup(
   p: Partial<SegmentView> = {},
   playheadMs = 2500,
-  extra: { keyframes?: SegmentKeyframe[]; effects?: SegmentEffect[] } = {},
+  extra: { keyframes?: SegmentKeyframe[]; effects?: SegmentEffect[]; transitionDurationCapMs?: number } = {},
 ) {
   const handlers = {
     onTransform: vi.fn(),
@@ -52,6 +52,7 @@ function setup(
     <SegmentInspector
       segment={view(p)} playheadMs={playheadMs} production={{ kind: "idle" }} {...handlers}
       keyframes={extra.keyframes ?? []} effects={extra.effects ?? []}
+      transitionDurationCapMs={extra.transitionDurationCapMs}
     />,
   );
   return { ...utils, handlers };
@@ -115,6 +116,17 @@ describe("SegmentInspector", () => {
     expect(second.handlers.onTransition).toHaveBeenCalledWith(null);
     fireEvent.change(select, { target: { value: "wipe" } });
     expect(second.handlers.onTransition).toHaveBeenCalledWith({ type: "wipe", durationMs: 300 });
+  });
+
+  it("the transition duration slider stops at the live cap and says so (CAP-T05)", () => {
+    const { container } = setup({}, 2500, { transitionDurationCapMs: 299 });
+    expect(slider(container, "Duration").max).toBe("299");
+    expect(container.textContent).toContain("Max 299 ms — a neighbouring clip is too short");
+  });
+
+  it("without a cap the transition duration slider allows the full 2000 ms", () => {
+    const { container } = setup();
+    expect(slider(container, "Duration").max).toBe("2000");
   });
 
   it("duplicate / ripple-delete / reverse buttons fire their callbacks", () => {

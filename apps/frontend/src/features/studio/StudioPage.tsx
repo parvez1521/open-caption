@@ -177,8 +177,12 @@ export function transitionApplyBlocker(
   if (transition) {
     const cap = Math.min(prev.durationMs, clip.durationMs) - 1;
     if (cap < 100) return "Neighbouring clip too short for a transition.";
-    const durationMs = Math.max(100, Math.min(Math.round(transition.durationMs), cap));
+    const requestedMs = Math.round(transition.durationMs);
+    const durationMs = Math.max(100, Math.min(requestedMs, cap));
     if ((clip.transitionIn?.type ?? null) === transition.type && (clip.transitionIn?.durationMs ?? 0) === durationMs) {
+      // CAP-T05: the stored duration is the CLAMPED one — a drag past the cap
+      // is not "already applied", it is a request the neighbours cannot honour.
+      if (requestedMs > cap) return `Capped at ${cap} ms — neighbouring clip too short for ${requestedMs} ms.`;
       return "Already applied.";
     }
   } else if (!clip.transitionIn) {
@@ -719,6 +723,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const selSegmentView = selClip
     ? resolveSegmentView(selClip, selClipIndex, storedSegments.find((sg) => sg.id === selClip.id) ?? null)
     : null;
+  /** CAP-T05: the live duration cap for the selected segment's transition in
+   * (`min(neighbour durations) - 1`) — the Inspector slider stops here. */
+  const selTransitionCapMs =
+    selClipIndex >= 1 && editorComp
+      ? Math.min(editorComp.videoClips[selClipIndex - 1]!.durationMs, editorComp.videoClips[selClipIndex]!.durationMs) - 1
+      : null;
 
   /** The blob a segment plays: its own media-bin asset when it has one (a reversed conform, a
    *  still's source), else the project's source video — device-local copy first, then the
@@ -923,6 +933,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onMoveEffect={(id, dir) => { const r = moveSegmentEffect(editorComp, selSegmentView.id, id, dir); commitComposition(r.comp, r.docEffect); }}
       onAutoZooms={addAutoZooms}
       autoZoomCount={autoZoomCount}
+      transitionDurationCapMs={selTransitionCapMs ?? undefined}
     />
   ) : null;
   const splitVideoRef = useRef<() => void>(() => undefined);
@@ -946,6 +957,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const selectedJoinLabel = selectedJoinIndex >= 1 ? `Cut after Clip ${selectedJoinIndex}` : null;
   const hasJoins = Boolean(editorComp && editorComp.videoClips.length > 1);
   const joinClip = selectedJoinIndex >= 1 ? editorComp!.videoClips[selectedJoinIndex]! : null;
+  /** CAP-T05: the live duration cap for the selected join's transition
+   * (`min(neighbour durations) - 1`) — the Transitions panel slider stops here. */
+  const joinTransitionCapMs = joinClip
+    ? Math.min(editorComp!.videoClips[selectedJoinIndex - 1]!.durationMs, joinClip.durationMs) - 1
+    : null;
   const selectFirstJoin = () => {
     if (editorComp && editorComp.videoClips.length > 1) selectJoin(editorComp.videoClips[1]!.id);
   };
@@ -2036,6 +2052,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                         selectedJoinLabel={selectedJoinLabel}
                         hasJoins={hasJoins}
                         onSelectFirstJoin={selectFirstJoin}
+                        transitionDurationCapMs={joinTransitionCapMs ?? undefined}
                       />
                     )
                     : <MotionStudioPanel {...overlayPanelProps} />}

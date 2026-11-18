@@ -93,6 +93,25 @@ describe("TransitionsPanel", () => {
     expect(onClearTransition).toHaveBeenCalledTimes(1);
   });
 
+  it("duration slider stops at the live cap and says so (CAP-T05)", () => {
+    renderPanel({
+      selectedJoinLabel: "Cut after Clip 1",
+      currentTransition: { type: "glitch", durationMs: 299 },
+      transitionDurationCapMs: 299,
+    });
+    expect((screen.getByLabelText("Duration") as HTMLInputElement).max).toBe("299");
+    expect(screen.getByText(/Max 299 ms — a neighbouring clip is too short/)).toBeTruthy();
+  });
+
+  it("without a cap the duration slider allows the full 2000 ms", () => {
+    renderPanel({
+      selectedJoinLabel: "Cut after Clip 1",
+      currentTransition: { type: "glitch", durationMs: 400 },
+    });
+    expect((screen.getByLabelText("Duration") as HTMLInputElement).max).toBe("2000");
+    expect(screen.queryByText(/Max .* ms — a neighbouring clip/)).toBeNull();
+  });
+
   it("without a current transition there is no duration slider or Plain cut button", () => {
     renderPanel();
     expect(screen.queryByLabelText("Duration")).toBeNull();
