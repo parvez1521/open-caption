@@ -48,4 +48,15 @@ describe("footage swap — what an upload means for the doc", () => {
   it("no current video means the fresh path", () => {
     expect(resolveUploadOutcome({ uploadedVideoId: "vid-1", currentVideoId: null })).toBe("reset");
   });
+
+  it("PER-05-A: re-attaching the same footage to a captioned project keeps the captions", () => {
+    // video gone on this device, same file picked again under a new video id:
+    // the copied captions belong to this video, so the upload must not reset them
+    expect(resolveUploadOutcome({ uploadedVideoId: "vid-2", currentVideoId: "vid-1", hasCaptions: true })).toBe("keep");
+    // no captions to protect: the fresh path is still the honest one
+    expect(resolveUploadOutcome({ uploadedVideoId: "vid-2", currentVideoId: "vid-1", hasCaptions: false })).toBe("reset");
+    expect(resolveUploadOutcome({ uploadedVideoId: "vid-2", currentVideoId: "vid-1" })).toBe("reset");
+    // and with no current video there is nothing to keep, captions or not
+    expect(resolveUploadOutcome({ uploadedVideoId: "vid-1", currentVideoId: null, hasCaptions: true })).toBe("reset");
+  });
 });

@@ -11,6 +11,7 @@ import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { studioService } from "@/services/studio";
 import { setProjectMode, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
 import { createBlankAiEditProject, filterAiEditProjects, filterCaptionProjects } from "@/features/studio/aiEditFlow";
+import { copyLocalVideo } from "@/features/upload/localVideos";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
 
 const STATUS_CHIP: Record<ProjectStatus, { label: string; cls: string; pulse?: boolean }> = {
@@ -341,7 +342,16 @@ export default function ProjectsList() {
                 onOpen={() => nav.go(`/projects/${project.id}`, "Opening your project")}
                 onOpenSettings={() => nav.go(`/projects/${project.id}/settings`, "Opening project settings")}
                 onOpenOrg={() => openOrgEditor(project)}
-                onDuplicate={() => void runAction("Duplicating project", () => projectsService.duplicateProject(project.id))}
+                onDuplicate={() =>
+                  void runAction("Duplicating project", async () => {
+                    // PER-05-A: the copy's video row has a new id — copy this
+                    // device's video bytes to it so the copy opens with its
+                    // video, not videoGone. Best-effort: a cloud-synced copy
+                    // resolves through its cloud path even with no local copy.
+                    const { videoId, sourceVideoId } = await projectsService.duplicateProject(project.id);
+                    if (videoId && sourceVideoId) await copyLocalVideo(sourceVideoId, videoId);
+                  })
+                }
                 onArchive={() => void runAction("Archiving project", () => projectsService.archiveProject(project.id))}
                 onUnarchive={() => void runAction("Restoring project", () => projectsService.unarchiveProject(project.id))}
                 onDelete={() => { setMenuFor(null); setDeleteTarget(project); }}
@@ -366,7 +376,16 @@ export default function ProjectsList() {
                 onOpen={() => nav.go(`/projects/${project.id}`, "Opening your project")}
                 onOpenSettings={() => nav.go(`/projects/${project.id}/settings`, "Opening project settings")}
                 onOpenOrg={() => openOrgEditor(project)}
-                onDuplicate={() => void runAction("Duplicating project", () => projectsService.duplicateProject(project.id))}
+                onDuplicate={() =>
+                  void runAction("Duplicating project", async () => {
+                    // PER-05-A: the copy's video row has a new id — copy this
+                    // device's video bytes to it so the copy opens with its
+                    // video, not videoGone. Best-effort: a cloud-synced copy
+                    // resolves through its cloud path even with no local copy.
+                    const { videoId, sourceVideoId } = await projectsService.duplicateProject(project.id);
+                    if (videoId && sourceVideoId) await copyLocalVideo(sourceVideoId, videoId);
+                  })
+                }
                 onArchive={() => void runAction("Archiving project", () => projectsService.archiveProject(project.id))}
                 onUnarchive={() => void runAction("Restoring project", () => projectsService.unarchiveProject(project.id))}
                 onDelete={() => { setMenuFor(null); setDeleteTarget(project); }}

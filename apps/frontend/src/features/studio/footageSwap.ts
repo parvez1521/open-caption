@@ -33,10 +33,15 @@ export type UploadOutcome = "keep" | "reset";
 /**
  * What an upload means for the caption document. A footage swap uploads under the
  * SAME video id, so the doc stays; a fresh upload registers a NEW video id, so the
- * old captions belonged to the old video and go. With no current video there is
+ * old captions belonged to the old video and go — UNLESS the project already has
+ * captions and the video was simply gone from this device (PER-05-A): re-attaching
+ * the same footage under a new id keeps the captions that were copied with the
+ * project, because they belong to this video. With no current video there is
  * nothing to keep — the fresh path is the only honest one.
  */
-export function resolveUploadOutcome(opts: { uploadedVideoId: string; currentVideoId: string | null }): UploadOutcome {
+export function resolveUploadOutcome(opts: { uploadedVideoId: string; currentVideoId: string | null; hasCaptions?: boolean }): UploadOutcome {
   if (!opts.currentVideoId) return "reset";
-  return opts.uploadedVideoId === opts.currentVideoId ? "keep" : "reset";
+  if (opts.uploadedVideoId === opts.currentVideoId) return "keep";
+  if (opts.hasCaptions) return "keep";
+  return "reset";
 }

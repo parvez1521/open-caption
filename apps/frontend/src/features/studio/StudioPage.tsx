@@ -1544,12 +1544,17 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onUploaded={(videoId) => {
         setJustUploadedId(videoId);
         setReplacing(false);
-        // same video id = footage swap, captions stay; a new id = fresh upload, old captions go
-        if (resolveUploadOutcome({ uploadedVideoId: videoId, currentVideoId: data?.video?.id ?? null }) === "reset") s.resetDoc();
+        // same video id = footage swap, captions stay; a new id = fresh upload, old captions go —
+        // unless the project already has captions and the video was just gone from this device
+        // (PER-05-A re-attach): the captions belong to this video, so they stay.
+        if (resolveUploadOutcome({ uploadedVideoId: videoId, currentVideoId: data?.video?.id ?? null, hasCaptions: (doc?.words.length ?? 0) > 0 }) === "reset") s.resetDoc();
         void s.refetch();
       }}
       note={
-        videoGone ? "Video isn't on this device. Upload again — captions start fresh."
+        videoGone
+          ? (doc?.words.length ?? 0) > 0
+            ? "Video isn't on this device. Upload the same video again — your captions stay as they are."
+            : "Video isn't on this device. Upload again — captions start fresh."
           : replacing
             ? effectiveReplaceMode === "keep"
               ? "Choose the new version of your video. Your captions stay on the same timeline."
@@ -1562,6 +1567,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       previousDurationMs={data?.video?.durationMs ?? null}
       keepAllowed={keepAllowed}
       onKeepFootage={handleKeepFootage}
+      reattachOnly={videoGone && (doc?.words.length ?? 0) > 0}
     />
   ) : (
     <ProcessingPanel projectId={projectId} job={data.job} canTranscribe={data.canTranscribe} onChanged={() => void s.refetch()} onReplaceVideo={() => setReplacing(true)} videoId={video?.id ?? null} local={!!data.video?.local} language={data.project.language ?? null} />

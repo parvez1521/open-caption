@@ -119,6 +119,26 @@ export async function getLocalVideo(id: string): Promise<Blob | null> {
   }
 }
 
+/**
+ * PER-05-A: duplicate (and clip) a project by copying its on-device video bytes
+ * to the new video id — the same move the clipper makes. Best-effort: false when
+ * there is no local copy on this device (a cloud-synced copy still resolves
+ * through its cloud path, and another device asks for the file again) or the
+ * save fails; never throws, so a copy failure never reports the duplicate
+ * itself as failed.
+ */
+export async function copyLocalVideo(sourceId: string, targetId: string): Promise<boolean> {
+  if (sourceId === targetId) return true;
+  const blob = await getLocalVideo(sourceId);
+  if (!blob) return false;
+  try {
+    await saveLocalVideo(targetId, blob);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function saveCompat(id: string, file: Blob) {
   await run(COMPAT, "readwrite", (s) => s.put({ id, file, name: "compat.mp4", size: file.size, savedAt: Date.now() } satisfies Entry)).catch(() => undefined);
 }

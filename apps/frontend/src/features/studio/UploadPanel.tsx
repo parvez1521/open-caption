@@ -38,13 +38,23 @@ interface Props {
   keepAllowed?: boolean;
   /** Keep path: swap the bytes + video row for the prepared file, captions untouched. */
   onKeepFootage?: (ready: PreparedVideo) => Promise<void>;
+  /**
+   * PER-05-A: re-attaching the missing video of a project that already has
+   * captions (video gone on this device, same file picked again). The upload
+   * registers a new video id but starts NO transcription and resets nothing —
+   * the copied captions stay, exactly like the keep path.
+   */
+  reattachOnly?: boolean;
 }
 
 const DEFAULT_LIMITS = { maxBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60 };
 
 /** Drag & drop / pick a video: checked and saved on this device — the file itself is never uploaded, only its name, size, length and format are registered with the project — then captions start, or, through the Normal Editor door, the editor opens directly with no transcription. */
-export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null, mode = "captions", onModeChange, videoId = null, replaceMode, onReplaceModeChange, previousDurationMs = null, keepAllowed = true, onKeepFootage }) => {
+export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null, mode = "captions", onModeChange, videoId = null, replaceMode, onReplaceModeChange, previousDurationMs = null, keepAllowed = true, onKeepFootage, reattachOnly = false }) => {
   const editorMode = mode === "editor";
+  // PER-05-A: a re-attach is an editor-door upload (no transcription, no reset) even
+  // though the project came through the captions door — the captions already exist.
+  const noTranscribe = editorMode || reattachOnly;
   // get the speech model ready while they pick a video, so captions start the moment it's in.
   // Desktop loads it into memory; phones only download the files (their memory is for the video).
   // Which model writes the captions depends on what's spoken: asked here, remembered for next time.
@@ -83,15 +93,15 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
       setProgress(0);
       // captions start as soon as the video has an id (in parallel with saving it), not after the server round trips
       const done = await studioService.uploadVideo(projectId, ready, setProgress, (abort) => (abortRef.current = abort), (videoId) => {
-        if (editorMode || !ready.hasAudio) return;
+        if (noTranscribe || !ready.hasAudio) return;
         track("video_added", { language: projectLanguage ?? "en", durationS: Math.round(ready.durationMs / 1000) });
         startSession({ projectId, videoId, file: ready.file, language: projectLanguage, info: { codec: ready.videoCodec, converted: ready.converted, previewMode: ready.previewMode, durationS: Math.round(ready.durationMs / 1000) } });
-      }, editorMode ? { editorMode: true } : undefined);
+      }, noTranscribe ? { editorMode: true } : undefined);
       if (done.jobId) void getSession(projectId)?.attachJob(done.jobId);
       setProgress(100);
       onUploaded(done.videoId);
     },
-    [projectId, onUploaded, editorMode],
+    [projectId, onUploaded, noTranscribe],
   );
 
   /** Keep path: swap the footage under the same video id, captions untouched. */
@@ -133,7 +143,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         }
         // pre-flight (Phase 2B): a long clip on a constrained device warns BEFORE
         // anything is uploaded or transcribed — the user picks "Start anyway" or cancels
-        if (!editorMode && ready.hasAudio) {
+        if (!noTranscribe && ready.hasAudio) {
           const message = transcribePreflightWarning(ready.durationMs);
           if (message) { setWarn({ ready, spoken, message }); return; }
         }
@@ -150,7 +160,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
     [projectId, onUploaded, limits, runPrepared, runKeep, editorMode, replaceMode, previousDurationMs],
   );
   /** a video picked before the language was: ask first, then start (the editor door never asks; the keep path needs no language — nothing is transcribed) */
-  const pick = (f: File) => (editorMode || replaceMode === "keep" ? void start(f, null) : lang ? void start(f, lang) : setPending(f));
+  const pick = (f: File) => (noTranscribe || replaceMode === "keep" ? void start(f, null) : lang ? void start(f, lang) : setPending(f));
   /** paste a link: fetch the file in this browser, then take the exact path a picked file takes */
   const submitLink = useCallback(async () => {
     const raw = linkUrl.trim();

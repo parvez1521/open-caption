@@ -122,9 +122,14 @@ export const projectsService = {
     return toProject(project);
   },
 
-  async duplicateProject(id: string): Promise<Project> {
-    const project = await apiClient.post<BackendProject>(`/projects/${id}/duplicate`);
-    return toProject(project);
+  /**
+   * PER-05-A: the duplicate route returns the new video id and the source video
+   * id alongside the project, so the caller can copy the on-device video bytes
+   * to the new id (see copyLocalVideo) — without that the copy opens videoGone.
+   */
+  async duplicateProject(id: string): Promise<{ project: Project; videoId: string | null; sourceVideoId: string | null }> {
+    const res = await apiClient.post<BackendProject & { videoId?: string | null; sourceVideoId?: string | null }>(`/projects/${id}/duplicate`);
+    return { project: toProject(res), videoId: res.videoId ?? null, sourceVideoId: res.sourceVideoId ?? null };
   },
 
   /** Per-project settings page: one PATCH carrying any subset of the allow-listed detail fields. */
