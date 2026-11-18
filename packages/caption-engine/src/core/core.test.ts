@@ -169,9 +169,9 @@ describe("derivePages", () => {
   it("does not bridge the hold across a manual break", () => {
     const words = [mk("a", 0, 200), mk("b", 1000, 1200)];
     const pages = derivePages(docOf(words, { manualBreaks: ["b1000"] }), settings({ maxWordsPerCard: 1, gapBehavior: "hold", holdMs: 100 }));
-    // a manual split is the user saying "separate cards": the first card ends at its
-    // read floor, it must not stretch to the next card and fill the gap
-    expect(pages[0]!.endMs).toBe(readMs([words[0]!]));
+    // a manual split is the user saying "separate cards": the first card ends with
+    // its last word (200), it must not stretch to the next card and fill the gap
+    expect(pages[0]!.endMs).toBe(200);
     expect(pages[0]!.endMs).toBeLessThan(1000);
   });
 
@@ -180,8 +180,18 @@ describe("derivePages", () => {
     const pages = derivePages(docOf(words, { manualBreaks: ["b1000"] }), settings({ maxWordsPerCard: 1, gapBehavior: "hold", holdMs: 500 }));
     // without this the card would end at last word + hold (700) even though the user
     // deliberately emptied the gap — a trim that shortens a word would change nothing
-    expect(pages[0]!.endMs).toBe(readMs([words[0]!]));
+    expect(pages[0]!.endMs).toBe(200);
     expect(pages[0]!.endMs).toBeLessThan(1000);
+  });
+
+  it("a long card's read floor does not keep it on screen past a trimmed word (the 'ko' case)", () => {
+    // card [to is rel ko] 3600-4400, read floor 3600 + readMs = 4752, next word at 4900:
+    // the floor alone would show "ko" at 4500 even with a manual break recorded
+    const words = [mk("to", 3600, 3800), mk("is", 3800, 4000), mk("rel", 4000, 4200), mk("ko", 4200, 4400), mk("dekhana", 4900, 5400)];
+    const pages = derivePages(docOf(words, { manualBreaks: ["dekhana4900"] }), settings({ maxWordsPerCard: 4, gapBehavior: "hold", holdMs: 500 }));
+    expect(pages).toHaveLength(2);
+    expect(pages[0]!.endMs).toBe(4400);
+    expect(pages[1]!.startMs).toBe(4900);
   });
 
   it("deleting words leaves a hard boundary so the earlier card does not hold across the gap", () => {
@@ -190,9 +200,9 @@ describe("derivePages", () => {
     expect(after.manualBreaks).toContain("founder2000");
     const pages = derivePages(after, settings({ maxWordsPerCard: 6 }));
     expect(pages).toHaveLength(2);
-    // a manual break ends the card with its last word (read floor 922), NOT stretched
+    // a manual break ends the card with its last word (900), NOT stretched
     // to the next card (2000) and NOT lingering holdMs into the deliberate gap
-    expect(pages[0]!.endMs).toBe(922);
+    expect(pages[0]!.endMs).toBe(900);
     expect(pages[1]!.startMs).toBe(2000);
   });
 
@@ -620,8 +630,8 @@ describe("retimeRunGiveWay (timeline drags: neighbours give way)", () => {
     expect(after.manualBreaks).toContain("c");
     const pages = derivePages(after, settings({ maxWordsPerCard: 2 }));
     expect(pages).toHaveLength(2);
-    // card ends at its read floor (706), not stretched to the next card (1000)
-    expect(pages[0]!.endMs).toBe(706);
+    // card ends with its last word (300), not stretched to the next card (1000)
+    expect(pages[0]!.endMs).toBe(300);
   });
   it("moving a word in the timeline does not leave a hard boundary", async () => {
     const { retimeRunGiveWay } = await import("./ops");

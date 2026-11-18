@@ -145,10 +145,12 @@ export function derivePages(doc: CaptionDoc, settings: ProjectSettings, opts: De
     // the earlier card fills a gap the user deliberately emptied.
     const nextStartsManual = nextStart != null && manual.has(merged[i + 1]![0]!.id);
     // A manual break is the user saying the gap is deliberate: the card ends with
-    // its last word instead of lingering holdMs into the emptied gap — otherwise
-    // trimming a word shorter would change nothing on screen.
+    // its last word, period — no holdMs and NO read floor. The floor is for natural
+    // cards so short ones stay readable, but after a split / delete / trim the user
+    // is the authority: a long card's read floor (first word + readMs) can run far
+    // past the trimmed end and keep the caption on screen through the emptied gap.
     let end = nextStartsManual
-      ? Math.max(last.endMs, first.startMs + readMs(g))
+      ? last.endMs
       : Math.max(last.endMs + settings.holdMs, first.startMs + readMs(g));
     if (settings.gapBehavior === "hold" && !nextStartsManual && nextStart != null && nextStart - last.endMs <= bridge) end = Math.max(end, nextStart);
     if (nextStart != null) end = Math.min(end, nextStart);
