@@ -377,13 +377,16 @@ export function useStudio(projectId: string) {
    * Apply a precomputed caption doc and/or full settings value as ONE atomic history step
    * (Phase 4 studio integration): a head trim shifts the caption words AND re-projects the
    * settings in the same gesture, so it must undo as a single step — two patchSettings/edit
-   * calls would leave a half-applied state one Ctrl+Z in. No coalescing (each call is a
-   * discrete timeline op), and a call whose values are identical to the current ones (or
-   * absent) records nothing at all. Persist is scheduled for whichever side changed:
-   * the doc via the revisioned save, settings via the project patch.
+   * calls would leave a half-applied state one Ctrl+Z in. Each call is a discrete timeline
+   * op (its own undo step) UNLESS opts.coalesceKey is passed: calls sharing a key within
+   * 600 ms collapse into one step (CAP-T06 — a continuous control such as the transition
+   * duration slider must not cost one undo step per 50 ms tick). A call whose values are
+   * identical to the current ones (or absent) records nothing at all. Persist is scheduled
+   * for whichever side changed: the doc via the revisioned save, settings via the project
+   * patch (both already debounced, so a drag also saves once per burst, not once per tick).
    */
   const editAll = useCallback(
-    (next: { doc?: CaptionDoc; settings?: ProjectSettings; style?: CaptionStyleV2 | null; lookId?: string | null }) => {
+    (next: { doc?: CaptionDoc; settings?: ProjectSettings; style?: CaptionStyleV2 | null; lookId?: string | null }, opts: { coalesceKey?: string } = {}) => {
       const docChanged = next.doc !== undefined && next.doc !== docRef.current;
       const settingsChanged =
         next.settings !== undefined && JSON.stringify(next.settings) !== JSON.stringify(settingsRef.current);
@@ -393,7 +396,7 @@ export function useStudio(projectId: string) {
       const styleChanged = next.style !== undefined && JSON.stringify(next.style) !== JSON.stringify(styleRef.current);
       const lookChanged = next.lookId !== undefined && next.lookId !== lookRef.current;
       if (!docChanged && !settingsChanged && !styleChanged && !lookChanged) return;
-      recordHistory();
+      recordHistory(opts.coalesceKey);
       if (docChanged && next.doc) {
         docRef.current = next.doc;
         setDocState(next.doc);

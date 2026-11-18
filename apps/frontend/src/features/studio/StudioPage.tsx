@@ -608,7 +608,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const captionsLockedRef = useRef(false);
   captionsLockedRef.current = editorComp?.trackState.captions.locked ?? false;
 
-  const commitComposition = (nextComp: EditorComposition, docEffect?: DocEffect | DocEffect[]) => {
+  const commitComposition = (nextComp: EditorComposition, docEffect?: DocEffect | DocEffect[], opts?: { coalesceKey?: string }) => {
     if (!editorComp) return;
     // Phase 5 (A3): an ARRAY of effects is supported for multi-range applies
     // (trim fillers & pauses) — effects apply sequentially, in the caller's
@@ -637,8 +637,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       }
     }
     const projected = projectComposition(comp, settings);
-    s.editAll({ ...(nextDoc ? { doc: nextDoc } : {}), settings: projected });
+    s.editAll({ ...(nextDoc ? { doc: nextDoc } : {}), settings: projected }, opts);
   };
+
+  /**
+   * CAP-T06: a duration-only transition change (a slider drag) coalesces into
+   * one undo step per burst; a type change (or a clear) stays a discrete step.
+   */
+  const transitionDurationCoalesceKey = (targetId: string, transition: SegmentTransition, current: SegmentTransition | null) =>
+    current && current.type === transition.type ? `transition-duration:${targetId}` : undefined;
 
   /* ---------- Run 3 audio wiring: every AudioPanel / Timeline audio callback is an
    * audioOps call committed through commitComposition with no docEffect (one undo step) */
@@ -917,7 +924,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       production={segProduction}
       onTransform={(patch) => { const r = setSegmentTransform(editorComp, selSegmentView.id, patch); commitComposition(r.comp, r.docEffect); }}
       onPlaybackRate={(rate) => { const r = setSegmentPlaybackRate(editorComp, selSegmentView.id, rate); commitComposition(r.comp, r.docEffect); }}
-      onTransition={(transition) => { const r = setSegmentTransition(editorComp, selSegmentView.id, transition); commitComposition(r.comp, r.docEffect); }}
+      onTransition={(transition) => { const r = setSegmentTransition(editorComp, selSegmentView.id, transition); const coalesceKey = transition ? transitionDurationCoalesceKey(selSegmentView.id, transition, selSegmentView.transitionIn ?? null) : undefined; commitComposition(r.comp, r.docEffect, coalesceKey ? { coalesceKey } : undefined); }}
       onDuplicate={() => { const r = duplicateVideoSegment(editorComp, selSegmentView.id); commitComposition(r.comp, r.docEffect); }}
       onRippleDelete={() => { rippleVideoSegment(selSegmentView.id); setSelVideoClipId(null); }}
       onReverse={() => void reverseSelectedSegment()}
@@ -1625,7 +1632,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       setTransitionNote("That transition could not be applied here.");
       return;
     }
-    commitComposition(r.comp, r.docEffect);
+    const coalesceKey = transitionDurationCoalesceKey(targetId, transition, current);
+    commitComposition(r.comp, r.docEffect, coalesceKey ? { coalesceKey } : undefined);
     setTransitionNote(null);
     if (!current || current.type !== transition.type) {
       const nextClip = r.comp.videoClips.find((c) => c.id === targetId);

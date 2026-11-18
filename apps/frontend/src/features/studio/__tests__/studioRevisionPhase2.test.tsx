@@ -439,6 +439,29 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
     }
   });
 
+  it("duration-slider ticks share one coalesce key; a card tap does not (CAP-T06)", async () => {
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio(identicalSettings);
+    const { unmount } = renderStudio();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "timeline-cut-2" }));
+      expect(await screen.findByText("Applying to Cut after Clip 1")).toBeTruthy();
+      const slider = screen.getByLabelText("Duration") as HTMLInputElement;
+      fireEvent.change(slider, { target: { value: "350" } });
+      fireEvent.change(slider, { target: { value: "400" } });
+      expect(editAll).toHaveBeenCalledTimes(2);
+      expect(editAll.mock.calls[0]![1]).toEqual({ coalesceKey: "transition-duration:seg-2" });
+      expect(editAll.mock.calls[1]![1]).toEqual({ coalesceKey: "transition-duration:seg-2" });
+      // a type change is a discrete op, not part of the drag burst
+      editAll.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Apply Glitch Hard" }));
+      expect(editAll).toHaveBeenCalledTimes(1);
+      expect(editAll.mock.calls[0]![1]).toBeUndefined();
+    } finally {
+      unmount();
+    }
+  });
+
   it("a past-cap apply surfaces the honest cap message, not 'Already applied' (CAP-T05)", async () => {
     window.history.pushState({}, "", "/projects/p1");
     studioState.current = makeStudio(cappedSettings);
