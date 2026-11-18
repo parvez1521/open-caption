@@ -12,7 +12,10 @@ import { AUTO_DEG_PER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, f
  * - Auto-rotation is SLOW (one turn / 72s), driven by direct DOM writes (no React re-render per
  *   frame), and pauses while the hero is off-screen, the tab is hidden, the visitor is dragging,
  *   or for 2.5s after a drag. prefers-reduced-motion disables auto-rotation entirely.
- * - Drag / swipe (pointer events, touch-action none) spins the ring manually. The drag ends on
+ * - Drag / swipe (pointer events) spins the ring manually. `touch-action: pan-y`
+ *   lets a vertical swipe scroll the page (CAP-U02: `none` made the whole
+ *   320–360 px hero strip a scroll dead zone on touch); a horizontal drag
+ *   still spins the ring. The drag ends on
  *   pointerup, pointercancel, or lostpointercapture: the last one is the safety net — if the
  *   gesture's up/cancel never arrives (interrupted drag, capture taken elsewhere), the drag
  *   state would otherwise stay set forever and auto-rotation would never resume.
@@ -158,7 +161,7 @@ export function HeroCylinder() {
         role="img"
         aria-label={`A rotating showcase of trending caption templates: ${looks.map((l) => l.name).join(", ")}`}
         className="relative mx-auto h-[320px] cursor-grab overflow-hidden active:cursor-grabbing sm:h-[360px]"
-        style={{ perspective: "1400px", touchAction: "none" }}
+        style={{ perspective: "1400px", touchAction: "pan-y" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
