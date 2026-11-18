@@ -591,7 +591,7 @@ export function MotionStudioSection() {
 function BrowserCard() {
   const rows = [
     ["Speech recognition", "on this device"],
-    ["Your video file", "never uploaded for captions or export"],
+    ["Your video file", "backed up to the cloud up to 50 MB"],
     ["MP4 export", "made in this tab"],
     ["Install", "nothing, ever"],
   ];

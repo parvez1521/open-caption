@@ -49,7 +49,7 @@ interface Props {
 
 const DEFAULT_LIMITS = { maxBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60 };
 
-/** Drag & drop / pick a video: checked and saved on this device — the file itself is never uploaded, only its name, size, length and format are registered with the project — then captions start, or, through the Normal Editor door, the editor opens directly with no transcription. */
+/** Drag & drop / pick a video: checked and saved on this device — the file itself is also automatically backed up to the project's cloud storage when it is 50 MB or smaller (for multi-device access); only its name, size, length and format are registered with the project — then captions start, or, through the Normal Editor door, the editor opens directly with no transcription. */
 export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limits = DEFAULT_LIMITS, language = null, mode = "captions", onModeChange, videoId = null, replaceMode, onReplaceModeChange, previousDurationMs = null, keepAllowed = true, onKeepFootage, reattachOnly = false }) => {
   const editorMode = mode === "editor";
   // PER-05-A: a re-attach is an editor-door upload (no transcription, no reset) even
@@ -350,7 +350,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
               ) : null}
             </div>
             <ul className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-st-muted">
-              <li className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Video file stays on your device</li>
+              <li className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Video file stays on your device, backed up to the cloud up to 50 MB</li>
               <li className="flex items-center gap-1.5"><BadgeCheck className="h-3.5 w-3.5" aria-hidden /> No watermark</li>
               <li className="flex items-center gap-1.5"><Film className="h-3.5 w-3.5" aria-hidden /> MP4, MOV or WebM · up to {Math.round(limits.maxDurationSec / 60)} min · {uploadLimitLabel(limits.maxBytes)} max on this device</li>
             </ul>

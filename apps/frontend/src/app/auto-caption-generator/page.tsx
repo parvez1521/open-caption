@@ -25,7 +25,7 @@ export default function AutoCaptionGeneratorPage() {
           Auto caption generator
         </h1>
         <p className="mt-5 text-[16px] leading-relaxed text-[#FFFFEB]/80">
-          Drop in a short video. Get auto captions timed to every word, in minutes, free and in your browser. Pick one of 150 animated looks. Fix any word it heard wrong. Export an MP4 ready to post, or a subtitle file for YouTube. Nothing to install, no watermark. For transcription and the normal MP4 export, your video file is never uploaded anywhere.
+          Drop in a short video. Get auto captions timed to every word, in minutes, free and in your browser. Pick one of 150 animated looks. Fix any word it heard wrong. Export an MP4 ready to post, or a subtitle file for YouTube. Nothing to install, no watermark. Videos up to 50 MB are automatically backed up to your project's cloud storage for multi-device access.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
@@ -65,7 +65,7 @@ export default function AutoCaptionGeneratorPage() {
               <h3 className="font-sora text-[16px] font-bold">1. Upload your video</h3>
               <p className="mt-1 text-[15px] leading-relaxed text-[#FFFFEB]/70">
                 Open <Link className="underline decoration-[#34D399]/60 underline-offset-2" href="/start">Captionit</Link> and
-                drop in a clip. MP4, MOV, WebM and MKV work. The file stays on your device.
+                drop in a clip. MP4, MOV, WebM and MKV work. The file stays on your device, and videos up to 50 MB are automatically backed up to your project's cloud storage.
               </p>
             </li>
             <li>
