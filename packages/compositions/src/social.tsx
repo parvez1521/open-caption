@@ -1,5 +1,6 @@
 import React from "react";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
+import { isNewGraphicVariant, NEW_GRAPHICS_META, NewGraphicsView } from "./newGraphics";
 
 /**
  * Animated "Social Media" overlays (2026-11-10): original drawn graphics — our own pill/card/bell/
@@ -61,6 +62,11 @@ export const SOCIAL_META: { id: OverlaySocialVariant; label: string; hint: strin
   { id: "progress-fill", label: "Progress Fill", hint: "Horizontal bar filling 0 to 100% across the item's own window, with a label above it. Line: label.", defaultText: "Loading the good part", defaultColor: "#34D399" },
   { id: "quote-card", label: "Quote Card", hint: "Cream card with a big quote mark and your words under it, for testimonials. Lines: quote text (line 2 optional).", defaultText: "Say it in their words", defaultColor: "#34D399" },
   { id: "rating-stars", label: "Rating Stars", hint: "Five stars that fill one by one on the beat, with your line under them. Line: rating text.", defaultText: "5 out of 5", defaultColor: "#FFA946" },
+  // Studio panels revision (2026-11-18): 300 NEW motion graphics — the parameterized
+  // families in ./newGraphics.tsx (15 families x 20). Kept here as a spread so the
+  // picker, the OverlayEditor and makeSocialOverlay see them exactly like the
+  // Motion Studio variants; the drawing itself lives in NewGraphicsView.
+  ...NEW_GRAPHICS_META,
 ];
 
 export interface OverlayPhases {
@@ -489,6 +495,12 @@ const line = (ls: string[], i: number, dflt: string) => (ls[i] && ls[i].length ?
 /** One animated social overlay's inner graphic (positioning/scale come from OverlayView's wrapper). */
 export const SocialOverlayView: React.FC<{ item: OverlayItem; sc: number; localMs: number; assetSrc?: string; memberAssetSrcs?: string[] }> = ({ item, sc, localMs, assetSrc, memberAssetSrcs }) => {
   const dur = Math.max(1, item.endMs - item.startMs);
+  // Studio panels revision (2026-11-18): the 300 NEW motion graphics (ng-*) are
+  // drawn by the parameterized renderer in ./newGraphics.tsx, through this same
+  // OverlayView path — preview, browser export and server render alike.
+  if (isNewGraphicVariant(item.variant)) {
+    return <NewGraphicsView item={item} sc={sc} localMs={localMs} />;
+  }
   const ph = overlayPhase(localMs, dur);
   const accent = item.color;
   const ls = linesOf(item);

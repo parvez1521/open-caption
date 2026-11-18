@@ -101,14 +101,16 @@ function renderElementsPanel() {
 }
 
 describe("ElementsPanel Social Media cards (real previews mounted)", () => {
-  it("mounts one AnimatedSocialPreview per SOCIAL_META variant, poster drawing the real element", () => {
+  it("mounts one AnimatedSocialPreview per motion template, poster drawing the real element", () => {
     setup();
     const { view } = renderElementsPanel();
     const previews = view.container.querySelectorAll('[data-testid="social-preview"]');
-    expect(previews.length).toBe(SOCIAL_META.length);
+    // the Elements panel lists the Motion Studio registry (50); the 300 new graphics
+    // (ng-*) live in NewGraphicsPanel, covered by newGraphicsPanel.test.tsx
+    expect(previews.length).toBe(MOTION_TEMPLATES.length);
     // every variant exactly once, in the grouped registry order (§5a grouping)
     expect([...previews].map((p) => p.getAttribute("data-variant"))).toEqual(GROUPED_VARIANT_ORDER);
-    expect(new Set([...previews].map((p) => p.getAttribute("data-variant")))).toEqual(new Set(SOCIAL_META.map((m) => m.id)));
+    expect(new Set([...previews].map((p) => p.getAttribute("data-variant")))).toEqual(new Set(MOTION_TEMPLATES.map((t) => t.id)));
     // the poster is the real OverlayView at its acted instant — not a name/description stand-in:
     // Subscribe Pill's poster shows the flipped "Subscribed" label, the Counter's shows its
     // "followers" caption line, the Follow Banner's shows the default channel name lines.

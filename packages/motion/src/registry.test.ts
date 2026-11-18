@@ -3,6 +3,7 @@ import { OVERLAY_SOCIAL_VARIANTS } from "@capseasy/shared";
 // Mirror-check against the real SOCIAL_META (direct file import keeps this
 // package's runtime graph light — @capseasy/compositions index pulls Remotion).
 import { SOCIAL_META } from "../../compositions/src/social";
+import { NEW_GRAPHICS_REGISTRY } from "../../compositions/src/newGraphics";
 import {
   MOTION_CATEGORIES, MOTION_TEMPLATES, MOTION_TEMPLATE_IDS, MotionConfigSchema,
   defaultMotionConfig, filterMotionTemplates, getMotionTemplate, listMotionCategories,
@@ -10,19 +11,32 @@ import {
 } from "./index";
 
 describe("motion registry integrity", () => {
-  it("has exactly one entry per SOCIAL_META variant, and vice versa", () => {
-    expect(MOTION_TEMPLATES).toHaveLength(SOCIAL_META.length);
+  it("motion entries are the studio subset of SOCIAL_META; the 300 new graphics fill the rest", () => {
+    // Studio panels revision (2026-11-18): SOCIAL_META grew 50 -> 350 with 300 NEW
+    // motion graphics (ng-*, parameterized families in compositions/newGraphics.tsx).
+    // They are NOT Motion Studio templates — the old 1:1 mirror no longer holds;
+    // the invariant is now: motion ids ⊆ SOCIAL_META, new-graphic ids ⊆ SOCIAL_META,
+    // the two sets disjoint, and the enum matches SOCIAL_META exactly.
+    expect(MOTION_TEMPLATES).toHaveLength(50);
+    expect(SOCIAL_META).toHaveLength(350);
+    expect(NEW_GRAPHICS_REGISTRY).toHaveLength(300);
     expect(new Set(MOTION_TEMPLATE_IDS).size).toBe(MOTION_TEMPLATES.length);
-    expect([...MOTION_TEMPLATE_IDS].sort()).toEqual(SOCIAL_META.map((m) => m.id).sort());
-    expect([...MOTION_TEMPLATE_IDS].sort()).toEqual([...OVERLAY_SOCIAL_VARIANTS].sort());
+    expect(new Set(NEW_GRAPHICS_REGISTRY.map((e) => e.id)).size).toBe(300);
+    const metaIds = new Set(SOCIAL_META.map((m) => m.id));
+    for (const id of MOTION_TEMPLATE_IDS) expect(metaIds.has(id), id).toBe(true);
+    for (const e of NEW_GRAPHICS_REGISTRY) expect(metaIds.has(e.id), e.id).toBe(true);
+    expect(MOTION_TEMPLATE_IDS.some((id) => id.startsWith("ng-"))).toBe(false);
+    expect(NEW_GRAPHICS_REGISTRY.every((e) => e.id.startsWith("ng-"))).toBe(true);
+    expect([...MOTION_TEMPLATE_IDS].sort()).toEqual([...OVERLAY_SOCIAL_VARIANTS].filter((v) => !v.startsWith("ng-")).sort());
+    expect([...OVERLAY_SOCIAL_VARIANTS].sort()).toEqual(SOCIAL_META.map((m) => m.id).sort());
   });
-  it("defaults mirror SOCIAL_META exactly (no drift)", () => {
-    for (const meta of SOCIAL_META) {
-      const t = getMotionTemplate(meta.id)!;
-      expect(t, meta.id).toBeDefined();
-      expect(t.title, meta.id).toBe(meta.label);
-      expect(t.defaultText, meta.id).toBe(meta.defaultText);
-      expect(t.defaultColor, meta.id).toBe(meta.defaultColor);
+  it("defaults mirror SOCIAL_META exactly for the motion entries (no drift)", () => {
+    for (const t of MOTION_TEMPLATES) {
+      const meta = SOCIAL_META.find((m) => m.id === t.id)!;
+      expect(meta, t.id).toBeDefined();
+      expect(t.title, t.id).toBe(meta.label);
+      expect(t.defaultText, t.id).toBe(meta.defaultText);
+      expect(t.defaultColor, t.id).toBe(meta.defaultColor);
     }
   });
   it("categories are valid, descriptions non-empty, fields carry defaults", () => {

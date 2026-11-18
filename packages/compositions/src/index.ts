@@ -11,4 +11,6 @@ export type { ParamTransitionProps, TransitionBase, TransitionDirection, Transit
 export { TRANSITION_CATEGORIES, TRANSITION_REGISTRY, presentationForRegistryEntry, presentationForTransition, transitionRegistryEntry, transitionsInCategory } from "./transitionRegistry";
 export type { TransitionCategoryId, TransitionRegistryEntry } from "./transitionRegistry";
 export { IMAGE_BASE_PX, OVERLAY_ENTER_ANIMS, OVERLAY_EXIT_ANIMS, OVERLAY_FONT_OPTIONS, OVERLAY_FONT_STACKS, OVERLAY_SHAPE_META, OverlayShapeSvg, OverlayView, SHAPE_BASE_PX, TEXT_DEFAULT_FONT_PX, overlayAnimStyle } from "./overlays";
+export { NEW_GRAPHICS_FAMILIES, NEW_GRAPHICS_META, NEW_GRAPHICS_REGISTRY, NEW_GRAPHIC_IDS, NewGraphicsView, getNewGraphic, isNewGraphicVariant, ngPhase, ngSeededUnit, ngShade } from "./newGraphics";
+export type { NewGraphicBase, NewGraphicEntry, NewGraphicFamily, NewGraphicParams } from "./newGraphics";
 export { SOCIAL_META, SocialOverlayView, overlayPhase, easeOutQuint, easeInOutCubic, springOut, cursorChoreoAt, shareFlightAt, chatTicksAt, countdownAt, bellRingDeg, counterAt, chatStackAt, orbitAngle, searchBarAt, socialSeededUnit, shade, typingAt, kineticTitleAt, glitchAt, neonFlickerAt, particleBurstAt, liveViewersAt, upvoteAt, formCardAt, audioBarsAt, postCardAt, repostAt, voiceCardAt } from "./social";

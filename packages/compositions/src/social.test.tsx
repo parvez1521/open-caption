@@ -388,9 +388,9 @@ describe("SocialOverlayView (static markup — the same tree every render path d
       expect(late, `${meta.id} does not animate between 350ms and 2650ms`).not.toBe(early);
     }
   });
-  it("SOCIAL_META covers 50 variants with unique ids", () => {
-    expect(SOCIAL_META).toHaveLength(50);
-    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(50);
+  it("SOCIAL_META covers 350 variants with unique ids", () => {
+    expect(SOCIAL_META).toHaveLength(350);
+    expect(new Set(SOCIAL_META.map((m) => m.id)).size).toBe(350);
     for (const m of SOCIAL_META) { expect(m.label.length).toBeGreaterThan(0); expect(m.hint.length).toBeGreaterThan(0); expect(m.defaultColor).toMatch(/^#[0-9A-Fa-f]{6}$/); }
   });
   it("new helpers are pure, seeded and deterministic", () => {
