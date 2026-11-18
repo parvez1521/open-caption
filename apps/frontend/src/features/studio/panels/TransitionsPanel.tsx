@@ -49,6 +49,13 @@ export interface TransitionsPanelProps {
   selectedJoinLabel?: string | null;
   /** True when the timeline has at least one join (cut) to select. */
   hasJoins?: boolean;
+  /**
+   * CAP-T12: true when the project has at least one video clip. Left
+   * `undefined` by legacy callers; then the no-join box keeps the generic
+   * copy. `false` = blank project (no video at all) — the box must not tell
+   * the user to click a cut marker that does not exist.
+   */
+  hasVideo?: boolean;
   /** Select the first join in the timeline (offered when no join is selected). */
   onSelectFirstJoin?: () => void;
   /**
@@ -325,6 +332,7 @@ export const TransitionsPanel: React.FC<TransitionsPanelProps> = ({
   splitDisabled = false,
   selectedJoinLabel,
   hasJoins = false,
+  hasVideo,
   onSelectFirstJoin,
   transitionDurationCapMs,
 }) => {
@@ -353,12 +361,22 @@ export const TransitionsPanel: React.FC<TransitionsPanelProps> = ({
         {noJoinSelected ? (
           <div className="mb-3 rounded-lg border border-st-line bg-st-panel p-3">
             <p className="text-[12px] leading-snug text-st-text">
-              No cut selected — click a cut marker in the timeline to pick a join, or split at the playhead.
+              {/* CAP-T12: three states, not one impossible instruction. No video
+                  at all: say so (and hide the split button — there is nothing to
+                  split). One clip: split first. Joins exist: the old copy. Legacy
+                  callers (hasVideo undefined) keep the old copy. */}
+              {hasVideo === false
+                ? "Add a video first — transitions need a clip to join."
+                : hasVideo === true && !hasJoins
+                  ? "No cuts yet — split the video at the playhead to create a cut, then pick a transition."
+                  : "No cut selected — click a cut marker in the timeline to pick a join, or split at the playhead."}
             </p>
             <div className="mt-2 flex flex-col gap-2">
-              <Button tone="primary" onClick={onSplitAtPlayhead} disabled={splitDisabled} className="w-full">
-                Split at playhead to create a cut
-              </Button>
+              {hasVideo === false ? null : (
+                <Button tone="primary" onClick={onSplitAtPlayhead} disabled={splitDisabled} className="w-full">
+                  Split at playhead to create a cut
+                </Button>
+              )}
               {hasJoins && onSelectFirstJoin ? (
                 <Button onClick={onSelectFirstJoin} className="w-full">
                   Select the first cut

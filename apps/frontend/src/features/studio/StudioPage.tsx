@@ -2059,6 +2059,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                         splitDisabled={!editorComp || videoLocked}
                         selectedJoinLabel={selectedJoinLabel}
                         hasJoins={hasJoins}
+                        hasVideo={Boolean(editorComp?.videoClips.length)}
                         onSelectFirstJoin={selectFirstJoin}
                         transitionDurationCapMs={joinTransitionCapMs ?? undefined}
                       />

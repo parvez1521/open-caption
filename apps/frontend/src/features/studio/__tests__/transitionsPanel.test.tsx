@@ -147,6 +147,26 @@ describe("TransitionsPanel", () => {
     expect(screen.queryByText("Select the first cut")).toBeNull();
   });
 
+  it("no video yet: says to add a video first, and offers no split (CAP-T12)", () => {
+    renderPanel({ selectedJoinLabel: null, hasVideo: false, splitDisabled: true });
+    expect(screen.getByText(/Add a video first/)).toBeTruthy();
+    expect(screen.queryByText("Split at playhead to create a cut")).toBeNull();
+    expect(screen.queryByText(/No cut selected/)).toBeNull();
+  });
+
+  it("one clip, no cuts: says to split first, and keeps the split offer (CAP-T12)", () => {
+    renderPanel({ selectedJoinLabel: null, hasVideo: true, hasJoins: false });
+    expect(screen.getByText(/No cuts yet/)).toBeTruthy();
+    expect(screen.getByText("Split at playhead to create a cut")).toBeTruthy();
+    expect(screen.queryByText(/No cut selected/)).toBeNull();
+  });
+
+  it("joins exist, none selected: keeps the old copy and the first-cut offer (CAP-T12)", () => {
+    renderPanel({ selectedJoinLabel: null, hasVideo: true, hasJoins: true });
+    expect(screen.getByText(/No cut selected/)).toBeTruthy();
+    expect(screen.getByText("Select the first cut")).toBeTruthy();
+  });
+
   it("legacy caller (no join label) with transitionsDisabled still explains instead of a dead grid", () => {
     renderPanel({ transitionsDisabled: true });
     expect(screen.getByText(/No cut selected/)).toBeTruthy();
