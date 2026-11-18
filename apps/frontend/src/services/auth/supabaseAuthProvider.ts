@@ -132,7 +132,7 @@ export function isSignInAgainToken(token: string | null): boolean {
 }
 
 export const supabaseAuthProvider: AuthProvider = {
-  async register(name: string, email: string, password: string) {
+  async register(name: string, email: string, password: string, opts?: { marketingOptIn?: boolean }) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -142,6 +142,9 @@ export const supabaseAuthProvider: AuthProvider = {
         data: {
           name,
           avatar_url: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(name)}`,
+          // signup-time marketing consent (unchecked by default on any form
+          // that passes it); the capture route honours it on first insert
+          marketing_opt_in: opts?.marketingOptIn === true,
         },
       },
     });

@@ -9,7 +9,15 @@ import { User } from "../types";
 export interface AuthProvider {
   login(email: string, password: string): Promise<{ user: User; token: string }>;
   loginWithGoogle(): Promise<void>;
-  register(name: string, email: string, password: string): Promise<{ user: User; token: string }>;
+  /**
+   * Email signup. No email signup form exists in the UI today (Google is
+   * the only signup path) — but the provider keeps the door open: opts
+   * carries a signup-time marketing opt-in, stored on user_metadata so the
+   * capture route can honour it on first insert. Unchecked by default
+   * wherever a form is built; Google signups carry no such key and start
+   * opted out.
+   */
+  register(name: string, email: string, password: string, opts?: { marketingOptIn?: boolean }): Promise<{ user: User; token: string }>;
   logout(): Promise<void>;
   getCurrentUser(): Promise<User | null>;
   getToken(): Promise<string | null>;

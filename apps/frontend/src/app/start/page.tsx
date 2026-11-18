@@ -7,6 +7,7 @@ import { projectsService } from "@/services/projects";
 import { modeFromSearch, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
 import { isOnboardingDone } from "@/features/onboarding/survey";
 import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, takeAfterSignIn } from "@/services/auth/guest";
+import { captureEmailSubscription } from "@/services/marketing";
 import type { Project } from "@/services/types";
 import { LoadingMark } from "@/components/brand/LoadingMark";
 
@@ -91,6 +92,10 @@ export default function StartPage() {
       let session = await waitForSession(fromAuth ? 6000 : 400);
       if (session && !isGuestUser(session.user)) {
         await claimPendingGuest();
+        // Subscriber list (owner order 2026-11-18): one upsert per session,
+        // signup + every login, Google + email. Never blocks the redirect —
+        // capture swallows its own failures (table not migrated yet, blip).
+        await captureEmailSubscription();
         const after = takeAfterSignIn();
         if (after) return router.replace(after);
         // First visit after sign-up: the one-time onboarding survey, before

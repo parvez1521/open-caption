@@ -25,6 +25,7 @@ export default function PrivacyPage() {
       <Sec id="collect" title="1. What we collect">
         <ul>
           <li><strong>Account data:</strong> email address, name, password (stored only as a secure hash by our authentication provider) or your Google sign-in identity, and profile picture if your sign-in provider supplies one.</li>
+          <li><strong>Email list:</strong> we keep your account email on a subscriber list for product updates and offers — only if you opted in (change it in Settings); every such email has an unsubscribe link.</li>
           <li><strong>Your content:</strong> the videos you add (the files stay on your device; only their file name, size, length and format are stored with your project — except a video you send to a Companion export, which passes through our storage for that job), transcripts, captions, styles, saved looks, brand colours and fonts, and the files you export.</li>
           <li><strong>Companion data:</strong> for each computer you pair: its name, operating system, app version and capabilities (such as available disk space and installed speech models), and when it was last online. Pairing tokens are stored only as a secure hash.</li>
           <li><strong>Usage data:</strong> how much you upload, transcribe and render (to apply plan limits), job status and error logs, and basic request logs (IP address, browser, time) kept by our hosting provider for security and debugging.</li>

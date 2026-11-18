@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import StudioShell from "@/components/studio/StudioShell";
+import EmailUpdatesSection from "@/components/settings/EmailUpdatesSection";
 import { PairedComputers } from "@/features/companion/PairedComputers";
 
 
@@ -154,6 +155,15 @@ export default function SettingsPage() {
               </div>
             </form>
           )}
+        </section>
+
+        {/* Email updates (owner order 2026-11-18): promo-mail consent toggle;
+            the owner also finds the subscriber-list export here. */}
+        <section className="pt-10">
+          <h2 className="font-sora text-[15px] font-bold text-ink">Email updates</h2>
+          <div className="mt-4">
+            <EmailUpdatesSection />
+          </div>
         </section>
 
         {/* Plan & billing */}
