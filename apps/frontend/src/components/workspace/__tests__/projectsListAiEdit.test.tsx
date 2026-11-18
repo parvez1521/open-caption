@@ -27,7 +27,7 @@ vi.mock("@/services/projects", () => ({
           { id: "cap1", title: "Podcast ep 12", status: "CREATED", created_at: "2026-11-17T10:00:00.000Z", updated_at: "2026-11-17T10:00:00.000Z", archived_at: null, deleted_at: null },
           { id: "cap2", title: "Hook cut", status: "CREATED", created_at: "2026-11-16T10:00:00.000Z", updated_at: "2026-11-16T10:00:00.000Z", archived_at: null, deleted_at: null },
           { id: "ai1", title: "Untitled AI Edit", status: "CREATED", created_at: "2026-11-18T10:00:00.000Z", updated_at: "2026-11-18T10:00:00.000Z", archived_at: null, deleted_at: null },
-        ] as Project[],
+        ] as unknown as Project[],
         orgReady: true,
       }),
     createProject,

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
-import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type SegmentTransition, type TrackState } from "@capseasy/shared";
+import { CaptionDocSchema, effectiveDurationMs, TRANSITION_REGISTRY_IDS, translationModelFor, type CaptionDoc, type CompositionTrackKind, type SegmentTransition, type TrackState } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
 import { defaultVoiceMemberAvatars } from "@capseasy/motion";
 import { deleteWordsByIds, insertWordAfter, mergeWithNext, mergeWithPrevious, retimeRun, retimeRunGiveWay, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
@@ -143,6 +143,17 @@ export const RIGHT_TABS: { id: RightTabId; label: string; icon: React.ReactNode 
   { id: "graphics", label: "Graphics", icon: railIcon(<><circle cx="8" cy="8" r="3.5" /><rect x="13" y="13" width="8" height="8" rx="1" /><path d="M17.5 3.5l3 5h-6z" /></>) },
   { id: "transitions", label: "Transitions", icon: railIcon(<><rect x="3" y="4" width="8" height="16" rx="1.5" /><rect x="13" y="4" width="8" height="16" rx="1.5" /><path d="M11 12h2" /></>) },
 ];
+
+/** Drag payloads are untrusted JSON: the dropped type is a plain string, so
+ * narrow it to a real transition type (5 legacy + 100 registry ids) before
+ * applying. Unknown ids surface a note instead of a silent no-op. */
+const LEGACY_TRANSITION_TYPES = ["fade", "wipe", "slide", "zoom", "blur"] as const;
+function isSegmentTransitionType(t: string): t is SegmentTransition["type"] {
+  return (
+    (LEGACY_TRANSITION_TYPES as readonly string[]).includes(t) ||
+    (TRANSITION_REGISTRY_IDS as readonly string[]).includes(t)
+  );
+}
 
 /**
  * Why a transition apply would silently do nothing (setSegmentTransition's
@@ -1626,6 +1637,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   };
   // Dropping a transition card on a cut marker selects that join and applies there.
   const onDropTransition = (clipId: string, payload: { type: string; durationMs: number }) => {
+    if (!isSegmentTransitionType(payload.type)) {
+      setTransitionNote("That transition isn't recognised.");
+      return;
+    }
     selectJoin(clipId);
     applyTransitionAtJoin({ type: payload.type, durationMs: payload.durationMs }, clipId);
   };

@@ -6,6 +6,7 @@ import {
   planImageDurationMs,
   requestAiEditPlan,
   segmentsOfTranscript,
+  type AiEditPlanClient,
   type TranscriptSegment,
 } from "../aiEditPlanner";
 
@@ -118,7 +119,7 @@ describe("requestAiEditPlan", () => {
     const post = vi.fn(async () => ({
       configured: true,
       plan: [{ startMs: 0, endMs: 2000, kind: "image", prompt: "a sunrise", sourceText: "hello world" }],
-    }));
+    })) as unknown as AiEditPlanClient["post"];
     const { plan } = await requestAiEditPlan(req, { post });
     expect(post).toHaveBeenCalledWith("/ai-edit/plan", expect.objectContaining({ json: expect.objectContaining({ styleId: "clean" }) }));
     expect(plan).toHaveLength(1);
@@ -126,7 +127,7 @@ describe("requestAiEditPlan", () => {
   });
 
   it("throws a plain message when the free AI service is not switched on", async () => {
-    const post = vi.fn(async () => ({ configured: false }));
+    const post = vi.fn(async () => ({ configured: false })) as unknown as AiEditPlanClient["post"];
     await expect(requestAiEditPlan(req, { post })).rejects.toThrow("not switched on");
   });
 });
