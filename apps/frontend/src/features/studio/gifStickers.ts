@@ -182,12 +182,20 @@ export async function searchOpenverseGifs(
   if (cached) return cached;
   const url = buildOpenverseGifSearchUrl({ query, page });
   if (!isOpenverseApiUrl(url)) throw new Error("Refusing to search anywhere except api.openverse.org.");
-  let res: Awaited<ReturnType<OpenverseFetch>>;
-  try {
-    res = await fetchFn(url);
-  } catch {
-    throw new Error("Couldn't reach Openverse. Check your connection and try again.");
+  let res: Awaited<ReturnType<OpenverseFetch>> | null = null;
+  // Openverse occasionally drops a search (gateway timeouts seen live): retry once
+  // on a network failure or a 5xx before telling the user the search failed.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const r = await fetchFn(url);
+      res = r;
+      if (r.ok || r.status < 500) break;
+    } catch {
+      // network failure — fall through to the retry below
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 300));
   }
+  if (res === null) throw new Error("Couldn't reach Openverse. Check your connection and try again.");
   if (res.status === 429) {
     throw new Error("Openverse rate limit — free anonymous searches are capped per hour. Wait a minute and try again.");
   }

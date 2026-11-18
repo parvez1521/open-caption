@@ -175,14 +175,24 @@ describe("derivePages", () => {
     expect(pages[0]!.endMs).toBeLessThan(1000);
   });
 
+  it("a manual break ends the card with its last word instead of lingering holdMs into the gap", () => {
+    const words = [mk("a", 0, 200), mk("b", 1000, 1200)];
+    const pages = derivePages(docOf(words, { manualBreaks: ["b1000"] }), settings({ maxWordsPerCard: 1, gapBehavior: "hold", holdMs: 500 }));
+    // without this the card would end at last word + hold (700) even though the user
+    // deliberately emptied the gap — a trim that shortens a word would change nothing
+    expect(pages[0]!.endMs).toBe(readMs([words[0]!]));
+    expect(pages[0]!.endMs).toBeLessThan(1000);
+  });
+
   it("deleting words leaves a hard boundary so the earlier card does not hold across the gap", () => {
     const words = [mk("Hello", 0, 400), mk("everyone,", 400, 900), mk("filler", 900, 1500), mk("founder", 2000, 2400)];
     const after = deleteWordsByIds(docOf(words), ["filler900"]);
     expect(after.manualBreaks).toContain("founder2000");
     const pages = derivePages(after, settings({ maxWordsPerCard: 6 }));
     expect(pages).toHaveLength(2);
-    // first card ends at last word + hold (1400), NOT stretched to the next card (2000)
-    expect(pages[0]!.endMs).toBe(1400);
+    // a manual break ends the card with its last word (read floor 922), NOT stretched
+    // to the next card (2000) and NOT lingering holdMs into the deliberate gap
+    expect(pages[0]!.endMs).toBe(922);
     expect(pages[1]!.startMs).toBe(2000);
   });
 
@@ -601,6 +611,29 @@ describe("retimeRunGiveWay (timeline drags: neighbours give way)", () => {
     const d = docOf([mk("a", 0, 300, "a"), mk("b", 300, 500, "b"), mk("c", 500, 700, "c"), mk("d", 700, 1000, "d")]);
     const out = retimeRunGiveWay(d, "b", "c", 200, 600);
     expect(out.words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 200], [200, 400], [400, 600], [700, 1000]]);
+  });
+  it("trimming a word's right edge shorter leaves a hard boundary (the timeline drag path)", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const words = [mk("a", 0, 200, "a"), mk("b", 200, 400, "b"), mk("c", 1000, 1200, "c")];
+    const after = retimeRunGiveWay(docOf(words), "b", "b", 200, 300);
+    expect(after.words.map((w) => [w.startMs, w.endMs])).toEqual([[0, 200], [200, 300], [1000, 1200]]);
+    expect(after.manualBreaks).toContain("c");
+    const pages = derivePages(after, settings({ maxWordsPerCard: 2 }));
+    expect(pages).toHaveLength(2);
+    // card ends at its read floor (706), not stretched to the next card (1000)
+    expect(pages[0]!.endMs).toBe(706);
+  });
+  it("moving a word in the timeline does not leave a hard boundary", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const words = [mk("a", 0, 200, "a"), mk("b", 200, 400, "b"), mk("c", 1000, 1200, "c")];
+    const after = retimeRunGiveWay(docOf(words), "b", "b", 300, 500);
+    expect(after.manualBreaks).not.toContain("c");
+  });
+  it("a ripple trim in the timeline does not leave a hard boundary", async () => {
+    const { retimeRunGiveWay } = await import("./ops");
+    const words = [mk("a", 0, 200, "a"), mk("b", 200, 400, "b"), mk("c", 1000, 1200, "c")];
+    const after = retimeRunGiveWay(docOf(words), "b", "b", 200, 300, true);
+    expect(after.manualBreaks).not.toContain("c");
   });
   it("is a no-op (same doc reference) when the window does not change", async () => {
     const { retimeRunGiveWay } = await import("./ops");

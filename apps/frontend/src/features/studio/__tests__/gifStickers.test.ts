@@ -156,6 +156,36 @@ describe("searchOpenverseGifs", () => {
     await expect(searchOpenverseGifs({ query: "cat" }, failing)).rejects.toThrow("Couldn't reach Openverse");
   });
 
+  it("retries once after a network failure and then succeeds", async () => {
+    clearGifSearchCache();
+    const ok = fetchOk(RESPONSE);
+    let calls = 0;
+    const fetchFn: OpenverseFetch = async (url) => {
+      calls += 1;
+      if (calls === 1) throw new Error("down");
+      return ok(url);
+    };
+    const res = await searchOpenverseGifs({ query: "cat" }, fetchFn);
+    expect(res.gifs).toHaveLength(1);
+    expect(calls).toBe(2);
+    clearGifSearchCache();
+  });
+
+  it("retries once on a gateway timeout and then succeeds", async () => {
+    clearGifSearchCache();
+    const ok = fetchOk(RESPONSE);
+    let calls = 0;
+    const fetchFn: OpenverseFetch = async (url) => {
+      calls += 1;
+      if (calls === 1) return fetchOk({}, 504)(url);
+      return ok(url);
+    };
+    const res = await searchOpenverseGifs({ query: "cat" }, fetchFn);
+    expect(res.gifs).toHaveLength(1);
+    expect(calls).toBe(2);
+    clearGifSearchCache();
+  });
+
   it("refuses an empty query", async () => {
     await expect(searchOpenverseGifs({ query: "   " }, fetchOk(RESPONSE))).rejects.toThrow("Type something");
   });

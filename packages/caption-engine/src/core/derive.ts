@@ -144,7 +144,12 @@ export function derivePages(doc: CaptionDoc, settings: ProjectSettings, opts: De
     // boundary left by deleting / trimming words): never bridge the hold across it, or
     // the earlier card fills a gap the user deliberately emptied.
     const nextStartsManual = nextStart != null && manual.has(merged[i + 1]![0]!.id);
-    let end = Math.max(last.endMs + settings.holdMs, first.startMs + readMs(g));
+    // A manual break is the user saying the gap is deliberate: the card ends with
+    // its last word instead of lingering holdMs into the emptied gap — otherwise
+    // trimming a word shorter would change nothing on screen.
+    let end = nextStartsManual
+      ? Math.max(last.endMs, first.startMs + readMs(g))
+      : Math.max(last.endMs + settings.holdMs, first.startMs + readMs(g));
     if (settings.gapBehavior === "hold" && !nextStartsManual && nextStart != null && nextStart - last.endMs <= bridge) end = Math.max(end, nextStart);
     if (nextStart != null) end = Math.min(end, nextStart);
     end = Math.max(end, Math.min(last.endMs, nextStart ?? last.endMs), first.startMs + 1);

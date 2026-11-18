@@ -183,7 +183,14 @@ export function retimeRunGiveWay(doc: CaptionDoc, firstId: string, lastId: strin
     if (ripple && j > i1) return { ...w, startMs: Math.max(0, w.startMs + delta), endMs: Math.max(MIN_WORD_MS, w.endMs + delta) };
     return w;
   });
-  return touch(doc, { words });
+  // Same boundary rule as retimeRun: a right-edge trim shortens the run on purpose
+  // (start untouched, end earlier), so the next card must not hold back across the
+  // gap the trim opened. This is the op the timeline drags actually call — without
+  // it a trim in the timeline changed the words but the preview kept showing the
+  // card ahead. Moves, stretches and ripple edits leave no boundary.
+  const nextStart = words[i1 + 1]?.startMs;
+  const trimmedShorter = !ripple && next != null && nextStart != null && e < e0 && Math.abs(s - s0) < 1 && nextStart - e > HARD_BREAK_GAP_MS;
+  return touch(doc, { words, manualBreaks: trimmedShorter ? withHardBreak(doc, next.id) : doc.manualBreaks });
 }
 
 /**
