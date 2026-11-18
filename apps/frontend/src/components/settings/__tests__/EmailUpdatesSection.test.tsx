@@ -10,7 +10,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
  */
 
 const h = vi.hoisted(() => ({
-  preference: { email: "user@example.com", marketingOptIn: false, marketingOptInAt: null },
+  preference: { email: "user@example.com", marketingOptIn: false, marketingOptInAt: null as string | null },
   meta: null as { total: number } | null,
   patchCalls: [] as boolean[],
   downloadCalls: 0,

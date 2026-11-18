@@ -45,12 +45,12 @@ describe("csvField / toSubscriberCsv", () => {
 
 describe("ownerEmails / isOwnerEmail", () => {
   it("parses a comma-separated allowlist, trimming and lowercasing", () => {
-    expect(ownerEmails({ OWNER_EMAILS: "Owner@Example.com, second@example.com " } as NodeJS.ProcessEnv)).toEqual([
+    expect(ownerEmails({ OWNER_EMAILS: "Owner@Example.com, second@example.com " })).toEqual([
       "owner@example.com",
       "second@example.com",
     ]);
-    expect(ownerEmails({} as NodeJS.ProcessEnv)).toEqual([]);
-    expect(ownerEmails({ OWNER_EMAILS: " , " } as NodeJS.ProcessEnv)).toEqual([]);
+    expect(ownerEmails({})).toEqual([]);
+    expect(ownerEmails({ OWNER_EMAILS: " , " })).toEqual([]);
   });
 
   it("matches case-insensitively and never matches a missing email", () => {

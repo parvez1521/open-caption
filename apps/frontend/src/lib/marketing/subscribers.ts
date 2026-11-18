@@ -50,7 +50,7 @@ export function toSubscriberCsv(rows: SubscriberRow[]): string {
  * OWNER_EMAILS=work.techhacksai@gmail.com,parvezsiddiqui018@gmail.com
  * Until it is set, the admin export answers 403 to everyone (fail closed).
  */
-export function ownerEmails(env: NodeJS.ProcessEnv = process.env): string[] {
+export function ownerEmails(env: Record<string, string | undefined> = process.env): string[] {
   return (env.OWNER_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())
