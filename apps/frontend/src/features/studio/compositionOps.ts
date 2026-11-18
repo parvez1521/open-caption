@@ -100,10 +100,23 @@ export type DocEffect =
   | { type: "rangeShift"; fromMs: number; deltaMs: number }
   | { type: "rangeScale"; startMs: number; oldDurationMs: number; newDurationMs: number };
 
-/** Result of a video op: the (possibly unchanged) composition + its doc effect. */
+/** Result of a video op: the (possibly unchanged) composition + its doc effect.
+ * `docEffect` is a single effect when the op reports at most one, else the
+ * list to apply in order (an op's own effect first, then any CAP-T03 repair
+ * shifts). `transitionRepairs` is present only when the CAP-T03 cap repair
+ * shortened or removed a transition (see {@link TransitionCapRepair}). */
 export interface VideoOpResult {
   comp: EditorComposition;
-  docEffect: DocEffect;
+  docEffect: DocEffect | DocEffect[];
+  transitionRepairs?: TransitionCapRepair[];
+}
+
+/** One transitionIn shortened or removed by the CAP-T03 cap repair. */
+export interface TransitionCapRepair {
+  clipId: string;
+  oldDurationMs: number;
+  /** null = the transition was removed (the neighbours are too short for even 100 ms). */
+  newDurationMs: number | null;
 }
 
 const NONE: DocEffect = { type: "none" };
@@ -133,11 +146,29 @@ function timelineDurationMs(clip: Pick<EditorVideoClip, "sourceInMs" | "sourceOu
  */
 function relayout(comp: EditorComposition, clips: readonly EditorVideoClip[]): EditorComposition {
   let endMs = 0;
+  let prevDurationMs = 0;
   const laidOut: EditorVideoClip[] = clips.map((clip, i) => {
     const durationMs = timelineDurationMs(clip);
-    const startMs = i === 0 ? 0 : endMs - (clip.transitionIn?.durationMs ?? 0);
-    const next: EditorVideoClip = { ...clip, startMs, durationMs };
+    // CAP-T03: the cap invariant (a transitionIn is strictly shorter than both
+    // neighbours, >= 100 ms) was enforced only by setSegmentTransition at apply
+    // time, so a trim/split/rate/delete/insert that shrank a neighbour left an
+    // over-cap transitionIn behind — the render then shrank the preceding
+    // sequence and silently dropped up to ~0.8 s of the previous clip. Every
+    // video op funnels through relayout, so the repair lives here: re-clamp
+    // (or clear, when even 100 ms cannot fit) against the RECOMPUTED neighbour
+    // durations. A legacy over-cap state from an old project self-heals on the
+    // next op; the op's finish step (finishVideoOp) reports the repair so
+    // captions/markers/overlays follow the shift.
+    let transitionIn = clip.transitionIn;
+    if (i >= 1 && transitionIn) {
+      const cap = Math.min(prevDurationMs, durationMs) - 1;
+      if (cap < 100) transitionIn = null;
+      else if (transitionIn.durationMs > cap) transitionIn = { ...transitionIn, durationMs: cap };
+    }
+    const startMs = i === 0 ? 0 : endMs - (transitionIn?.durationMs ?? 0);
+    const next: EditorVideoClip = { ...clip, startMs, durationMs, transitionIn };
     endMs = startMs + durationMs;
+    prevDurationMs = durationMs;
     return next;
   });
   return {
@@ -146,6 +177,89 @@ function relayout(comp: EditorComposition, clips: readonly EditorVideoClip[]): E
     durationMs: endMs,
     rangeStartMs: laidOut.length > 0 ? laidOut[0]!.sourceInMs : comp.rangeStartMs,
   };
+}
+
+/**
+ * Map a PRE-OP timeline time through one doc effect into the coordinates the
+ * doc has AFTER that effect was applied (the frame applyDocEffect /
+ * applyContentEffect work in when effects are applied in sequence). Used by
+ * the CAP-T03 finish step so a repair rangeShift chained after an op's own
+ * effect (rangeScale / rangeRemove / rangeInsert / headShift) lands on the
+ * right content. Times inside a removed range map to its start (degenerate —
+ * the content there is gone, so the shift has nothing to move).
+ */
+function mapTimeThroughEffect(t: number, effect: DocEffect): number {
+  const time = roundMs(t);
+  switch (effect.type) {
+    case "none":
+      return time;
+    case "headShift":
+      return Math.max(0, time - roundMs(effect.deltaMs));
+    case "rangeRemove": {
+      const s = roundMs(effect.startMs);
+      const e = s + roundMs(effect.durationMs);
+      if (time < s) return time;
+      if (time < e) return s;
+      return time - roundMs(effect.durationMs);
+    }
+    case "rangeInsert": {
+      const at = roundMs(effect.atMs);
+      return time >= at ? time + roundMs(effect.durationMs) : time;
+    }
+    case "rangeShift": {
+      const from = roundMs(effect.fromMs);
+      return time >= from ? time + roundMs(effect.deltaMs) : time;
+    }
+    case "rangeScale": {
+      const s = roundMs(effect.startMs);
+      const e = s + roundMs(effect.oldDurationMs);
+      const oldDur = roundMs(effect.oldDurationMs);
+      const newDur = roundMs(effect.newDurationMs);
+      if (time < s) return time;
+      if (time < e) return s + roundMs(((time - s) * newDur) / oldDur);
+      return time + (newDur - oldDur);
+    }
+  }
+}
+
+/**
+ * CAP-T03 finish step for video ops that re-partition clips: compare the
+ * transitionIn values the op started with against the laid-out result
+ * (relayout already re-clamped them) and report one rangeShift per repair so
+ * captions, markers, overlays and audio follow the shift the shorter overlap
+ * causes — shortening a transition by Δ moves the join clip and everything
+ * after it Δ ms later. The shifts are expressed in post-base-effect
+ * coordinates (via {@link mapTimeThroughEffect}) and ordered latest-first, so
+ * sequential application keeps every fromMs valid. With no repairs this is
+ * exactly `done(laidOut, baseEffect)` — a single effect, same reference
+ * behaviour as before.
+ */
+function finishVideoOp(input: EditorComposition, laidOut: EditorComposition, baseEffect: DocEffect): VideoOpResult {
+  const before = new Map(input.videoClips.map((c) => [c.id, c]));
+  const repairs: TransitionCapRepair[] = [];
+  for (const clip of laidOut.videoClips) {
+    const prev = before.get(clip.id);
+    if (!prev?.transitionIn) continue;
+    const after = clip.transitionIn;
+    if (!after) repairs.push({ clipId: clip.id, oldDurationMs: prev.transitionIn.durationMs, newDurationMs: null });
+    else if (after.durationMs !== prev.transitionIn.durationMs) {
+      repairs.push({ clipId: clip.id, oldDurationMs: prev.transitionIn.durationMs, newDurationMs: after.durationMs });
+    }
+  }
+  if (repairs.length === 0) return done(laidOut, baseEffect);
+  const shifts: DocEffect[] = repairs
+    .map((r) => {
+      const prev = before.get(r.clipId)!;
+      return {
+        fromMs: mapTimeThroughEffect(prev.startMs, baseEffect),
+        deltaMs: r.oldDurationMs - (r.newDurationMs ?? 0),
+      };
+    })
+    .sort((a, b) => b.fromMs - a.fromMs)
+    .map(({ fromMs, deltaMs }) => ({ type: "rangeShift" as const, fromMs, deltaMs }));
+  const effects = baseEffect.type === "none" ? shifts : [baseEffect, ...shifts];
+  const docEffect = effects.length === 1 ? effects[0]! : effects;
+  return { comp: laidOut, docEffect, transitionRepairs: repairs };
 }
 
 /**
@@ -196,21 +310,34 @@ function remapKeyframesForHeadTrim(
 /* ------------------------------------------------------------------ */
 
 /**
- * Split the video segment strictly containing `atMs` into two segments at
+ * Split the video segment containing `atMs` into two segments at
  * that point. Both halves must be at least 40 TIMELINE ms long; the second
  * half gets a new id, the first keeps the original id. A split at timeline
  * offset Δt inside a clip cuts its SOURCE at `sourceInMs + Δt × playbackRate`
  * (a still, rate 1, cuts its pseudo-span at Δt). Both halves inherit the
  * clip's rate / transform / assetId / still; the second half's transitionIn
  * is null (the transition belongs to the join INTO the first half).
+ * CAP-T04: with a transition the overlap zone belongs to TWO segments'
+ * windows, so the first match is the OUTGOING clip — splitting there cut the
+ * wrong clip and left a sub-transition-length sliver in front of the
+ * transitioned join. The LAST (incoming) clip containing the point wins:
+ * its transitionIn starts there. The 40 ms rule then applies to the incoming
+ * clip alone — a point too close to its head refuses instead of falling back
+ * to the wrong clip. The CAP-T03 cap repair runs on the result (a first half
+ * shorter than its transition's cap is re-clamped or cleared, with a
+ * rangeShift so downstream content follows).
  * Refusals (same-reference no-op): `atMs` on a segment boundary or outside
  * every segment, or either side shorter than 40 timeline ms.
- * docEffect: none — nothing outside the partition moves.
+ * docEffect: none — nothing outside the partition moves — unless the CAP-T03
+ * repair fires, in which case its rangeShift(s) are appended.
  */
 export function splitVideoClipAt(comp: EditorComposition, atMs: number): VideoOpResult {
   const at = roundMs(atMs);
-  const idx = comp.videoClips.findIndex((c) => at > c.startMs && at < c.startMs + c.durationMs);
-  if (idx < 0) return noOp(comp);
+  const matches = comp.videoClips
+    .map((c, i) => i)
+    .filter((i) => at > comp.videoClips[i]!.startMs && at < comp.videoClips[i]!.startMs + comp.videoClips[i]!.durationMs);
+  if (matches.length === 0) return noOp(comp);
+  const idx = matches[matches.length - 1]!;
   const clip = comp.videoClips[idx]!;
   const leftMs = at - clip.startMs;
   const rightMs = clip.durationMs - leftMs;
@@ -241,7 +368,7 @@ export function splitVideoClipAt(comp: EditorComposition, atMs: number): VideoOp
     effects: effects.map((e) => ({ ...e, id: newId() })),
   };
   const clips = [...comp.videoClips.slice(0, idx), first, second, ...comp.videoClips.slice(idx + 1)];
-  return done(relayout(comp, clips));
+  return finishVideoOp(comp, relayout(comp, clips), NONE);
 }
 
 /**
@@ -311,7 +438,7 @@ export function trimVideoClipEdge(
       keyframes: remapKeyframesForHeadTrim(clip.keyframes ?? [], delta),
     };
     const clips = [first, ...comp.videoClips.slice(1)];
-    return done(relayout(comp, clips), { type: "headShift", deltaMs: delta });
+    return finishVideoOp(comp, relayout(comp, clips), { type: "headShift", deltaMs: delta });
   }
 
   // --- boundary roll: start edge of clip i > 0, against clip i−1 ---
@@ -333,7 +460,7 @@ export function trimVideoClipEdge(
         return { ...c, sourceInMs: c.sourceInMs + sourceDelta, keyframes: remapKeyframesForHeadTrim(c.keyframes ?? [], headDeltaMs) };
       return c;
     });
-    return done(relayout(comp, clips));
+    return finishVideoOp(comp, relayout(comp, clips), NONE);
   }
 
   // --- tail trim / extend: end edge of the last clip (source advance = delta × rate) ---
@@ -354,7 +481,7 @@ export function trimVideoClipEdge(
     if (sourceDelta === 0) return noOp(comp);
     const last: EditorVideoClip = { ...clip, sourceOutMs: clip.sourceOutMs + sourceDelta };
     const clips = [...comp.videoClips.slice(0, lastIdx), last];
-    return done(relayout(comp, clips));
+    return finishVideoOp(comp, relayout(comp, clips), NONE);
   }
 
   // --- boundary roll: end edge of clip i < last, against clip i+1 ---
@@ -375,7 +502,7 @@ export function trimVideoClipEdge(
       return { ...c, sourceInMs: c.sourceInMs + sourceDelta, keyframes: remapKeyframesForHeadTrim(c.keyframes ?? [], nextHeadDeltaMs) };
     return c;
   });
-  return done(relayout(comp, clips));
+  return finishVideoOp(comp, relayout(comp, clips), NONE);
 }
 
 /**
@@ -418,12 +545,12 @@ export function rippleDeleteVideoSegment(comp: EditorComposition, clipId: string
   let rest = comp.videoClips.filter((_, i) => i !== idx);
   if (idx === 0) {
     rest = rest.map((c, i) => (i === 0 && c.transitionIn ? { ...c, transitionIn: null } : c));
-    return done(relayout(comp, rest), { type: "headShift", deltaMs: roundMs(clip.durationMs) });
+    return finishVideoOp(comp, relayout(comp, rest), { type: "headShift", deltaMs: roundMs(clip.durationMs) });
   }
   if (idx === comp.videoClips.length - 1) {
-    return done(relayout(comp, rest));
+    return finishVideoOp(comp, relayout(comp, rest), NONE);
   }
-  return done(relayout(comp, rest), {
+  return finishVideoOp(comp, relayout(comp, rest), {
     type: "rangeRemove",
     startMs: roundMs(clip.startMs),
     durationMs: roundMs(clip.durationMs),
@@ -503,7 +630,7 @@ export function setSegmentPlaybackRate(comp: EditorComposition, clipId: string, 
         }
       : c,
   );
-  return done(relayout(comp, clips), {
+  return finishVideoOp(comp, relayout(comp, clips), {
     type: "rangeScale",
     startMs: roundMs(clip.startMs),
     oldDurationMs: roundMs(clip.durationMs),
@@ -788,7 +915,7 @@ export function insertStillSegmentAt(
     insertIdx < 0
       ? [...base.videoClips, stillClip]
       : [...base.videoClips.slice(0, insertIdx), stillClip, ...base.videoClips.slice(insertIdx)];
-  return done(relayout(comp, clips), { type: "rangeInsert", atMs: at, durationMs: dur });
+  return finishVideoOp(comp, relayout(comp, clips), { type: "rangeInsert", atMs: at, durationMs: dur });
 }
 
 /**
@@ -847,7 +974,7 @@ export function insertVideoSegmentAt(
     insertIdx < 0
       ? [...base.videoClips, videoClip]
       : [...base.videoClips.slice(0, insertIdx), videoClip, ...base.videoClips.slice(insertIdx)];
-  return done(relayout(comp, clips), { type: "rangeInsert", atMs: at, durationMs: dur });
+  return finishVideoOp(comp, relayout(comp, clips), { type: "rangeInsert", atMs: at, durationMs: dur });
 }
 
 /* ------------------------------------------------------------------ */
@@ -1138,7 +1265,19 @@ export function applyContentShift(comp: EditorComposition, deltaMs: number): Edi
  * `videoClips` and `durationMs` are NOT touched. When nothing would change
  * (including `none` and zero-amount effects) the SAME reference returns.
  */
-export function applyContentEffect(comp: EditorComposition, effect: DocEffect): EditorComposition {
+/**
+ * Apply one doc effect — or a list of them, in order — to the composition's
+ * outside content (markers/overlays, placed audio clips and bleeps). A list
+ * is what a video op reports when the CAP-T03 cap repair fires alongside its
+ * own effect; each effect's coordinates are in the frame the previous ones
+ * produced (see {@link mapTimeThroughEffect}).
+ */
+export function applyContentEffect(comp: EditorComposition, effect: DocEffect | DocEffect[]): EditorComposition {
+  if (Array.isArray(effect)) {
+    let out = comp;
+    for (const e of effect) out = applyContentEffect(out, e);
+    return out;
+  }
   if (effect.type === "none") return comp;
   if (effect.type === "headShift") return applyContentShift(comp, effect.deltaMs);
 
@@ -1311,7 +1450,16 @@ export function applyContentEffect(comp: EditorComposition, effect: DocEffect): 
  *   and every non-time field — breaks, card metadata, hidden/emphasis —
  *   are preserved verbatim).
  */
-export function applyDocEffect(doc: CaptionDoc, effect: DocEffect): CaptionDoc {
+/**
+ * Apply one doc effect — or a list of them, in order — to a caption doc.
+ * (Same list convention as {@link applyContentEffect}.)
+ */
+export function applyDocEffect(doc: CaptionDoc, effect: DocEffect | DocEffect[]): CaptionDoc {
+  if (Array.isArray(effect)) {
+    let out = doc;
+    for (const e of effect) out = applyDocEffect(out, e);
+    return out;
+  }
   if (effect.type === "none" || doc.words.length === 0) return doc;
 
   if (effect.type === "headShift") {
