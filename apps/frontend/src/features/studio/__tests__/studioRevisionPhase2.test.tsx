@@ -388,6 +388,21 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
     }
   });
 
+  it("tapping a transition with no cut selected surfaces the 'Select a cut' note instead of silence (CAP-T01)", async () => {
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio(twoClipSettings);
+    const { unmount } = renderStudio();
+    try {
+      fireEvent.click(screen.getByRole("tab", { name: "Transitions" }));
+      expect(screen.getByText(/No cut selected/)).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Apply Cross Dissolve" }));
+      expect(editAll).not.toHaveBeenCalled();
+      expect(screen.getByRole("status")).toHaveTextContent("Select a cut in the timeline first");
+    } finally {
+      unmount();
+    }
+  });
+
   it("tiny neighbouring clip surfaces a message instead of silence", async () => {
     window.history.pushState({}, "", "/projects/p1");
     studioState.current = makeStudio(tinyNeighbourSettings);

@@ -105,7 +105,7 @@ describe("TransitionsPanel", () => {
     expect((screen.getByLabelText("Apply Cross Dissolve") as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("no join selected: plain message + inline split offer, and tapping a card applies nothing", () => {
+  it("no join selected: plain message + inline split offer, and tapping a card asks for a cut instead of doing nothing (CAP-T01)", () => {
     const { onApplyTransition, onSplitAtPlayhead } = renderPanel({ selectedJoinLabel: null });
     expect(screen.getByText(/No cut selected/)).toBeTruthy();
     expect(screen.getByText(/click a cut marker in the timeline/)).toBeTruthy();
@@ -114,7 +114,9 @@ describe("TransitionsPanel", () => {
     const card = screen.getByLabelText("Apply Cross Dissolve");
     expect(card.getAttribute("aria-disabled")).toBe("true");
     fireEvent.click(card);
-    expect(onApplyTransition).not.toHaveBeenCalled();
+    // the tap reaches the apply handler (the parent answers with the
+    // "Select a cut…" note) instead of dying silently in the panel
+    expect(onApplyTransition).toHaveBeenCalledWith({ type: "dissolve-cross", durationMs: 300 });
   });
 
   it("no join selected with joins: offers selecting the first cut; without joins it does not", () => {

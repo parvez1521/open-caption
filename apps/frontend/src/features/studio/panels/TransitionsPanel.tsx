@@ -397,7 +397,10 @@ export const TransitionsPanel: React.FC<TransitionsPanelProps> = ({
                         e.dataTransfer.effectAllowed = "copy";
                       }}
                       onClick={() => {
-                        if (transitionsDisabled || noJoinSelected) return;
+                        if (transitionsDisabled) return;
+                        // CAP-T01: never swallow a tap — with no join selected
+                        // the apply handler surfaces the "Select a cut…"
+                        // note instead of doing nothing silently.
                         onApplyTransition({ type: entry.id, durationMs: entry.defaultDurationMs });
                       }}
                       className={`relative rounded-lg border p-1.5 text-left disabled:cursor-not-allowed disabled:opacity-40 ${
