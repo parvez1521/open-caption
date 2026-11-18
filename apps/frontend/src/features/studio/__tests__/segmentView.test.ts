@@ -170,6 +170,13 @@ describe("segmentBadges", () => {
     expect(segmentBadges({ ...base, transitionIn: { type: "fade", durationMs: 300 } }))
       .toEqual([{ kind: "transition", label: "Fade 300ms" }]);
   });
+
+  it("registry transition badge shows the display name, not the raw kebab id (CAP-T11)", () => {
+    expect(segmentBadges({ ...base, transitionIn: { type: "dissolve-black", durationMs: 500 } }))
+      .toEqual([{ kind: "transition", label: "Fade to Black 500ms" }]);
+    expect(segmentBadges({ ...base, transitionIn: { type: "glitch-shift-left", durationMs: 400 } }))
+      .toEqual([{ kind: "transition", label: "Glitch Shift Left 400ms" }]);
+  });
 });
 
 describe("applyReversedSegment", () => {

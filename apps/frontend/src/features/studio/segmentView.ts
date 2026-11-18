@@ -6,6 +6,7 @@ import {
   type SegmentTransition,
   type VideoSegment,
 } from "@capseasy/shared";
+import { transitionRegistryEntry } from "@capseasy/compositions";
 import type { EditorComposition, EditorVideoClip } from "./compositionDoc";
 
 /**
@@ -229,7 +230,11 @@ export function segmentBadges(
   else if (view.assetId && assetName && isReversedAssetName(assetName)) badges.push({ kind: "reversed", label: "Reversed" });
   if (!view.still && view.playbackRate !== 1) badges.push({ kind: "rate", label: formatPlaybackRate(view.playbackRate) });
   if (view.transitionIn) {
-    const name = view.transitionIn.type[0]!.toUpperCase() + view.transitionIn.type.slice(1);
+    // CAP-T11: the badge used to capitalise the raw kebab id ("Dissolve-black
+    // 500ms"). Registry transitions get their display name; legacy types keep
+    // the capitalised id ("Fade 300ms").
+    const type = view.transitionIn.type;
+    const name = transitionRegistryEntry(type)?.name ?? type[0]!.toUpperCase() + type.slice(1);
     badges.push({ kind: "transition", label: `${name} ${Math.round(view.transitionIn.durationMs)}ms` });
   }
   return badges;
