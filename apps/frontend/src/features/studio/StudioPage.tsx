@@ -332,8 +332,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     setSelVideoClipId(id);
     if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelMarkerId(null); setSelAudioClipId(null); }
     // a plain segment pick drops the join: the Transitions panel must not
-    // keep applying to a cut the user has moved away from
-    if (!opts?.keepJoin) setSelectedJoinClipId(null);
+    // keep applying to a cut the user has moved away from — but picking the
+    // join's OWN clip (or its transition badge, which falls through to the
+    // segment block) is not moving away, so the join survives (CAP-T02)
+    if (!opts?.keepJoin && id !== selectedJoinClipId) setSelectedJoinClipId(null);
   };
   /**
    * Clicking a cut marker in the timeline selects that join: the selected

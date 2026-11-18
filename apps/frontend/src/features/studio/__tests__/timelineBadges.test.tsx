@@ -82,6 +82,43 @@ describe("Timeline segment badges", () => {
     expect(view.container.querySelector('[aria-label="Freeze frame segment 2"]')).toBeTruthy();
   });
 
+  it("the transition badge is pointer-transparent, so clicking it selects its segment instead of falling through nowhere (CAP-T02)", () => {
+    const view = render(
+      <Timeline
+        pages={[]}
+        words={[]}
+        durationMs={6000}
+        timeMs={0}
+        selectedId={null}
+        peaks={null}
+        waveState="idle"
+        onSeek={vi.fn()}
+        onSelect={vi.fn()}
+        selectedWordIds={new Set()}
+        onWordSelectionChange={vi.fn()}
+        onShiftWords={vi.fn()}
+        onRetimeRun={vi.fn()}
+        onRename={vi.fn()}
+        onAddWord={() => null}
+        onSplit={vi.fn()}
+        onJoin={vi.fn()}
+        onSplitAtPlayhead={vi.fn()}
+        onOpenSettings={vi.fn()}
+        selectedOverlayId={null}
+        onSelectOverlay={vi.fn()}
+        onMoveOverlay={vi.fn()}
+        editorComp={editorComp}
+        selectedVideoClipId={null}
+        onSelectVideoClip={vi.fn()}
+        segmentAssetUrls={{ "freeze-1": "blob:freeze" }}
+        segmentAssetNames={{ "rev-1": "Reversed — clip.mp4", "freeze-1": "clip — freeze at 1000ms.png" }}
+      />,
+    );
+    const badge = [...view.container.querySelectorAll("span")].find((s) => s.textContent?.includes("Fade 300ms"));
+    expect(badge).toBeTruthy();
+    expect(badge!.classList.contains("pointer-events-none")).toBe(true);
+  });
+
   it("an unresolved still renders as a labelled Freeze block, not a broken image", () => {
     const view = render(
       <Timeline

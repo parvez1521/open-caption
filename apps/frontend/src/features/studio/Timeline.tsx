@@ -1017,7 +1017,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   )
                 ) : null}
                 {transitionBadge ? (
-                  <span className="absolute left-0 top-1 z-10 rounded-r bg-st-em px-1 text-[9px] font-semibold leading-4 text-[#141412]" title={`Transition in: ${transitionBadge.label}`}>⇋ {transitionBadge.label}</span>
+                  <span className="pointer-events-none absolute left-0 top-1 z-10 rounded-r bg-st-em px-1 text-[9px] font-semibold leading-4 text-[#141412]" title={`Transition in: ${transitionBadge.label}`}>⇋ {transitionBadge.label}</span>
                 ) : null}
                 {otherBadges.length ? (
                   <span className="absolute right-1 top-1 z-10 flex gap-1">

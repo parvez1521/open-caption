@@ -84,11 +84,14 @@ vi.mock("../Timeline", () => ({
   Timeline: (props: {
     onSelectJoin?: (clipId: string) => void;
     onDropTransition?: (clipId: string, t: { type: string; durationMs: number }) => void;
+    onSelectVideoClip?: (clipId: string) => void;
     selectedJoinClipId?: string | null;
   }) => (
     <div>
       <button type="button" onClick={() => props.onSelectJoin?.("seg-2")}>timeline-cut-2</button>
       <button type="button" onClick={() => props.onDropTransition?.("seg-2", { type: "wipe-left", durationMs: 400 })}>timeline-drop-wipe</button>
+      <button type="button" onClick={() => props.onSelectVideoClip?.("seg-2")}>timeline-segment-2</button>
+      <button type="button" onClick={() => props.onSelectVideoClip?.("seg-1")}>timeline-segment-1</button>
       <span>join:{props.selectedJoinClipId ?? "none"}</span>
     </div>
   ),
@@ -383,6 +386,26 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
       fireEvent.click(screen.getByRole("button", { name: "Apply Cross Dissolve" }));
       expect(editAll).not.toHaveBeenCalled();
       expect(screen.getByRole("status")).toHaveTextContent("Already applied.");
+    } finally {
+      unmount();
+    }
+  });
+
+  it("clicking the join's own segment keeps the join; clicking another segment drops it (CAP-T02)", async () => {
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio(twoClipSettings);
+    const { unmount } = renderStudio();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "timeline-cut-2" }));
+      expect(await screen.findByText("Applying to Cut after Clip 1")).toBeTruthy();
+      // the join's own clip (the segment the transition badge sits on): join survives
+      fireEvent.click(screen.getByRole("button", { name: "timeline-segment-2" }));
+      expect(screen.getByText("join:seg-2")).toBeTruthy();
+      expect(screen.getByText("Applying to Cut after Clip 1")).toBeTruthy();
+      expect((screen.getByRole("tab", { name: "Transitions" }) as HTMLButtonElement).getAttribute("aria-selected")).toBe("true");
+      // a different segment: the join is dropped, as before
+      fireEvent.click(screen.getByRole("button", { name: "timeline-segment-1" }));
+      expect(screen.getByText("join:none")).toBeTruthy();
     } finally {
       unmount();
     }
