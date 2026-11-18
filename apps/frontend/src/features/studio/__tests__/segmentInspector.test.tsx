@@ -118,6 +118,17 @@ describe("SegmentInspector", () => {
     expect(second.handlers.onTransition).toHaveBeenCalledWith({ type: "wipe", durationMs: 300 });
   });
 
+  it("a registry transition shows its display name in Type instead of a blank field (CAP-T07)", () => {
+    const { container, handlers } = setup({ transitionIn: { type: "dissolve-black", durationMs: 500 } });
+    const select = [...container.querySelectorAll("select")][0] as HTMLSelectElement;
+    expect(select.value).toBe("dissolve-black");
+    expect(select.options[select.selectedIndex]?.textContent).toMatch(/Fade to Black/);
+    expect(container.textContent).toContain("Applied from the Transitions tab");
+    // picking a legacy type is now an informed replace, keeping the duration
+    fireEvent.change(select, { target: { value: "fade" } });
+    expect(handlers.onTransition).toHaveBeenCalledWith({ type: "fade", durationMs: 500 });
+  });
+
   it("the transition duration slider stops at the live cap and says so (CAP-T05)", () => {
     const { container } = setup({}, 2500, { transitionDurationCapMs: 299 });
     expect(slider(container, "Duration").max).toBe("299");

@@ -9,6 +9,7 @@ import {
   type SegmentKeyframe,
   type SegmentKeyframeProperty,
 } from "@capseasy/shared";
+import { transitionRegistryEntry } from "@capseasy/compositions";
 import { Button, ColorField, Section, Select, Slider, Toggle } from "../controls";
 import {
   AUTO_ZOOM_INTENSITY_LABEL,
@@ -145,6 +146,16 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
   const busy = production.kind === "working";
   const playheadInside = playheadMs >= segment.startMs && playheadMs < segment.startMs + segment.timelineDurationMs;
   const transitionType = segment.transitionIn?.type ?? "none";
+  // CAP-T07: the Type list was the 5 legacy types only, so a registry
+  // transition (any of the 100) rendered a BLANK Type — and picking anything
+  // silently replaced it. Include the applied registry entry (display name
+  // from the registry) so the field always names what is applied; changing
+  // the style itself stays in the Transitions tab.
+  const registryTransitionEntry = transitionType !== "none" ? transitionRegistryEntry(transitionType) : undefined;
+  const transitionOptions =
+    registryTransitionEntry && !TRANSITION_OPTIONS.some((o) => o.value === transitionType)
+      ? [...TRANSITION_OPTIONS, { value: transitionType, label: `${registryTransitionEntry.name} (Transitions tab)` }]
+      : TRANSITION_OPTIONS;
   return (
     <div className="h-full overflow-y-auto" role="group" aria-label={`Segment ${segment.index + 1} inspector`}>
       <Section title={`Segment ${segment.index + 1}`} hint={segment.still ? "A freeze-frame still — its length is its on-screen duration." : undefined}>
@@ -195,12 +206,15 @@ export const SegmentInspector: React.FC<SegmentInspectorProps> = ({
           <Select
             label="Type"
             value={transitionType}
-            options={TRANSITION_OPTIONS}
+            options={transitionOptions}
             onChange={(v) => {
               if (v === "none") onTransition(null);
               else onTransition({ type: v as SegmentTransitionType, durationMs: segment.transitionIn?.durationMs ?? 300 });
             }}
           />
+          {registryTransitionEntry ? (
+            <p className="text-xs text-st-faint">Applied from the Transitions tab — pick a different style there.</p>
+          ) : null}
           {segment.transitionIn ? (
             <>
               <Slider label="Duration" value={segment.transitionIn.durationMs} min={100} max={transitionDurationCapMs == null ? 2000 : Math.max(100, Math.min(2000, transitionDurationCapMs))} step={50} unit=" ms" onChange={(v) => onTransition({ type: segment.transitionIn!.type, durationMs: v })} />
