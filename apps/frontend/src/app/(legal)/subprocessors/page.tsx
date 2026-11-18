@@ -6,7 +6,7 @@ import { LEGAL } from "@/lib/legal";
 export const metadata: Metadata = pageMetadata({ title: "Subprocessors", description: "The service providers that process data for Captionit.", path: "/subprocessors" });
 
 const ROWS: [string, string, string, string][] = [
-  ["Supabase", "Database, file storage, sign-in", "Account, projects, captions, exports, and videos sent to Companion exports", "India (Mumbai)"],
+  ["Supabase", "Database, file storage, sign-in", "Account, projects, captions, exports, videos up to 50 MB automatically backed up for multi-device access, and videos sent to Companion exports", "India (Mumbai)"],
   ["Vercel", "Website and API hosting", "Requests to the site and API, request logs", "United States (global edge)"],
   ["Google", "Sign in with Google (optional); caption fonts", "Sign-in identity; font requests from your browser", "Global"],
   ["Google (AdSense)", "Advertising on this website, only when advertising is enabled", "Ad requests; advertising cookies for ad serving and personalisation (never your videos, transcripts or projects)", "Global"],
