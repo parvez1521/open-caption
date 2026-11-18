@@ -94,6 +94,9 @@ describe("Motion Studio discovery page", () => {
     expect(cardLinks(view.container)).toHaveLength(MOTION_TEMPLATES.length);
     expect(view.container.querySelectorAll('[data-testid="motion-preview"]')).toHaveLength(MOTION_TEMPLATES.length);
     expect(view.container.textContent).toContain(`Showing ${MOTION_TEMPLATES.length} of ${MOTION_TEMPLATES.length} templates`);
+    // D-2: the eyebrow count comes from the registry, so it cannot go stale (was a hardcoded "46" vs 50)
+    expect(MOTION_TEMPLATES).toHaveLength(50);
+    expect(view.container.textContent).toContain("50 templates · included in every plan");
     view.unmount();
   });
 

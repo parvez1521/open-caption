@@ -53,7 +53,7 @@ export default function MotionDiscoveryPage() {
     <StudioShell>
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-10 sm:py-10">
         <div className="border-b border-sand-200 pb-8">
-          <p className="wb-eyebrow">46 templates · included in every plan</p>
+          <p className="wb-eyebrow">{MOTION_TEMPLATES.length} templates · included in every plan</p>
           <h1 className="mt-2 font-serif text-3xl font-semibold tracking-[-0.015em] text-ink sm:text-4xl">
             Motion <em className="italic text-sand-600">Studio</em>
           </h1>
