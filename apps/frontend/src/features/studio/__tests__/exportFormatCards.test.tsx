@@ -1,6 +1,6 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { CaptionedVideoInput } from "@capseasy/compositions";
 import { CaptionDocSchema } from "@capseasy/shared";
@@ -22,6 +22,8 @@ vi.mock("@/services/studio", () => ({
       quotaReady: true,
     }),
     createExport: async () => ({ ready: false, companionOnline: false }),
+    reserveBrowserExport: async () => {},
+    releaseBrowserExport: async () => {},
     recordBrowserExport: async () => {},
     exportDownloadUrl: async () => "https://example.test/dl",
     cancelJob: async () => {},
@@ -29,9 +31,17 @@ vi.mock("@/services/studio", () => ({
   },
 }));
 
+/** the in-progress render: the test resolves it by hand, so the floating bar can be checked mid-render */
+let resolveRender: ((blob: Blob) => void) | null = null;
+
 vi.mock("../browserExport", () => ({
   canExportInBrowser: async () => ({ ok: true }),
-  exportMp4InBrowser: async () => new Blob(),
+  exportMp4InBrowser: async (opts: { onProgress?: (f: number) => void }) => {
+    opts.onProgress?.(0.42);
+    return new Promise<Blob>((resolve) => {
+      resolveRender = resolve;
+    });
+  },
   saveBlob: () => {},
 }));
 
@@ -196,5 +206,35 @@ describe("ExportModal — square preview cards", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Render WebM overlay/ }));
     expect(await within(group).findByText("Queued")).toBeTruthy();
     expect(screen.queryByText(/No paired computer/)).toBeNull();
+  });
+});
+
+describe("ExportModal — render progress lives outside the modal", () => {
+  it("Render MP4 hides the modal and shows a separate floating progress bar", async () => {
+    // jsdom has no createObjectURL: VideoReady (opened on completion) needs it
+    if (typeof URL.createObjectURL !== "function") {
+      Object.defineProperty(URL, "createObjectURL", { value: () => "blob:mock", configurable: true });
+    }
+    renderModal();
+    const group = await screen.findByRole("group", { name: "Export format" });
+    fireEvent.click(within(group).getByRole("button", { name: /MP4/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Render MP4" }));
+    // the progress is a separate floating bar: same text, % and Cancel, plus the keep-tab-open note
+    const bar = await screen.findByRole("status");
+    // the Export modal overlay is hidden while the render runs in this tab
+    // (still mounted — unmounting it would abort the render)
+    const overlay = document.querySelector("div.fixed.inset-0.z-50");
+    expect(overlay).not.toBeNull();
+    expect(overlay).toHaveAttribute("hidden");
+    expect(bar.textContent).toContain("Rendering your MP4 in this tab");
+    expect(bar.textContent).toContain("42%");
+    expect(bar.textContent).toContain("Keep this tab open. Nothing is uploaded");
+    expect(within(bar).getByRole("button", { name: "Cancel" })).toBeTruthy();
+    // finishing the render shows the done state in the same bar, not back inside the modal
+    await act(async () => {
+      resolveRender?.(new Blob(["x"], { type: "video/mp4" }));
+    });
+    expect(await screen.findByText(/Your MP4 is downloading/)).toBeTruthy();
+    expect(document.querySelector("div.fixed.inset-0.z-50")).toHaveAttribute("hidden");
   });
 });

@@ -77,7 +77,13 @@ interface Props {
 export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderInput, mp4Block = null, saving, onClose, flushSave, exportSettings, onExportSettings, canvas = null, audioMix = null, translationTracks = [] }) => {
   const qc = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
-  useDialogEscapeAndTrap(dialogRef, onClose);
+  /** While an MP4 render runs, the modal itself is hidden and the progress lives
+   *  in a separate floating bar (owner 2026-11-19). The modal stays mounted —
+   *  closing it would unmount this component and abort the render in this tab. */
+  const [renderDetached, setRenderDetached] = useState(false);
+  // While the render runs detached, Escape must not close (and unmount) the
+  // modal: the floating bar's Cancel is the only way to stop the render.
+  useDialogEscapeAndTrap(dialogRef, renderDetached ? () => {} : onClose);
   const allOptions: ExportOption[] = [...EXPORT_OPTIONS, ...translatedTextOptions(translationTracks)];
   /** busy identity is the option KEY (kind, or kind:language for translated rows), not just the kind */
   const [busyKind, setBusyKind] = useState<string | null>(null);
@@ -235,6 +241,10 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       setWebProgress(null);
       setPhaseLabel(null);
       abort.current = null;
+      // A render that failed or was cancelled brings the modal back, so the
+      // error (if any) is visible there. A finished render stays detached:
+      // the floating bar shows the done state instead.
+      if (!rendered && !again) setRenderDetached(false);
       // A render that never produced a file gives its reserved slot back
       // (failed mix, encoder error, stall on the last attempt, cancel) —
       // but NOT a stalled attempt that is about to restart with the same id.
@@ -307,7 +317,12 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         setWeb(w);
         setBusyKind(null);
       }
-      if (w.ok && renderInput?.src) return exportHere(0, exportId);
+      if (w.ok && renderInput?.src) {
+        // The modal hides and the progress moves to its own floating bar;
+        // the render keeps running in this tab (this component stays mounted).
+        setRenderDetached(true);
+        return exportHere(0, exportId);
+      }
       // The render cannot run (video not loaded / encoder refused) — give
       // the reserved slot back instead of holding it for nothing.
       void studioService.releaseBrowserExport(projectId, exportId).catch(() => {});
@@ -349,7 +364,9 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const rows = exportsQ.data ?? [];
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+    {/** The overlay stays in the DOM while detached (hidden, not unmounted):
+     *  unmounting would abort the render, and the dialog trap keeps its node. */}
+    <div hidden={renderDetached} className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div ref={dialogRef} role="dialog" aria-label="Export" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="flex max-h-[92dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
         <div className="flex items-center justify-between border-b border-st-line px-4 py-3">
           <h2 className="text-lg font-semibold">Export</h2>
@@ -466,23 +483,6 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
               ) : null}
             </p>
           ) : null}
-          {webProgress !== null ? (
-            <div className="mt-3 rounded-xl border border-st-line bg-st-raised/60 p-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium text-st-text">{phaseLabel ?? `Rendering your MP4 in this tab… ${Math.round(webProgress * 100)}%`}</span>
-                <Button className="!px-2 !py-1 text-xs" onClick={() => abort.current?.abort()}>Cancel</Button>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-st-line">
-                <div className="h-full rounded-full bg-st-em transition-[width] duration-300" style={{ width: `${Math.max(2, webProgress * 100)}%` }} />
-              </div>
-              <p className="mt-1.5 text-xs text-st-muted">{restarted ? "It paused while you were away, so it started again. " : ""}Keep this tab open. Nothing is uploaded: the video is made on this device.</p>
-            </div>
-          ) : webDone ? (
-            <div className="mt-3 flex items-center justify-between gap-2 rounded-lg bg-st-em/15 px-3 py-2 text-sm text-st-text">
-              <span>✓ Your MP4 is downloading ({webDone}).</span>
-              {made ? <Button className="!px-2.5 !py-1 text-xs" onClick={() => setShowReady(true)}>Share</Button> : null}
-            </div>
-          ) : null}
           {error ? <p role="alert" className="mt-3 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">{error}</p> : null}
 
           {rows.length > 0 ? (
@@ -518,6 +518,34 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         </div>
       </div>
     </div>
+    {/** Separate floating progress bar (owner 2026-11-19): after Render MP4 the
+     *  modal hides and the render progress lives here, docked at the bottom of
+     *  the screen, until the render finishes or is cancelled. The render itself
+     *  still runs in this tab — only the progress UI moved out of the modal. */}
+    {renderDetached && (webProgress !== null || webDone) ? (
+      <div role="status" aria-live="polite" className="fixed bottom-4 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-st-line bg-st-panel p-3 shadow-2xl">
+        {webProgress !== null ? (
+          <>
+            <div className="flex items-center justify-between gap-2 text-sm">
+              <span className="font-medium text-st-text">{phaseLabel ?? `Rendering your MP4 in this tab… ${Math.round(webProgress * 100)}%`}</span>
+              <Button className="!px-2 !py-1 text-xs" onClick={() => abort.current?.abort()}>Cancel</Button>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-st-line">
+              <div className="h-full rounded-full bg-st-em transition-[width] duration-300" style={{ width: `${Math.max(2, webProgress * 100)}%` }} />
+            </div>
+            <p className="mt-1.5 text-xs text-st-muted">{restarted ? "It paused while you were away, so it started again. " : ""}Keep this tab open. Nothing is uploaded: the video is made on this device.</p>
+          </>
+        ) : (
+          <div className="flex items-center justify-between gap-2 text-sm text-st-text">
+            <span>✓ Your MP4 is downloading ({webDone}).</span>
+            <span className="flex shrink-0 items-center gap-1">
+              {made ? <Button className="!px-2.5 !py-1 text-xs" onClick={() => setShowReady(true)}>Share</Button> : null}
+              <button aria-label="Dismiss" onClick={() => { setWebDone(null); setMade(null); }} className="grid h-8 w-8 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
+            </span>
+          </div>
+        )}
+      </div>
+    ) : null}
     {made && showReady ? (
       <VideoReady blob={made.blob} filename={made.name} detail={webDone} onDownload={() => saveBlob(made.blob, made.name)} onClose={() => setShowReady(false)} />
     ) : null}
