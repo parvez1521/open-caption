@@ -51,7 +51,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "export",
     anchor: "export",
     title: "Export",
-    body: "Export an MP4 with the captions burned in. Or download an SRT file. Your edits are saved automatically.",
+    body: "Export an MP4 with the captions burned in. Or download an SRT file. You'll need a free account to export — it takes a minute to create, and your work carries over. Your edits are saved automatically.",
   },
 ];
 

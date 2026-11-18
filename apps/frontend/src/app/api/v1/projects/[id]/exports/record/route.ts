@@ -22,8 +22,15 @@ const Body = z.object({
  * MP4s are rendered on the user's own device and never touch the server
  * exports route, so the Studio reports the finished render here — once,
  * keyed by the client-generated exportId, so a retry never counts twice.
- * Guests may record too (browser MP4 has always been open to guests);
- * their events stay with the anonymous id and do not carry over on claim.
+ * Events stay with the caller's id and do not carry over on claim.
+ *
+ * PER-01-B: guests do NOT reach this route from the Studio — export is the
+ * moment a guest creates their (free) account (StudioPage.openExport gates
+ * every guest and every kind; the server exports route 403s guests for every
+ * kind). An earlier version of this comment claimed the opposite ("browser
+ * MP4 has always been open to guests"); that was false. This route itself
+ * takes any authenticated caller, so a direct call from a guest token would
+ * still record; that is only quota counting, never an export.
  *
  * A missing quota table answers recorded:false instead of an error: the
  * file is already saved on the user's device, so there is nothing to undo

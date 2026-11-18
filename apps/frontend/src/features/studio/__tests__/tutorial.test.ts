@@ -61,6 +61,12 @@ describe("tutorial steps", () => {
     }
   });
 
+  it("the export step says a free account is needed — guests meet the wall there, not after the work (PER-01-B)", () => {
+    const exportStep = TUTORIAL_STEPS.find((s) => s.id === "export")!;
+    expect(exportStep.body).toMatch(/free account/i);
+    expect(exportStep.body).toMatch(/export/i);
+  });
+
   it("navigation clamps at both ends", () => {
     expect(stepIndexAfter(0, 1)).toBe(1);
     expect(stepIndexAfter(4, 1)).toBe(5);

@@ -23,13 +23,23 @@ const Body = z.object({
  * HERE before rendering starts — the server-side check the client cannot
  * skip — and the post-render record (same exportId) is then a no-op. A
  * render that fails or is cancelled releases the slot with DELETE below,
- * so a failed render never eats a video. Guests may reserve too (browser
- * MP4 has always been open to guests); their events stay with the
- * anonymous id and do not carry over on claim.
+ * so a failed render never eats a video. Events stay with the caller's id
+ * and do not carry over on claim.
  *
  * A missing quota table answers reserved:false instead of an error: the
  * render is allowed and simply not counted yet — the same soft-fail as
  * the record path, never a 500.
+ *
+ * PER-01-B: guests do NOT reach this route from the Studio — export is the
+ * moment a guest creates their (free) account. StudioPage.openExport shows
+ * the signup gate for every guest and every kind, the server exports route
+ * 403s guests for every kind, and auth.ts states the rule outright
+ * ("anonymous guest … may edit, may not export"). An earlier version of
+ * this comment claimed the opposite ("browser MP4 has always been open to
+ * guests"); that was false. This route itself takes any authenticated
+ * caller (requireUser accepts an anonymous token), so a direct call from a
+ * guest token would still reserve — that is only a quota pre-flight, never
+ * an export, and must not be read as guest export being open.
  */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
