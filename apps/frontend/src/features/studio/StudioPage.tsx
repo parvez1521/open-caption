@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { PlayerRef } from "@remotion/player";
 import { computePages } from "@capseasy/compositions";
-import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type TrackState } from "@capseasy/shared";
+import { CaptionDocSchema, effectiveDurationMs, translationModelFor, type CaptionDoc, type CompositionTrackKind, type SegmentTransition, type TrackState } from "@capseasy/shared";
 import { getLook, getTemplate, loadFontFamily } from "@capseasy/templates";
 import { defaultVoiceMemberAvatars } from "@capseasy/motion";
 import { deleteWordsByIds, insertWordAfter, mergeWithNext, mergeWithPrevious, retimeRun, retimeRunGiveWay, setEmphasis, setHidden, setWordText, shiftWordsByIds, splitCardAt } from "@motion-ai/caption-engine/core";
@@ -27,14 +27,13 @@ import { CaptionsPanel } from "./panels/CaptionsPanel";
 import { LooksPanel } from "./panels/LooksPanel";
 import { SettingsPanel, StylePanel } from "./panels/StylePanel";
 import { MediaPanel } from "./panels/MediaPanel";
-import { AiGeneratePanel } from "./panels/AiGeneratePanel";
+import { AiGeneratePanel, type AiEditTranscriptState } from "./panels/AiGeneratePanel";
 import { SoundEffectsPanel } from "./panels/SoundEffectsPanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
 import { MotionStudioPanel } from "./panels/MotionStudioPanel";
 import { TitlesPanel } from "./panels/TitlesPanel";
 import { StickersPanel } from "./panels/StickersPanel";
-import { ReelTemplatesPanel } from "./panels/ReelTemplatesPanel";
-import { MotionPackPanel } from "./panels/MotionPackPanel";
+import { NewGraphicsPanel } from "./panels/NewGraphicsPanel";
 import { TransitionsPanel } from "./panels/TransitionsPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
 import { AudioPanel } from "./panels/AudioPanel";
@@ -79,6 +78,9 @@ import { getLocalVideo } from "@/features/upload/localVideos";
 import type { PreparedVideo } from "@/features/upload/prepareVideo";
 import { resolveUploadOutcome } from "./footageSwap";
 import { listProjectAssets, saveAsset } from "./mediaStore";
+import { isAiEditProject } from "./aiEditFlow";
+import { transcribeVideoForPlanning } from "./aiEditTranscribe";
+import type { ImportError } from "./useMediaAssets";
 import { splitWordIdAtPlayhead } from "./playheadSplit";
 import { resolveDeleteAction } from "./deleteSelection";
 import { useMediaAssets } from "./useMediaAssets";
@@ -124,6 +126,55 @@ export const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode;
   { id: "sfx", label: "Sound FX", icon: railIcon(<><path d="M9 18.5V7l10-2v10.5" /><circle cx="6.5" cy="18.5" r="2.5" /><circle cx="16.5" cy="15.5" r="2.5" /></>) },
   { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
 ];
+
+/**
+ * Right-side options (desktop): the vertical side rail beside the panel
+ * content. No "reels" tab — ReelTemplatesPanel stays on disk unlinked
+ * (same precedent as titleCard.ts). The Inspector entry only renders when a
+ * segment is selected (segmentInspector exists); the rest are always there.
+ */
+export type RightTabId = "motion" | "inspector" | "titles" | "stickers" | "sfx" | "graphics" | "transitions";
+export const RIGHT_TABS: { id: RightTabId; label: string; icon: React.ReactNode }[] = [
+  { id: "motion", label: "Motion", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" /></>) },
+  { id: "inspector", label: "Inspector", icon: railIcon(<><path d="M4 8h9M19 8h1M4 16h3M13 16h7" /><circle cx="16" cy="8" r="2" /><circle cx="10" cy="16" r="2" /></>) },
+  { id: "titles", label: "Titles", icon: railIcon(<text x="12" y="17" textAnchor="middle" fontSize="11" fontWeight="700" fill="currentColor" stroke="none">Aa</text>) },
+  { id: "stickers", label: "Stickers", icon: railIcon(<><path d="M12 3l2.5 5.3 5.5.7-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.5-.7z" /></>) },
+  { id: "sfx", label: "Sounds", icon: railIcon(<><path d="M9 18.5V7l10-2v10.5" /><circle cx="6.5" cy="18.5" r="2.5" /><circle cx="16.5" cy="15.5" r="2.5" /></>) },
+  { id: "graphics", label: "Graphics", icon: railIcon(<><circle cx="8" cy="8" r="3.5" /><rect x="13" y="13" width="8" height="8" rx="1" /><path d="M17.5 3.5l3 5h-6z" /></>) },
+  { id: "transitions", label: "Transitions", icon: railIcon(<><rect x="3" y="4" width="8" height="16" rx="1.5" /><rect x="13" y="4" width="8" height="16" rx="1.5" /><path d="M11 12h2" /></>) },
+];
+
+/**
+ * Why a transition apply would silently do nothing (setSegmentTransition's
+ * own no-op rules, mirrored here so the UI can say so instead): the clip is
+ * unknown, the first clip (index < 1), a neighbour too short to fit even
+ * 100 ms, or the exact same type + clamped duration already applied.
+ * Clearing (transition null) on an already-plain cut is the same kind of
+ * no-op. Null = it can go ahead.
+ */
+export function transitionApplyBlocker(
+  comp: EditorComposition | null,
+  clipId: string,
+  transition: SegmentTransition | null,
+): string | null {
+  if (!comp) return "There's no timeline to apply a transition to yet.";
+  const idx = comp.videoClips.findIndex((c) => c.id === clipId);
+  if (idx < 0) return "That cut is gone — pick another cut in the timeline.";
+  if (idx < 1) return "Can't apply here — this is the first clip.";
+  const clip = comp.videoClips[idx]!;
+  const prev = comp.videoClips[idx - 1]!;
+  if (transition) {
+    const cap = Math.min(prev.durationMs, clip.durationMs) - 1;
+    if (cap < 100) return "Neighbouring clip too short for a transition.";
+    const durationMs = Math.max(100, Math.min(Math.round(transition.durationMs), cap));
+    if ((clip.transitionIn?.type ?? null) === transition.type && (clip.transitionIn?.durationMs ?? 0) === durationMs) {
+      return "Already applied.";
+    }
+  } else if (!clip.transitionIn) {
+    return "Already a plain cut.";
+  }
+  return null;
+}
 
 const SAVE_LABEL: Record<SaveState, { text: string; dot: string }> = {
   saved: { text: "Saved", dot: "bg-st-em" },
@@ -174,6 +225,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const docForTour = s.doc;
   useEffect(() => {
     if (tourCheckedRef.current) return;
+    // a blank AI-Edit project never gets the captions tutorial
+    if (isAiEditProject(projectId)) { tourCheckedRef.current = true; return; }
     const landed = phase === "saved" || (docForTour != null && docForTour.words.length > 0);
     if (!landed) return;
     tourCheckedRef.current = true;
@@ -183,20 +236,34 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   }, [phase, docForTour]);
   const desktop = useIsDesktop();
 
-  const [section, setSection] = useState<PanelId>("captions");
+  // A blank AI-Edit project opens on its own rail section (never the
+  // captions section, and no caption session or tutorial is started for it).
+  const [section, setSection] = useState<PanelId>(() => (isAiEditProject(projectId) ? "aiedit" : "captions"));
   // Package 2 item G — the door this project started through (?mode= wins, then the
   // device record, then the captions default). Persisted the moment it's known/chosen.
   const [startMode, setStartMode] = useState<ProjectStartMode>(() => (typeof window !== "undefined" ? modeFromSearch(window.location.search) : null) ?? projectModeOf(projectId));
-  useEffect(() => { setProjectMode(projectId, startMode); }, [projectId, startMode]);
+  useEffect(() => { if (!isAiEditProject(projectId)) setProjectMode(projectId, startMode); }, [projectId, startMode]);
   // right column (desktop): Motion Studio lives there permanently; the segment inspector
   // shares the column as a second tab that takes focus when a segment is selected. The
   // column collapses to a slim strip so the centre can reclaim the width on demand.
-  const [rightTab, setRightTab] = useState<"motion" | "inspector" | "titles" | "stickers" | "sfx" | "reels" | "graphics" | "transitions">("motion");
+  const [rightTab, setRightTab] = useState<RightTabId>("motion");
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [mobileTimeline, setMobileTimeline] = useState(false);
   const [timeMs, setTimeMs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  /**
+   * The SELECTED JOIN (cut): the id of the clip AFTER the cut. There is no
+   * "selected cut" in the code — a transition applies to the clip after the
+   * cut, so the join is stored as that clip. Null = no join selected; the
+   * Transitions panel then offers the first cut instead of applying blind.
+   */
+  const [selectedJoinClipId, setSelectedJoinClipId] = useState<string | null>(null);
+  /** A join click sets this so the segment-selection effect opens the
+   * Transitions tab instead of the Inspector for that one selection. */
+  const joinSelectRef = useRef(false);
+  /** The last transition message (a refused apply, never a silent no-op). */
+  const [transitionNote, setTransitionNote] = useState<string | null>(null);
   /** drag selection of caption words (ids, spanning cards), shared by the captions panel + timeline */
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
   /**
@@ -250,9 +317,25 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     setSelectedOverlayId(id);
     if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelVideoClipId(null); setSelMarkerId(null); setSelAudioClipId(null); }
   };
-  const selectVideoClip = (id: string | null) => {
+  const selectVideoClip = (id: string | null, opts?: { keepJoin?: boolean }) => {
     setSelVideoClipId(id);
     if (id) { setSelectedId(null); setSelectedWordIds(new Set()); setSelectedOverlayId(null); setSelMarkerId(null); setSelAudioClipId(null); }
+    // a plain segment pick drops the join: the Transitions panel must not
+    // keep applying to a cut the user has moved away from
+    if (!opts?.keepJoin) setSelectedJoinClipId(null);
+  };
+  /**
+   * Clicking a cut marker in the timeline selects that join: the selected
+   * segment becomes the clip AFTER the cut (so the Inspector and the
+   * Transitions panel both read the join's clip), and the Transitions tab
+   * comes forward instead of the Inspector.
+   */
+  const selectJoin = (clipId: string) => {
+    joinSelectRef.current = true;
+    setSelectedJoinClipId(clipId);
+    setTransitionNote(null);
+    selectVideoClip(clipId, { keepJoin: true });
+    setRightTab("transitions");
   };
   const selectMarker = (id: string | null) => {
     setSelMarkerId(id);
@@ -831,11 +914,33 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   ) : null;
   const splitVideoRef = useRef<() => void>(() => undefined);
   splitVideoRef.current = splitVideoAtPlayhead;
-  // selecting a timeline segment brings its inspector forward in the right column
+  // selecting a timeline segment brings its inspector forward in the right column —
+  // except a join click, which brings the Transitions tab forward instead
   const selSegId = selSegmentView?.id ?? null;
   useEffect(() => {
-    if (selSegId) setRightTab("inspector");
+    if (!selSegId) return;
+    if (joinSelectRef.current) {
+      joinSelectRef.current = false;
+      setRightTab("transitions");
+      return;
+    }
+    setRightTab("inspector");
   }, [selSegId]);
+  // the selected join, as the Transitions panel sees it: the clip after the
+  // cut is "Clip <index>" (0-based index, so the first join is "Cut after
+  // Clip 1"); a stale id (the clip was ripple-deleted) reads as no join
+  const selectedJoinIndex = editorComp && selectedJoinClipId ? editorComp.videoClips.findIndex((c) => c.id === selectedJoinClipId) : -1;
+  const selectedJoinLabel = selectedJoinIndex >= 1 ? `Cut after Clip ${selectedJoinIndex}` : null;
+  const hasJoins = Boolean(editorComp && editorComp.videoClips.length > 1);
+  const joinClip = selectedJoinIndex >= 1 ? editorComp!.videoClips[selectedJoinIndex]! : null;
+  const selectFirstJoin = () => {
+    if (editorComp && editorComp.videoClips.length > 1) selectJoin(editorComp.videoClips[1]!.id);
+  };
+  useEffect(() => {
+    if (selectedJoinClipId && editorComp && !editorComp.videoClips.some((c) => c.id === selectedJoinClipId)) {
+      setSelectedJoinClipId(null);
+    }
+  }, [editorComp, selectedJoinClipId]);
   const addMarkerRef = useRef<() => void>(() => undefined);
   addMarkerRef.current = addMarkerAtPlayhead;
 
@@ -1135,6 +1240,49 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     startSession({ projectId, videoId: video.id, file: blob, language: data?.project.language ?? null });
   }, [video, projectId, data?.project.language]);
 
+  // AI Edit (Task 9): planning-only transcript, owned by this page. It
+  // transcribes the uploaded video in this tab for the planner and never
+  // starts a caption session or writes a caption document (no startSession).
+  const [aiEditTranscript, setAiEditTranscript] = useState<AiEditTranscriptState>({ state: "idle", words: [] });
+  const transcribeAiEditVideo = useCallback(async () => {
+    if (!video) {
+      setAiEditTranscript({ state: "error", words: [], error: "Add a video to the project first." });
+      return;
+    }
+    const blob = await getLocalVideo(video.id);
+    if (!blob) {
+      setAiEditTranscript({ state: "error", words: [], error: "The video isn't on this device — open this project on the device you uploaded from." });
+      return;
+    }
+    setAiEditTranscript({ state: "transcribing", words: [], progress: 0 });
+    try {
+      const words = await transcribeVideoForPlanning(blob, {
+        onProgress: (p) => setAiEditTranscript((prev) => ({ ...prev, state: "transcribing", progress: p.progress })),
+      });
+      setAiEditTranscript({ state: "ready", words });
+    } catch (e) {
+      setAiEditTranscript({ state: "error", words: [], error: e instanceof Error ? e.message : "The video could not be listened to." });
+    }
+  }, [video]);
+
+  // AI Edit video upload: the same device attach path MediaPanel uses for
+  // "Use as source" — the file lands under the project's video id on this
+  // device. A project with no video row yet has nothing to attach to; its
+  // first upload goes through the start screen instead.
+  const uploadAiEditVideo = useCallback(async (files: File[]): Promise<ImportError[]> => {
+    const file = files[0];
+    if (!file) return [];
+    if (!data?.video?.id) {
+      return [{ name: file.name, error: "This project has no video yet — upload one from the start screen first." }];
+    }
+    try {
+      await device.attach(file);
+      return [];
+    } catch (e) {
+      return [{ name: file.name, error: e instanceof Error ? e.message : "The video could not be added." }];
+    }
+  }, [data?.video?.id, device]);
+
   // Cloud video sync: a ≤50 MB copy of the video goes to the account's storage
   // so the project opens on a second device. A video uploaded in this session
   // syncs itself in the background once its local save lands; a video from
@@ -1205,6 +1353,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   if (!data) return <FullScreen>This project could not be found. <Link className="ml-2 font-semibold text-st-text underline decoration-st-or decoration-2 underline-offset-4" href="/dashboard">Back to projects</Link></FullScreen>;
 
   const noVideoYet = !video || video.status === "uploading";
+  // a blank AI-Edit project is its own flow: its first upload must never
+  // start a caption session, so it always opens through the editor door
+  const isAiEdit = isAiEditProject(projectId);
   // the project's video isn't on this device (another device, cleared storage): add a video and caption it afresh
   const videoGone = !noVideoYet && device.status === "missing";
   const hasEditor = Boolean(doc && style && input) && !videoGone;
@@ -1352,8 +1503,8 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       projectId={projectId}
       limits={data.limits}
       language={data.project.language ?? null}
-      mode={startMode}
-      onModeChange={setStartMode}
+      mode={isAiEdit ? "editor" : startMode}
+      onModeChange={isAiEdit ? undefined : setStartMode}
       onUploaded={(videoId) => {
         setJustUploadedId(videoId);
         setReplacing(false);
@@ -1419,6 +1570,64 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     if (r.comp === editorComp) return false;
     commitComposition(r.comp, r.docEffect);
     return true;
+  };
+
+  /* ---------- Transitions: apply at the SELECTED JOIN, never silently ---------- */
+  // The target is the join's clip (selectedJoinClipId, or an explicit id
+  // from a drop — the drop selects the join first, but state hasn't
+  // re-rendered yet, so the drop passes its clip id straight through).
+  // A refused apply is surfaced in the note above the panel; a tap apply
+  // (new type, or first transition on the join) seeks the preview to the
+  // join and plays through it so the effect is visible at the join moment.
+  // A duration-only change (the slider) does not yank the playhead.
+  const applyTransitionAtJoin = (transition: SegmentTransition, targetId: string | null = selectedJoinClipId) => {
+    if (!editorComp || !targetId) {
+      setTransitionNote("Select a cut in the timeline first — click a cut marker, or pick the first cut above.");
+      return;
+    }
+    const blocked = transitionApplyBlocker(editorComp, targetId, transition);
+    if (blocked) {
+      setTransitionNote(blocked);
+      return;
+    }
+    const current = editorComp.videoClips.find((c) => c.id === targetId)?.transitionIn ?? null;
+    const r = setSegmentTransition(editorComp, targetId, transition);
+    if (r.comp === editorComp) {
+      setTransitionNote("That transition could not be applied here.");
+      return;
+    }
+    commitComposition(r.comp, r.docEffect);
+    setTransitionNote(null);
+    if (!current || current.type !== transition.type) {
+      const nextClip = r.comp.videoClips.find((c) => c.id === targetId);
+      if (nextClip) {
+        seek(Math.max(0, nextClip.startMs - 500));
+        playerRef.current?.play();
+      }
+    }
+  };
+  const clearTransitionAtJoin = () => {
+    if (!editorComp || !selectedJoinClipId) {
+      setTransitionNote("Select a cut in the timeline first — click a cut marker, or pick the first cut above.");
+      return;
+    }
+    const blocked = transitionApplyBlocker(editorComp, selectedJoinClipId, null);
+    if (blocked) {
+      setTransitionNote(blocked);
+      return;
+    }
+    const r = setSegmentTransition(editorComp, selectedJoinClipId, null);
+    if (r.comp === editorComp) {
+      setTransitionNote("That cut is already plain.");
+      return;
+    }
+    commitComposition(r.comp, r.docEffect);
+    setTransitionNote(null);
+  };
+  // Dropping a transition card on a cut marker selects that join and applies there.
+  const onDropTransition = (clipId: string, payload: { type: string; durationMs: number }) => {
+    selectJoin(clipId);
+    applyTransitionAtJoin({ type: payload.type, durationMs: payload.durationMs }, clipId);
   };
   // media-bin drop on the timeline: image -> overlay at the drop point; video -> take over as
   // the project source through the same device attach path as MediaPanel's "Use as source";
@@ -1507,7 +1716,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           videoLocked={videoLocked}
           onImportMedia={mediaBin.importFiles}
           onPlaceImage={placeImage}
+          onPlaceImageAt={placeImageAt}
           onInsertVideo={insertAiVideoAt}
+          onUploadVideo={uploadAiEditVideo}
+          transcript={aiEditTranscript}
+          onTranscribe={() => void transcribeAiEditVideo()}
+          durationMs={video?.durationMs ?? undefined}
         />
       )
       : <SettingsPanel settings={settings} patch={s.patchSettings} layout={getTemplate(style.templateId).layout} />
@@ -1613,6 +1827,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       editorComp={editorComp}
       selectedVideoClipId={selVideoClipId}
       onSelectVideoClip={selectVideoClip}
+      selectedJoinClipId={selectedJoinClipId}
+      onSelectJoin={selectJoin}
+      onDropTransition={onDropTransition}
       selectedMarkerId={selMarkerId}
       onSelectMarker={selectMarker}
       onTrimVideoEdge={trimVideoEdge}
@@ -1756,111 +1973,56 @@ export default function StudioPage({ projectId }: { projectId: string }) {
               </button>
             </aside>
           ) : (
-            <aside aria-label="Right panel" className="flex min-h-0 w-[264px] shrink-0 flex-col border-l border-st-line bg-st-panel 2xl:w-[300px]">
-              <div className="flex shrink-0 items-center gap-1 border-b border-st-line px-2 py-1.5">
-                <div role="tablist" aria-label="Right panel tabs" className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto [scrollbar-width:none]">
+            <aside aria-label="Right panel" className="flex min-h-0 w-[340px] shrink-0 flex-row border-l border-st-line bg-st-panel 2xl:w-[376px]">
+              <nav role="tablist" aria-label="Right panel tabs" className="flex w-[76px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-st-line bg-st-panel px-2 py-3">
+                {RIGHT_TABS.filter((tab) => tab.id !== "inspector" || segmentInspector).map((tab) => (
                   <button
+                    key={tab.id}
                     type="button"
                     role="tab"
-                    aria-selected={rightTab === "motion"}
-                    onClick={() => setRightTab("motion")}
-                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "motion" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                    aria-selected={rightTab === tab.id}
+                    onClick={() => setRightTab(tab.id)}
+                    className={`flex flex-col items-center gap-1.5 rounded-xl px-1 py-2.5 ${rightTab === tab.id ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-raised hover:text-st-text"}`}
                   >
-                    Motion
+                    {tab.icon}
+                    <span className="text-[11px] font-medium leading-none">{tab.label}</span>
                   </button>
-                  {segmentInspector ? (
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={rightTab === "inspector"}
-                      onClick={() => setRightTab("inspector")}
-                      className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "inspector" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
-                    >
-                      Inspector
-                    </button>
-                  ) : null}
+                ))}
+              </nav>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex shrink-0 items-center justify-end border-b border-st-line px-2 py-1.5">
                   <button
                     type="button"
-                    role="tab"
-                    aria-selected={rightTab === "titles"}
-                    onClick={() => setRightTab("titles")}
-                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "titles" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
+                    aria-label="Collapse right panel"
+                    onClick={() => setRightCollapsed(true)}
+                    className="relative rounded-lg px-2 py-2.5 text-st-muted before:absolute before:-inset-2 before:content-[''] hover:bg-st-hover hover:text-st-text"
                   >
-                    Titles
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={rightTab === "stickers"}
-                    onClick={() => setRightTab("stickers")}
-                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "stickers" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
-                  >
-                    Stickers
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={rightTab === "sfx"}
-                    onClick={() => setRightTab("sfx")}
-                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "sfx" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
-                  >
-                    Sounds
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={rightTab === "reels"}
-                    onClick={() => setRightTab("reels")}
-                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "reels" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
-                  >
-                    Reels
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={rightTab === "graphics"}
-                    onClick={() => setRightTab("graphics")}
-                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "graphics" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
-                  >
-                    Graphics
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={rightTab === "transitions"}
-                    onClick={() => setRightTab("transitions")}
-                    className={`relative shrink-0 rounded-lg px-2.5 py-2.5 text-[12px] font-semibold before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${rightTab === "transitions" ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-hover hover:text-st-text"}`}
-                  >
-                    Transitions
+                    ›
                   </button>
                 </div>
-                <button
-                  type="button"
-                  aria-label="Collapse right panel"
-                  onClick={() => setRightCollapsed(true)}
-                  className="relative ml-auto rounded-lg px-2 py-2.5 text-st-muted before:absolute before:-inset-2 before:content-[''] hover:bg-st-hover hover:text-st-text"
-                >
-                  ›
-                </button>
-              </div>
-              <div className="flex min-h-0 flex-1 flex-col">
-                {rightTab === "inspector" && segmentInspector ? segmentInspector
-                  : rightTab === "titles" ? <TitlesPanel {...overlayPanelProps} />
-                  : rightTab === "stickers" ? <StickersPanel {...overlayPanelProps} />
-                  : rightTab === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
-                  : rightTab === "reels" ? <ReelTemplatesPanel {...overlayPanelProps} currentLookId={s.lookId} onChooseLook={(lookId) => { const look = getLook(lookId); if (look) s.chooseLook(look); }} />
-                  : rightTab === "graphics" ? <MotionPackPanel {...overlayPanelProps} />
-                  : rightTab === "transitions" ? (
-                    <TransitionsPanel
-                      currentTransition={selSegmentView?.transitionIn ?? null}
-                      onApplyTransition={(transition) => { if (!editorComp || !selSegmentView) return; const r = setSegmentTransition(editorComp, selSegmentView.id, transition); commitComposition(r.comp, r.docEffect); }}
-                      onClearTransition={() => { if (!editorComp || !selSegmentView) return; const r = setSegmentTransition(editorComp, selSegmentView.id, null); commitComposition(r.comp, r.docEffect); }}
-                      onSplitAtPlayhead={splitVideoAtPlayhead}
-                      transitionsDisabled={!selSegmentView || selClipIndex < 1}
-                      splitDisabled={!editorComp || videoLocked}
-                    />
-                  )
-                  : <MotionStudioPanel {...overlayPanelProps} />}
+                {transitionNote && rightTab === "transitions" ? (
+                  <p role="status" className="shrink-0 border-b border-st-line bg-st-or/15 px-3 py-2 text-[12px] leading-snug text-st-text">{transitionNote}</p>
+                ) : null}
+                <div className="flex min-h-0 flex-1 flex-col">
+                  {rightTab === "inspector" && segmentInspector ? segmentInspector
+                    : rightTab === "titles" ? <TitlesPanel {...overlayPanelProps} />
+                    : rightTab === "stickers" ? <StickersPanel {...overlayPanelProps} />
+                    : rightTab === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
+                    : rightTab === "graphics" ? <NewGraphicsPanel {...overlayPanelProps} />
+                    : rightTab === "transitions" ? (
+                      <TransitionsPanel
+                        currentTransition={joinClip?.transitionIn ?? null}
+                        onApplyTransition={applyTransitionAtJoin}
+                        onClearTransition={clearTransitionAtJoin}
+                        onSplitAtPlayhead={splitVideoAtPlayhead}
+                        splitDisabled={!editorComp || videoLocked}
+                        selectedJoinLabel={selectedJoinLabel}
+                        hasJoins={hasJoins}
+                        onSelectFirstJoin={selectFirstJoin}
+                      />
+                    )
+                    : <MotionStudioPanel {...overlayPanelProps} />}
+                </div>
               </div>
             </aside>
           )}

@@ -14,6 +14,7 @@ import { overlayTrackOf } from "./compositionOps";
 import { resolveSegmentView, segmentBadges } from "./segmentView";
 import { PEAKS_PER_SECOND } from "./useWaveform";
 import { useFilmstrip } from "./useFilmstrip";
+import { TRANSITION_DRAG_MIME, type TransitionDragPayload } from "./panels/TransitionsPanel";
 
 interface Props {
   pages: Page[];
@@ -66,6 +67,12 @@ interface Props {
   editorComp?: EditorComposition | null;
   selectedVideoClipId?: string | null;
   onSelectVideoClip?: (id: string | null) => void;
+  /** the id of the clip AFTER the selected join (cut), if a join is selected */
+  selectedJoinClipId?: string | null;
+  /** a cut marker was clicked: select the join (the clip after the cut) */
+  onSelectJoin?: (clipId: string) => void;
+  /** a transition card was dropped on a cut marker: apply it at that join */
+  onDropTransition?: (clipId: string, transition: TransitionDragPayload) => void;
   selectedMarkerId?: string | null;
   onSelectMarker?: (id: string | null) => void;
   /** commit a video segment edge drag once, on pointer up (trimVideoClipEdge in StudioPage) */
@@ -155,7 +162,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fps = 30, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, selectedCardIds = EMPTY_SET, onCardSelectionChange = () => {}, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fps = 30, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, selectedCardIds = EMPTY_SET, onCardSelectionChange = () => {}, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedJoinClipId = null, onSelectJoin, onDropTransition, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -1057,6 +1064,54 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                     />,
                   );
                   return handles;
+                })
+              : null}
+            {/* cut markers: one per join (clip i ≥ 1 starts here). A click
+                selects the join — the clip after the cut — for the
+                Transitions panel; a transition card dropped on one applies
+                at that cut. The tab is a small top strip so the trim
+                handles below it stay grabbable; the hairline spans the row
+                so the cut reads at a glance. */}
+            {onSelectJoin && displayVideoClips.length > 1
+              ? displayVideoClips.slice(1).map((c, k) => {
+                  const i = k + 1;
+                  const selected = c.id === selectedJoinClipId;
+                  const label = `Cut after Clip ${i}`;
+                  return (
+                    <React.Fragment key={`cut-${c.id}`}>
+                      <span aria-hidden className={`pointer-events-none absolute inset-y-0 z-10 w-px ${selected ? "bg-st-em" : "bg-white/40"}`} style={{ left: x(c.startMs) }} />
+                      <button
+                        type="button"
+                        aria-label={label}
+                        aria-pressed={selected}
+                        title={`${label} — select this join to add a transition`}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); onSelectJoin(c.id); }}
+                        onDragOver={(e) => {
+                          if (onDropTransition && e.dataTransfer.types.includes(TRANSITION_DRAG_MIME)) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }
+                        }}
+                        onDrop={(e) => {
+                          if (!onDropTransition) return;
+                          const raw = e.dataTransfer.getData(TRANSITION_DRAG_MIME);
+                          if (!raw) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try {
+                            const payload = JSON.parse(raw) as Partial<TransitionDragPayload>;
+                            if (typeof payload.type !== "string" || !Number.isFinite(payload.durationMs)) return;
+                            onDropTransition(c.id, { type: payload.type, durationMs: payload.durationMs! });
+                          } catch { /* not a transition payload */ }
+                        }}
+                        className="absolute top-0 z-30 grid h-[18px] w-[14px] -translate-x-1/2 place-items-center"
+                        style={{ left: x(c.startMs) }}
+                      >
+                        <span aria-hidden className={`block h-2 w-2 rotate-45 rounded-[1px] ${selected ? "bg-st-em" : "bg-white/70"}`} />
+                      </button>
+                    </React.Fragment>
+                  );
                 })
               : null}
           </div>

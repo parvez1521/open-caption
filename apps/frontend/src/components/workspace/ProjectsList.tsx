@@ -10,6 +10,7 @@ import { LoadingMark } from "@/components/brand/LoadingMark";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { studioService } from "@/services/studio";
 import { setProjectMode, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
+import { createBlankAiEditProject, filterAiEditProjects, filterCaptionProjects } from "@/features/studio/aiEditFlow";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
 
 const STATUS_CHIP: Record<ProjectStatus, { label: string; cls: string; pulse?: boolean }> = {
@@ -34,6 +35,69 @@ const VIEWS: { id: ProjectView; label: string }[] = [
   { id: "archived", label: "Archived" },
   { id: "all", label: "All" },
 ];
+
+/** One project card: title, status, age, and the actions menu. Shared by the
+ *  caption list and the AI Edit section so the two lists stay identical. */
+function ProjectCard({ project, menuOpen, orgReady, onToggleMenu, onOpen, onOpenSettings, onOpenOrg, onDuplicate, onArchive, onUnarchive, onDelete, onWarm }: {
+  project: Project;
+  menuOpen: boolean;
+  orgReady: boolean;
+  onToggleMenu: () => void;
+  onOpen: () => void;
+  onOpenSettings: () => void;
+  onOpenOrg: () => void;
+  onDuplicate: () => void;
+  onArchive: () => void;
+  onUnarchive: () => void;
+  onDelete: () => void;
+  onWarm: () => void;
+}) {
+  const chip = STATUS_CHIP[project.status] ?? STATUS_CHIP.CREATED;
+  return (
+    <div role="link" tabIndex={0} aria-label={`Open project ${project.title}`} onClick={onOpen} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); onOpen(); } }} onPointerEnter={onWarm} onTouchStart={onWarm} className="group relative flex h-32 cursor-pointer flex-col justify-between rounded-xl border border-sand-200 bg-white p-4 sm:h-40 sm:p-5 transition-all hover:border-sand-500 hover:shadow-sand-deep">
+      <div className="min-w-0">
+        <h3 className="truncate pr-10 font-sora text-[15px] font-bold text-ink">{project.title}</h3>
+        {project.archived_at ? <p className="mt-1 text-[11px] text-sand-600">Archived</p> : null}
+        {orgReady && (project.folder || (project.tags ?? []).length > 0) ? (
+          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-sand-700">
+            {project.folder ? <span className="rounded-full bg-sand-200 px-2 py-0.5 font-sora font-semibold">{project.folder}</span> : null}
+            {(project.tags ?? []).map((t) => <span key={t} className="rounded-full border border-sand-300 px-2 py-0.5">{t}</span>)}
+          </p>
+        ) : null}
+      </div>
+      <div className="flex items-center justify-between">
+        <span className={`rounded-full px-3 py-1 font-sora text-[11px] font-semibold ${chip.cls}`}>
+          <span className="inline-flex items-center gap-1.5">
+            {chip.pulse && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sand-600" />}
+            {chip.label}
+          </span>
+        </span>
+        <span className="text-[12px] text-sand-600">{timeAgo(project.created_at)}</span>
+      </div>
+
+      <button onClick={(e) => { e.stopPropagation(); onToggleMenu(); }} title="Project actions" aria-label={`Actions for ${project.title}`} aria-expanded={menuOpen} className="absolute right-2 top-2 rounded-lg p-2.5 text-sand-500 transition-all hover:bg-sand-100 hover:text-ink sm:right-3 sm:top-3 sm:p-2 cursor-pointer">
+        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
+      </button>
+      {menuOpen ? (
+        <>
+          <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); onToggleMenu(); }} />
+          <div role="menu" className="absolute right-2 top-11 z-20 w-44 rounded-xl border border-sand-200 bg-white p-1.5 shadow-sand-deep" onClick={(e) => e.stopPropagation()}>
+            <button role="menuitem" onClick={() => { onToggleMenu(); onOpen(); }} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Open</button>
+            <button role="menuitem" onClick={() => { onToggleMenu(); onOpenSettings(); }} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Settings</button>
+            {orgReady ? <button role="menuitem" onClick={onOpenOrg} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Folder &amp; tags…</button> : null}
+            <button role="menuitem" onClick={onDuplicate} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Duplicate</button>
+            {project.archived_at ? (
+              <button role="menuitem" onClick={onUnarchive} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Unarchive</button>
+            ) : (
+              <button role="menuitem" onClick={onArchive} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Archive</button>
+            )}
+            <button role="menuitem" onClick={onDelete} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-orange-accent hover:bg-orange-accent/10 cursor-pointer">Delete</button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 /**
  * The projects list, shared by Dashboard and Captions: search by title,
@@ -103,6 +167,26 @@ export default function ProjectsList() {
     }
   };
 
+  // AI Edit: a BLANK project in its own flow — no captions, no
+  // transcription. The flag is recorded at creation, so opening it lands
+  // on the Generate Image/Video rail section.
+  const handleCreateAiEdit = async () => {
+    if (creating) return;
+    setCreating(true);
+    setCreateError(null);
+    const done = nav.busy("Creating your AI Edit project");
+    try {
+      const blank = await createBlankAiEditProject({ createProject: projectsService.createProject });
+      setCreateOpen(false);
+      nav.go(blank.timelineUrl, "Opening your AI Edit project");
+    } catch (err: any) {
+      setCreateError(err?.message || "Couldn't create the project. Please try again.");
+    } finally {
+      done();
+      setCreating(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget || deleteBusy) return;
     const target = deleteTarget;
@@ -137,8 +221,13 @@ export default function ProjectsList() {
   };
 
   const orgReady = data?.orgReady ?? true;
-  const folders = distinctFolders(projects);
-  const allTags = distinctTags(projects);
+  // AI Edit projects live apart from caption projects: the caption list
+  // (counts, folders, tags, visible cards) never shows them, and the AI
+  // Edit section below lists only them.
+  const captionProjects = filterCaptionProjects(projects);
+  const aiEditProjects = filterAiEditProjects(projects);
+  const folders = distinctFolders(captionProjects);
+  const allTags = distinctTags(captionProjects);
 
   const openOrgEditor = (project: Project) => {
     setMenuFor(null);
@@ -165,8 +254,12 @@ export default function ProjectsList() {
     }
   };
 
-  const counts = countByView(projects);
-  const visible = filterProjects(projects, query, view, {
+  const counts = countByView(captionProjects);
+  const visible = filterProjects(captionProjects, query, view, {
+    folder: folderFilter === "" ? null : folderFilter === "unfiled" ? "unfiled" : folderFilter,
+    tag: tagFilter,
+  }).filter((p) => !hiding.includes(p.id));
+  const visibleAiEdit = filterProjects(aiEditProjects, query, view, {
     folder: folderFilter === "" ? null : folderFilter === "unfiled" ? "unfiled" : folderFilter,
     tag: tagFilter,
   }).filter((p) => !hiding.includes(p.id));
@@ -238,57 +331,51 @@ export default function ProjectsList() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {visible.map((project) => {
-              const chip = STATUS_CHIP[project.status] ?? STATUS_CHIP.CREATED;
-              const menuOpen = menuFor === project.id;
-              return (
-                <div key={project.id} role="link" tabIndex={0} aria-label={`Open project ${project.title}`} onClick={() => nav.go(`/projects/${project.id}`, "Opening your project")} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); nav.go(`/projects/${project.id}`, "Opening your project"); } }} onPointerEnter={() => warmProject(project.id)} onTouchStart={() => warmProject(project.id)} className="group relative flex h-32 cursor-pointer flex-col justify-between rounded-xl border border-sand-200 bg-white p-4 sm:h-40 sm:p-5 transition-all hover:border-sand-500 hover:shadow-sand-soft">
-                  <div className="min-w-0">
-                    <h3 className="truncate pr-10 font-sora text-[15px] font-bold text-ink">{project.title}</h3>
-                    {project.archived_at ? <p className="mt-1 text-[11px] text-sand-600">Archived</p> : null}
-                    {orgReady && (project.folder || (project.tags ?? []).length > 0) ? (
-                      <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-sand-700">
-                        {project.folder ? <span className="rounded-full bg-sand-200 px-2 py-0.5 font-sora font-semibold">{project.folder}</span> : null}
-                        {(project.tags ?? []).map((t) => <span key={t} className="rounded-full border border-sand-300 px-2 py-0.5">{t}</span>)}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`rounded-full px-3 py-1 font-sora text-[11px] font-semibold ${chip.cls}`}>
-                      <span className="inline-flex items-center gap-1.5">
-                        {chip.pulse && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-sand-600" />}
-                        {chip.label}
-                      </span>
-                    </span>
-                    <span className="text-[12px] text-sand-600">{timeAgo(project.created_at)}</span>
-                  </div>
-
-                  <button onClick={(e) => { e.stopPropagation(); setMenuFor(menuOpen ? null : project.id); }} title="Project actions" aria-label={`Actions for ${project.title}`} aria-expanded={menuOpen} className="absolute right-2 top-2 rounded-lg p-2.5 text-sand-500 transition-all hover:bg-sand-100 hover:text-ink sm:right-3 sm:top-3 sm:p-2 cursor-pointer">
-                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" /></svg>
-                  </button>
-                  {menuOpen ? (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setMenuFor(null); }} />
-                      <div role="menu" className="absolute right-2 top-11 z-20 w-44 rounded-xl border border-sand-200 bg-white p-1.5 shadow-sand-deep" onClick={(e) => e.stopPropagation()}>
-                        <button role="menuitem" onClick={() => { setMenuFor(null); nav.go(`/projects/${project.id}`, "Opening your project"); }} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Open</button>
-                        <button role="menuitem" onClick={() => { setMenuFor(null); nav.go(`/projects/${project.id}/settings`, "Opening project settings"); }} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Settings</button>
-                        {orgReady ? <button role="menuitem" onClick={() => openOrgEditor(project)} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Folder &amp; tags…</button> : null}
-                        <button role="menuitem" onClick={() => void runAction("Duplicating project", () => projectsService.duplicateProject(project.id))} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Duplicate</button>
-                        {project.archived_at ? (
-                          <button role="menuitem" onClick={() => void runAction("Restoring project", () => projectsService.unarchiveProject(project.id))} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Unarchive</button>
-                        ) : (
-                          <button role="menuitem" onClick={() => void runAction("Archiving project", () => projectsService.archiveProject(project.id))} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-ink hover:bg-sand-100 cursor-pointer">Archive</button>
-                        )}
-                        <button role="menuitem" onClick={() => { setMenuFor(null); setDeleteTarget(project); }} className="block w-full rounded-lg px-3 py-2 text-left font-sora text-[13px] font-semibold text-orange-accent hover:bg-orange-accent/10 cursor-pointer">Delete</button>
-                      </div>
-                    </>
-                  ) : null}
-                </div>
-              );
-            })}
+            {visible.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                menuOpen={menuFor === project.id}
+                orgReady={orgReady}
+                onToggleMenu={() => setMenuFor(menuFor === project.id ? null : project.id)}
+                onOpen={() => nav.go(`/projects/${project.id}`, "Opening your project")}
+                onOpenSettings={() => nav.go(`/projects/${project.id}/settings`, "Opening project settings")}
+                onOpenOrg={() => openOrgEditor(project)}
+                onDuplicate={() => void runAction("Duplicating project", () => projectsService.duplicateProject(project.id))}
+                onArchive={() => void runAction("Archiving project", () => projectsService.archiveProject(project.id))}
+                onUnarchive={() => void runAction("Restoring project", () => projectsService.unarchiveProject(project.id))}
+                onDelete={() => { setMenuFor(null); setDeleteTarget(project); }}
+                onWarm={() => warmProject(project.id)}
+              />
+            ))}
           </div>
         )}
       </div>
+      {visibleAiEdit.length > 0 ? (
+        <section aria-label="AI Edit projects" className="pt-8">
+          <h2 className="font-sora text-[15px] font-bold text-ink">AI Edit</h2>
+          <p className="mt-1 text-[13px] text-sand-600">Blank projects for planning visuals with AI — no captions, no transcription.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pt-4">
+            {visibleAiEdit.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                menuOpen={menuFor === project.id}
+                orgReady={orgReady}
+                onToggleMenu={() => setMenuFor(menuFor === project.id ? null : project.id)}
+                onOpen={() => nav.go(`/projects/${project.id}`, "Opening your project")}
+                onOpenSettings={() => nav.go(`/projects/${project.id}/settings`, "Opening project settings")}
+                onOpenOrg={() => openOrgEditor(project)}
+                onDuplicate={() => void runAction("Duplicating project", () => projectsService.duplicateProject(project.id))}
+                onArchive={() => void runAction("Archiving project", () => projectsService.archiveProject(project.id))}
+                onUnarchive={() => void runAction("Restoring project", () => projectsService.unarchiveProject(project.id))}
+                onDelete={() => { setMenuFor(null); setDeleteTarget(project); }}
+                onWarm={() => warmProject(project.id)}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
       {/* Create modal */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => !creating && setCreateOpen(false)}>
@@ -319,6 +406,11 @@ export default function ProjectsList() {
                 <button type="submit" disabled={creating || !newTitle.trim()} className="rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "Create project"}</button>
               </div>
             </form>
+            <div className="mt-5 border-t border-sand-200 pt-5">
+              <p className="font-sora text-[13px] font-semibold text-ink">AI Edit</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-sand-700">Start blank — upload a video, plan visuals from what is said, and generate them. No captions, no transcription.</p>
+              <button type="button" onClick={() => void handleCreateAiEdit()} disabled={creating} className="mt-3 rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "New blank project"}</button>
+            </div>
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MEDIA_SIZE_CAPS, describeAssetMeta, formatBytes, mediaKindFor, validateImageFile, validateMediaFile } from "../mediaAssets";
+import { MEDIA_SIZE_CAPS, describeAssetLicence, describeAssetMeta, formatBytes, mediaKindFor, validateImageFile, validateMediaFile } from "../mediaAssets";
 
 describe("mediaKindFor", () => {
   it("classifies by MIME type first", () => {
@@ -77,5 +77,12 @@ describe("formatBytes / describeAssetMeta", () => {
     expect(describeAssetMeta({ kind: "video", durationMs: 42_000, width: 1080, height: 1920, size: 12_400_000 })).toBe("0:42 · 1080 × 1920 · 11.8 MB");
     expect(describeAssetMeta({ kind: "image", width: 800, height: 600, size: 2048 })).toBe("800 × 600 · 2 KB");
     expect(describeAssetMeta({ kind: "audio", durationMs: null, size: 1024 })).toBe("1 KB");
+  });
+});
+
+describe("describeAssetLicence", () => {
+  it("names the Openverse source when the GIF has no recorded creator", () => {
+    expect(describeAssetLicence({ source: "openverse", title: "Dancing cat", author: null, sourceUrl: "https://example.test/gif", licence: "CC BY 2.0", retrievedAt: "2026-11-18" })).toBe("Openverse · CC BY 2.0");
+    expect(describeAssetLicence({ source: "openverse", title: "Dancing cat", author: "Ada", sourceUrl: "https://example.test/gif", licence: "CC BY 2.0", retrievedAt: "2026-11-18" })).toBe("Ada · CC BY 2.0");
   });
 });
