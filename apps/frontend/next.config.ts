@@ -22,6 +22,9 @@ const nextConfig: NextConfig = {
     "@capseasy/shared",
     "@capseasy/templates",
     "@capseasy/compositions",
+    // MA-A1-012: @capseasy/motion is imported by the motion pages but was the
+    // only workspace package missing here, so its source shipped untranspiled.
+    "@capseasy/motion",
   ],
   async headers() {
     return [
