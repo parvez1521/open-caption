@@ -18,6 +18,6 @@ export const BRAND_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3
 export const BRAND_TITLE = `Auto captions for Reels, Shorts and TikTok, made in your browser | ${BRAND_NAME}`;
 
 export const BRAND_DESCRIPTION =
-  "Drop in a short video. Get auto captions timed to every word. Fix any word. Pick a style. Export an MP4 or subtitle file. Everything runs in your browser. Your video stays on your device. It costs nothing.";
+  "Drop in a short video. Get auto captions timed to every word. Fix any word. Pick a style. Export an MP4 or subtitle file. Everything runs in your browser. Videos up to 50 MB are automatically backed up to your project's cloud storage. It costs nothing.";
 
 export const BRAND_TAGLINE = `${BRAND_NAME}: captions timed to every word, made in your browser`;

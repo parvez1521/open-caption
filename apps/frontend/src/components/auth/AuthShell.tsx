@@ -214,7 +214,7 @@ export default function AuthShell({
           <ul className="mt-6 space-y-2.5 text-[14px] font-medium text-[#FFFFEB]/70">
             <li>Automatic captions in English, Hindi and Hinglish</li>
             <li>150 animated looks, free to use</li>
-            <li>Your video file stays on your device — nothing to install</li>
+            <li>Your video file is backed up to the cloud up to 50 MB — nothing to install</li>
           </ul>
         </div>
       </div>

@@ -12,6 +12,7 @@ import {
   productJsonLd,
   softwareApplicationJsonLd,
 } from "../seo";
+import { BRAND_DESCRIPTION } from "../brand";
 import { FAQS } from "../../components/home/faqs";
 import { AUTO_CAPTION_FAQS } from "../../app/auto-caption-generator/faqs";
 import { REELS_FAQS } from "../../app/auto-captions-for-reels/faqs";
@@ -87,6 +88,17 @@ describe("sitemap", () => {
     const ld = softwareApplicationJsonLd();
     expect(ld.featureList).toContain("150 animated caption looks");
     expect(ld.featureList.join(" ")).not.toContain("20+ animated");
+  });
+
+  // MA-A8-001 (CAP-S01 follow-up): the schema must not assert the video
+  // "stays on your device" while the site discloses the automatic ≤50 MB
+  // cloud backup — the feature names the backup in the same line.
+  it("does not claim the video stays on your device without the cloud backup", () => {
+    const ld = softwareApplicationJsonLd();
+    expect(ld.featureList.join(" ")).not.toContain("Video file stays on your device");
+    expect(ld.featureList.join(" ")).toContain("automatic cloud backup up to 50 MB");
+    expect(BRAND_DESCRIPTION).not.toContain("stays on your device");
+    expect(BRAND_DESCRIPTION).toContain("automatically backed up");
   });
 
   it("does not list /motion or any /motion/<template> detail URL (Wave-4 audit decision)", () => {
