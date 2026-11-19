@@ -117,7 +117,9 @@ export const studioService = {
         probe: { durationMs: v.durationMs, width: v.width, height: v.height, rotation: v.rotation, videoCodec: v.videoCodec, audioCodec: v.audioCodec, hasAudio: v.hasAudio, previewMode: v.previewMode, needsCompat: v.needsCompat },
       },
     });
-    // the video stays on this device: saved in the browser, never uploaded
+    // the video stays on this device: saved in the browser — except videos
+    // up to 50 MB, which are automatically backed up to the project's cloud
+    // storage so editing can continue on another device (see Privacy §3)
     onAbortReady?.(() => undefined);
     onRegistered?.(reg.videoId);
     // saving the copy and creating the transcribe job don't depend on each other
