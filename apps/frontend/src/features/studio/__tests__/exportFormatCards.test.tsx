@@ -42,15 +42,17 @@ vi.mock("@/services/studio", () => ({
   },
 }));
 
-/** the in-progress render: the test resolves it by hand, so the floating bar can be checked mid-render */
+/** the in-progress render: the test resolves it by hand, so the render overlay can be checked mid-render */
 let resolveRender: ((blob: Blob) => void) | null = null;
 
 const browserExportMocks = vi.hoisted(() => ({
   canExportInBrowser: vi.fn(async () => ({ ok: true })),
-  exportMp4InBrowser: vi.fn(async (opts: { onProgress?: (f: number) => void }) => {
+  exportMp4InBrowser: vi.fn(async (opts: { onProgress?: (f: number) => void; signal?: AbortSignal }) => {
     opts.onProgress?.(0.42);
-    return new Promise<Blob>((resolve) => {
+    return new Promise<Blob>((resolve, reject) => {
       resolveRender = resolve;
+      // the real encoder watches the signal: cancelling rejects the render
+      opts.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
     });
   }),
   saveBlob: vi.fn(() => {}),
@@ -227,7 +229,7 @@ describe("ExportModal — square preview cards", () => {
 });
 
 describe("ExportModal — render progress lives outside the modal", () => {
-  it("Render MP4 hides the modal and shows a separate floating progress bar", async () => {
+  it("Render MP4 hides the modal and shows a centred progress overlay", async () => {
     // jsdom has no createObjectURL: VideoReady (opened on completion) needs it
     if (typeof URL.createObjectURL !== "function") {
       Object.defineProperty(URL, "createObjectURL", { value: () => "blob:mock", configurable: true });
@@ -236,27 +238,52 @@ describe("ExportModal — render progress lives outside the modal", () => {
     const group = await screen.findByRole("group", { name: "Export format" });
     fireEvent.click(within(group).getByRole("button", { name: /MP4/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Render MP4" }));
-    // the progress is a separate floating bar: same text, % and Cancel, plus the keep-tab-open note
+    // the progress is a centred overlay, not a bottom bar: a full-screen
+    // blurred backdrop covers the Studio, the card sits in the middle
     const bar = await screen.findByRole("status");
-    // MA-A3-005: the bar respects the safe area, and on phones docks above the
-    // ~67px bottom nav instead of covering it while rendering.
-    expect(bar.className).toContain("bottom-[max(1rem,env(safe-area-inset-bottom))]");
-    expect(bar.className).toContain("max-sm:bottom-[max(4.75rem,calc(env(safe-area-inset-bottom)+4.25rem))]");
+    const overlay = bar.parentElement;
+    expect(overlay).not.toBeNull();
+    expect(overlay!.className).toContain("fixed inset-0");
+    expect(overlay!.className).toContain("items-center");
+    expect(overlay!.className).toContain("justify-center");
+    expect(overlay!.className).toContain("backdrop-blur-sm");
+    expect(overlay!.className).toContain("bg-black/60");
+    expect(bar.className).not.toContain("bottom-");
+    // no second render can start while one runs: the modal's Render button
+    // stays disabled for as long as progress is non-null
+    expect((screen.getByText("Render MP4") as HTMLButtonElement).disabled).toBe(true);
     // the Export modal overlay is hidden while the render runs in this tab
     // (still mounted — unmounting it would abort the render)
-    const overlay = document.querySelector("div.fixed.inset-0.z-50");
-    expect(overlay).not.toBeNull();
-    expect(overlay).toHaveAttribute("hidden");
+    const modalOverlay = document.querySelector("div.fixed.inset-0.z-50");
+    expect(modalOverlay).not.toBeNull();
+    expect(modalOverlay).toHaveAttribute("hidden");
     expect(bar.textContent).toContain("Rendering your MP4 in this tab");
     expect(bar.textContent).toContain("42%");
     expect(bar.textContent).toContain("Keep this tab open. Nothing is uploaded");
     expect(within(bar).getByRole("button", { name: "Cancel" })).toBeTruthy();
-    // finishing the render shows the done state in the same bar, not back inside the modal
+    // finishing the render shows the done state in the same overlay, not back inside the modal
     await act(async () => {
       resolveRender?.(new Blob(["x"], { type: "video/mp4" }));
     });
     expect(await screen.findByText(/Your MP4 is downloading/)).toBeTruthy();
     expect(document.querySelector("div.fixed.inset-0.z-50")).toHaveAttribute("hidden");
+  });
+
+  it("Cancel stops the render and brings the modal back", async () => {
+    renderModal();
+    const group = await screen.findByRole("group", { name: "Export format" });
+    fireEvent.click(within(group).getByRole("button", { name: /MP4/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Render MP4" }));
+    const bar = await screen.findByRole("status");
+    await act(async () => {
+      fireEvent.click(within(bar).getByRole("button", { name: "Cancel" }));
+    });
+    // the overlay is gone and the modal is back (no longer hidden)
+    expect(screen.queryByRole("status")).toBeNull();
+    const modalOverlay = document.querySelector("div.fixed.inset-0.z-50");
+    expect(modalOverlay).not.toBeNull();
+    expect(modalOverlay).not.toHaveAttribute("hidden");
+    expect(await screen.findByRole("group", { name: "Export format" })).toBeTruthy();
   });
 
   it("MA-A1-008: a failed export record is reported to Sentry instead of swallowed", async () => {

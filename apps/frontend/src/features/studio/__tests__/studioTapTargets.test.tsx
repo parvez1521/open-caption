@@ -12,7 +12,7 @@ import { ExportModal } from "../ExportModal";
 /**
  * MA-A3-004: sub-44px tap targets across the Studio panels — word chips
  * (~24px at lg), hidden-word restore, the pinned word-action buttons, the
- * ExportModal quality/resolution/fps radios, the floating render bar's
+ * ExportModal quality/resolution/fps radios, the render overlay's
  * Cancel/Share/Dismiss, the export-history Cancel/Retry, the AudioPanel
  * Remove/Place buttons and the StudioPage Stop button. The fix is the
  * in-repo hit-expander pattern (MA-A5-009, Timeline mode switcher):
@@ -215,7 +215,7 @@ describe("MA-A3-004 — ExportModal tap targets", () => {
     expect(screen.getByRole("button", { name: "Retry" }).className).toContain(EXPANDER);
   });
 
-  it("floating render bar Cancel / Share / Dismiss carry the expander", async () => {
+  it("render overlay Cancel / Share / Dismiss carry the expander", async () => {
     if (typeof URL.createObjectURL !== "function") {
       Object.defineProperty(URL, "createObjectURL", { value: () => "blob:mock", configurable: true });
     }

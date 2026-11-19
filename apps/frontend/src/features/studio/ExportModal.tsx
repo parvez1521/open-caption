@@ -79,11 +79,11 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const qc = useQueryClient();
   const dialogRef = useRef<HTMLDivElement>(null);
   /** While an MP4 render runs, the modal itself is hidden and the progress lives
-   *  in a separate floating bar (owner 2026-11-19). The modal stays mounted —
+   *  in a separate centred overlay (owner 2026-11-19). The modal stays mounted —
    *  closing it would unmount this component and abort the render in this tab. */
   const [renderDetached, setRenderDetached] = useState(false);
   // While the render runs detached, Escape must not close (and unmount) the
-  // modal: the floating bar's Cancel is the only way to stop the render.
+  // modal: the overlay's Cancel is the only way to stop the render.
   useDialogEscapeAndTrap(dialogRef, renderDetached ? () => {} : onClose);
   const allOptions: ExportOption[] = [...EXPORT_OPTIONS, ...translatedTextOptions(translationTracks)];
   /** busy identity is the option KEY (kind, or kind:language for translated rows), not just the kind */
@@ -136,6 +136,13 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
   const [made, setMade] = useState<{ blob: Blob; name: string } | null>(null);
   const [showReady, setShowReady] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  /** The render overlay traps Tab inside itself while it is up (same hook as
+   *  the modal): focus moves onto the overlay when it appears, Tab cycles
+   *  between Cancel / Share / Dismiss, and Escape does nothing — Cancel is
+   *  the only way to stop a render. The Studio behind stays inert. */
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const renderOverlayVisible = renderDetached && (webProgress !== null || webDone);
+  useDialogEscapeAndTrap(overlayRef, () => {}, renderOverlayVisible);
   useEffect(() => {
     let alive = true;
     // encoder support is checked at the OUTPUT size: a browser that encodes 1080p may refuse 4K
@@ -248,7 +255,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       abort.current = null;
       // A render that failed or was cancelled brings the modal back, so the
       // error (if any) is visible there. A finished render stays detached:
-      // the floating bar shows the done state instead.
+      // the overlay shows the done state instead.
       if (!rendered && !again) setRenderDetached(false);
       // A render that never produced a file gives its reserved slot back
       // (failed mix, encoder error, stall on the last attempt, cancel) —
@@ -327,7 +334,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         setBusyKind(null);
       }
       if (w.ok && renderInput?.src) {
-        // The modal hides and the progress moves to its own floating bar;
+        // The modal hides and the progress moves to its own centred overlay;
         // the render keeps running in this tab (this component stays mounted).
         setRenderDetached(true);
         return exportHere(0, exportId);
@@ -530,15 +537,14 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
         </div>
       </div>
     </div>
-    {/** Separate floating progress bar (owner 2026-11-19): after Render MP4 the
-     *  modal hides and the render progress lives here, docked at the bottom of
-     *  the screen, until the render finishes or is cancelled. The render itself
-     *  still runs in this tab — only the progress UI moved out of the modal. */}
+    {/** Centred render overlay (owner 2026-11-19): while an MP4 renders the
+     *  progress sits in the middle of the screen on a blurred, dimmed backdrop
+     *  that covers the Studio — nothing behind it is clickable, and only the
+     *  render runs. Cancel stays inside the card, so it is always reachable.
+     *  The done state shows in the same overlay until it is dismissed. */}
     {renderDetached && (webProgress !== null || webDone) ? (
-      <div role="status" aria-live="polite" className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-st-line bg-st-panel p-3 shadow-2xl max-sm:bottom-[max(4.75rem,calc(env(safe-area-inset-bottom)+4.25rem))]">
-        {/* MA-A3-005: bottom-4 ignored the safe area and, on phones, covered
-            the bottom nav while rendering. Desktop keeps 1rem/safe-area; on
-            phones (<640px) the bar docks above the ~67px bottom nav. */}
+      <div ref={overlayRef} tabIndex={-1} className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div role="status" aria-live="polite" className="w-full max-w-md rounded-2xl border border-st-line bg-st-panel p-3 shadow-2xl sm:p-4">
         {webProgress !== null ? (
           <>
             <div className="flex items-center justify-between gap-2 text-sm">
@@ -559,6 +565,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
             </span>
           </div>
         )}
+      </div>
       </div>
     ) : null}
     {made && showReady ? (
