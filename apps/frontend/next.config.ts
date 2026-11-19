@@ -10,6 +10,8 @@ const lanHosts = Object.values(networkInterfaces())
   .map((a) => a!.address);
 
 const nextConfig: NextConfig = {
+  // MA-A6-006: do not fingerprint the framework in responses.
+  poweredByHeader: false,
   allowedDevOrigins: lanHosts,
   transpilePackages: [
     "@remotion/transitions",
