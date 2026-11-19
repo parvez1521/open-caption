@@ -2,6 +2,7 @@
 
 import React from "react";
 import { createPortal } from "react-dom";
+import { useDialogEscapeAndTrap } from "../useDialogEscapeAndTrap";
 
 /**
  * Entrance / Exit picker: a row in the Style panel that opens a popup of looping previews, so creators pick an
@@ -60,12 +61,11 @@ interface Props {
 
 export const MotionPicker: React.FC<Props> = ({ label, kind, value, groups, onChange }) => {
   const [open, setOpen] = React.useState(false);
-  React.useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  // MA-A5-004: the shared trap (Escape + Tab trap + focus in/out) replaces
+  // the picker's own Escape-only listener; it arms only while the dialog is
+  // open and returns focus to the trigger on close.
+  useDialogEscapeAndTrap(dialogRef, () => setOpen(false), open);
 
   return (
     <>
@@ -85,7 +85,7 @@ export const MotionPicker: React.FC<Props> = ({ label, kind, value, groups, onCh
       {open && typeof document !== "undefined"
         ? createPortal(
             <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setOpen(false)}>
-              <div role="dialog" aria-label={label} onClick={(e) => e.stopPropagation()} className="flex max-h-[88dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl">
+              <div ref={dialogRef} role="dialog" aria-modal="true" tabIndex={-1} aria-label={label} onClick={(e) => e.stopPropagation()} className="flex max-h-[88dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl">
                 <div className="flex items-center justify-between border-b border-st-line px-5 py-4">
                   <h2 className="text-lg font-semibold">{label}</h2>
                   <button onClick={() => setOpen(false)} aria-label="Close" className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>

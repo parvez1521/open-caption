@@ -28,6 +28,7 @@ const DERIVED_SINGULAR: Record<Exclude<DerivedKind, "previews">, string> = {
   freeze: "Freeze-frame still",
   "noise-suppressed": "Noise-suppressed copy",
 };
+import { useDialogEscapeAndTrap } from "@/features/studio/useDialogEscapeAndTrap";
 import {
   LIBRARY_FILTERS,
   countByKind,
@@ -64,6 +65,17 @@ export default function LibraryPage() {
   >(null);
   const [cleanupBusy, setCleanupBusy] = useState(false);
   const [cleanupNotice, setCleanupNotice] = useState<string | null>(null);
+  // MA-A5-004: the two alertdialogs get the shared trap (Escape + Tab trap +
+  // focus in/out), armed only while each dialog is open.
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+  const cleanupDialogRef = useRef<HTMLDivElement>(null);
+  useDialogEscapeAndTrap(deleteDialogRef, () => setDeleteTarget(null), deleteTarget !== null);
+  useDialogEscapeAndTrap(cleanupDialogRef, () => {
+    if (!cleanupBusy) {
+      setCleanupProjectId(null);
+      setCleanupPrep(null);
+    }
+  }, cleanupProjectId !== null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -376,7 +388,7 @@ export default function LibraryPage() {
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={() => setDeleteTarget(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep sm:p-8" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label="Delete media file">
+          <div ref={deleteDialogRef} tabIndex={-1} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep sm:p-8" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label="Delete media file">
             <h3 className="font-serif text-2xl font-semibold text-ink">Delete from this device?</h3>
             <p className="mt-2 text-[14px] leading-relaxed text-sand-800">
               <strong className="text-ink">&ldquo;{deleteTarget.name}&rdquo;</strong> will be removed from this
@@ -391,7 +403,7 @@ export default function LibraryPage() {
       )}
       {cleanupProjectId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onClick={() => { if (!cleanupBusy) { setCleanupProjectId(null); setCleanupPrep(null); } }}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep sm:p-8" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label="Clear derived cache">
+          <div ref={cleanupDialogRef} tabIndex={-1} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep sm:p-8" onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label="Clear derived cache">
             <h3 className="font-serif text-2xl font-semibold text-ink">Clear derived cache?</h3>
             <p className="mt-1 text-[13px] font-semibold text-sand-700">Project: {projectTitleFor(cleanupProjectId, titles)}</p>
             {cleanupPrep?.status === "loading" && (

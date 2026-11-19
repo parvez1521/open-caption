@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ShieldCheck } from "@/components/ui/icons";
 import { readAdConsent, writeAdConsent, type AdConsentChoice } from "@/lib/adConsent";
+import { useDialogEscapeAndTrap } from "@/features/studio/useDialogEscapeAndTrap";
 
 /**
  * First-party ad consent banner (A-13, 2026-11-15).
@@ -18,6 +19,11 @@ import { readAdConsent, writeAdConsent, type AdConsentChoice } from "@/lib/adCon
  */
 export function ConsentBanner({ enabled }: { enabled: boolean }) {
   const [visible, setVisible] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // MA-A5-004: the banner is a dialog — trap Tab inside it, move focus in on
+  // open, and return focus on close, like ExportModal. Escape only dismisses
+  // it for this page view (no choice is recorded, so it asks again next load).
+  useDialogEscapeAndTrap(dialogRef, () => setVisible(false), visible);
 
   useEffect(() => {
     if (!enabled) return;
@@ -33,7 +39,10 @@ export function ConsentBanner({ enabled }: { enabled: boolean }) {
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
+      aria-modal="true"
+      tabIndex={-1}
       aria-label="Advertising consent"
       className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-[#FFFFEB]/15 bg-[#141412] p-4 text-[#FFFFEB] shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:max-w-sm sm:p-5"
     >

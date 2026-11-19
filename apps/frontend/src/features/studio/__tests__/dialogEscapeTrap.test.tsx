@@ -76,4 +76,25 @@ describe("useDialogEscapeAndTrap", () => {
     // focus was on <body> before the dialog opened, so it returns there
     expect(document.activeElement).toBe(document.body);
   });
+
+  it("MA-A5-004: inactive trap does nothing until active flips on", () => {
+    function Gated({ active, onClose }: { active: boolean; onClose: () => void }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useDialogEscapeAndTrap(ref, onClose, active);
+      return (
+        <div ref={ref} role="dialog" aria-label="Gated dialog" tabIndex={-1}>
+          <button type="button">First</button>
+        </div>
+      );
+    }
+    const onClose = vi.fn();
+    const { rerender } = render(<Gated active={false} onClose={onClose} />);
+    expect(document.activeElement).not.toBe(screen.getByRole("dialog"));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    rerender(<Gated active onClose={onClose} />);
+    expect(document.activeElement).toBe(screen.getByRole("dialog"));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

@@ -13,15 +13,22 @@ const FOCUSABLE =
  *
  * Only the topmost dialog answers Escape: VideoReady stacks above
  * ExportModal, and one Escape must not close both.
+ *
+ * MA-A5-004: `active` lets conditionally-rendered dialogs (ConsentBanner,
+ * MotionPicker, library alertdialogs) arm the trap only while open — the
+ * effect re-runs when it flips, so focus moves in on open and returns on
+ * close. Always-mounted dialogs pass nothing and behave as before.
  */
 export function useDialogEscapeAndTrap(
   dialogRef: RefObject<HTMLElement | null>,
   onClose: () => void,
+  active = true,
 ): void {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
   useEffect(() => {
+    if (!active) return;
     const dialog = dialogRef.current;
     if (!dialog) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -61,5 +68,5 @@ export function useDialogEscapeAndTrap(
       previouslyFocused?.focus?.();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogRef]);
+  }, [dialogRef, active]);
 }

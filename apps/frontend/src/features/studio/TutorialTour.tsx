@@ -2,8 +2,9 @@
 
 // Slice 1 (2026-11-09): first-run coach-mark tour — see tutorial.ts for the steps and seen-flag helpers.
 
-import React, { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { TUTORIAL_STEPS, isFirstStep, isLastStep, markTutorialSeen, stepIndexAfter } from "./tutorial";
+import { useDialogEscapeAndTrap } from "./useDialogEscapeAndTrap";
 
 /**
  * Coach-mark tour over the studio: a dim overlay with a highlight ring around the current step's
@@ -27,11 +28,17 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   const [rect, setRect] = useState<Rect | null>(null);
   const step = TUTORIAL_STEPS[index]!;
   const total = TUTORIAL_STEPS.length;
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const finish = useCallback(() => {
     markTutorialSeen();
     onClose();
   }, [onClose]);
+
+  // MA-A5-004: the shared trap (Escape + Tab trap + focus in/out) replaces
+  // the tour's own Escape-only listener — focus moves into the tour card on
+  // open instead of staying wherever it was, and Tab stays inside the card.
+  useDialogEscapeAndTrap(dialogRef, finish);
 
   const measure = useCallback(() => {
     const el = document.querySelector<HTMLElement>(`[data-tour="${step.anchor}"]`);
@@ -57,14 +64,6 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     };
   }, [measure]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") finish();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [finish]);
-
   // popover placement: below the anchor when there is room, above when there isn't, centred without one
   const vw = typeof window !== "undefined" ? window.innerWidth : 0;
   const vh = typeof window !== "undefined" ? window.innerHeight : 0;
@@ -80,7 +79,7 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   }
 
   return (
-    <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-label="Studio tour">
+    <div ref={dialogRef} className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" tabIndex={-1} aria-label="Studio tour">
       {/* dim + input shield: covers everything, swallows every click so the doc can't be edited mid-tour */}
       <div className="absolute inset-0" style={{ background: rect ? "transparent" : "rgba(0,0,0,0.55)" }} onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
         {rect ? (
@@ -101,10 +100,10 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
       </div>
 
       <div className="rounded-2xl border border-[#FFFFEB]/15 bg-[#1E1E1B] p-5 shadow-[0_18px_50px_-12px_rgba(0,0,0,0.45)]" style={cardStyle}>
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/50">
+        <p aria-live="polite" className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFFFEB]/50">
           Step {index + 1} of {total}
         </p>
-        <h2 className="mt-1.5 font-display text-lg font-bold text-[#FFFFEB]">{step.title}</h2>
+        <h2 aria-live="polite" className="mt-1.5 font-display text-lg font-bold text-[#FFFFEB]">{step.title}</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-[#FFFFEB]/70">{step.body}</p>
         <div className="mt-3 flex items-center gap-1.5" aria-hidden>
           {TUTORIAL_STEPS.map((s, i) => (
