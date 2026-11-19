@@ -36,4 +36,15 @@ describe("globals.css — focus visibility (Persona QA)", () => {
     expect(css).toContain("a:focus-visible");
     expect(css).toContain("outline: 2px solid var(--color-emerald-accent)");
   });
+
+  // MA-A5-002: the same emerald outline must cover inputs/selects/textareas —
+  // ~20 of them carried outline-none with no focus utility, so keyboard focus
+  // was invisible on Analyzer, Exports filters, Library/Projects search,
+  // Growth chat, Motion fields and several Studio panels.
+  it("defines the same :focus-visible outline for inputs, selects and textareas", () => {
+    const css = readFileSync(path.resolve(__dirname, "../../../app/globals.css"), "utf8");
+    expect(css).toContain("input:focus-visible");
+    expect(css).toContain("select:focus-visible");
+    expect(css).toContain("textarea:focus-visible");
+  });
 });
