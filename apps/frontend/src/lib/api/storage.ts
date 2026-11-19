@@ -1,4 +1,5 @@
 import "server-only";
+import { VIDEO_MIME_TYPES } from "@capseasy/shared";
 import { getAdmin } from "../supabase/admin";
 import { ApiFailure } from "./http";
 
@@ -22,9 +23,64 @@ export async function signedPut(path: string, bucket = "media"): Promise<{ url: 
 }
 
 export async function objectSize(path: string): Promise<number | null> {
+  const meta = await objectMeta(path);
+  return meta?.size ?? null;
+}
+
+/**
+ * MA-A6-002: size + stored content-type of an object, from storage itself —
+ * never the client-declared size. `info()` returns the size at the top level
+ * in some SDK versions and inside `metadata` in others, so both shapes are
+ * read; the same goes for the content type.
+ */
+export async function objectMeta(path: string): Promise<{ size: number; contentType: string | null } | null> {
   const { data } = await getAdmin().storage.from(bucketFor(path)).info(path);
-  const size = (data as { size?: number } | null)?.size;
-  return typeof size === "number" ? size : null;
+  const d = data as { size?: number; mimetype?: string | null; contentType?: string | null; metadata?: { size?: number; mimetype?: string | null; contentType?: string | null } | null } | null;
+  if (!d) return null;
+  const size = typeof d.size === "number" ? d.size : typeof d.metadata?.size === "number" ? d.metadata.size : null;
+  if (size === null) return null;
+  const contentType = d.mimetype ?? d.contentType ?? d.metadata?.mimetype ?? d.metadata?.contentType ?? null;
+  return { size, contentType };
+}
+
+/** Remove one object (used to drop an upload that fails the confirm-time checks). */
+export async function deleteObject(path: string): Promise<void> {
+  const { error } = await getAdmin().storage.from(bucketFor(path)).remove([path]);
+  if (error) throw new ApiFailure("UPSTREAM_FAILED", "Could not remove the uploaded file", error.message);
+}
+
+/**
+ * MA-A6-002: confirm-time verification of an uploaded video object, against
+ * storage itself — never the client-declared size. Rejects (and deletes the
+ * object) when the real object is missing/empty, larger than the plan cap,
+ * larger than the declared size by more than a small tolerance (the declared
+ * size is what the registration cap check ran against, so a big mismatch
+ * means the client understated it), or stored with a non-video content type.
+ * Returns the verified size + content type for the caller to record.
+ */
+export async function verifyUploadedVideo(
+  path: string,
+  opts: { capBytes: number; declaredSize?: number | null },
+): Promise<{ size: number; contentType: string | null }> {
+  const meta = await objectMeta(path);
+  if (!meta || meta.size === 0) throw new ApiFailure("CONFLICT", "The upload did not finish. Please try again.");
+  const reject = async (code: "LIMIT_EXCEEDED" | "UNSUPPORTED_MEDIA", message: string): Promise<never> => {
+    await deleteObject(path).catch(() => {});
+    throw new ApiFailure(code, message);
+  };
+  if (meta.size > opts.capBytes) {
+    await reject("LIMIT_EXCEEDED", "The uploaded file is larger than your plan allows. The upload was removed — try a smaller file.");
+  }
+  if (opts.declaredSize != null) {
+    const tolerance = Math.max(1024 * 1024, Math.round(opts.declaredSize * 0.1));
+    if (meta.size > opts.declaredSize + tolerance) {
+      await reject("LIMIT_EXCEEDED", "The uploaded file is much larger than the size it was registered with. The upload was removed — try again.");
+    }
+  }
+  if (meta.contentType !== null && !(VIDEO_MIME_TYPES as readonly string[]).includes(meta.contentType)) {
+    await reject("UNSUPPORTED_MEDIA", "The uploaded file is not a video. The upload was removed — use MP4, MOV, WebM or MKV.");
+  }
+  return meta;
 }
 
 export async function putObject(path: string, body: string | Uint8Array, contentType: string, bucket = "media") {

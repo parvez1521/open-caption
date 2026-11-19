@@ -22,6 +22,9 @@ const state = vi.hoisted(() => ({
   // per-path override for objectSize (a stale cloud pointer can name a
   // different extension than the deterministic path confirm re-checks)
   objectSizeByPath: {} as Record<string, number | null>,
+  // stored content type the fake storage reports for the object (MA-A6-002)
+  contentTypeByPath: {} as Record<string, string | null>,
+  removedPaths: [] as string[],
 }));
 
 vi.mock("server-only", () => ({}));
@@ -73,7 +76,25 @@ class FakeBuilder {
   }
 }
 
-const fakeDb = () => ({ from: (table: string) => new FakeBuilder(table) });
+const fakeDb = () => ({
+  from: (table: string) => new FakeBuilder(table),
+  // Fake storage for the real verifyUploadedVideo (MA-A6-002): info() reports
+  // the stubbed size + content type, remove() records what was deleted.
+  storage: {
+    from: () => ({
+      info: async (path: string) => {
+        state.objectSizeCalls.push(path);
+        const size = path in state.objectSizeByPath ? state.objectSizeByPath[path] : state.objectSizeValue;
+        if (size === null || size === undefined) return { data: null };
+        return { data: { size, metadata: { mimetype: state.contentTypeByPath[path] ?? "video/mp4" } } };
+      },
+      remove: async (paths: string[]) => {
+        state.removedPaths.push(...paths);
+        return { error: null };
+      },
+    }),
+  },
+});
 
 const MB = 1024 * 1024;
 const localVideo = (over: Record<string, unknown> = {}) => ({
@@ -103,6 +124,8 @@ beforeEach(() => {
   state.objectSizeCalls = [];
   state.objectSizeValue = null;
   state.objectSizeByPath = {};
+  state.contentTypeByPath = {};
+  state.removedPaths = [];
 });
 
 describe("POST /videos/:id/sync — request a cloud copy", () => {
@@ -257,5 +280,47 @@ describe("POST /videos/:id/sync/confirm — record the cloud copy", () => {
     expect(state.updates[0]!.table).toBe("videos");
     expect(state.updates[0]!.row.cloud_storage_path).toBe("user-1/proj-1/cloud/vid-1.mp4");
     expect(state.updates[0]!.row.cloud_synced_at).toBeTruthy();
+  });
+
+  it("MA-A6-002: rejects a cloud copy larger than the 50 MB sync cap and deletes the object", async () => {
+    state.objectSizeValue = 60 * MB;
+    const res = await call(confirmSync);
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { code: string } };
+    expect(json.error.code).toBe("LIMIT_EXCEEDED");
+    expect(state.removedPaths).toEqual(["user-1/proj-1/cloud/vid-1.mp4"]);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("MA-A6-002: rejects a cloud copy whose stored type is not a video and deletes the object", async () => {
+    state.objectSizeValue = 40 * MB;
+    state.contentTypeByPath = { "user-1/proj-1/cloud/vid-1.mp4": "application/pdf" };
+    const res = await call(confirmSync);
+    expect(res.status).toBe(415);
+    const json = (await res.json()) as { error: { code: string } };
+    expect(json.error.code).toBe("UNSUPPORTED_MEDIA");
+    expect(state.removedPaths).toEqual(["user-1/proj-1/cloud/vid-1.mp4"]);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("MA-A6-002: rejects a cloud copy much larger than the declared size, even under the cap", async () => {
+    // declared 40 MB, real object 46 MB: over the 10% / 1 MB tolerance, under the 50 MB cap
+    state.objectSizeValue = 46 * MB;
+    const res = await call(confirmSync);
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { code: string } };
+    expect(json.error.code).toBe("LIMIT_EXCEEDED");
+    expect(state.removedPaths).toEqual(["user-1/proj-1/cloud/vid-1.mp4"]);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("MA-A6-002: an already-synced copy over the cap is rejected, not answered synced:true", async () => {
+    state.objectSizeValue = 60 * MB;
+    state.video = localVideo({ cloud_storage_path: "user-1/proj-1/cloud/vid-1.mp4" });
+    const res = await call(confirmSync);
+    expect(res.status).toBe(402);
+    const json = (await res.json()) as { error: { code: string } };
+    expect(json.error.code).toBe("LIMIT_EXCEEDED");
+    expect(state.removedPaths).toEqual(["user-1/proj-1/cloud/vid-1.mp4"]);
   });
 });

@@ -1,10 +1,10 @@
-import { CompleteVideoBody } from "@capseasy/shared";
+import { CompleteVideoBody, effectivePlanId, planFor } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { openSilentVideo, openWithoutCaptions } from "@/lib/api/transcripts";
 import { startTranscription } from "@/lib/api/engine";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { enqueueJob } from "@/lib/api/jobs";
-import { objectSize } from "@/lib/api/storage";
+import { verifyUploadedVideo } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 
 export const maxDuration = 300;
@@ -19,7 +19,18 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   if (!video) throw notFound("Video");
 
   const local = video.storage_path.startsWith("local:");
-  const size = local ? video.file_size : await objectSize(video.storage_path);
+  // MA-A6-002: the size/type the client declared at registration is never
+  // trusted — verify the real object in storage (cap, declared-size
+  // tolerance, video content type); a mismatch is rejected and the object
+  // deleted instead of being recorded as the video.
+  let size: number | null;
+  if (local) {
+    size = video.file_size;
+  } else {
+    const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
+    const cap = planFor(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at)).maxUploadBytes;
+    size = (await verifyUploadedVideo(video.storage_path, { capBytes: cap, declaredSize: video.file_size })).size;
+  }
   if (size === null || size === 0) throw new ApiFailure("CONFLICT", "The upload did not finish. Please try again.");
   await getAdmin().from("videos").update({ status: "uploaded", file_size: size, uploaded_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", videoId);
 
