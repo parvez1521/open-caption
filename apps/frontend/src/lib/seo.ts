@@ -24,7 +24,11 @@ export const PRODUCTION_URL = "https://www.captionit.in";
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).replace(/\/$/, "");
 
-/** Routes search engines may index: public marketing, auth and legal only. */
+/** Routes search engines may index: public marketing and legal only.
+ * /login is deliberately NOT in the sitemap (MA-A8-004): a sign-in page
+ * adds nothing to discovery and can surface in search for brand queries.
+ * It stays reachable, and its own metadata (login/layout.tsx) still carries
+ * its canonical — removing it here only drops it from the sitemap. */
 // /credits comes in via LEGAL_PAGES — do not append it again (deep-audit B4:
 // the sitemap listed it twice).
 // /auto-caption-generator is the first SEO tool landing page (competitor-intelligence
@@ -34,7 +38,7 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).repl
 // weakest-competition long-tail in the SERP research.
 // /ai-generator is the third (2026-11-17): a public text/image/video
 // generator powered by Puter.js, no login.
-export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/ai-generator", "/login", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
+export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/ai-generator", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
 
 /** App routes behind sign-in: never indexed (metadata noindex + robots disallow).
  *  Covers every (dashboard) route in the shell nav, plus the auth-flow helpers —

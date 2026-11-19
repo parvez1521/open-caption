@@ -61,7 +61,9 @@ describe("sitemap", () => {
   it("lists exactly the indexable public routes on the production origin", () => {
     expect(urls).toEqual(INDEXABLE_PATHS.map((p) => (p === "/" ? `${SITE_URL}/` : `${SITE_URL}${p}`)));
     expect(urls).toContain("https://www.captionit.in/");
-    expect(urls).toContain("https://www.captionit.in/login");
+    // MA-A8-004: /login is deliberately not in the sitemap (sign-in adds
+    // nothing to discovery); it stays reachable with its own canonical.
+    expect(urls).not.toContain("https://www.captionit.in/login");
     expect(urls).toContain("https://www.captionit.in/privacy");
     expect(urls).toContain("https://www.captionit.in/credits");
   });

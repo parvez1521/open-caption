@@ -2,9 +2,10 @@ import type { MetadataRoute } from "next";
 import { INDEXABLE_PATHS, SITE_URL } from "@/lib/seo";
 
 /**
- * Exactly the indexable public routes (homepage, sign-in, legal pages) on the
+ * Exactly the indexable public routes (homepage, tool pages, legal pages) on the
  * production origin. App pages behind auth are excluded here, carry metadata
  * noindex, and are disallowed in robots — they never belong in a sitemap.
+ * /login is excluded deliberately (MA-A8-004) — see INDEXABLE_PATHS in lib/seo.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   // lastmod is the build date: this route is statically generated, so the
@@ -20,7 +21,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         : path === "/auto-caption-generator" || path === "/auto-captions-for-reels" || path === "/ai-generator"
           ? ("monthly" as const)
           : ("yearly" as const),
-    // Tool landing pages outrank sign-in/legal: they are the pages built to be found.
-    priority: path === "/" ? 1 : path === "/auto-caption-generator" || path === "/auto-captions-for-reels" || path === "/ai-generator" ? 0.8 : path === "/login" ? 0.5 : 0.3,
+    // Tool landing pages outrank legal pages: they are the pages built to be found.
+    priority: path === "/" ? 1 : path === "/auto-caption-generator" || path === "/auto-captions-for-reels" || path === "/ai-generator" ? 0.8 : 0.3,
   }));
 }
