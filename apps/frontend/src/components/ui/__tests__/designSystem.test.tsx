@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import Button from "../Button";
@@ -53,5 +55,41 @@ describe("workbench design system", () => {
     expect(input.className).toContain("focus:border-emerald-accent");
     expect(input.className).toContain("bg-sand-50");
     for (const b of BANNED) expect(input.className).not.toContain(b);
+  });
+});
+
+/**
+ * MA-A2-006 (2026-11-19): headings are the most visible place for the
+ * banned em dash — the three that had one ("Totals", "Growth trend",
+ * "Hook") now use a colon. This pins headings only, on purpose: the
+ * remaining ~535 user-visible em dashes in body copy need a per-sentence
+ * call (comma vs colon vs period vs reword), so no mechanical sweep and
+ * no repo-wide ban is asserted here; a future pass can extend this guard
+ * surface by surface as each one is hand-checked.
+ */
+function walkTsx(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      if (entry !== "__tests__" && entry !== "node_modules") walkTsx(full, out);
+    } else if (full.endsWith(".tsx") && !full.endsWith(".test.tsx")) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+describe("headings carry no em dash (MA-A2-006)", () => {
+  it("no <h1>-<h6> line in non-test source contains an em dash", () => {
+    const offenders: string[] = [];
+    for (const file of walkTsx(join(process.cwd(), "src"))) {
+      const lines = readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, i) => {
+        if (/<h[1-6][ >]/.test(line) && (line.includes("—") || line.includes("&mdash;"))) {
+          offenders.push(`${file}:${i + 1}: ${line.trim()}`);
+        }
+      });
+    }
+    expect(offenders).toEqual([]);
   });
 });

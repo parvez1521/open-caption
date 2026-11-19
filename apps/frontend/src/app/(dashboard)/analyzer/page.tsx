@@ -404,7 +404,7 @@ export default function AnalyzerPage() {
               {/* Hook */}
               <section className={cardClass} aria-label="Hook">
                 <div className="flex items-center gap-2">
-                  <h3 className={labelClass}>Hook — first {Math.round(body.breakdown.hook.windowMs / 1000)} seconds</h3>
+                  <h3 className={labelClass}>Hook: first {Math.round(body.breakdown.hook.windowMs / 1000)} seconds</h3>
                   {editedMark("hook.text")}
                 </div>
                 <textarea

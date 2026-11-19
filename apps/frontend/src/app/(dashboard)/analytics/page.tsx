@@ -187,7 +187,7 @@ export default function AnalyticsPage() {
             ) : null}
             {/* -------------------------------------------------- Totals */}
             <section className="pt-10" aria-label="Totals">
-              <h2 className={sectionTitleCls}>Totals — all posts</h2>
+              <h2 className={sectionTitleCls}>Totals: all posts</h2>
               <div className={`${cardCls} mt-4`}>
                 {analytics.totals.status === "insufficient" ? (
                   <p className="text-[13px] text-sand-700">
@@ -296,7 +296,7 @@ export default function AnalyticsPage() {
 
             {/* -------------------------------------------------- Weekly trend */}
             <section className="pt-10 pb-4" aria-label="Weekly trend">
-              <h2 className={sectionTitleCls}>Growth trend — by week</h2>
+              <h2 className={sectionTitleCls}>Growth trend: by week</h2>
               <div className={`${cardCls} mt-4`}>
                 {analytics.weeklyTrend.status === "insufficient" ? (
                   <p className="text-[13px] text-sand-700">
