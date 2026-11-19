@@ -80,6 +80,30 @@ export const projectsService = {
     };
   },
 
+  /**
+   * MA-A4-001: project pickers must reach projects past the server's 100-row
+   * page cap (Pro allows 1,000). Page through getProjectsPage until the
+   * server's total is reached; a short page ends the walk, and the 20-page
+   * guard keeps a lying total from looping forever.
+   */
+  async getAllProjects(opts?: {
+    includeArchived?: boolean;
+    folder?: string;
+    tag?: string;
+  }): Promise<ProjectPage> {
+    const all: Project[] = [];
+    let total = 0;
+    let orgReady = true;
+    for (let page = 0; page < 20; page++) {
+      const res = await this.getProjectsPage({ ...opts, limit: 100, offset: page * 100 });
+      all.push(...res.projects);
+      total = res.total;
+      orgReady = res.orgReady;
+      if (res.projects.length < 100 || all.length >= total) break;
+    }
+    return { projects: all, total, limit: 100, offset: 0, orgReady };
+  },
+
   async getProjects(): Promise<Project[]> {
     const projects = await apiClient.get<BackendProject[]>("/projects");
     return projects.map(toProject);

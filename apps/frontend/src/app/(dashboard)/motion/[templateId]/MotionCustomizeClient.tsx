@@ -140,7 +140,7 @@ const Customize: React.FC<{ template: MotionTemplate }> = ({ template }) => {
   // ---- add to project ----
   const projectsQuery = useQuery({
     queryKey: ["projects"],
-    queryFn: () => projectsService.getProjectsPage({ includeArchived: false, limit: 100 }),
+    queryFn: () => projectsService.getAllProjects({ includeArchived: false }),
   });
   const projects = projectsQuery.data?.projects ?? [];
   const [projectId, setProjectId] = useState<string>("");

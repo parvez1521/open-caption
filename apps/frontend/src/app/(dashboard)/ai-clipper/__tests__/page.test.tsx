@@ -22,6 +22,7 @@ vi.mock("@/services/auth/supabaseClient", () => ({
 
 vi.mock("@/services/projects", () => ({
   projectsService: {
+    getAllProjects: async () => ({ projects: [] }),
     getProjectsPage: async () => ({ projects: [] }),
     createProject: async () => ({ id: "p-new" }),
   },

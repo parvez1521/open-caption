@@ -75,11 +75,27 @@ export default function ExportsPage() {
     setSignedIn(true);
   }, [router]);
 
-  const { data: exports = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ["exports"],
-    queryFn: () => exportsService.listExports(),
+  // MA-A4-001: the history used to cap silently at 100 rows. Load more
+  // appends the next page; the count line always says how many of the total
+  // are loaded (filters apply to the loaded rows).
+  const [pageCount, setPageCount] = useState(1);
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    queryKey: ["exports", pageCount],
+    queryFn: async () => {
+      const rows: GlobalExport[] = [];
+      let total = 0;
+      for (let p = 0; p < pageCount; p++) {
+        const page = await exportsService.listExportsPage({ limit: 100, offset: p * 100 });
+        rows.push(...page.exports);
+        total = page.total;
+        if (page.exports.length < 100) break;
+      }
+      return { exports: rows, total };
+    },
     enabled: signedIn,
   });
+  const exports = data?.exports ?? [];
+  const totalExports = data?.total ?? exports.length;
 
   const [kindFilter, setKindFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -141,7 +157,7 @@ export default function ExportsPage() {
                 {filtersActive ? (
                   <button onClick={() => { setKindFilter(""); setStatusFilter(""); setFromFilter(""); setToFilter(""); }} className="rounded-full border border-sand-300 px-4 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear filters</button>
                 ) : null}
-                <span className="text-[12px] text-sand-600" role="status">{visible.length} of {exports.length} exports</span>
+                <span className="text-[12px] text-sand-600" role="status">{visible.length} of {exports.length} loaded exports{exports.length < totalExports ? ` (${totalExports} total)` : ""}</span>
               </div>
               {visible.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-12 text-center">
@@ -149,9 +165,23 @@ export default function ExportsPage() {
                   <button onClick={() => { setKindFilter(""); setStatusFilter(""); setFromFilter(""); setToFilter(""); }} className="mt-4 rounded-full border border-sand-300 px-5 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear filters</button>
                 </div>
               ) : (
-                <ul className="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-white">
-                  {visible.map((exp) => <ExportRowView key={exp.id} exp={exp} />)}
-                </ul>
+                <>
+                  <ul className="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-white">
+                    {visible.map((exp) => <ExportRowView key={exp.id} exp={exp} />)}
+                  </ul>
+                  {exports.length < totalExports ? (
+                    <div className="pt-6 text-center">
+                      <p className="text-[13px] text-sand-600">Showing {exports.length} of {totalExports} exports</p>
+                      <button
+                        onClick={() => setPageCount((n) => n + 1)}
+                        disabled={isFetching}
+                        className="mt-3 rounded-full border border-sand-300 px-6 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        {isFetching ? "Loading…" : "Load more exports"}
+                      </button>
+                    </div>
+                  ) : null}
+                </>
               )}
             </>
           )}

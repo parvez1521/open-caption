@@ -91,7 +91,7 @@ export default function AnalyzerPage() {
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["projects"],
-    queryFn: () => projectsService.getProjectsPage({ includeArchived: false, limit: 100 }),
+    queryFn: () => projectsService.getAllProjects({ includeArchived: false }),
     enabled: signedIn,
   });
   const projects = data?.projects ?? [];

@@ -83,7 +83,7 @@ export default function LibraryPage() {
   // Project titles for the "belongs to" column; the bin only stores project ids.
   const { data: projectsData } = useQuery({
     queryKey: ["projects"],
-    queryFn: () => projectsService.getProjectsPage({ includeArchived: true, limit: 100 }),
+    queryFn: () => projectsService.getAllProjects({ includeArchived: true }),
     enabled: signedIn,
   });
   const titles = useMemo(

@@ -1,22 +1,26 @@
+import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/auth";
-import { ApiFailure, ok, route } from "@/lib/api/http";
+import { ApiFailure, route } from "@/lib/api/http";
 
 /**
  * Global exports list for the signed-in user (newest first), across all projects.
  * Ownership is enforced by RLS through the user-scoped client; project titles are
  * resolved in a second RLS-scoped query. Effective status mirrors the cleanup cron:
  * a ready export past its expires_at is reported as expired.
+ * MA-A4-001: paginated (limit/offset + meta.total) — the history used to cap
+ * silently at 100 rows with no way to reach older exports.
  */
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
   const url = new URL(req.url);
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 100) || 100));
+  const offset = Math.max(0, Number(url.searchParams.get("offset") ?? 0) || 0);
 
-  const { data, error } = await user.db
+  const { data, count, error } = await user.db
     .from("exports")
-    .select("id, project_id, kind, status_v2, status, file_size, resolution, created_at, expires_at")
+    .select("id, project_id, kind, status_v2, status, file_size, resolution, created_at, expires_at", { count: "exact" })
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
   if (error) throw new ApiFailure("INTERNAL", "Could not load exports", error.message);
 
   const rows = data ?? [];
@@ -28,7 +32,7 @@ export const GET = route(async (req: Request) => {
   }
 
   const now = Date.now();
-  return ok(rows.map((r) => {
+  const mapped = rows.map((r) => {
     let status = (r.status_v2 as string | null) ?? (r.status as string | null) ?? "queued";
     if (status === "ready" && r.expires_at && new Date(r.expires_at as string).getTime() <= now) status = "expired";
     return {
@@ -36,5 +40,6 @@ export const GET = route(async (req: Request) => {
       kind: r.kind, status, file_size: r.file_size, resolution: r.resolution,
       created_at: r.created_at, expires_at: r.expires_at,
     };
-  }));
+  });
+  return NextResponse.json({ success: true, data: mapped, meta: { total: count ?? mapped.length, limit, offset } });
 });

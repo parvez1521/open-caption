@@ -135,11 +135,29 @@ export default function ProjectsList() {
   // model on mount — on mobile data, for visitors who may never transcribe. The model
   // now downloads when a transcription actually starts, where the progress text says so.
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => projectsService.getProjectsPage({ includeArchived: true, limit: 100 }),
+  // MA-A4-001: the server caps a page at 100 rows and returns meta.total —
+  // the list used to render only the first page and never say so, so
+  // projects 101+ were unreachable. Load more appends the next page and the
+  // count line always says how many of the total are loaded.
+  const [pageCount, setPageCount] = useState(1);
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
+    queryKey: ["projects", pageCount],
+    queryFn: async () => {
+      const pages: Project[] = [];
+      let total = 0;
+      let orgReady = true;
+      for (let p = 0; p < pageCount; p++) {
+        const page = await projectsService.getProjectsPage({ includeArchived: true, limit: 100, offset: p * 100 });
+        pages.push(...page.projects);
+        total = page.total;
+        orgReady = page.orgReady;
+        if (page.projects.length < 100) break;
+      }
+      return { projects: pages, total, limit: 100, offset: 0, orgReady };
+    },
   });
   const projects = data?.projects ?? [];
+  const totalProjects = data?.total ?? projects.length;
 
   useEffect(() => {
     if (!projects.length) return;
@@ -285,6 +303,12 @@ export default function ProjectsList() {
         </button>
       </div>
       <p className="mt-3 text-[13px] text-sand-600">Signed-in projects are kept and never expire. Guest projects are removed after 30 days without edits.</p>
+      {data ? (
+        <p role="status" className="mt-1 text-[13px] text-sand-600">
+          Showing {projects.length} of {totalProjects} project{totalProjects === 1 ? "" : "s"}
+          {projects.length < totalProjects ? " — load more to see the rest." : ""}
+        </p>
+      ) : null}
       {/* A15 organisation filters — only when the folders/tags database update is applied */}
       {data && !orgReady ? (
         <p role="status" className="mt-3 rounded-lg border border-sand-300 bg-sand-50 px-4 py-3 text-[13px] text-sand-700">Folders and tags are pending a database update. Your projects are all here. Organising them unlocks once the update is applied.</p>
@@ -331,34 +355,50 @@ export default function ProjectsList() {
             {query ? <button onClick={() => setQuery("")} className="mt-4 rounded-full border border-sand-300 px-5 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear search</button> : null}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {visible.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                menuOpen={menuFor === project.id}
-                orgReady={orgReady}
-                onToggleMenu={() => setMenuFor(menuFor === project.id ? null : project.id)}
-                onOpen={() => nav.go(`/projects/${project.id}`, "Opening your project")}
-                onOpenSettings={() => nav.go(`/projects/${project.id}/settings`, "Opening project settings")}
-                onOpenOrg={() => openOrgEditor(project)}
-                onDuplicate={() =>
-                  void runAction("Duplicating project", async () => {
-                    // PER-05-A: the copy's video row has a new id — copy this
-                    // device's video bytes to it so the copy opens with its
-                    // video, not videoGone. Best-effort: a cloud-synced copy
-                    // resolves through its cloud path even with no local copy.
-                    const { videoId, sourceVideoId } = await projectsService.duplicateProject(project.id);
-                    if (videoId && sourceVideoId) await copyLocalVideo(sourceVideoId, videoId);
-                  })
-                }
-                onArchive={() => void runAction("Archiving project", () => projectsService.archiveProject(project.id))}
-                onUnarchive={() => void runAction("Restoring project", () => projectsService.unarchiveProject(project.id))}
-                onDelete={() => { setMenuFor(null); setDeleteTarget(project); }}
-                onWarm={() => warmProject(project.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {visible.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  menuOpen={menuFor === project.id}
+                  orgReady={orgReady}
+                  onToggleMenu={() => setMenuFor(menuFor === project.id ? null : project.id)}
+                  onOpen={() => nav.go(`/projects/${project.id}`, "Opening your project")}
+                  onOpenSettings={() => nav.go(`/projects/${project.id}/settings`, "Opening project settings")}
+                  onOpenOrg={() => openOrgEditor(project)}
+                  onDuplicate={() =>
+                    void runAction("Duplicating project", async () => {
+                      // PER-05-A: the copy's video row has a new id — copy this
+                      // device's video bytes to it so the copy opens with its
+                      // video, not videoGone. Best-effort: a cloud-synced copy
+                      // resolves through its cloud path even with no local copy.
+                      const { videoId, sourceVideoId } = await projectsService.duplicateProject(project.id);
+                      if (videoId && sourceVideoId) await copyLocalVideo(sourceVideoId, videoId);
+                    })
+                  }
+                  onArchive={() => void runAction("Archiving project", () => projectsService.archiveProject(project.id))}
+                  onUnarchive={() => void runAction("Restoring project", () => projectsService.unarchiveProject(project.id))}
+                  onDelete={() => { setMenuFor(null); setDeleteTarget(project); }}
+                  onWarm={() => warmProject(project.id)}
+                />
+              ))}
+            </div>
+            {projects.length < totalProjects ? (
+              <div className="pt-6 text-center">
+                <p className="text-[13px] text-sand-600">
+                  Showing {projects.length} of {totalProjects} projects
+                </p>
+                <button
+                  onClick={() => setPageCount((n) => n + 1)}
+                  disabled={isFetching}
+                  className="mt-3 rounded-full border border-sand-300 px-6 py-2.5 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  {isFetching ? "Loading…" : "Load more projects"}
+                </button>
+              </div>
+            ) : null}
+          </>
         )}
       </div>
       {visibleAiEdit.length > 0 ? (
