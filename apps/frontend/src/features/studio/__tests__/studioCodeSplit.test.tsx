@@ -6,12 +6,17 @@ import { CaptionDocSchema, defaultStyle, ProjectSettingsSchema } from "@capseasy
 import StudioPage from "../StudioPage";
 
 /**
- * CAP-P01 regression: the Studio's heavy rail/right-tab panels (AiGenerate,
- * SoundEffects, Titles, Stickers, NewGraphics, Transitions, MotionStudio)
- * are next/dynamic imports in StudioPage, NOT in the first paint.
+ * CAP-P01 / CAP-P02 regression: the Studio's heavy leaves — the rail/right-tab
+ * panels (AiGenerate, SoundEffects, Titles, Stickers, NewGraphics, Transitions,
+ * MotionStudio) and the Remotion preview player (StudioPlayer) — are lazy
+ * imports in StudioPage (next/dynamic for the panels, React.lazy for the
+ * player — next/dynamic swallows the player ref, see StudioPage), NOT in the
+ * first paint.
  *
  * These tests pin the contract from the user's side: a lazy leaf is absent on
- * first paint and appears once its section/tab opens. The panel stubs prove
+ * first paint and appears once its section/tab opens; the preview player
+ * mounts through the lazy import (its stub's imperative handle is what the
+ * seek/play assertions in studioRevisionPhase2 drive). The panel stubs prove
  * the dynamic wiring; the REAL MotionStudioPanel + TransitionsPanel loading
  * through the same mechanism is pinned by the "Motion templates" findBy here
  * and the real-panel apply tests in studioRevisionPhase2.
@@ -226,7 +231,7 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-describe("StudioPage code-split panels (CAP-P01)", () => {
+describe("StudioPage code-split leaves (CAP-P01 / CAP-P02)", () => {
   it("lazy right-tab panels are absent on first paint, then load when their tab opens", async () => {
     window.history.pushState({}, "", "/projects/p1");
     studioState.current = makeStudio();
@@ -258,6 +263,21 @@ describe("StudioPage code-split panels (CAP-P01)", () => {
       unmount();
     }
   }, 15000);
+
+  it("the preview player mounts through the lazy import", async () => {
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio();
+    const { unmount } = renderStudio();
+    try {
+      // No "absent on first paint" pin here: React.lazy caches the chunk once
+      // any earlier test in this file loaded it, so the stub can already be
+      // mounted on first paint. The deferral itself is proven by the build
+      // (the player lives in its own chunk, not the Studio first-load chunk).
+      expect(await screen.findByRole("button", { name: "player-caption-tap" })).toBeTruthy();
+    } finally {
+      unmount();
+    }
+  });
 
   it("the Generate Image/Video rail section loads on demand for AI-Edit projects", async () => {
     window.history.pushState({}, "", "/projects/p1");

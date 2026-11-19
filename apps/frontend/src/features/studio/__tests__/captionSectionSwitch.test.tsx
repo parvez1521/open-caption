@@ -5,6 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CaptionDocSchema, defaultStyle, ProjectSettingsSchema } from "@capseasy/shared";
 import StudioPage from "../StudioPage";
 
+// CAP-P01/CAP-P02: StudioPage's panels + preview player are lazy imports —
+// the first test in this file pays the chunk transform, which on a loaded VM
+// can exceed the default 5 s test timeout (same assertions, more wall clock).
+vi.setConfig({ testTimeout: 15_000 });
+
 /**
  * Caption click opens the Captions section (owner 2026-11-16): when the user
  * is in another sidebar section (Templates, Adjust, …) and clicks a caption —
@@ -245,6 +250,8 @@ describe("StudioPage — a caption click opens the Captions section", () => {
     const { unmount } = renderStudio();
     try {
       expect(await screen.findByRole("button", { name: "Dulha" })).toBeTruthy();
+      // CAP-P02: StudioPlayer is lazy — await the stub before tapping it.
+      expect(await screen.findByRole("button", { name: "player-caption-tap" })).toBeTruthy();
 
       fireEvent.click(screen.getByRole("button", { name: "Adjust" }));
       expect(sectionPressed("Adjust")).toBe(true);
@@ -263,6 +270,9 @@ describe("StudioPage — a caption click opens the Captions section", () => {
     const { unmount } = renderStudio();
     try {
       expect(await screen.findByRole("button", { name: "Dulha" })).toBeTruthy();
+      // CAP-P02: split-at-playhead reads the playhead through the player ref,
+      // so the lazy StudioPlayer stub must be mounted before the keypress.
+      expect(await screen.findByRole("button", { name: "player-caption-tap" })).toBeTruthy();
 
       fireEvent.click(screen.getByRole("button", { name: "Templates" }));
       expect(sectionPressed("Templates")).toBe(true);
