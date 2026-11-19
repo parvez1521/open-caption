@@ -1439,7 +1439,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         <div className="h-full rounded-full bg-st-em transition-[width] duration-500" style={{ width: `${Math.max(3, liveView.progress * 100)}%` }} />
         <span aria-hidden className="absolute top-1/2 h-[10px] w-[10px] -translate-x-1/2 -translate-y-1/2 rounded-[2px] bg-[#FFA946] transition-[left] duration-500" style={{ left: `${Math.max(3, liveView.progress * 100)}%` }} />
       </div>
-      <Button className="!px-2.5 !py-1 text-xs" onClick={() => getSession(projectId)?.stop()}>Stop</Button>
+      <Button className="relative !px-2.5 !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => getSession(projectId)?.stop()}>Stop</Button>
     </div>
   ) : null;
   const captionsOnlyBanner = captionsOnly && hasEditor ? (

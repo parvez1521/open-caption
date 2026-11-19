@@ -173,7 +173,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
                   <p className="min-w-0 flex-1 truncate text-sm text-st-text" title={b.wordText || "Bleep"}>
                     {b.wordText || "Bleep"} <span className="text-xs text-st-faint">{fmtTime(b.startMs)} – {fmtTime(b.endMs)}</span>
                   </p>
-                  {onRemoveBleep ? <Button tone="danger" className="!px-2 !py-1 text-xs" onClick={() => onRemoveBleep(b.id)}>Remove</Button> : null}
+                  {onRemoveBleep ? <Button tone="danger" className="relative !px-2 !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => onRemoveBleep(b.id)}>Remove</Button> : null}
                 </div>
                 {onUpdateBleep ? (
                   <>
@@ -252,7 +252,7 @@ export const AudioPanel: React.FC<AudioPanelProps> = ({
                   <p className="truncate text-sm font-medium text-st-text" title={a.name}>{a.name}</p>
                   {!a.durationMs ? <p className="text-[11px] text-st-faint">This file&apos;s length couldn&apos;t be read, so it can&apos;t be placed.</p> : null}
                 </div>
-                <Button className="!px-2 !py-1 text-xs" disabled={!a.durationMs} onClick={() => onPlaceClip({ id: a.id, name: a.name, durationMs: a.durationMs ?? 0 })}>Place</Button>
+                <Button className="relative !px-2 !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" disabled={!a.durationMs} onClick={() => onPlaceClip({ id: a.id, name: a.name, durationMs: a.durationMs ?? 0 })}>Place</Button>
               </div>
             ))}
           </div>

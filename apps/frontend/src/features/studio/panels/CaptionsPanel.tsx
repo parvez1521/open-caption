@@ -99,14 +99,14 @@ const SelectedWordEditor: React.FC<{
       </div>
       <div className="flex flex-wrap gap-1.5">
         {heroSupported ? (
-          <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => setEmphasis(d, word.id, word.emphasis === "hero" ? "none" : "hero"))}>
+          <Button disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => edit((d) => setEmphasis(d, word.id, word.emphasis === "hero" ? "none" : "hero"))}>
             {word.emphasis === "hero" ? "★ Key word" : "☆ Make key word"}
           </Button>
         ) : null}
-        <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => splitCardAt(d, word.id))}>Split card here</Button>
-        <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithPrevious(d, word.id))}>Join previous</Button>
-        <Button disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => mergeWithNext(d, word.id))}>Join next</Button>
-        <Button tone="danger" disabled={locked} className="!py-1 text-xs" onClick={() => { edit((d) => setHidden(d, word.id, true)); onClose(); }}>Hide word</Button>
+        <Button disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => edit((d) => splitCardAt(d, word.id))}>Split card here</Button>
+        <Button disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => edit((d) => mergeWithPrevious(d, word.id))}>Join previous</Button>
+        <Button disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => edit((d) => mergeWithNext(d, word.id))}>Join next</Button>
+        <Button tone="danger" disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => { edit((d) => setHidden(d, word.id, true)); onClose(); }}>Hide word</Button>
       </div>
     </div>
   );
@@ -277,7 +277,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         {find ? (
           <div className="flex items-center justify-between text-xs text-st-muted">
             <span>{matchIds.size} match{matchIds.size === 1 ? "" : "es"}</span>
-            <Button disabled={locked || matchIds.size === 0} onClick={() => { edit((d) => findReplace(d, find, replace).doc); setFind(""); setReplace(""); }} className="!py-1 text-xs">
+            <Button disabled={locked || matchIds.size === 0} onClick={() => { edit((d) => findReplace(d, find, replace).doc); setFind(""); setReplace(""); }} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']">
               Replace all
             </Button>
           </div>
@@ -287,7 +287,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
             <p className="text-xs font-semibold text-st-text">Shift all captions</p>
             <div className="flex flex-wrap gap-1.5">
               {[-1000, -500, -100, 100, 500, 1000].map((ms) => (
-                <Button key={ms} disabled={locked} className="!py-1 text-xs" onClick={() => edit((d) => shiftAllWords(d, ms))}>
+                <Button key={ms} disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => edit((d) => shiftAllWords(d, ms))}>
                   {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
                 </Button>
               ))}
@@ -304,7 +304,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                 aria-label="Shift all captions by this many seconds"
                 className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
               />
-              <Button disabled={locked} className="!py-1 text-xs" onClick={applyShiftInput}>Apply shift</Button>
+              <Button disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={applyShiftInput}>Apply shift</Button>
             </div>
           </div>
         ) : null}
@@ -367,7 +367,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                     onPointerDown={(e) => onChipPointerDown(e, w.id)}
                     onClick={() => onChipClick(w.id, w.startMs)}
                     style={retiming ? { transform: `translateX(${dragDx}px)` } : undefined}
-                    className={`rounded-md px-2 py-1.5 text-sm lg:px-1.5 lg:py-0.5 [touch-action:pan-y] ${
+                    className={`relative rounded-md px-2 py-1.5 text-sm lg:px-1.5 lg:py-0.5 [touch-action:pan-y] before:absolute before:-inset-y-2.5 before:content-[''] ${
                       w.id === selectedId ? "bg-st-ink text-st-panel" : inSelection ? "bg-st-em/30 text-st-text ring-2 ring-inset ring-st-em" : page.id === currentPageId && timeMs >= w.startMs && timeMs < w.endMs ? "bg-st-or text-[#141412]" : matchIds.has(w.id) ? "bg-st-or/40 text-st-text" : "bg-st-raised text-st-text hover:bg-st-hover"
                     } ${i === page.heroIndex ? "font-bold underline decoration-st-or decoration-2 underline-offset-2" : ""} ${lowConfidence(w.confidence) ? "border-b border-dashed border-st-or" : ""}`}
                     title={lowConfidence(w.confidence) ? "Low confidence: worth double-checking" : undefined}
@@ -386,7 +386,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
             {showHidden ? (
               <div className="mt-2 flex flex-wrap gap-1">
                 {hidden.map((w) => (
-                  <button key={w.id} disabled={locked} onClick={() => edit((d) => setHidden(d, w.id, false))} className="rounded-md bg-st-raised/70 px-1.5 py-0.5 text-sm text-st-faint line-through hover:text-st-text disabled:opacity-50" title="Click to restore">
+                  <button key={w.id} disabled={locked} onClick={() => edit((d) => setHidden(d, w.id, false))} className="relative rounded-md bg-st-raised/70 px-1.5 py-0.5 text-sm text-st-faint line-through before:absolute before:-inset-y-2.5 before:content-[''] hover:text-st-text disabled:opacity-50" title="Click to restore">
                     {w.text}
                   </button>
                 ))}
@@ -413,11 +413,11 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {[-500, -100, 100, 500].map((ms) => (
-              <Button key={ms} disabled={locked} className="!py-1 text-xs" onClick={() => { const ids = selIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
+              <Button key={ms} disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => { const ids = selIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
                 {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
               </Button>
             ))}
-            <Button tone="danger" disabled={locked} className="!py-1 text-xs" onClick={() => { const ids = selIds; edit((d) => deleteWordsByIds(d, ids)); onWordSelectionChange(new Set()); onSelect(null); }}>Delete selected</Button>
+            <Button tone="danger" disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => { const ids = selIds; edit((d) => deleteWordsByIds(d, ids)); onWordSelectionChange(new Set()); onSelect(null); }}>Delete selected</Button>
           </div>
         </div>
       ) : null}

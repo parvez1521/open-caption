@@ -147,4 +147,16 @@ describe("ProjectSettingsPage", () => {
     await waitFor(() => expect(calls.deleteProject).toHaveBeenCalledWith("proj-1"));
     await waitFor(() => expect(calls.push).toHaveBeenCalledWith("/captions"));
   });
+
+  it("MA-A2-005: the delete modal is an alertdialog and Escape closes it without deleting", async () => {
+    renderPage();
+    await screen.findByDisplayValue("My Video");
+    fireEvent.click(screen.getByText("Delete project"));
+    const dialog = screen.getByRole("alertdialog", { name: "Delete this project" });
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(dialog);
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("alertdialog", { name: "Delete this project" })).toBeNull();
+    expect(calls.deleteProject).not.toHaveBeenCalled();
+  });
 });
