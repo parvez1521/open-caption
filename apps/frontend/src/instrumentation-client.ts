@@ -14,3 +14,13 @@ Sentry.init({
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+
+// MA-A1-008: an unhandled promise rejection otherwise vanishes silently —
+// no console trace the user would see, no report. Send it to Sentry the same
+// way caught errors are reported (a no-op when no DSN is set). The browser
+// still logs the rejection itself: this handler does not preventDefault.
+if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (event) => {
+    Sentry.captureException(event.reason, { tags: { area: "unhandledrejection" } });
+  });
+}

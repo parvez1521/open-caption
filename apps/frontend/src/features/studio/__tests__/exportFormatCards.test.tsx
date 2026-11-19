@@ -14,6 +14,17 @@ import { ExportModal } from "../ExportModal";
  * sentences. These tests pin the previews and the card grid.
  */
 
+const sentryCapture = vi.hoisted(() => ({ exception: vi.fn(), message: vi.fn() }));
+vi.mock("@sentry/nextjs", () => ({
+  captureException: sentryCapture.exception,
+  captureMessage: sentryCapture.message,
+}));
+
+const studioMocks = vi.hoisted(() => ({
+  recordBrowserExport: vi.fn(async () => {}),
+  releaseBrowserExport: vi.fn(async () => {}),
+}));
+
 vi.mock("@/services/studio", () => ({
   studioService: {
     listExports: async () => [],
@@ -23,8 +34,8 @@ vi.mock("@/services/studio", () => ({
     }),
     createExport: async () => ({ ready: false, companionOnline: false }),
     reserveBrowserExport: async () => {},
-    releaseBrowserExport: async () => {},
-    recordBrowserExport: async () => {},
+    releaseBrowserExport: studioMocks.releaseBrowserExport,
+    recordBrowserExport: studioMocks.recordBrowserExport,
     exportDownloadUrl: async () => "https://example.test/dl",
     cancelJob: async () => {},
     retryJob: async () => {},
@@ -34,15 +45,21 @@ vi.mock("@/services/studio", () => ({
 /** the in-progress render: the test resolves it by hand, so the floating bar can be checked mid-render */
 let resolveRender: ((blob: Blob) => void) | null = null;
 
-vi.mock("../browserExport", () => ({
-  canExportInBrowser: async () => ({ ok: true }),
-  exportMp4InBrowser: async (opts: { onProgress?: (f: number) => void }) => {
+const browserExportMocks = vi.hoisted(() => ({
+  canExportInBrowser: vi.fn(async () => ({ ok: true })),
+  exportMp4InBrowser: vi.fn(async (opts: { onProgress?: (f: number) => void }) => {
     opts.onProgress?.(0.42);
     return new Promise<Blob>((resolve) => {
       resolveRender = resolve;
     });
-  },
-  saveBlob: () => {},
+  }),
+  saveBlob: vi.fn(() => {}),
+}));
+
+vi.mock("../browserExport", () => ({
+  canExportInBrowser: browserExportMocks.canExportInBrowser,
+  exportMp4InBrowser: browserExportMocks.exportMp4InBrowser,
+  saveBlob: browserExportMocks.saveBlob,
 }));
 
 const SAMPLE = "Hello world";
@@ -240,5 +257,40 @@ describe("ExportModal — render progress lives outside the modal", () => {
     });
     expect(await screen.findByText(/Your MP4 is downloading/)).toBeTruthy();
     expect(document.querySelector("div.fixed.inset-0.z-50")).toHaveAttribute("hidden");
+  });
+
+  it("MA-A1-008: a failed export record is reported to Sentry instead of swallowed", async () => {
+    sentryCapture.exception.mockClear();
+    studioMocks.recordBrowserExport.mockRejectedValueOnce(new Error("count failed"));
+    renderModal();
+    const group = await screen.findByRole("group", { name: "Export format" });
+    fireEvent.click(within(group).getByRole("button", { name: /MP4/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Render MP4" }));
+    await screen.findByRole("status");
+    await act(async () => {
+      resolveRender?.(new Blob(["x"], { type: "video/mp4" }));
+    });
+    await vi.waitFor(() =>
+      expect(sentryCapture.exception).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "count failed" }),
+        expect.objectContaining({ tags: { area: "browser-export" }, extra: { op: "recordBrowserExport" } }),
+      ),
+    );
+  });
+
+  it("MA-A1-008: a failed slot release after a render error is reported to Sentry", async () => {
+    sentryCapture.exception.mockClear();
+    studioMocks.releaseBrowserExport.mockRejectedValueOnce(new Error("release failed"));
+    browserExportMocks.exportMp4InBrowser.mockRejectedValueOnce(new Error("encoder died"));
+    renderModal();
+    const group = await screen.findByRole("group", { name: "Export format" });
+    fireEvent.click(within(group).getByRole("button", { name: /MP4/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Render MP4" }));
+    await vi.waitFor(() =>
+      expect(sentryCapture.exception).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "release failed" }),
+        expect.objectContaining({ extra: expect.objectContaining({ op: "releaseBrowserExport" }) }),
+      ),
+    );
   });
 });

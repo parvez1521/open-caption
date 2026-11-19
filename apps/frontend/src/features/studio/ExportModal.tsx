@@ -219,7 +219,11 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       // this video was not counted.
       void studioService
         .recordBrowserExport(projectId, { exportId, kind: "mp4" })
-        .catch(() => {})
+        // MA-A1-008: was a silent .catch(() => {}) — a failed record means the
+        // video was never counted, which deserves a report, not silence.
+        .catch((err) => {
+          Sentry.captureException(err, { tags: { area: "browser-export" }, extra: { op: "recordBrowserExport" } });
+        })
         .finally(() => void qc.invalidateQueries({ queryKey: ["video-quota", projectId] }));
       rendered = true;
       setWebDone(`${fmtBytes(blob.size)} · made in ${fmtTime(clock() - started)}`);
@@ -249,7 +253,11 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       // A render that never produced a file gives its reserved slot back
       // (failed mix, encoder error, stall on the last attempt, cancel) —
       // but NOT a stalled attempt that is about to restart with the same id.
-      if (!rendered && !again) void studioService.releaseBrowserExport(projectId, exportId).catch(() => {});
+      if (!rendered && !again) void studioService.releaseBrowserExport(projectId, exportId).catch((err) => {
+        // MA-A1-008: was silent — a failed release holds the reserved slot
+        // until it expires, which deserves a report, not silence.
+        Sentry.captureException(err, { tags: { area: "browser-export" }, extra: { op: "releaseBrowserExport", when: "render-failed-or-cancelled" } });
+      });
     }
     if (again) {
       Sentry.captureMessage("export: restarted after a stall", { level: "info", extra: { attempt } });
@@ -326,7 +334,10 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
       }
       // The render cannot run (video not loaded / encoder refused) — give
       // the reserved slot back instead of holding it for nothing.
-      void studioService.releaseBrowserExport(projectId, exportId).catch(() => {});
+      void studioService.releaseBrowserExport(projectId, exportId).catch((err) => {
+        // MA-A1-008: was silent — see the release in the finally block above.
+        Sentry.captureException(err, { tags: { area: "browser-export" }, extra: { op: "releaseBrowserExport", when: "render-could-not-run" } });
+      });
       setError(w.ok ? "The video isn't loaded yet. Wait a moment and try again." : w.reason ?? "This browser can't make MP4s. Use Chrome, Edge or Safari.");
       return;
     }
