@@ -15,6 +15,19 @@ async function verifiedPath(path: string): Promise<{ path: string; size: number 
   return { path, size };
 }
 
+/**
+ * MA-A7-002: the video/export id comes from job.payload, which the job's
+ * owner can write themselves — a service-role write keyed by that id alone
+ * would touch another owner's row. Verify the row belongs to the job's owner
+ * first (a missing row is left to the caller's own no-op update).
+ */
+async function assertOwnedRow(table: "videos" | "exports", id: string, ownerId: string, what: string): Promise<void> {
+  const { data } = await getAdmin().from(table).select("owner_id").eq("id", id).maybeSingle();
+  if (data && (data as { owner_id?: string }).owner_id !== ownerId) {
+    throw new ApiFailure("FORBIDDEN", `This job's ${what} does not belong to its owner`);
+  }
+}
+
 /** Idempotent: a retried call from the same companion after success is a no-op. */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const worker = await requireWorker(req);
@@ -31,14 +44,17 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     await saveTranscription(job, body);
   } else if (body.kind === "proxy") {
     const { videoId } = job.payload as { videoId: string };
+    await assertOwnedRow("videos", videoId, job.owner_id, "video");
     const { path } = await verifiedPath(`${job.owner_id}/${job.project_id}/preview/${videoId}.mp4`);
     await admin.from("videos").update({ preview_path: path, updated_at: now }).eq("id", videoId);
   } else if (body.kind === "thumbnail") {
     const { videoId } = job.payload as { videoId: string };
+    await assertOwnedRow("videos", videoId, job.owner_id, "video");
     const { path } = await verifiedPath(`${job.owner_id}/${job.project_id}/thumbs/${videoId}.jpg`);
     await admin.from("videos").update({ thumbnail_path: path, updated_at: now }).eq("id", videoId);
   } else {
     const { exportId, format } = job.payload as { exportId: string; format: string };
+    await assertOwnedRow("exports", exportId, job.owner_id, "export");
     const { path, size } = await verifiedPath(`${job.owner_id}/${job.project_id}/exports/${exportId}.${EXPORT_EXT[format] ?? "mp4"}`);
     await admin.from("exports").update({
       status_v2: "ready", status: "completed", storage_path: path, file_size: size,

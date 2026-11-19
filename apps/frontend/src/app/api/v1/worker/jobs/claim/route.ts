@@ -33,8 +33,16 @@ export const POST = route(async (req: Request) => {
   const payload = job.payload as JobPayload;
   const videoId = payload.kind === "render" ? payload.sourceVideoId : "videoId" in payload ? payload.videoId : null;
   const { data: video } = videoId
-    ? await admin.from("videos").select("id, storage_path, width, height, fps, duration_ms, has_audio, rotation, mime_type").eq("id", videoId).maybeSingle()
+    ? await admin.from("videos").select("id, owner_id, storage_path, width, height, fps, duration_ms, has_audio, rotation, mime_type").eq("id", videoId).maybeSingle()
     : { data: null };
+
+  // MA-A7-002: the video id comes from job.payload, which the job's owner
+  // can write themselves via direct PostgREST — never hand out another
+  // owner's video bytes. A mismatch gives the job back and fails the claim.
+  if (video && (video as { owner_id?: string }).owner_id !== job.owner_id) {
+    await admin.from("jobs").update({ status: "queued", worker_id: null, lease_expires_at: null, attempts: Math.max(0, job.attempts - 1) }).eq("id", job.id);
+    throw new ApiFailure("FORBIDDEN", "This job's video does not belong to its owner");
+  }
 
   const urls: Record<string, string> = {};
   try {

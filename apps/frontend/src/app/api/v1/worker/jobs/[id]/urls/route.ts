@@ -1,6 +1,6 @@
 import type { JobPayload } from "@capseasy/shared";
 import { requireWorker } from "@/lib/api/auth";
-import { ok, route, type Ctx } from "@/lib/api/http";
+import { ApiFailure, ok, route, type Ctx } from "@/lib/api/http";
 import { requireHeldJob } from "@/lib/api/jobs";
 import { HOUR, signedGet, signedPut } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
@@ -14,7 +14,12 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const job = await requireHeldJob(id, worker.id);
   const payload = job.payload as JobPayload;
   const videoId = payload.kind === "render" ? payload.sourceVideoId : "videoId" in payload ? payload.videoId : null;
-  const { data: video } = videoId ? await getAdmin().from("videos").select("id, storage_path").eq("id", videoId).maybeSingle() : { data: null };
+  const { data: video } = videoId ? await getAdmin().from("videos").select("id, owner_id, storage_path").eq("id", videoId).maybeSingle() : { data: null };
+  // MA-A7-002: same re-check as the claim route — the payload video id is
+  // owner-writable, so never sign another owner's video.
+  if (video && (video as { owner_id?: string }).owner_id !== job.owner_id) {
+    throw new ApiFailure("FORBIDDEN", "This job's video does not belong to its owner");
+  }
 
   const urls: Record<string, string> = {};
   if (video?.storage_path) urls.sourceGet = await signedGet(video.storage_path, 6 * HOUR);

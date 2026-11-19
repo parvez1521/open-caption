@@ -65,7 +65,17 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
   // else the on-device copy only (url stays null and the browser plays IndexedDB)
   const cloudPath = (video as { cloud_storage_path?: string | null } | null)?.cloud_storage_path ?? null;
   const playPath = cloudPath ?? video?.preview_path ?? video?.storage_path ?? null;
-  const videoUrl = video && playPath && !playPath.startsWith("local:")
+  // MA-A7-002: the path comes from the caller's own video row, whose text
+  // fields are owner-writable via direct PostgREST — never sign a path
+  // outside this caller's storage. New paths are owner-prefixed; legacy
+  // `projects/<id>/video.mp4` paths are allowed only when the id is this
+  // project or this video.
+  const ownPath = !!playPath && (
+    playPath.startsWith(`${user.id}/`) ||
+    playPath === `projects/${id}/video.mp4` ||
+    (video ? playPath === `projects/${(video as { id?: string }).id}/video.mp4` : false)
+  );
+  const videoUrl = video && playPath && ownPath && !playPath.startsWith("local:")
     ? await signedGet(playPath, 2 * HOUR).catch(() => null)
     : null;
   if (video) {

@@ -48,7 +48,12 @@ export async function saveTranscription(job: JobRow, r: TranscriptionResult) {
   }
 
   // legacy uploads never recorded their metadata; fill it from whatever the engine measured
-  const { data: v } = await admin.from("videos").select("duration_ms, width, height").eq("id", videoId).maybeSingle();
+  // MA-A7-002: the video id comes from job.payload — only touch the row when
+  // it belongs to the job's owner, never another owner's video.
+  const { data: v } = await admin.from("videos").select("owner_id, duration_ms, width, height").eq("id", videoId).maybeSingle();
+  if (v && (v as { owner_id?: string }).owner_id !== job.owner_id) {
+    throw new ApiFailure("FORBIDDEN", "This job's video does not belong to its owner");
+  }
   await admin.from("videos").update({
     status: "ready", updated_at: now, has_audio: true,
     ...(v && !v.duration_ms && r.durationMs ? { duration_ms: Math.round(r.durationMs) } : {}),
