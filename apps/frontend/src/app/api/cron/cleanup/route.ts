@@ -90,7 +90,20 @@ export async function GET(req: Request) {
     if (rows.length < 1000) break;
   }
 
-  const result = { ok: failures.length === 0, guestsFound: stale.length, guestsRemoved: removed, guestFiles: files, oldFilesRemoved: oldFiles, failures: failures.slice(0, 20) };
+  // 3. MA-A7-006: rate_limits rows are never reaped (one row per (key, window)
+  // forever). The purge function lives in supabase/APPLY-A7-004-RATE-LIMITS-
+  // PURGE.sql (PROPOSED — the owner has not applied it yet), so until then
+  // this call fails: best-effort, recorded in the result, never fatal to the
+  // run and never counted in `failures` (which drives `ok`).
+  let rateLimitsPurged: number | null = null;
+  let rateLimitsPurgeError: string | null = null;
+  {
+    const { data, error } = await admin.rpc("purge_old_rate_limits", { p_days: 7 });
+    if (error) rateLimitsPurgeError = error.message;
+    else rateLimitsPurged = typeof data === "number" ? data : null;
+  }
+
+  const result = { ok: failures.length === 0, guestsFound: stale.length, guestsRemoved: removed, guestFiles: files, oldFilesRemoved: oldFiles, rateLimitsPurged, rateLimitsPurgeError, failures: failures.slice(0, 20) };
   console.log(JSON.stringify({ cron: "cleanup", ...result }));
   return Response.json(result);
 }
