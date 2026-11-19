@@ -7,6 +7,11 @@ import StudioPage, { RIGHT_TABS, transitionApplyBlocker } from "../StudioPage";
 import { startSession } from "@/features/transcribe/session";
 import type { EditorComposition } from "../compositionDoc";
 
+// CAP-P01: StudioPage's panels are lazy imports — the first test in this file
+// pays the chunk transform, which on a loaded VM can exceed the default 5 s
+// test timeout (same assertions, more wall clock).
+vi.setConfig({ testTimeout: 15_000 });
+
 /**
  * Studio revision phase 2 — StudioPage integration:
  * - the right rail drops the Reels tab and lists the seven remaining tabs;
@@ -430,7 +435,9 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
     const { unmount } = renderStudio();
     try {
       fireEvent.click(screen.getByRole("button", { name: "Transitions" }));
-      expect(screen.getByText(/No cut selected/)).toBeTruthy();
+      // CAP-P01: TransitionsPanel is dynamic — its content arrives after the
+      // tab click, so await it instead of asserting synchronously.
+      expect(await screen.findByText(/No cut selected/)).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Apply Cross Dissolve" }));
       expect(editAll).not.toHaveBeenCalled();
       expect(screen.getByRole("status")).toHaveTextContent("Select a cut in the timeline first");

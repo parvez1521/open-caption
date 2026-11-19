@@ -23,18 +23,28 @@ import { anyModalOpen } from "./modalGuard";
 // only when the creator actually opens Export — the studio's first paint (especially on a phone) should
 // not carry or evaluate that machinery.
 const ExportModal = dynamic(() => import("./ExportModal").then((m) => m.ExportModal), { ssr: false });
+// CAP-P01: the same treatment for the Studio's other heavy leaves.
+// The rail/right-tab panels below are NOT the default view (Captions +
+// Timeline stay eager), so they load on demand when the creator opens that
+// section — the first paint stops carrying them. Timeline imports only the
+// drag MIME/type from ./panels/transitionDrag, so splitting TransitionsPanel
+// here really splits it (see that file).
+const PanelLoading = () => (
+  <div role="status" className="p-4 text-sm text-st-muted">Loading…</div>
+);
+const AiGeneratePanel = dynamic(() => import("./panels/AiGeneratePanel").then((m) => m.AiGeneratePanel), { ssr: false, loading: PanelLoading });
+const SoundEffectsPanel = dynamic(() => import("./panels/SoundEffectsPanel").then((m) => m.SoundEffectsPanel), { ssr: false, loading: PanelLoading });
+const MotionStudioPanel = dynamic(() => import("./panels/MotionStudioPanel").then((m) => m.MotionStudioPanel), { ssr: false, loading: PanelLoading });
+const TitlesPanel = dynamic(() => import("./panels/TitlesPanel").then((m) => m.TitlesPanel), { ssr: false, loading: PanelLoading });
+const StickersPanel = dynamic(() => import("./panels/StickersPanel").then((m) => m.StickersPanel), { ssr: false, loading: PanelLoading });
+const NewGraphicsPanel = dynamic(() => import("./panels/NewGraphicsPanel").then((m) => m.NewGraphicsPanel), { ssr: false, loading: PanelLoading });
+const TransitionsPanel = dynamic(() => import("./panels/TransitionsPanel").then((m) => m.TransitionsPanel), { ssr: false, loading: PanelLoading });
 import { CaptionsPanel } from "./panels/CaptionsPanel";
 import { LooksPanel } from "./panels/LooksPanel";
 import { SettingsPanel, StylePanel } from "./panels/StylePanel";
 import { MediaPanel } from "./panels/MediaPanel";
-import { AiGeneratePanel, type AiEditTranscriptState } from "./panels/AiGeneratePanel";
-import { SoundEffectsPanel } from "./panels/SoundEffectsPanel";
+import type { AiEditTranscriptState } from "./panels/AiGeneratePanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
-import { MotionStudioPanel } from "./panels/MotionStudioPanel";
-import { TitlesPanel } from "./panels/TitlesPanel";
-import { StickersPanel } from "./panels/StickersPanel";
-import { NewGraphicsPanel } from "./panels/NewGraphicsPanel";
-import { TransitionsPanel } from "./panels/TransitionsPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
 import { AudioPanel } from "./panels/AudioPanel";
 import { TranslatePanel } from "./panels/TranslatePanel";
