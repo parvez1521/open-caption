@@ -1017,6 +1017,25 @@ export function Footer() {
           </span>
         </div>
 
+        {/* Listed-on badges (owner, 2026-11-19): small footer row so
+            IndieLaunch / Fazier / 1ai.tools free listings can verify the
+            link back. IndieLaunch snippet is verbatim from its submit form;
+            Fazier badge is the live featured/neutral variant from its submit
+            page (the guide's example has a double-slash typo, not used);
+            the 1ai.tools link is a plain dofollow link, as its FAQ requires. */}
+        <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-[#FFFFEB]/10 pt-5 text-xs text-[#FFFFEB]/50">
+          <span>Listed on</span>
+          <a href="https://indielaunch.dev/?ref=badge" target="_blank" rel="noopener">
+            <img src="https://indielaunch.dev/badges/indielaunch-light.svg" alt="Featured on IndieLaunch" className="h-9 w-auto" />
+          </a>
+          <a href="https://fazier.com" target="_blank" rel="noopener">
+            <img src="https://fazier.com/api/v1/public/badges/launch_badges.svg?badge_type=featured&theme=neutral" alt="Featured on Fazier" className="h-9 w-auto min-w-[120px]" />
+          </a>
+          <a href="https://1ai.tools" target="_blank" rel="noopener" className="transition-colors hover:text-[#34D399] hover:underline underline-offset-4">
+            1ai.tools
+          </a>
+        </div>
+
       </div>
     </footer>
   );
