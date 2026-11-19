@@ -11,20 +11,12 @@ import {
   type TransitionRegistryEntry,
 } from "@capseasy/compositions";
 import { Button, Section, Slider } from "../controls";
+import { TRANSITION_DRAG_MIME, type TransitionDragPayload } from "./transitionDrag";
 
-/**
- * Drag source format (phase 2: the timeline drop target reads this).
- *   dataTransfer type: "application/x-captionit-transition"
- *   payload (JSON): { "type": "<registry id>", "durationMs": <number> }
- *   effectAllowed: "copy". A plain "text/plain" copy of the transition name is
- *   set alongside for debugging only — the drop target must read the MIME above.
- * Click-to-apply still works; dropping on a cut marker applies at that cut.
- */
-export const TRANSITION_DRAG_MIME = "application/x-captionit-transition";
-export interface TransitionDragPayload {
-  type: string;
-  durationMs: number;
-}
+// Re-exported so existing importers (Timeline tests, transitionsPanel.test.tsx)
+// keep importing the MIME + payload type from this module; the runtime import
+// path for the bundle is ./transitionDrag (see that file).
+export { TRANSITION_DRAG_MIME, type TransitionDragPayload } from "./transitionDrag";
 
 export interface TransitionsPanelProps {
   /** The transition into the selected cut (null = plain cut). */

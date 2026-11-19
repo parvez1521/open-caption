@@ -15,7 +15,7 @@ import { overlayTrackOf } from "./compositionOps";
 import { resolveSegmentView, segmentBadges } from "./segmentView";
 import { PEAKS_PER_SECOND } from "./useWaveform";
 import { useFilmstrip } from "./useFilmstrip";
-import { TRANSITION_DRAG_MIME, type TransitionDragPayload } from "./panels/TransitionsPanel";
+import { TRANSITION_DRAG_MIME, type TransitionDragPayload } from "./panels/transitionDrag";
 
 interface Props {
   pages: Page[];

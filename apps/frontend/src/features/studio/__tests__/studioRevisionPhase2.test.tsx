@@ -7,6 +7,11 @@ import StudioPage, { MOBILE_EXTRA_TABS, RIGHT_TABS, transitionApplyBlocker } fro
 import { startSession } from "@/features/transcribe/session";
 import type { EditorComposition } from "../compositionDoc";
 
+// CAP-P01/CAP-P02: StudioPage's panels + preview player are lazy imports —
+// the first test in this file pays the chunk transform, which on a loaded VM
+// can exceed the default 5 s test timeout (same assertions, more wall clock).
+vi.setConfig({ testTimeout: 15_000 });
+
 /**
  * Studio revision phase 2 — StudioPage integration:
  * - the right rail drops the Reels tab and lists the seven remaining tabs;
@@ -358,6 +363,10 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
     studioState.current = makeStudio(twoClipSettings);
     const { unmount } = renderStudio();
     try {
+      // CAP-P02: the apply jumps the preview via the player ref — the lazy
+      // StudioPlayer stub must be mounted before the click, or the seek/play
+      // calls are dropped (playerRef null) and the assertions below flake.
+      expect(await screen.findByRole("button", { name: "player-caption-tap" })).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "timeline-cut-2" }));
       expect(await screen.findByText("Applying to Cut after Clip 1")).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Apply Cross Dissolve" }));
@@ -430,7 +439,9 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
     const { unmount } = renderStudio();
     try {
       fireEvent.click(screen.getByRole("button", { name: "Transitions" }));
-      expect(screen.getByText(/No cut selected/)).toBeTruthy();
+      // CAP-P01: TransitionsPanel is dynamic — its content arrives after the
+      // tab click, so await it instead of asserting synchronously.
+      expect(await screen.findByText(/No cut selected/)).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Apply Cross Dissolve" }));
       expect(editAll).not.toHaveBeenCalled();
       expect(screen.getByRole("status")).toHaveTextContent("Select a cut in the timeline first");

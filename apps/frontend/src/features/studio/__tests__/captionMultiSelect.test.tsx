@@ -252,6 +252,9 @@ async function mountStudio(studio: typeof baseStudio = baseStudio) {
   const utils = renderStudio();
   // pages compute once the (stubbed) fonts resolve; the word list proves it
   expect(await screen.findByRole("button", { name: "Dulha" })).toBeTruthy();
+  // CAP-P02: StudioPlayer is lazy — the stub's buttons only exist once its
+  // chunk loads; every test below drives the player stub, so await it here.
+  expect(await screen.findByRole("button", { name: "player-move" })).toBeTruthy();
   edit.mockClear();
   patchStyle.mockClear();
   return utils;

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,23 +24,40 @@ import { useDialogEscapeAndTrap } from "./useDialogEscapeAndTrap";
 // only when the creator actually opens Export — the studio's first paint (especially on a phone) should
 // not carry or evaluate that machinery.
 const ExportModal = dynamic(() => import("./ExportModal").then((m) => m.ExportModal), { ssr: false });
+// CAP-P01: the same treatment for the Studio's other heavy leaves.
+// The rail/right-tab panels below are NOT the default view (Captions +
+// Timeline stay eager), so they load on demand when the creator opens that
+// section — the first paint stops carrying them. The Remotion preview player
+// is lazy too (React.lazy, below). Timeline imports only the drag MIME/type
+// from ./panels/transitionDrag, so splitting TransitionsPanel here really
+// splits it (see that file).
+const PanelLoading = () => (
+  <div role="status" className="p-4 text-sm text-st-muted">Loading…</div>
+);
+const AiGeneratePanel = dynamic(() => import("./panels/AiGeneratePanel").then((m) => m.AiGeneratePanel), { ssr: false, loading: PanelLoading });
+const SoundEffectsPanel = dynamic(() => import("./panels/SoundEffectsPanel").then((m) => m.SoundEffectsPanel), { ssr: false, loading: PanelLoading });
+const MotionStudioPanel = dynamic(() => import("./panels/MotionStudioPanel").then((m) => m.MotionStudioPanel), { ssr: false, loading: PanelLoading });
+const TitlesPanel = dynamic(() => import("./panels/TitlesPanel").then((m) => m.TitlesPanel), { ssr: false, loading: PanelLoading });
+const StickersPanel = dynamic(() => import("./panels/StickersPanel").then((m) => m.StickersPanel), { ssr: false, loading: PanelLoading });
+const NewGraphicsPanel = dynamic(() => import("./panels/NewGraphicsPanel").then((m) => m.NewGraphicsPanel), { ssr: false, loading: PanelLoading });
+const TransitionsPanel = dynamic(() => import("./panels/TransitionsPanel").then((m) => m.TransitionsPanel), { ssr: false, loading: PanelLoading });
+// CAP-P02: the Remotion preview player is lazy with React.lazy, NOT
+// next/dynamic — next/dynamic's loadable swallows the ref (its imperative
+// handle is { retry }), so playerRef.current?.getCurrentFrame() throws.
+// React.lazy forwards the ref to StudioPlayer, so seek/play/toggle keep
+// working; the ref is simply null until the chunk loads (every call site
+// already guards with ?.).
+const StudioPlayer = lazy(() => import("./StudioPlayer").then((m) => ({ default: m.StudioPlayer })));
 import { CaptionsPanel } from "./panels/CaptionsPanel";
 import { LooksPanel } from "./panels/LooksPanel";
 import { SettingsPanel, StylePanel } from "./panels/StylePanel";
 import { MediaPanel } from "./panels/MediaPanel";
-import { AiGeneratePanel, type AiEditTranscriptState } from "./panels/AiGeneratePanel";
-import { SoundEffectsPanel } from "./panels/SoundEffectsPanel";
+import type { AiEditTranscriptState } from "./panels/AiGeneratePanel";
 import { ElementsPanel } from "./panels/ElementsPanel";
-import { MotionStudioPanel } from "./panels/MotionStudioPanel";
-import { TitlesPanel } from "./panels/TitlesPanel";
-import { StickersPanel } from "./panels/StickersPanel";
-import { NewGraphicsPanel } from "./panels/NewGraphicsPanel";
-import { TransitionsPanel } from "./panels/TransitionsPanel";
 import { AdjustPanel } from "./panels/AdjustPanel";
 import { AudioPanel } from "./panels/AudioPanel";
 import { TranslatePanel } from "./panels/TranslatePanel";
 import { ProcessingPanel } from "./ProcessingPanel";
-import { StudioPlayer } from "./StudioPlayer";
 import { OverlayStageLayer } from "./OverlayStageLayer";
 import { Timeline } from "./Timeline";
 import { UploadPanel } from "./UploadPanel";
@@ -1534,38 +1551,46 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   );
 
   const player = hasEditor && input && style ? (
-    <StudioPlayer
-      ref={playerRef}
-      input={playerInput ?? input}
-      width={canvasSize.width}
-      height={canvasSize.height}
-      fps={fps}
-      durationMs={durationMs}
-      position={currentCardPosition ?? style.position}
-      onMovePosition={moveCaptionPosition}
-      onPositionDragStart={(p) => { dragPointerRef.current = p; }}
-      onNudgePosition={nudgeCaptionPosition}
-      captionBox={captionBox}
-      showPositionGrip={currentPage != null}
-      onCaptionTap={() => { const id = currentPage?.words[0]?.id; if (id) selectWordFromUserClick(id); }}
-      onPositionDragEnd={endCaptionPositionDrag}
-      dragGhost={dragGhost}
-      dragGhostText={currentPage ? currentPage.words.map((w) => w.text).join(" ") : ""}
-      dragGhostFontPx={style ? captionFontPx(style, canvas) : undefined}
-      onTime={setTimeMs}
-      onPlayingChange={setPlaying}
-      compact={!desktop}
-      platform={settings.platform}
-      stageOverlay={settings.overlays.length ? (
-        <OverlayStageLayer
-          overlays={settings.overlays}
-          timeMs={timeMs}
-          selectedId={selectedOverlayId}
-          onSelect={selectOverlay}
-          onPatch={(item) => s.patchSettings({ overlays: settings.overlays.map((o) => (o.id === item.id ? item : o)) })}
-        />
-      ) : null}
-    />
+    <Suspense
+      fallback={(
+        <div role="status" aria-label="Loading preview" className="flex h-full w-full items-center justify-center bg-[#0B0B0A]">
+          <div className="h-10 w-10 animate-pulse rounded-full bg-white/15" />
+        </div>
+      )}
+    >
+      <StudioPlayer
+        ref={playerRef}
+        input={playerInput ?? input}
+        width={canvasSize.width}
+        height={canvasSize.height}
+        fps={fps}
+        durationMs={durationMs}
+        position={currentCardPosition ?? style.position}
+        onMovePosition={moveCaptionPosition}
+        onPositionDragStart={(p) => { dragPointerRef.current = p; }}
+        onNudgePosition={nudgeCaptionPosition}
+        captionBox={captionBox}
+        showPositionGrip={currentPage != null}
+        onCaptionTap={() => { const id = currentPage?.words[0]?.id; if (id) selectWordFromUserClick(id); }}
+        onPositionDragEnd={endCaptionPositionDrag}
+        dragGhost={dragGhost}
+        dragGhostText={currentPage ? currentPage.words.map((w) => w.text).join(" ") : ""}
+        dragGhostFontPx={style ? captionFontPx(style, canvas) : undefined}
+        onTime={setTimeMs}
+        onPlayingChange={setPlaying}
+        compact={!desktop}
+        platform={settings.platform}
+        stageOverlay={settings.overlays.length ? (
+          <OverlayStageLayer
+            overlays={settings.overlays}
+            timeMs={timeMs}
+            selectedId={selectedOverlayId}
+            onSelect={selectOverlay}
+            onPatch={(item) => s.patchSettings({ overlays: settings.overlays.map((o) => (o.id === item.id ? item : o)) })}
+          />
+        ) : null}
+      />
+    </Suspense>
   ) : null;
 
   // keep is only possible for a video stored on this device: a server upload still
