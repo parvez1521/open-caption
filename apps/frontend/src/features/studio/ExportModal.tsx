@@ -524,7 +524,10 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
      *  the screen, until the render finishes or is cancelled. The render itself
      *  still runs in this tab — only the progress UI moved out of the modal. */}
     {renderDetached && (webProgress !== null || webDone) ? (
-      <div role="status" aria-live="polite" className="fixed bottom-4 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-st-line bg-st-panel p-3 shadow-2xl">
+      <div role="status" aria-live="polite" className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-st-line bg-st-panel p-3 shadow-2xl max-sm:bottom-[max(4.75rem,calc(env(safe-area-inset-bottom)+4.25rem))]">
+        {/* MA-A3-005: bottom-4 ignored the safe area and, on phones, covered
+            the bottom nav while rendering. Desktop keeps 1rem/safe-area; on
+            phones (<640px) the bar docks above the ~67px bottom nav. */}
         {webProgress !== null ? (
           <>
             <div className="flex items-center justify-between gap-2 text-sm">

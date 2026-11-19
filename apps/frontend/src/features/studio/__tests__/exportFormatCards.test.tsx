@@ -221,6 +221,10 @@ describe("ExportModal — render progress lives outside the modal", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Render MP4" }));
     // the progress is a separate floating bar: same text, % and Cancel, plus the keep-tab-open note
     const bar = await screen.findByRole("status");
+    // MA-A3-005: the bar respects the safe area, and on phones docks above the
+    // ~67px bottom nav instead of covering it while rendering.
+    expect(bar.className).toContain("bottom-[max(1rem,env(safe-area-inset-bottom))]");
+    expect(bar.className).toContain("max-sm:bottom-[max(4.75rem,calc(env(safe-area-inset-bottom)+4.25rem))]");
     // the Export modal overlay is hidden while the render runs in this tab
     // (still mounted — unmounting it would abort the render)
     const overlay = document.querySelector("div.fixed.inset-0.z-50");
