@@ -19,6 +19,7 @@ import { authService } from "@/services/auth";
 import { ApiError } from "@/services/api-client";
 import { Button } from "./controls";
 import { anyModalOpen } from "./modalGuard";
+import { useDialogEscapeAndTrap } from "./useDialogEscapeAndTrap";
 // The export dialog pulls in the whole in-browser renderer (Remotion web-renderer + Mediabunny). Load it
 // only when the creator actually opens Export — the studio's first paint (especially on a phone) should
 // not carry or evaluate that machinery.
@@ -143,6 +144,14 @@ export const RIGHT_TABS: { id: RightTabId; label: string; icon: React.ReactNode 
   { id: "graphics", label: "Graphics", icon: railIcon(<><circle cx="8" cy="8" r="3.5" /><rect x="13" y="13" width="8" height="8" rx="1" /><path d="M17.5 3.5l3 5h-6z" /></>) },
   { id: "transitions", label: "Transitions", icon: railIcon(<><rect x="3" y="4" width="8" height="16" rx="1.5" /><rect x="13" y="4" width="8" height="16" rx="1.5" /><path d="M11 12h2" /></>) },
 ];
+
+/** CAP-U01 (MA-A3-001): the right tabs a phone/tablet Studio otherwise loses.
+ * Inspector is reachable on phones when a segment is selected, and Sounds is
+ * duplicated on the left rail ("Sound FX") — so exactly these 5 are missing.
+ * Exported for the phone pin in __tests__/studioRevisionPhase2.test.tsx. */
+export type MobileExtraTabId = "motion" | "titles" | "stickers" | "graphics" | "transitions";
+export const MOBILE_EXTRA_TABS: { id: MobileExtraTabId; label: string; icon: React.ReactNode }[] =
+  RIGHT_TABS.filter((t): t is { id: MobileExtraTabId; label: string; icon: React.ReactNode } => t.id !== "inspector" && t.id !== "sfx");
 
 /** Drag payloads are untrusted JSON: the dropped type is a plain string, so
  * narrow it to a real transition type (5 legacy + 100 registry ids) before
@@ -286,6 +295,14 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const [rightTab, setRightTab] = useState<RightTabId>("motion");
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [mobileTimeline, setMobileTimeline] = useState(false);
+  // CAP-U01: on phones the right rail does not exist, so the 5 desktop-only
+  // panels open from a "More" sheet in the bottom bar and render in the same
+  // one-panel-at-a-time area as the rail sections. Null = a rail section (or
+  // the Timeline) is showing instead.
+  const [mobileExtra, setMobileExtra] = useState<MobileExtraTabId | null>(null);
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
+  const moreSheetRef = useRef<HTMLDivElement>(null);
+  useDialogEscapeAndTrap(moreSheetRef, () => setShowMoreSheet(false), showMoreSheet);
   const [timeMs, setTimeMs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -1984,6 +2001,32 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     );
   }
 
+  // The right-tab panel body, shared by the desktop right column and the
+  // phone "More" sheet (CAP-U01) — one renderer, so the panels behave the
+  // same on both layouts. Inspector falls through to Motion when nothing is
+  // selected, exactly as the desktop column did before the split.
+  const renderRightTabContent = (tab: RightTabId) =>
+    tab === "inspector" && segmentInspector ? segmentInspector
+    : tab === "titles" ? <TitlesPanel {...overlayPanelProps} />
+    : tab === "stickers" ? <StickersPanel {...overlayPanelProps} />
+    : tab === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
+    : tab === "graphics" ? <NewGraphicsPanel {...overlayPanelProps} />
+    : tab === "transitions" ? (
+      <TransitionsPanel
+        currentTransition={joinClip?.transitionIn ?? null}
+        onApplyTransition={applyTransitionAtJoin}
+        onClearTransition={clearTransitionAtJoin}
+        onSplitAtPlayhead={splitVideoAtPlayhead}
+        splitDisabled={!editorComp || videoLocked}
+        selectedJoinLabel={selectedJoinLabel}
+        hasJoins={hasJoins}
+        hasVideo={Boolean(editorComp?.videoClips.length)}
+        onSelectFirstJoin={selectFirstJoin}
+        transitionDurationCapMs={joinTransitionCapMs ?? undefined}
+      />
+    )
+    : <MotionStudioPanel {...overlayPanelProps} />;
+
   // ---------- left vertical rail (desktop) — the §7 growth point; the panel column opens beside it
   const rail = (
     <nav aria-label="Studio tools" className="flex w-[76px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-st-line bg-st-panel px-2 py-3">
@@ -2072,26 +2115,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
                   <p role="status" className="shrink-0 border-b border-st-line bg-st-or/15 px-3 py-2 text-[12px] leading-snug text-st-text">{transitionNote}</p>
                 ) : null}
                 <div className="flex min-h-0 flex-1 flex-col">
-                  {rightTab === "inspector" && segmentInspector ? segmentInspector
-                    : rightTab === "titles" ? <TitlesPanel {...overlayPanelProps} />
-                    : rightTab === "stickers" ? <StickersPanel {...overlayPanelProps} />
-                    : rightTab === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
-                    : rightTab === "graphics" ? <NewGraphicsPanel {...overlayPanelProps} />
-                    : rightTab === "transitions" ? (
-                      <TransitionsPanel
-                        currentTransition={joinClip?.transitionIn ?? null}
-                        onApplyTransition={applyTransitionAtJoin}
-                        onClearTransition={clearTransitionAtJoin}
-                        onSplitAtPlayhead={splitVideoAtPlayhead}
-                        splitDisabled={!editorComp || videoLocked}
-                        selectedJoinLabel={selectedJoinLabel}
-                        hasJoins={hasJoins}
-                        hasVideo={Boolean(editorComp?.videoClips.length)}
-                        onSelectFirstJoin={selectFirstJoin}
-                        transitionDurationCapMs={joinTransitionCapMs ?? undefined}
-                      />
-                    )
-                    : <MotionStudioPanel {...overlayPanelProps} />}
+                  {renderRightTabContent(rightTab)}
                 </div>
               </div>
             </aside>
@@ -2111,8 +2135,11 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       {segmentInspector ? (
         <div className="h-[min(38dvh,360px)] shrink-0 overflow-hidden border-b border-st-line bg-st-panel">{segmentInspector}</div>
       ) : null}
-      <div key={mobileTimeline ? "timeline" : section} className="st-rise min-h-0 flex-1 bg-st-panel">
-        {mobileTimeline ? timeline : renderPanel(section)}
+      {transitionNote && mobileExtra === "transitions" ? (
+        <p role="status" className="shrink-0 border-b border-st-line bg-st-or/15 px-3 py-2 text-[12px] leading-snug text-st-text">{transitionNote}</p>
+      ) : null}
+      <div key={mobileTimeline ? "timeline" : mobileExtra ?? section} className="st-rise min-h-0 flex-1 bg-st-panel">
+        {mobileTimeline ? timeline : mobileExtra ? renderRightTabContent(mobileExtra) : renderPanel(section)}
       </div>
       {/* MA-A3-003: the sections scroll sideways inside their own strip; the
           Timeline button is pinned outside it so it is always reachable
@@ -2125,9 +2152,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             <button
               key={sec.id}
               data-tour={sec.tour}
-              onClick={() => { setSection(sec.id); setMobileTimeline(false); }}
-              aria-pressed={!mobileTimeline && section === sec.id}
-              className={`relative flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${!mobileTimeline && section === sec.id ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
+              onClick={() => { setSection(sec.id); setMobileTimeline(false); setMobileExtra(null); }}
+              aria-pressed={!mobileTimeline && !mobileExtra && section === sec.id}
+              className={`relative flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${!mobileTimeline && !mobileExtra && section === sec.id ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
             >
               {sec.icon}
               <span className="text-[11px] font-medium leading-none">{sec.label}</span>
@@ -2138,10 +2165,23 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-8 bg-gradient-to-l from-transparent to-st-panel" />
         ) : null}
         {!bottomBarAtEnd ? (
-          <span aria-hidden className="pointer-events-none absolute bottom-0 right-[84px] top-0 z-10 w-8 bg-gradient-to-r from-transparent to-st-panel" />
+          <span aria-hidden className="pointer-events-none absolute bottom-0 right-[160px] top-0 z-10 w-8 bg-gradient-to-r from-transparent to-st-panel" />
         ) : null}
+        {/* CAP-U01: the 5 desktop-only panels live behind "More", pinned beside
+            Timeline so they are reachable without discovering the strip scroll. */}
         <button
-          onClick={() => setMobileTimeline(true)}
+          type="button"
+          onClick={() => setShowMoreSheet(true)}
+          aria-haspopup="dialog"
+          aria-expanded={showMoreSheet}
+          aria-pressed={mobileExtra !== null}
+          className={`relative z-10 flex w-[72px] shrink-0 flex-col items-center gap-1 rounded-xl px-1 py-1.5 before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${mobileExtra !== null ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
+        >
+          {railIcon(<><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none" /></>)}
+          <span className="text-[11px] font-medium leading-none">More</span>
+        </button>
+        <button
+          onClick={() => { setMobileTimeline(true); setMobileExtra(null); }}
           aria-pressed={mobileTimeline}
           className={`relative z-10 flex w-[72px] shrink-0 flex-col items-center gap-1 rounded-xl border-l border-st-line px-1 py-1.5 before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${mobileTimeline ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
         >
@@ -2149,6 +2189,33 @@ export default function StudioPage({ projectId }: { projectId: string }) {
           <span className="text-[11px] font-medium leading-none">Timeline</span>
         </button>
       </nav>
+      {/* CAP-U01: bottom sheet (same pattern as ExportModal) listing the 5
+          panels the phone layout otherwise loses. Picking one renders it in
+          the panel area above; Escape/backdrop closes without picking. */}
+      {showMoreSheet ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowMoreSheet(false)}>
+          <div ref={moreSheetRef} role="dialog" aria-label="More tools" tabIndex={-1} onClick={(e) => e.stopPropagation()} className="flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-st-line bg-st-panel pb-[env(safe-area-inset-bottom)] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-st-line px-4 py-3">
+              <h2 className="text-lg font-semibold">More tools</h2>
+              <button onClick={() => setShowMoreSheet(false)} aria-label="Close" className="-mr-2 grid h-11 w-11 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-3">
+              {MOBILE_EXTRA_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => { setMobileExtra(tab.id); setMobileTimeline(false); setShowMoreSheet(false); }}
+                  aria-pressed={mobileExtra === tab.id}
+                  className={`flex min-h-[44px] w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${mobileExtra === tab.id ? "bg-st-lav text-st-ink" : "text-st-text hover:bg-st-raised"}`}
+                >
+                  {tab.icon}
+                  <span className="text-sm font-medium">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
       {overlays}
     </main>
   );
