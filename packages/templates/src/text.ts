@@ -10,17 +10,15 @@ export const scaleOf = (c: Canvas) => Math.min(c.width, c.height) / 1080;
 
 export const famCss = (fontId: string) => fontStack(fontId);
 
-/** Captions never show sentence punctuation (legacy behaviour); apostrophes/hyphens stay. */
-export function stripPunctuation(text: string): string {
-  return text.replace(/[.,!?;:"“”‘’`…()[\]{}]/g, "").replace(/\s+/g, " ").trim();
-}
-
 export function displayText(w: Word, style: CaptionStyleV2, casing: CaptionStyleV2["casing"] = style.casing): string {
-  const keep = style.templateOptions.keepPunctuation === true;
-  const raw = keep ? w.text.trim() : stripPunctuation(w.text);
+  // Punctuation the transcription produced shows on the video (owner 2026-11-19:
+  // commas and full stops were invisible in captions). The old behaviour stripped
+  // sentence punctuation here for every look unless the look opted into
+  // templateOptions.keepPunctuation — and no look anywhere did — so the
+  // punctuation was in the doc and in the exports, but never on the video.
   // A word the user typed keeps the case they typed (see applyWordCasing): the
   // look's automatic casing must not silently undo an explicit edit.
-  return applyWordCasing({ ...w, text: raw }, casing);
+  return applyWordCasing(w, casing);
 }
 
 /** Small caps is a rendering property, not a string transform — spread wherever caption text is painted. */

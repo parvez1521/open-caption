@@ -71,3 +71,43 @@ describe("text case — Small Caps is a rendering property, not a string transfo
     expect(displayText(w("Hello", "user"), style)).toBe("Hello");
   });
 });
+
+/**
+ * Owner 2026-11-19: commas, full stops and other punctuation do not show in the
+ * captions on the video. The transcribed words DO carry punctuation — Whisper
+ * output + normalizeTokens keep it, and the Timeline chips show the raw word
+ * text — but the render path stripped it: displayText removed sentence
+ * punctuation for every look unless the look opted into
+ * templateOptions.keepPunctuation, and no look anywhere did. So the punctuation
+ * was in the doc, in the exports, and nowhere on the video.
+ */
+describe("displayText — transcribed punctuation shows on the video", () => {
+  it("keeps a trailing comma", () => {
+    expect(displayText(w("Hello,", "asr"), defaultStyle())).toBe("Hello,");
+  });
+
+  it("keeps a trailing full stop", () => {
+    expect(displayText(w("world.", "asr"), defaultStyle())).toBe("world.");
+  });
+
+  it("keeps question and exclamation marks (incl. Hinglish)", () => {
+    expect(displayText(w("kya?", "asr"), defaultStyle())).toBe("kya?");
+    expect(displayText(w("hai!", "asr"), defaultStyle())).toBe("hai!");
+  });
+
+  it("keeps punctuation under a lowercase look — casing must not eat it", () => {
+    const style = { ...defaultStyle(), casing: "lower" as const };
+    expect(displayText(w("Hello,", "asr"), style)).toBe("hello,");
+    expect(displayText(w("World.", "asr"), style)).toBe("world.");
+  });
+
+  it("keeps punctuation on a user-typed word under a lowercase look", () => {
+    const style = { ...defaultStyle(), casing: "lower" as const };
+    expect(displayText(w("Hello,", "user"), style)).toBe("Hello,");
+  });
+
+  it("keeps apostrophes and hyphens (they always survived the strip)", () => {
+    expect(displayText(w("don't", "asr"), defaultStyle())).toBe("don't");
+    expect(displayText(w("well-known", "asr"), defaultStyle())).toBe("well-known");
+  });
+});

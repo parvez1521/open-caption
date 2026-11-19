@@ -539,6 +539,56 @@ describe("user-typed case survives render + export (owner 2026-11-19)", () => {
   });
 });
 
+describe("punctuation survives the pipeline (owner 2026-11-19)", () => {
+  // the owner reported commas and full stops missing from the captions on the
+  // video. The drop was render-time only (displayText in @capseasy/templates
+  // stripped sentence punctuation for every look); transcription, derive and
+  // the text exporters never stripped it. These tests pin the whole pipeline
+  // so a future regression at any step is caught at the step that broke.
+  it("transcription keeps punctuation on the words", () => {
+    const words = fromWhisperCaptions([
+      { text: " Hello,", startMs: 0, endMs: 400 },
+      { text: " world.", startMs: 400, endMs: 900 },
+      { text: " kya?", startMs: 900, endMs: 1300 },
+      { text: " hai!", startMs: 1300, endMs: 1700 },
+    ]);
+    expect(words.map((w) => w.text)).toEqual(["Hello,", "world.", "kya?", "hai!"]);
+  });
+
+  it("derivePages keeps punctuated words on the cards", () => {
+    const pages = derivePages(
+      docOf([mk("Hello,", 0, 400, "1"), mk("world.", 400, 900, "2")]),
+      settings({ maxWordsPerCard: 2 }),
+    );
+    expect(pages[0]!.words.map((w) => w.text)).toEqual(["Hello,", "world."]);
+  });
+
+  it("SRT, VTT and TXT keep commas, full stops, question and exclamation marks", () => {
+    const pages = derivePages(
+      docOf([mk("Hello,", 0, 400, "1"), mk("world.", 400, 900, "2"), mk("kya?", 900, 1300, "3"), mk("hai!", 1300, 1700, "4")]),
+      settings({ maxWordsPerCard: 4 }),
+    );
+    // derivePages deliberately breaks a card after a sentence end ("world." and
+    // "kya?" both end sentences), so the four words land on three cues — the
+    // punctuation must survive on every one of them.
+    expect(toSrt(pages)).toContain("Hello, world.");
+    expect(toSrt(pages)).toContain("kya?");
+    expect(toSrt(pages)).toContain("hai!");
+    expect(toVtt(pages)).toContain("Hello, world.");
+    expect(toVtt(pages)).toContain("kya?");
+    expect(toVtt(pages)).toContain("hai!");
+    expect(toTxt(pages)).toBe("Hello, world.\nkya?\nhai!");
+  });
+
+  it("ASS keeps punctuation", () => {
+    const pages = derivePages(
+      docOf([mk("Hello,", 0, 400, "1"), mk("world.", 400, 900, "2")]),
+      settings({ maxWordsPerCard: 2 }),
+    );
+    expect(toAss(pages, defaultStyle(), { width: 1080, height: 1920 })).toContain("Hello, world.");
+  });
+});
+
 describe("legacy migration + color", () => {
   it("migrates legacy transcript seconds to ms words", () => {
     const doc = legacyTranscriptToDoc({ language: "hi", words: [{ word: "Namaste", start: 0.5, end: 1.1, probability: 0.9 }, { word: "dost", start: 1.1, end: 1.6 }] });
