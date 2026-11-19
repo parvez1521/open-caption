@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CaptionDocSchema, defaultStyle, ProjectSettingsSchema } from "@capseasy/shared";
-import StudioPage, { RIGHT_TABS, transitionApplyBlocker } from "../StudioPage";
+import StudioPage, { MOBILE_EXTRA_TABS, RIGHT_TABS, transitionApplyBlocker } from "../StudioPage";
 import { startSession } from "@/features/transcribe/session";
 import type { EditorComposition } from "../compositionDoc";
 
@@ -707,6 +707,77 @@ describe("StudioPage phone first render (MA-A3-002)", () => {
       expect(media.className).toContain("before:-inset-x-1");
       expect(media.className).not.toContain("before:-inset-2");
       expect(timeline.className).toContain("before:-inset-x-1");
+    } finally {
+      unmount();
+    }
+  });
+});
+
+describe("StudioPage phone More sheet (CAP-U01)", () => {
+  const phoneMatchMedia = () => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  };
+
+  it("the More sheet lists exactly the 5 panels the phone layout otherwise loses", () => {
+    expect(MOBILE_EXTRA_TABS.map((t) => t.id)).toEqual(["motion", "titles", "stickers", "graphics", "transitions"]);
+  });
+
+  it("More is pinned beside Timeline; picking Graphics renders it in the panel area", () => {
+    phoneMatchMedia();
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio(twoClipSettings);
+    const { unmount } = renderStudio();
+    try {
+      const more = screen.getByRole("button", { name: "More" });
+      expect(more.closest('[data-testid="bottom-bar-sections"]')).toBeNull();
+      // Nothing from the 5 panels is on screen before the sheet opens.
+      expect(screen.queryByText("new-graphics-panel")).toBeNull();
+      fireEvent.click(more);
+      const sheet = screen.getByRole("dialog", { name: "More tools" });
+      expect(sheet).not.toBeNull();
+      for (const label of ["Motion", "Titles", "Stickers", "Graphics", "Transitions"]) {
+        expect(screen.getByRole("button", { name: label })).not.toBeNull();
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Graphics" }));
+      // Sheet closes, the (stubbed) panel renders in the panel area.
+      expect(screen.queryByRole("dialog", { name: "More tools" })).toBeNull();
+      expect(screen.getByText("new-graphics-panel")).not.toBeNull();
+      expect((more as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
+      // A rail section takes the panel area back.
+      fireEvent.click(screen.getByRole("button", { name: "Media" }));
+      expect(screen.queryByText("new-graphics-panel")).toBeNull();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("picking Transitions renders the real Transitions panel; Escape closes the sheet unpicked", () => {
+    phoneMatchMedia();
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio(twoClipSettings);
+    const { unmount } = renderStudio();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "More" }));
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.queryByRole("dialog", { name: "More tools" })).toBeNull();
+      expect(screen.queryByText("new-graphics-panel")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "More" }));
+      fireEvent.click(screen.getByRole("button", { name: "Transitions" }));
+      expect(screen.queryByRole("dialog", { name: "More tools" })).toBeNull();
+      // Real TransitionsPanel: "Apply …" buttons are only there once it renders.
+      expect(screen.getAllByRole("button", { name: /^Apply / }).length).toBeGreaterThan(0);
     } finally {
       unmount();
     }
