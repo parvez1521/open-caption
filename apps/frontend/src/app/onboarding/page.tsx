@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/services/auth/supabaseClient";
 import { isGuestUser } from "@/services/auth/guest";
@@ -33,6 +33,7 @@ export default function OnboardingPage() {
   const [ready, setReady] = useState(false);
   const [step, setStep] = useState(0);
   const [userType, setUserType] = useState<SurveyUserType | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     void (async () => {
@@ -43,6 +44,13 @@ export default function OnboardingPage() {
       setReady(true);
     })();
   }, [router]);
+
+  // MA-A5-006: answering unmounts the clicked button, which drops focus to
+  // <body>. Move focus to the new question heading on every step change
+  // (including the first render once ready) so keyboard users stay in the flow.
+  useEffect(() => {
+    if (ready) headingRef.current?.focus();
+  }, [step, ready]);
 
   const finish = (goal: SurveyGoal) => {
     saveOnboardingAnswers({ userType, goal });
@@ -74,7 +82,7 @@ export default function OnboardingPage() {
     <main id="main-content" className="grid min-h-[100svh] place-items-center bg-[#141412] px-6 text-center">
       <div className="flex w-full max-w-md flex-col items-center gap-5">
         <LoadingMark height={40} />
-        <p className="text-[13px] font-semibold text-[#FFFFEB]/55" aria-label={`Question ${step + 1} of ${total}`}>
+        <p className="text-[13px] font-semibold text-[#FFFFEB]/55" aria-label={`Question ${step + 1} of ${total}`} aria-live="polite">
           {step + 1} of {total}
         </p>
         <div className="flex w-full gap-2" aria-hidden="true">
@@ -82,17 +90,17 @@ export default function OnboardingPage() {
             <span key={q.id} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-[#34D399]" : "bg-[#FFFFEB]/15"}`} />
           ))}
         </div>
-        <h1 className="text-xl font-bold text-[#FFFFEB]">{question.question}</h1>
+        <h1 ref={headingRef} tabIndex={-1} className="text-xl font-bold text-[#FFFFEB]">{question.question}</h1>
         {step === 0 ? (
           <p className="text-[13px] text-[#FFFFEB]/55">Two quick questions, then your dashboard opens.</p>
         ) : null}
-        <div className="grid w-full gap-2" role="radiogroup" aria-label={question.question}>
+        {/* MA-A5-006: these are one-shot choices, not a persistent selection —
+            plain buttons, not a radiogroup with a hardcoded aria-checked. */}
+        <div className="grid w-full gap-2" role="group" aria-label={question.question}>
           {step === 0
             ? question.options.map((option) => (
                 <button
                   key={option.value}
-                  role="radio"
-                  aria-checked={false}
                   onClick={() => {
                     setUserType(option.value as SurveyUserType);
                     setStep(1);
@@ -105,8 +113,6 @@ export default function OnboardingPage() {
             : question.options.map((option) => (
                 <button
                   key={option.value}
-                  role="radio"
-                  aria-checked={false}
                   onClick={() => finish(option.value as SurveyGoal)}
                   className="rounded-2xl border border-[#FFFFEB]/12 bg-[#1E1E1B] px-5 py-4 text-left"
                 >

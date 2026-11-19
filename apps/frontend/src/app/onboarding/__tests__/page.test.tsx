@@ -41,30 +41,36 @@ describe("onboarding page", () => {
     render(<OnboardingPage />);
     expect(await screen.findByText("What best describes you?")).toBeTruthy();
     expect(screen.getByText("1 of 2")).toBeTruthy();
-    expect(screen.getByRole("radio", { name: "Creator" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Creator" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Skip" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Back/ })).toBeNull();
+    // MA-A5-006: focus lands on the Q1 heading once the survey is ready
+    expect(document.activeElement?.textContent).toBe("What best describes you?");
 
-    fireEvent.click(screen.getByRole("radio", { name: "Freelance video editor" }));
+    fireEvent.click(screen.getByRole("button", { name: "Freelance video editor" }));
     expect(await screen.findByText("What do you want to do?")).toBeTruthy();
     expect(screen.getByText("2 of 2")).toBeTruthy();
+    // MA-A5-006: the clicked option unmounts — focus must follow to the Q2 heading, not <body>
+    expect(document.activeElement?.textContent).toBe("What do you want to do?");
     expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
   });
 
   it("Back on Q2 returns to Q1 without marking done", async () => {
     render(<OnboardingPage />);
-    fireEvent.click(await screen.findByRole("radio", { name: "Creator" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Creator" }));
     await screen.findByText("What do you want to do?");
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(await screen.findByText("What best describes you?")).toBeTruthy();
+    // MA-A5-006: Back also returns focus to the Q1 heading
+    expect(document.activeElement?.textContent).toBe("What best describes you?");
     expect(window.localStorage.getItem(ONBOARDING_DONE_KEY)).toBeNull();
     expect(nav.replace).not.toHaveBeenCalled();
   });
 
   it("the last answer stores both answers, marks done, and lands on the dashboard", async () => {
     render(<OnboardingPage />);
-    fireEvent.click(await screen.findByRole("radio", { name: "Creator" }));
-    fireEvent.click(await screen.findByRole("radio", { name: "Transcribe a video or audio" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Creator" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Transcribe a video or audio" }));
     expect(nav.replace).toHaveBeenCalledWith("/dashboard");
     expect(window.localStorage.getItem(ONBOARDING_DONE_KEY)).toBe("1");
     expect(JSON.parse(window.localStorage.getItem(ONBOARDING_ANSWERS_KEY)!)).toEqual({
@@ -75,8 +81,8 @@ describe("onboarding page", () => {
 
   it("every goal finishes on the dashboard — the user picks the tool there", async () => {
     const first = render(<OnboardingPage />);
-    fireEvent.click(await screen.findByRole("radio", { name: "Teacher / educator" }));
-    fireEvent.click(await screen.findByRole("radio", { name: "Edit a video" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Teacher / educator" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit a video" }));
     expect(nav.replace).toHaveBeenCalledWith("/dashboard");
     expect(JSON.parse(window.localStorage.getItem(ONBOARDING_ANSWERS_KEY)!)).toEqual({
       userType: "teacher",
@@ -87,8 +93,8 @@ describe("onboarding page", () => {
     window.localStorage.clear();
     first.unmount();
     render(<OnboardingPage />);
-    fireEvent.click(await screen.findByRole("radio", { name: "Business / brand" }));
-    fireEvent.click(await screen.findByRole("radio", { name: "Add captions to a video" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Business / brand" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add captions to a video" }));
     expect(nav.replace).toHaveBeenCalledWith("/dashboard");
     expect(JSON.parse(window.localStorage.getItem(ONBOARDING_ANSWERS_KEY)!)).toEqual({
       userType: "business",
