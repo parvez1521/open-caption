@@ -29,14 +29,18 @@ export function Field({
       <input
         {...props}
         id={inputId}
+        // MA-A5-008 (billing pattern): the error is programmatically tied to
+        // the input — aria-invalid + aria-describedby to the error's id.
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
         className={`w-full rounded-xl border bg-[#232320] px-4 py-3 text-[14px] text-[#FFFFEB] placeholder:text-sand-500 outline-none transition-all duration-150 focus:border-emerald-accent focus:ring-1 focus:ring-emerald-accent ${
           error ? "border-red-500 bg-red-500/10" : "border-sand-200 hover:border-sand-300"
         }`}
       />
       {error ? (
-        <p className="text-[12px] text-red-400 font-medium">{error}</p>
+        <p id={`${inputId}-error`} role="alert" className="text-[12px] text-red-400 font-medium">{error}</p>
       ) : hint ? (
-        <p className="text-[12px] text-sand-500">{hint}</p>
+        <p id={`${inputId}-hint`} className="text-[12px] text-sand-500">{hint}</p>
       ) : null}
     </div>
   );
@@ -66,6 +70,9 @@ export function PasswordField({
           {...props}
           id={inputId}
           type={visible ? "text" : "password"}
+          // MA-A5-008: see Field — error tied to the input the same way.
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
           className={`w-full rounded-xl border bg-[#232320] px-4 py-3 pr-12 text-[14px] text-[#FFFFEB] placeholder:text-sand-500 outline-none transition-all duration-150 focus:border-emerald-accent focus:ring-1 focus:ring-emerald-accent ${
             error ? "border-red-500 bg-red-500/10" : "border-sand-200 hover:border-sand-300"
           }`}
@@ -104,9 +111,9 @@ export function PasswordField({
         </button>
       </div>
       {error ? (
-        <p className="text-[12px] text-red-400 font-medium">{error}</p>
+        <p id={`${inputId}-error`} role="alert" className="text-[12px] text-red-400 font-medium">{error}</p>
       ) : hint ? (
-        <p className="text-[12px] text-sand-500">{hint}</p>
+        <p id={`${inputId}-hint`} className="text-[12px] text-sand-500">{hint}</p>
       ) : null}
     </div>
   );
