@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, route, type Ctx } from "@/lib/api/http";
 import { PROJECT_COLUMNS, toApiProject } from "@/lib/api/projects";
 import { rateLimit } from "@/lib/api/rateLimit";
+import { assertOwnVideoStoragePath } from "@/lib/api/storage";
 
 /** Copies the project, its style and its captions. The new project reuses the same source video file (read-only). */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
@@ -36,6 +37,10 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   if (video) {
     sourceVideoId = (video as { id: string }).id;
     const { id: _sourceId, ...videoFields } = video as { id: string } & Record<string, unknown>;
+    // MA-A7-005: the copy inherits the source row's path verbatim — it must
+    // still satisfy the owner CHECK for this caller (a forged source path
+    // fails here with an honest error instead of at the constraint).
+    if (typeof videoFields.storage_path === "string") assertOwnVideoStoragePath(videoFields.storage_path, user.id);
     const { data: videoCopy } = await user.db
       .from("videos")
       .insert({ ...videoFields, project_id: copy.id, owner_id: user.id })

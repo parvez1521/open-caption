@@ -42,3 +42,9 @@ jobs:
           git diff --exit-code -- supabase/APPLY-ALL-SCHEMA.sql
       - name: Build
         run: pnpm --filter frontend build
+      - name: Homepage JS budget (MA-A8-006)
+        # Runs on the just-built output: measures the homepage's shipped JS
+        # from its prerendered HTML (same method as the audit's live
+        # measurement) and fails when it exceeds the budget in
+        # apps/frontend/scripts/check-js-budget.mjs.
+        run: pnpm --filter frontend check:js-budget
