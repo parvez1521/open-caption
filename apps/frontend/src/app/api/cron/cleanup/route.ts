@@ -78,6 +78,13 @@ export async function GET(req: Request) {
       }
       // downloads of removed exports would 404: mark them expired
       await admin.from("exports").update({ status_v2: "expired" }).in("storage_path", names);
+      // MA-A7-001: a swept cloud copy must not leave a stale pointer behind —
+      // sync answers synced:true for any non-null cloud_storage_path, so
+      // clear it for every deleted object (only rows whose pointer names a
+      // deleted object match, so non-cloud paths are untouched).
+      if (bucket === "media") {
+        await admin.from("videos").update({ cloud_storage_path: null, cloud_synced_at: null }).in("cloud_storage_path", names);
+      }
     }
     oldFiles += rows.length;
     if (rows.length < 1000) break;

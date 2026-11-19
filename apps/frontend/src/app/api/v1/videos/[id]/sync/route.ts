@@ -2,7 +2,8 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { effectivePlanId, syncCapBytes } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, route, type Ctx } from "@/lib/api/http";
-import { cloudVideoPath, signedPut } from "@/lib/api/storage";
+import { cloudVideoPath, objectSize, signedPut } from "@/lib/api/storage";
+import { getAdmin } from "@/lib/supabase/admin";
 
 /**
  * Step 1 of cloud sync: hand back a signed upload URL for this video's cloud
@@ -28,8 +29,21 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const { data: profile } = await user.db.from("profiles").select("plan, plan_expires_at").eq("id", user.id).maybeSingle();
   const cap = syncCapBytes(effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at));
 
-  // already playable from the server: an old server upload, or a previous sync
-  if (video.cloud_storage_path) return ok({ synced: true, videoId, path: video.cloud_storage_path, syncCapBytes: cap });
+  // already playable from the server: an old server upload, or a previous sync.
+  // MA-A7-001: never trust a non-null cloud_storage_path on its own — the
+  // daily cleanup used to delete live cloud copies, leaving a stale pointer
+  // that answered synced:true for an object that no longer exists. Verify
+  // the object is still there; if it is gone, clear the pointer and fall
+  // through so the video can be synced again instead of reporting success.
+  if (video.cloud_storage_path) {
+    const cloudSize = await objectSize(video.cloud_storage_path);
+    if (cloudSize !== null && cloudSize > 0) return ok({ synced: true, videoId, path: video.cloud_storage_path, syncCapBytes: cap });
+    const now = new Date().toISOString();
+    await getAdmin()
+      .from("videos")
+      .update({ cloud_storage_path: null, cloud_synced_at: null, updated_at: now })
+      .eq("id", videoId);
+  }
   if (!video.storage_path.startsWith("local:")) return ok({ synced: true, videoId, path: video.storage_path, syncCapBytes: cap });
 
   if (video.file_size == null) throw new ApiFailure("CONFLICT", "This video has no recorded size, so sync can't check the cap. Re-upload it to sync.");

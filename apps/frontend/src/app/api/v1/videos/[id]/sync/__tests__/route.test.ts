@@ -19,6 +19,9 @@ const state = vi.hoisted(() => ({
   signedPutCalls: [] as string[],
   objectSizeCalls: [] as string[],
   objectSizeValue: null as number | null,
+  // per-path override for objectSize (a stale cloud pointer can name a
+  // different extension than the deterministic path confirm re-checks)
+  objectSizeByPath: {} as Record<string, number | null>,
 }));
 
 vi.mock("server-only", () => ({}));
@@ -37,6 +40,7 @@ vi.mock("@/lib/api/storage", async (importOriginal) => {
     },
     objectSize: async (path: string) => {
       state.objectSizeCalls.push(path);
+      if (path in state.objectSizeByPath) return state.objectSizeByPath[path] as number | null;
       return state.objectSizeValue;
     },
   };
@@ -98,6 +102,7 @@ beforeEach(() => {
   state.signedPutCalls = [];
   state.objectSizeCalls = [];
   state.objectSizeValue = null;
+  state.objectSizeByPath = {};
 });
 
 describe("POST /videos/:id/sync — request a cloud copy", () => {
@@ -144,14 +149,32 @@ describe("POST /videos/:id/sync — request a cloud copy", () => {
     expect(state.signedPutCalls).toEqual(["user-1/proj-1/cloud/vid-1.mp4"]);
   });
 
-  it("answers synced:true with no upload for an already-synced video", async () => {
+  it("answers synced:true with no upload for an already-synced video whose cloud copy still exists", async () => {
+    state.objectSizeValue = 40 * MB;
     state.video = localVideo({ cloud_storage_path: "user-1/proj-1/cloud/vid-1.mp4" });
     const res = await call(requestSync);
     expect(res.status).toBe(200);
     const json = (await res.json()) as { data: { synced: boolean; path: string } };
     expect(json.data.synced).toBe(true);
     expect(json.data.path).toBe("user-1/proj-1/cloud/vid-1.mp4");
+    expect(state.objectSizeCalls).toEqual(["user-1/proj-1/cloud/vid-1.mp4"]);
     expect(state.signedPutCalls).toHaveLength(0);
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it("MA-A7-001: does not answer synced:true for a stale cloud pointer — clears it and offers a fresh upload", async () => {
+    state.objectSizeValue = null;
+    state.video = localVideo({ cloud_storage_path: "user-1/proj-1/cloud/vid-1.mp4" });
+    const res = await call(requestSync);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { data: { synced: boolean; uploadUrl: string; path: string } };
+    expect(json.data.synced).toBe(false);
+    expect(json.data.path).toBe("user-1/proj-1/cloud/vid-1.mp4");
+    expect(json.data.uploadUrl).toContain("storage.test");
+    expect(state.signedPutCalls).toEqual(["user-1/proj-1/cloud/vid-1.mp4"]);
+    expect(state.updates).toHaveLength(1);
+    expect(state.updates[0]!.row.cloud_storage_path).toBeNull();
+    expect(state.updates[0]!.row.cloud_synced_at).toBeNull();
   });
 
   it("answers synced:true with no upload for an old server upload (already playable cross-device)", async () => {
@@ -178,14 +201,41 @@ describe("POST /videos/:id/sync/confirm — record the cloud copy", () => {
     expect(res.status).toBe(404);
   });
 
-  it("answers synced:true with no storage check for an already-synced video", async () => {
+  it("answers synced:true for an already-synced video whose cloud copy still exists", async () => {
+    state.objectSizeValue = 40 * MB;
     state.video = localVideo({ cloud_storage_path: "user-1/proj-1/cloud/vid-1.mp4" });
     const res = await call(confirmSync);
     expect(res.status).toBe(200);
     const json = (await res.json()) as { data: { synced: boolean } };
     expect(json.data.synced).toBe(true);
-    expect(state.objectSizeCalls).toHaveLength(0);
+    expect(state.objectSizeCalls).toEqual(["user-1/proj-1/cloud/vid-1.mp4"]);
     expect(state.updates).toHaveLength(0);
+  });
+
+  it("MA-A7-001: clears a stale cloud pointer instead of answering synced:true, and refuses when nothing was uploaded", async () => {
+    state.objectSizeValue = null;
+    state.video = localVideo({ cloud_storage_path: "user-1/proj-1/cloud/vid-1.mp4" });
+    const res = await call(confirmSync);
+    expect(res.status).toBe(409);
+    expect(state.updates).toHaveLength(1);
+    expect(state.updates[0]!.row.cloud_storage_path).toBeNull();
+    expect(state.updates[0]!.row.cloud_synced_at).toBeNull();
+  });
+
+  it("MA-A7-001: a stale pointer naming a different file does not block recording a fresh upload", async () => {
+    state.objectSizeByPath = {
+      "user-1/proj-1/cloud/vid-1.mov": null,
+      "user-1/proj-1/cloud/vid-1.mp4": 40 * MB,
+    };
+    state.video = localVideo({ cloud_storage_path: "user-1/proj-1/cloud/vid-1.mov" });
+    const res = await call(confirmSync);
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { data: { synced: boolean; path: string } };
+    expect(json.data.synced).toBe(true);
+    expect(json.data.path).toBe("user-1/proj-1/cloud/vid-1.mp4");
+    expect(state.updates).toHaveLength(2);
+    expect(state.updates[0]!.row.cloud_storage_path).toBeNull();
+    expect(state.updates[1]!.row.cloud_storage_path).toBe("user-1/proj-1/cloud/vid-1.mp4");
   });
 
   it("refuses to record the copy when the object is not in storage", async () => {
