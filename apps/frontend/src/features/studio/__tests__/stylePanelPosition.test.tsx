@@ -88,3 +88,26 @@ describe("StylePanel — bulk caption position", () => {
     expect(fn({ x: 0.5, y: 0.72 })).toEqual({ x: 0.5, y: 0.2 });
   });
 });
+
+describe("StylePanel — Case (text case)", () => {
+  it("offers Small Caps alongside As spoken / UPPERCASE / lowercase / Title Case", () => {
+    renderStyle();
+    const select = screen.getByLabelText("Case") as HTMLSelectElement;
+    expect(Array.from(select.options).map((o) => o.text)).toEqual([
+      "As spoken",
+      "UPPERCASE",
+      "lowercase",
+      "Title Case",
+      "Small Caps",
+    ]);
+  });
+
+  it("choosing Small Caps patches the style casing to smallcaps", () => {
+    const { patch } = renderStyle();
+    const select = screen.getByLabelText("Case") as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "smallcaps" } });
+    expect(patch).toHaveBeenCalled();
+    const next = patch.mock.results[0]!.value as ReturnType<typeof defaultStyle>;
+    expect(next.casing).toBe("smallcaps");
+  });
+});

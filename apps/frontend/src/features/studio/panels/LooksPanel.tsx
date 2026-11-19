@@ -25,6 +25,7 @@ function swatchStyle(look: LookDefinition): React.CSSProperties {
     fontWeight: s.fontWeight,
     color: fill,
     textTransform: s.casing === "upper" ? "uppercase" : s.casing === "lower" ? "lowercase" : "none",
+    fontVariant: s.casing === "smallcaps" ? "small-caps" : undefined,
     WebkitTextStroke: s.stroke.enabled ? `${Math.min(2, s.stroke.width / 2)}px ${s.stroke.color}` : undefined,
     paintOrder: "stroke fill",
     textShadow: s.shadows[0] ? `0 ${Math.min(3, s.shadows[0].y)}px ${Math.min(6, s.shadows[0].blur)}px ${s.shadows[0].color}` : undefined,

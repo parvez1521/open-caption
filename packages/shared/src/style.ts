@@ -30,7 +30,7 @@ export const EXITS = ["none", "fade", "fall", "zoom-out", "blur-out", "slide-up"
 export const EASINGS = ["linear", "outQuad", "outCubic", "outExpo", "inOutCubic", "spring"] as const;
 
 const Color = z.string();
-const Casing = z.enum(["none", "upper", "lower", "title", "sentence"]);
+const Casing = z.enum(["none", "upper", "lower", "title", "sentence", "smallcaps"]);
 const Stroke = z.object({
   enabled: z.boolean().default(false),
   width: z.number().min(0).max(40).default(4),

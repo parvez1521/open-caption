@@ -2,9 +2,9 @@ import React from "react";
 import { random } from "remotion";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
-import { applyCasing, withAlpha } from "@motion-ai/caption-engine/core";
+import { withAlpha } from "@motion-ai/caption-engine/core";
 import { combineMotion, easeFn, effectiveIntensity, exitStyle, progress, showAt } from "../motion";
-import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf, smallCapsCss } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 import { clipTextCss, innerFill } from "./Glow";
 
@@ -44,7 +44,7 @@ const capsWords = (words: Word[], style: CaptionStyleV2): CapsWord[] => {
   });
 };
 
-const scriptText = (w: Word, style: CaptionStyleV2) => applyCasing(displayText(w, style, "none"), style.hero.casing ?? "title");
+const scriptText = (w: Word, style: CaptionStyleV2) => displayText(w, style, style.hero.casing ?? "title");
 
 const fontOf = (style: CaptionStyleV2, script: boolean, size: number, sc: number): React.CSSProperties => ({
   fontFamily: famCss(script ? style.hero.fontId ?? "Pacifico" : style.fontId),
@@ -53,6 +53,7 @@ const fontOf = (style: CaptionStyleV2, script: boolean, size: number, sc: number
   fontSize: size,
   lineHeight: style.lineHeight,
   letterSpacing: script ? 0 : style.letterSpacing * sc,
+  ...smallCapsCss(style),
 });
 
 const gapOf = (style: CaptionStyleV2, size: number, sc: number) => size * 0.24 + style.wordSpacing * sc;

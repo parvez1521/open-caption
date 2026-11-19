@@ -11,7 +11,6 @@ import { shadowColorOf } from "@capseasy/shared";
 import { combineMotion, easeFn, effectiveIntensity, exitStyle } from "../motion";
 import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
-import { applyCasing } from "@motion-ai/caption-engine/core";
 import { keyframes, keyWordIndex, withAlpha } from "./kit";
 
 /** WhiteStair editor px -> CaptionsEasy reference px (1080 short edge) */
@@ -171,7 +170,8 @@ export const makeCtx = (p: PageRenderProps): Ctx => ({
 // ---------------------------------------------------------------- text helpers
 /** words of the card as display text (casing + punctuation), with an optional casing override */
 export const textsOf = (ws: Word[], style: CaptionStyleV2, casing?: CaptionStyleV2["casing"]) =>
-  ws.map((w) => (casing ? applyCasing(displayText(w, style, "none"), casing) : displayText(w, style)));
+  // displayText (not applyCasing on a pre-stripped string) so a word the user typed keeps its case
+  ws.map((w) => displayText(w, style, casing ?? style.casing));
 
 /** [before, key, after] around the card's key word (hero emphasis, engine hero, else longest word) */
 export function splitKey(page: Page): [Word[], Word[], Word[]] {

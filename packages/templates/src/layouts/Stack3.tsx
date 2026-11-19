@@ -1,8 +1,7 @@
 import React from "react";
 import { combineMotion, effectiveIntensity, entranceStyle, exitStyle, SPRINGS, springMs } from "../motion";
 import { fitSize } from "../measure";
-import { backgroundCss, baseTextCss, containerCss, displayText, famCss, fillCss, layoutBox, scaleOf, shadowCss, strokeCss } from "../text";
-import { applyCasing } from "@motion-ai/caption-engine/core";
+import { backgroundCss, baseTextCss, containerCss, displayText, famCss, fillCss, layoutBox, scaleOf, shadowCss, smallCapsCss, strokeCss } from "../text";
 import type { PageRenderProps } from "../types";
 import { STACK_SKINS, type StackSkin } from "./skins";
 import { WordSpan } from "./WordSpan";
@@ -22,8 +21,7 @@ export const Stack3Layout: React.FC<PageRenderProps & { skinId: string }> = ({ p
   const line1 = words.slice(0, heroIdx);
   const line3 = words.slice(heroIdx + 1);
 
-  const heroRaw = displayText(hero!, style, "none");
-  const heroText = skin.heroCasing === "upper" ? heroRaw.toUpperCase() : skin.heroCasing === "lower" ? heroRaw.toLowerCase() : applyCasing(heroRaw, style.casing);
+  const heroText = displayText(hero!, style, skin.heroCasing === "upper" ? "upper" : skin.heroCasing === "lower" ? "lower" : style.casing);
 
   const bodyFont = skin.bodyFont(style);
   const bodyWeight = skin.bodyWeight(style);
@@ -108,6 +106,7 @@ export const Stack3Layout: React.FC<PageRenderProps & { skinId: string }> = ({ p
               position: "relative", zIndex: 2, fontFamily: famCss(heroFont), fontSize: heroSize, fontWeight: heroWeight,
               lineHeight: 1.05, opacity: heroVisible ? 1 : 0, transform: `scale(${0.85 + heroPop * 0.15})`,
               letterSpacing: style.letterSpacing * sc, wordSpacing: style.wordSpacing * sc,
+              ...smallCapsCss(style),
               ...skin.heroCss(style, heroSize, sc),
             }}
           >

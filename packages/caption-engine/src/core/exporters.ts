@@ -1,4 +1,4 @@
-import type { CaptionStyleV2, Page } from "@capseasy/shared";
+import type { CaptionStyleV2, Page, Word } from "@capseasy/shared";
 import { parseHex } from "./color";
 
 export type Casing = CaptionStyleV2["casing"];
@@ -9,8 +9,25 @@ export function applyCasing(text: string, casing: Casing): string {
     case "lower": return text.toLowerCase();
     case "title": return text.replace(/\b\p{L}/gu, (c) => c.toUpperCase());
     case "sentence": return text.charAt(0).toUpperCase() + text.slice(1);
+    // Small caps is a rendering property, not a string transform: the text stays as
+    // typed and the font renders it as small capitals (see smallCapsCss).
+    case "smallcaps": return text;
     default: return text;
   }
+}
+
+/**
+ * Render-time casing for one word. A word the user typed keeps exactly the case
+ * they typed: the look's automatic whole-word casing (lowercase / UPPERCASE) must
+ * not silently undo an explicit edit (owner 2026-11-19 — a capital typed in the
+ * word editor "did not stick", every word stayed lowercase). ASR words still
+ * follow the look. Title/Sentence only touch first letters, so they keep their
+ * current behaviour for every word.
+ */
+export function applyWordCasing(w: Word, casing: Casing): string {
+  const text = w.text.trim();
+  if (w.source?.text === "user" && (casing === "lower" || casing === "upper")) return text;
+  return applyCasing(text, casing);
 }
 
 const pad = (n: number, w = 2) => String(Math.trunc(n)).padStart(w, "0");
@@ -20,7 +37,15 @@ export function fmtSrtTime(ms: number, sep = ","): string {
   return `${pad(t / 3600000)}:${pad((t % 3600000) / 60000)}:${pad((t % 60000) / 1000)}${sep}${pad(t % 1000, 3)}`;
 }
 
-const pageText = (p: Page, casing: Casing) => p.lines.map((l) => applyCasing(l.map((w) => w.text.trim()).join(" "), casing)).join("\n");
+/**
+ * Sentence casing is line-scoped (only the line's first letter is touched, so it
+ * can never destroy a typed capital); every other casing is applied per word so a
+ * user-typed word keeps its case (see applyWordCasing).
+ */
+const pageText = (p: Page, casing: Casing) =>
+  casing === "sentence"
+    ? p.lines.map((l) => applyCasing(l.map((w) => w.text.trim()).join(" "), casing)).join("\n")
+    : p.lines.map((l) => l.map((w) => applyWordCasing(w, casing)).join(" ")).join("\n");
 
 export interface TextExportOptions { casing?: Casing }
 
@@ -75,9 +100,9 @@ export function toAss(pages: Page[], style: CaptionStyleV2, o: AssOptions): stri
   const events = pages.map((p) => {
     let text: string;
     if (o.karaoke) {
-      text = p.words.map((w) => `{\\k${Math.max(1, Math.round((w.endMs - w.startMs) / 10))}}${applyCasing(w.text.trim(), o.casing ?? style.casing)} `).join("").trim();
+      text = p.words.map((w) => `{\\k${Math.max(1, Math.round((w.endMs - w.startMs) / 10))}}${applyWordCasing(w, o.casing ?? style.casing)} `).join("").trim();
     } else {
-      text = p.lines.map((l) => applyCasing(l.map((w) => w.text.trim()).join(" "), o.casing ?? style.casing)).join("\\N");
+      text = p.lines.map((l) => l.map((w) => applyWordCasing(w, o.casing ?? style.casing)).join(" ")).join("\\N");
     }
     return `Dialogue: 0,${fmtAssTime(p.startMs)},${fmtAssTime(p.endMs)},Default,,0,0,0,,{\\an5\\pos(${cx},${cy})}${text}`;
   });

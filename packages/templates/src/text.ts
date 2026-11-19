@@ -1,7 +1,7 @@
 import type React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
-import { applyCasing, withAlpha } from "@motion-ai/caption-engine/core";
+import { applyCasing, applyWordCasing, withAlpha } from "@motion-ai/caption-engine/core";
 import type { Canvas } from "./types";
 import { fontStack } from "./fontCatalog";
 
@@ -17,8 +17,15 @@ export function stripPunctuation(text: string): string {
 
 export function displayText(w: Word, style: CaptionStyleV2, casing: CaptionStyleV2["casing"] = style.casing): string {
   const keep = style.templateOptions.keepPunctuation === true;
-  return applyCasing(keep ? w.text.trim() : stripPunctuation(w.text), casing);
+  const raw = keep ? w.text.trim() : stripPunctuation(w.text);
+  // A word the user typed keeps the case they typed (see applyWordCasing): the
+  // look's automatic casing must not silently undo an explicit edit.
+  return applyWordCasing({ ...w, text: raw }, casing);
 }
+
+/** Small caps is a rendering property, not a string transform — spread wherever caption text is painted. */
+export const smallCapsCss = (style: CaptionStyleV2): React.CSSProperties =>
+  style.casing === "smallcaps" ? { fontVariant: "small-caps" } : {};
 
 export function fillCss(fill: CaptionStyleV2["fill"]): React.CSSProperties {
   if (fill.type === "solid") return { color: fill.color };
@@ -62,6 +69,7 @@ export function baseTextCss(style: CaptionStyleV2, sc: number, sizePx: number): 
     lineHeight: style.lineHeight,
     letterSpacing: style.letterSpacing * sc,
     wordSpacing: style.wordSpacing * sc,
+    ...smallCapsCss(style),
     ...fillCss(style.fill),
     ...strokeCss(style.stroke, sc),
     textShadow: shadowCss(style, sc),

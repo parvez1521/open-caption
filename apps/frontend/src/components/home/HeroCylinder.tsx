@@ -40,6 +40,7 @@ const CylinderPoster: React.FC<{ look: LookDefinition }> = ({ look }) => {
           fontWeight: s.fontWeight,
           color: fill,
           textTransform: s.casing === "upper" ? "uppercase" : s.casing === "lower" ? "lowercase" : "none",
+          fontVariant: s.casing === "smallcaps" ? "small-caps" : undefined,
         }}
       >
         {look.templateId === "word_by_word" ? "WATCH" : "Watch this"} <span style={{ color: s.active.color }}>now</span>

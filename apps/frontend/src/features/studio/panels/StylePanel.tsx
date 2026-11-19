@@ -120,7 +120,7 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
         <FontPicker label="Font" value={style.fontId} onChange={(v) => patch((s) => ({ ...s, fontId: v }))} />
         <Slider label="Size" value={style.fontSize} min={24} max={140} onChange={(v) => patch((s) => ({ ...s, fontSize: v }))} />
         {show("weight") ? <Slider label="Weight" value={style.fontWeight} min={300} max={900} step={100} onChange={(v) => patch((s) => ({ ...s, fontWeight: v }))} /> : null}
-        <Select label="Case" value={style.casing} options={[{ value: "none", label: "As spoken" }, { value: "upper", label: "UPPERCASE" }, { value: "lower", label: "lowercase" }, { value: "title", label: "Title Case" }]} onChange={(v) => patch((s) => ({ ...s, casing: v as CaptionStyleV2["casing"] }))} />
+        <Select label="Case" value={style.casing} options={[{ value: "none", label: "As spoken" }, { value: "upper", label: "UPPERCASE" }, { value: "lower", label: "lowercase" }, { value: "title", label: "Title Case" }, { value: "smallcaps", label: "Small Caps" }]} onChange={(v) => patch((s) => ({ ...s, casing: v as CaptionStyleV2["casing"] }))} />
         {show("align") ? <Select label="Align" value={style.align} options={opts(["left", "center", "right"])} onChange={(v) => patch((s) => ({ ...s, align: v as CaptionStyleV2["align"] }))} /> : null}
         <Slider label="Letter spacing" value={style.letterSpacing} min={-4} max={20} step={0.5} onChange={(v) => patch((s) => ({ ...s, letterSpacing: v }))} />
         <Slider label="Word spacing" value={style.wordSpacing} min={-10} max={40} step={1} onChange={(v) => patch((s) => ({ ...s, wordSpacing: v }))} />

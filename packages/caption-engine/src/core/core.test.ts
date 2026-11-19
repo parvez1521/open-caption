@@ -4,7 +4,7 @@ import {
   autoEmoji, clearAutoEmoji, emojiFor,
   applyFillerFilter, applyProfanity, breakLines, contrastRatio, derivePages, detectEmotion, findReplace, fromWhisperVerboseJson,
   fromWhisperCaptions, importSubtitles, insertWordAfter, legacyStyleToV2, legacyTranscriptToDoc, mergeWithNext, mergeWithPrevious, normalizeTokens,
-  pageAt, pickHeroIndex, readMs, retimeRun, retimeWord, setHidden, setWordText, shiftAllWords, shiftWordsByIds, deleteWordsByIds, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten,
+  pageAt, pickHeroIndex, readMs, retimeRun, retimeWord, setHidden, setWordText, shiftAllWords, shiftWordsByIds, deleteWordsByIds, splitCardAt, toAss, toSrt, toTxt, toVtt, lighten, applyCasing,
 } from "./index";
 
 const mk = (text: string, startMs: number, endMs: number, id = text + startMs): Word => ({ id, text, startMs, endMs });
@@ -508,6 +508,34 @@ describe("exporters + import", () => {
     expect(ass).toContain("Style: Default,Anton,");
     expect(ass).toContain("\\pos(540,960)");
     expect(ass).toContain("HELLO WORLD");
+  });
+});
+
+describe("user-typed case survives render + export (owner 2026-11-19)", () => {
+  // the exact user flow: ASR transcribed "hello", the owner edited the word to "Hello"
+  const edited = setWordText(docOf([mk("hello", 0, 400, "1"), mk("world", 400, 900, "2")]), "1", "Hello");
+  const pages = derivePages(edited, settings({ maxWordsPerCard: 2 }));
+
+  it("the edit itself stores the capital", () => {
+    expect(edited.words[0]!.text).toBe("Hello");
+    expect(edited.words[0]!.source?.text).toBe("user");
+  });
+
+  it("SRT/VTT/TXT under a lowercase look keep the typed capital, ASR words still lowercase", () => {
+    expect(toSrt(pages, { casing: "lower" })).toContain("Hello world");
+    expect(toVtt(pages, { casing: "lower" })).toContain("Hello world");
+    expect(toTxt(pages, { casing: "lower" })).toBe("Hello world");
+    expect(toSrt(pages, { casing: "upper" })).toContain("Hello WORLD");
+  });
+
+  it("ASS under a lowercase look keeps the typed capital", () => {
+    const ass = toAss(pages, defaultStyle(), { width: 1080, height: 1920, casing: "lower" });
+    expect(ass).toContain("Hello world");
+  });
+
+  it("applyCasing leaves text untouched for smallcaps (the CSS renders it)", () => {
+    expect(applyCasing("Hello World", "smallcaps")).toBe("Hello World");
+    expect(applyCasing("Hello World", "lower")).toBe("hello world");
   });
 });
 

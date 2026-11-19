@@ -1,9 +1,9 @@
 import React from "react";
 import type { CaptionStyleV2, Word } from "@capseasy/shared";
 import { shadowColorOf } from "@capseasy/shared";
-import { applyCasing, darken, lighten, withAlpha } from "@motion-ai/caption-engine/core";
+import { darken, lighten, withAlpha } from "@motion-ai/caption-engine/core";
 import { combineMotion, effectiveIntensity, exitStyle, progress, showAt, SPRINGS, springMs } from "../motion";
-import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf } from "../text";
+import { backgroundCss, containerCss, displayText, famCss, layoutBox, scaleOf, smallCapsCss } from "../text";
 import type { MeasureFn, PageRenderProps } from "../types";
 
 /*
@@ -163,13 +163,13 @@ function fontCss(style: CaptionStyleV2, accent: boolean, sizePx: number, sc: num
     fontSize: sizePx,
     lineHeight: style.lineHeight,
     letterSpacing: style.letterSpacing * sc,
+    ...smallCapsCss(style),
   };
 }
 
-const pieceText = (w: Word, style: CaptionStyleV2, accent: boolean) => {
-  const raw = displayText(w, style, "none");
-  return applyCasing(raw, accent ? style.hero.casing ?? (style.casing === "upper" ? "lower" : style.casing) : style.casing);
-};
+const pieceText = (w: Word, style: CaptionStyleV2, accent: boolean) =>
+  // displayText (not applyCasing on a pre-stripped string) so a word the user typed keeps its case
+  displayText(w, style, accent ? style.hero.casing ?? (style.casing === "upper" ? "lower" : style.casing) : style.casing);
 
 function rowWidth(pieces: Piece[], style: CaptionStyleV2, size: number, accentSize: number, sc: number, measure: MeasureFn): number {
   let w = 0;
@@ -324,7 +324,7 @@ export const GlowBehindLayout: React.FC<PageRenderProps> = ({ page, timeMs, styl
   const heroIdx = Math.min(page.heroIndex, words.length - 1);
   const heroWord = words[heroIdx]!;
   const others = words.filter((_, i) => i !== heroIdx);
-  const heroText = applyCasing(displayText(heroWord, style, "none"), style.hero.casing ?? "upper");
+  const heroText = displayText(heroWord, style, style.hero.casing ?? "upper");
 
   const heroFont = fontCss(style, true, 10, sc);
   const heroItalic = style.templateOptions.accentItalic === true ? "italic" : "normal";
