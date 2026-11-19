@@ -1,0 +1,44 @@
+# MA-A8-009: minimal CI — install + typecheck + test + build on every push
+# and pull request. Public repo, free ubuntu runners. Additive only: it does
+# not deploy anything and does not touch the Vercel deploy behaviour.
+#
+# Scope matches the audit gates: the frontend workspace only. The CLI
+# packages are out of scope for this repo's CI (owner call, MA-A1-011) and
+# their suite carries known pre-existing failures, so running them here
+# would keep the pipeline red from day one.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.8.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm --filter frontend typecheck
+      - name: Test
+        run: pnpm --filter frontend test
+      - name: APPLY-ALL-SCHEMA.sql drift check (MA-A7-003)
+        # The bundle is generated from supabase/migrations/ — regenerate and
+        # fail if the committed file differs, so it can never go stale again.
+        run: |
+          python3 supabase/generate-apply-all.py
+          git diff --exit-code -- supabase/APPLY-ALL-SCHEMA.sql
+      - name: Build
+        run: pnpm --filter frontend build
