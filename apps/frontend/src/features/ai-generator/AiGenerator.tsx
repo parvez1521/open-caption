@@ -307,7 +307,7 @@ export default function AiGenerator() {
               onChange={(e) => setPrompt(e.target.value)}
               placeholder={copy.placeholder}
               rows={4}
-              className="mt-2 w-full rounded-2xl border border-white/15 bg-[#1C1C1A] p-4 text-[15px] leading-relaxed text-[#FFFFEB] placeholder:text-[#FFFFEB]/40"
+              className="mt-2 w-full rounded-2xl border border-white/15 bg-[#1C1C1A] p-4 text-[15px] leading-relaxed text-[#FFFFEB] placeholder:text-[#FFFFEB]/50"
             />
             {validation ? (
               <p role="alert" className="mt-2 text-[14px] text-[#FFA946]">

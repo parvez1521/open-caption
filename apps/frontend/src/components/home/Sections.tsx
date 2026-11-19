@@ -483,7 +483,7 @@ export function ClipperSection() {
                 </div>
               ))}
             </div>
-            <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/45">Silences split runs · short runs merge · long runs split on pauses</p>
+            <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/50">Silences split runs · short runs merge · long runs split on pauses</p>
           </div>
         </div>
       </div>
@@ -510,7 +510,7 @@ export function TranscribeSection() {
                 </div>
               ))}
             </div>
-            <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/45">TXT · SRT · VTT downloads · 14 languages</p>
+            <p className="mt-5 font-mono text-[11px] leading-relaxed text-[#FFFFEB]/50">TXT · SRT · VTT downloads · 14 languages</p>
           </div>
           <div className="lg:order-2">
             <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight text-[#FFFFEB] sm:text-5xl">
