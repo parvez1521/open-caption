@@ -10,19 +10,25 @@ export function Field({
   label,
   error,
   hint,
+  id,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
   error?: string | null;
   hint?: string;
 }) {
+  // MA-A5-001: the label must be programmatically associated with its input —
+  // an explicit id wins, otherwise one is derived from the label so every
+  // caller gets a matching htmlFor/id pair even if it passes none.
+  const inputId = id ?? `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   return (
     <div className="space-y-1.5">
-      <label className="block text-[13px] font-medium text-sand-700">
+      <label htmlFor={inputId} className="block text-[13px] font-medium text-sand-700">
         {label}
       </label>
       <input
         {...props}
+        id={inputId}
         className={`w-full rounded-xl border bg-[#232320] px-4 py-3 text-[14px] text-[#FFFFEB] placeholder:text-sand-500 outline-none transition-all duration-150 focus:border-emerald-accent focus:ring-1 focus:ring-emerald-accent ${
           error ? "border-red-500 bg-red-500/10" : "border-sand-200 hover:border-sand-300"
         }`}
@@ -40,6 +46,7 @@ export function PasswordField({
   label,
   error,
   hint,
+  id,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement> & {
   label: string;
@@ -47,14 +54,17 @@ export function PasswordField({
   hint?: string;
 }) {
   const [visible, setVisible] = useState(false);
+  // MA-A5-001: see Field — label/input association, explicit id or derived.
+  const inputId = id ?? `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
   return (
     <div className="space-y-1.5">
-      <label className="block text-[13px] font-medium text-sand-700">
+      <label htmlFor={inputId} className="block text-[13px] font-medium text-sand-700">
         {label}
       </label>
       <div className="relative">
         <input
           {...props}
+          id={inputId}
           type={visible ? "text" : "password"}
           className={`w-full rounded-xl border bg-[#232320] px-4 py-3 pr-12 text-[14px] text-[#FFFFEB] placeholder:text-sand-500 outline-none transition-all duration-150 focus:border-emerald-accent focus:ring-1 focus:ring-emerald-accent ${
             error ? "border-red-500 bg-red-500/10" : "border-sand-200 hover:border-sand-300"

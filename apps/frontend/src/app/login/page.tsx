@@ -283,6 +283,7 @@ export default function LoginPage() {
 
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4" noValidate>
           <Field
+            id="login-email"
             label="Email Address"
             type="email"
             value={email}
@@ -295,6 +296,7 @@ export default function LoginPage() {
           />
 
           <PasswordField
+            id="login-password"
             label="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

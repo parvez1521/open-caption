@@ -67,6 +67,7 @@ export default function ForgotPasswordPage() {
         {error && <ErrorNote>{error}</ErrorNote>}
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <Field
+            id="forgot-email"
             label="Email"
             type="email"
             value={email}

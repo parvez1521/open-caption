@@ -113,6 +113,7 @@ export default function ResetPasswordPage() {
         {error && <ErrorNote>{error}</ErrorNote>}
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <PasswordField
+            id="reset-new-password"
             label="New password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -122,6 +123,7 @@ export default function ResetPasswordPage() {
             disabled={loading}
           />
           <PasswordField
+            id="reset-confirm-password"
             label="Confirm new password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}

@@ -106,10 +106,11 @@ export default function SettingsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-1.5">
-                  <label className="block font-sora text-[12px] font-semibold text-sand-800">
+                  <label htmlFor="settings-display-name" className="block font-sora text-[12px] font-semibold text-sand-800">
                     Display name
                   </label>
                   <input
+                    id="settings-display-name"
                     type="text"
                     value={displayName}
                     onChange={(e) => {
@@ -120,10 +121,11 @@ export default function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block font-sora text-[12px] font-semibold text-sand-800">
+                  <label htmlFor="settings-email" className="block font-sora text-[12px] font-semibold text-sand-800">
                     Email
                   </label>
                   <input
+                    id="settings-email"
                     type="email"
                     value={email}
                     disabled
