@@ -13,9 +13,8 @@ import { AD_CONSENT_EVENT, readAdConsent } from "@/lib/adConsent";
  * code is loaded and no ad request is made. There are no ad slots yet,
  * so this is only the loader; slots will need the same gate.
  *
- * GA4 is deliberately NOT gated here and NOT touched by this component:
- * it stays a plain script in the root layout's <head>, loading whenever
- * its env var is set, regardless of ad consent.
+ * GA4 is gated the same way by its own loader (components/ads/GaLoader.tsx),
+ * on the same stored choice; this component only handles AdSense.
  */
 export function AdSenseLoader({ publisherId }: { publisherId: string | undefined }) {
   useEffect(() => {

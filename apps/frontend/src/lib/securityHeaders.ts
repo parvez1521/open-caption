@@ -40,9 +40,10 @@
  *   connect-src). Permissions-Policy lists no `identity-credentials-get` directive, so
  *   FedCM is allowed by default — deliberately NOT added as `()` (that would block the
  *   FedCM chooser the GIS button uses with `use_fedcm_for_prompt: true`).
- * - Google Analytics 4 + AdSense (2026-11-15 CSP fix): the root layout
- *   (app/layout.tsx) loads the GA4 tag from www.googletagmanager.com and the
- *   AdSense loader from pagead2.googlesyndication.com — both script-src.
+ * - Google Analytics 4 + AdSense (2026-11-15 CSP fix): the GaLoader /
+ *   AdSenseLoader client components inject the GA4 tag from
+ *   www.googletagmanager.com and the AdSense loader from
+ *   pagead2.googlesyndication.com — both script-src.
  *   GA4 beacons go to www.google-analytics.com / *.google-analytics.com
  *   (connect-src). Without these the tags render in the HTML but the browser
  *   blocks them, so GA4 Realtime stays at 0 users. No ad slots exist in the
@@ -91,8 +92,9 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
     // The chooser then says "to continue to captionit.in" instead of the
     // Supabase auth host — the 2026-11-13 Google sign-in branding fix.
     "https://accounts.google.com",
-    // Google Analytics 4: the root layout loads the gtag.js tag from here
-    // (app/layout.tsx, env-gated on NEXT_PUBLIC_GA_MEASUREMENT_ID). Without
+    // Google Analytics 4: GaLoader injects the gtag.js tag from here
+    // (components/ads/GaLoader.tsx, env-gated on
+    // NEXT_PUBLIC_GA_MEASUREMENT_ID and consent-gated, CAP-S07). Without
     // it the tag renders in the HTML but the browser blocks the script —
     // the 2026-11-15 Realtime-zero-users failure.
     "https://www.googletagmanager.com",
