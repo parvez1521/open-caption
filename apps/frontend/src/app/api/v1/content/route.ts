@@ -9,6 +9,7 @@ import {
   type ContentItemRow,
 } from "@/lib/api/content";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * The caller's content library (Phase 3): saved Creator Studio output of
@@ -23,6 +24,7 @@ import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_read", 600, 3600);
   const url = new URL(req.url);
   const kind = url.searchParams.get("kind");
   const folder = url.searchParams.get("folder");
@@ -58,6 +60,7 @@ const CreateBody = z.object({
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_write", 60, 3600);
   const body = await parseBody(req, CreateBody);
   const { data, error } = await user.db
     .from("content_items")

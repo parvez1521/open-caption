@@ -3,6 +3,7 @@ import { ok, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { CONNECT_PLATFORMS, platformConfigured, type ConnectPlatform } from "@/lib/api/connections/config";
 import { ConnectionStoreNotReady, listConnectionStatuses } from "@/lib/api/connections/store";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * How many of the user's stored posts a connection's syncs have brought in
@@ -42,6 +43,7 @@ async function countSyncedPosts(ownerId: string, source: ConnectPlatform): Promi
  */
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_read", 600, 3600);
   let setupPending = false;
   const byPlatform = new Map<string, { accountName: string | null; lastSyncAt: string | null }>();
   try {

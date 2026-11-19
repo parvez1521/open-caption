@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { PROFILE_COLUMNS, isMissingVoiceColumn, toBrandProfile, voiceNotReady, type BrandKitRow } from "@/lib/api/brandProfiles";
 import { normalizeVoice } from "@/features/create/brandProfile";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * One Brand Voice profile: update its fields, or delete it.
@@ -45,6 +46,7 @@ const UpdateBody = z.object({
 
 export const PUT = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "brand_write", 60, 3600);
   const { id } = await params;
   const body = await parseBody(req, UpdateBody);
   if (Object.keys(body).length === 0) throw new ApiFailure("VALIDATION", "No editable fields provided");
@@ -84,6 +86,7 @@ export const PUT = route(async (req: Request, { params }: Ctx<{ id: string }>) =
 
 export const DELETE = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "brand_write", 60, 3600);
   const { id } = await params;
   const { data: target, error: readError } = await user.db
     .from("brand_kits")

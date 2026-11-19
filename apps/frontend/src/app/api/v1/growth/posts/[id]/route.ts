@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/growth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { validatePostRow } from "@/features/growth/model";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * One growth post. Ownership is enforced by RLS plus the explicit owner
@@ -28,6 +29,7 @@ const Envelope = z.record(z.unknown());
 
 export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_write", 60, 3600);
   const { id } = await params;
   const body = await parseBody(req, Envelope);
 
@@ -75,6 +77,7 @@ export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>)
 
 export const DELETE = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_write", 60, 3600);
   const { id } = await params;
   const { data, error } = await user.db
     .from("growth_posts")

@@ -2,12 +2,15 @@ import { DeviceApproveBody } from "@capseasy/shared";
 import { requireUser, requireCompanionsEnabled } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 const normalize = (c: string) => c.trim().toUpperCase();
 
 /** Shows the pending device to the logged-in user (name/platform) before they approve. */
 export const GET = route(async (req: Request) => {
   await requireUser(req);
+  const ip = (req.headers.get("x-forwarded-for") ?? "local").split(",")[0]!.trim();
+  await rateLimit(ip, "device_approve", 20, 3600);
   const code = normalize(new URL(req.url).searchParams.get("code") ?? "");
   if (!code) throw new ApiFailure("VALIDATION", "Missing code");
   const { data } = await getAdmin().from("device_codes").select("user_code, worker_name, platform, status, expires_at").eq("user_code", code).maybeSingle();
@@ -18,6 +21,8 @@ export const GET = route(async (req: Request) => {
 export const POST = route(async (req: Request) => {
   requireCompanionsEnabled();
   const user = await requireUser(req);
+  const ip = (req.headers.get("x-forwarded-for") ?? "local").split(",")[0]!.trim();
+  await rateLimit(ip, "device_approve", 20, 3600);
   const body = await parseBody(req, DeviceApproveBody);
   const admin = getAdmin();
   const code = normalize(body.userCode);

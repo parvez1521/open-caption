@@ -1,10 +1,12 @@
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, route, type Ctx } from "@/lib/api/http";
 import { isOwnExportStoragePath, signedGet } from "@/lib/api/storage";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /** Fresh short-lived download link for an export the caller owns. */
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "export", 120, 3600);
   const { id } = await params;
   const { data: exp } = await user.db.from("exports").select("id, storage_path, status_v2, kind, project_id").eq("id", id).maybeSingle();
   if (!exp) throw notFound("Export");

@@ -8,6 +8,7 @@ import {
   type ChatThreadRow,
 } from "@/lib/api/content";
 import { ApiFailure, notFound, ok, parseBody, route } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * AI Studio chat threads (Phase 3). A thread optionally anchors to one
@@ -21,6 +22,7 @@ import { ApiFailure, notFound, ok, parseBody, route } from "@/lib/api/http";
 
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_read", 600, 3600);
   const { data, error } = await user.db
     .from("chat_threads")
     .select(CHAT_THREAD_COLUMNS)
@@ -41,6 +43,7 @@ const CreateBody = z.object({
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_write", 60, 3600);
   const body = await parseBody(req, CreateBody);
 
   if (body.contextItemId) {

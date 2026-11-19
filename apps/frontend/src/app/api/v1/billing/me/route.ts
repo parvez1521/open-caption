@@ -4,6 +4,7 @@ import { ok, route } from "@/lib/api/http";
 import { cashfreeConfig, currencyForCountry } from "@/lib/billing/cashfree";
 import { getAdmin } from "@/lib/supabase/admin";
 import { getVideoQuotaUsage, type VideoQuotaUsage } from "@/lib/billing/videoQuota";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * The billing page's data: the caller's effective plan (an expired paid
@@ -14,6 +15,7 @@ import { getVideoQuotaUsage, type VideoQuotaUsage } from "@/lib/billing/videoQuo
  */
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "billing_read", 600, 3600);
   const cfg = cashfreeConfig();
 
   const { data: profile } = await user.db

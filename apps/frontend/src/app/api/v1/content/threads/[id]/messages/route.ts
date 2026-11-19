@@ -7,6 +7,7 @@ import {
   type ChatMessageRow,
 } from "@/lib/api/content";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Append one message to a chat thread. The thread must be the caller's
@@ -24,6 +25,7 @@ const AppendBody = z.object({
 
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_write", 60, 3600);
   const { id } = await params;
   const body = await parseBody(req, AppendBody);
 

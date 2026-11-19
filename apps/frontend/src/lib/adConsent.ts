@@ -14,7 +14,7 @@
  * site with no ad slots yet: it asks first, loads Google's ad code only
  * after Accept, and loads nothing after Decline. Before ads serve to
  * EEA/UK visitors, swap this for a certified CMP and keep this banner's
- * gating (loader behind consent, GA4 ungated) as the behaviour to match.
+ * gating (both loaders behind consent) as the behaviour to match.
  */
 
 export const AD_CONSENT_KEY = "captionit-ad-consent";

@@ -13,9 +13,11 @@ import {
   withOrgDefaults,
 } from "@/lib/api/projects";
 import { getAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "project_read", 600, 3600);
   const { id } = await params;
   // A15: prefer the org columns; before APPLY-PROJECT-FOLDERS-TAGS.sql runs
   // they don't exist — fall back to the base columns (folder/tags read as
@@ -54,6 +56,7 @@ const PatchBody = z
 
 export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "project_write", 60, 3600);
   const { id } = await params;
   const rawPatch = await parseBody(req, PatchBody);
   if (Object.keys(rawPatch).length === 0) throw new ApiFailure("VALIDATION", "No editable fields provided");
@@ -86,6 +89,7 @@ export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>)
  */
 export const DELETE = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "project_write", 60, 3600);
   const { id } = await params;
   const { data: project } = await user.db.from("projects").select("id").eq("id", id).maybeSingle();
   if (!project) throw notFound("Project");

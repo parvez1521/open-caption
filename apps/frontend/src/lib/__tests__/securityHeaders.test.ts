@@ -156,19 +156,27 @@ describe("securityHeaders", () => {
     const connect = directive("connect-src");
     expect(connect).toContain("https://www.google-analytics.com");
     expect(connect).toContain("https://*.google-analytics.com");
-    // Regression: the GA loader's host in the root layout must be the host
-    // this policy allows — a mismatch is exactly the 2026-11-15 failure
-    // (tag in the HTML, blocked by CSP, Realtime 0).
+    // Regression: the GA loader's host must be the host this policy
+    // allows — a mismatch is exactly the 2026-11-15 failure (tag in the
+    // HTML, blocked by CSP, Realtime 0). The tag left the layout in
+    // CAP-S07: GaLoader injects it only after consent, so the URL is
+    // pinned in the loader, not the layout.
     const layout = readFileSync(
       fileURLToPath(new URL("../../app/layout.tsx", import.meta.url)),
       "utf8",
     );
-    expect(layout).toContain("https://www.googletagmanager.com/gtag/js?id=");
+    const gaLoader = readFileSync(
+      fileURLToPath(new URL("../../components/ads/GaLoader.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(gaLoader).toContain("https://www.googletagmanager.com/gtag/js?id=");
+    expect(layout).not.toContain("https://www.googletagmanager.com/gtag/js?id=");
     // A-13 (2026-11-15): the AdSense script tag left the layout — the
     // server cannot know the stored consent choice, so the loader
     // (components/ads/AdSenseLoader.tsx) injects the script only after
     // Accept. The layout must carry zero ad code; the loader carries the
-    // URL, and GA4 in the layout stays ungated by consent.
+    // URL. CAP-S07 (r3): the GA4 tag left the layout the same way —
+    // GaLoader injects it only after the same Accept.
     expect(layout).not.toContain("pagead2.googlesyndication.com");
     expect(layout).not.toContain("adConsent");
     const loader = readFileSync(

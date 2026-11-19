@@ -7,6 +7,7 @@ import {
   type ContentItemRow,
 } from "@/lib/api/content";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * One library item. Ownership is enforced by RLS plus the explicit owner
@@ -26,6 +27,7 @@ const PatchBody = z
 
 export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_write", 60, 3600);
   const { id } = await params;
   const patch = await parseBody(req, PatchBody);
   if (Object.keys(patch).length === 0) throw new ApiFailure("VALIDATION", "No editable fields provided");
@@ -51,6 +53,7 @@ export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>)
 
 export const DELETE = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_write", 60, 3600);
   const { id } = await params;
   const { data, error } = await user.db
     .from("content_items")

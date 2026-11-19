@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, route, type Ctx } from "@/lib/api/http";
 import { PROFILE_COLUMNS, isMissingVoiceColumn, voiceNotReady, type BrandKitRow } from "@/lib/api/brandProfiles";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Make one Brand Voice profile THE active one.
@@ -17,6 +18,7 @@ import { PROFILE_COLUMNS, isMissingVoiceColumn, voiceNotReady, type BrandKitRow 
  */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "brand_write", 60, 3600);
   const { id } = await params;
   const { data: target, error: readError } = await user.db
     .from("brand_kits")

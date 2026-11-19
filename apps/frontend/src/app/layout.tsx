@@ -9,6 +9,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { AdSenseLoader } from "@/components/ads/AdSenseLoader";
+import { GaLoader } from "@/components/ads/GaLoader";
 import { ConsentBanner } from "@/components/ads/ConsentBanner";
 import "./globals.css";
 
@@ -49,7 +50,13 @@ const adsenseId = adsensePublisherId();
 
 // GA4: same env gate as AdSense — the loader renders ONLY when
 // NEXT_PUBLIC_GA_MEASUREMENT_ID holds a valid G- id (see lib/seo.ts).
-// No id exists yet and none is hardcoded; no env, zero analytics code.
+// It is NOT a script tag here any more: the loader is a client component
+// (components/ads/GaLoader.tsx) that injects the tag only after the
+// visitor accepts in the consent banner (CAP-S07, r3) — the same single
+// choice that gates AdSense. Server rendering cannot know the stored
+// choice, so a <script> here would load Google's analytics code before
+// consent. No id exists yet and none is hardcoded; no env, zero analytics
+// code.
 const gaId = gaMeasurementId();
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -104,20 +111,10 @@ export default function RootLayout({
         {/* first: a Google / email sign-in return goes straight to the studio, never the homepage */}
         <script dangerouslySetInnerHTML={{ __html: authReturnScript() }} />
         <script dangerouslySetInnerHTML={{ __html: introScript(process.env.NODE_ENV !== "production") }} />
-        {/* GA4 only: the AdSense script is NOT here any more — it loads
-            through AdSenseLoader in <body>, gated on ad consent (A-13).
-            GA4 stays ungated: it loads whenever its env var is set. */}
-        {gaId ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-            <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaId}');`,
-              }}
-            />
-          </>
-        ) : null}
+        {/* GA4 and AdSense scripts are NOT here any more — they load
+            through GaLoader / AdSenseLoader in <body>, gated on the
+            visitor's consent choice (CAP-S07). The banner below asks once
+            whenever either is configured. */}
       </head>
       <body
         className="h-full bg-major text-obsidian font-sans selection:bg-emerald-accent selection:text-[#141412]"
@@ -126,7 +123,8 @@ export default function RootLayout({
         <a href="#main-content" className="skip-link">Skip to main content</a>
         <ServiceWorkerRegister />
         <AdSenseLoader publisherId={adsenseId} />
-        <ConsentBanner enabled={Boolean(adsenseId)} />
+        <GaLoader measurementId={gaId} />
+        <ConsentBanner enabled={Boolean(adsenseId || gaId)} adsEnabled={Boolean(adsenseId)} analyticsEnabled={Boolean(gaId)} />
         <QueryProvider>{children}</QueryProvider>
         <Analytics />
         <SpeedInsights />

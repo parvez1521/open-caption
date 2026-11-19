@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, route, type Ctx } from "@/lib/api/http";
 import { isConnectPlatform } from "@/lib/api/connections/config";
 import { CONNECTIONS_NOT_READY_MESSAGE, ConnectionStoreNotReady, deleteConnection } from "@/lib/api/connections/store";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Disconnect one platform (P1): deletes ONLY the connection row (the stored
@@ -10,6 +11,7 @@ import { CONNECTIONS_NOT_READY_MESSAGE, ConnectionStoreNotReady, deleteConnectio
  */
 export const POST = route(async (req: Request, { params }: Ctx<{ platform: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_connect", 30, 3600);
   const { platform } = await params;
   if (!isConnectPlatform(platform)) throw notFound("Connect platform");
   try {

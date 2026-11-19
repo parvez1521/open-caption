@@ -1,9 +1,11 @@
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, ok, route } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /** The caller's paired computers. "online" is derived from a recent heartbeat, not a stale status flag. */
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "workers_read", 600, 3600);
   const { data, error } = await user.db
     .from("workers")
     .select("id, name, status, last_seen_at, last_error, platform, version, capabilities, current_job_id, revoked_at")

@@ -4,6 +4,7 @@ import { notFound, ok, route, type Ctx } from "@/lib/api/http";
 import { HOUR, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 import { effectivePlanId, planFor, syncCapBytes } from "@capseasy/shared";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Everything the editor needs in one RLS-scoped call: project, playable video URL, caption document and the latest
@@ -12,6 +13,7 @@ import { effectivePlanId, planFor, syncCapBytes } from "@capseasy/shared";
  */
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "studio_read", 3600, 3600);
   const { id } = await params;
   const knownRev = Number(new URL(req.url).searchParams.get("rev") ?? NaN);
 

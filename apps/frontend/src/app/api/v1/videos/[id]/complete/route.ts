@@ -6,12 +6,14 @@ import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/
 import { enqueueJob } from "@/lib/api/jobs";
 import { verifyUploadedVideo } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 export const maxDuration = 300;
 
 /** Step 2 of upload: confirm the object really exists, then start transcription (in the browser or the desktop helper). */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "upload", 60, 3600);
   const { id: videoId } = await params;
   const body = await parseBody(req, CompleteVideoBody);
 

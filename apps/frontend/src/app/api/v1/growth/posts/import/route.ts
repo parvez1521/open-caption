@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/api/auth";
 import { throwIfMissingTable } from "@/lib/api/growth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import { validatePostRow, type GrowthPostInput } from "@/features/growth/model";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Bulk import for Growth Studio (Phase 6): the client parses the creator's
@@ -25,6 +26,7 @@ const ImportBody = z.object({
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_write", 30, 3600);
   const body = await parseBody(req, ImportBody);
 
   const valid: GrowthPostInput[] = [];
