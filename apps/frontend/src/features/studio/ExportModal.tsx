@@ -141,7 +141,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
    *  between Cancel / Share / Dismiss, and Escape does nothing — Cancel is
    *  the only way to stop a render. The Studio behind stays inert. */
   const overlayRef = useRef<HTMLDivElement>(null);
-  const renderOverlayVisible = renderDetached && (webProgress !== null || webDone);
+  const renderOverlayVisible = renderDetached && (webProgress !== null || webDone !== null);
   useDialogEscapeAndTrap(overlayRef, () => {}, renderOverlayVisible);
   useEffect(() => {
     let alive = true;
