@@ -609,9 +609,9 @@ export default function AnalyzerPage() {
         <div className="pt-10 pb-4">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="font-sora text-[13px] font-bold uppercase tracking-wider text-sand-600">Hook library</h2>
-            <div className="ml-auto flex rounded-full border border-sand-300 p-1" role="tablist" aria-label="Hook library filters">
-              <button role="tab" aria-selected={hookFilter === "all"} onClick={() => setHookFilter("all")} className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${hookFilter === "all" ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}>All</button>
-              <button role="tab" aria-selected={hookFilter === "competitors"} onClick={() => setHookFilter("competitors")} className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${hookFilter === "competitors" ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}>Competitors only</button>
+            <div className="ml-auto flex rounded-full border border-sand-300 p-1" role="group" aria-label="Hook library filters">
+              <button aria-pressed={hookFilter === "all"} onClick={() => setHookFilter("all")} className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${hookFilter === "all" ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}>All</button>
+              <button aria-pressed={hookFilter === "competitors"} onClick={() => setHookFilter("competitors")} className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${hookFilter === "competitors" ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}>Competitors only</button>
             </div>
           </div>
           <p className="mt-2 text-[13px] text-sand-700">Every hook from your saved analyses — yours and your competitors&apos; — in one list.</p>

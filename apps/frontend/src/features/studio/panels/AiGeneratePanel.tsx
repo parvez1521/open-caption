@@ -493,13 +493,12 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
           <p className="font-sora text-[13px] font-bold text-st-text">5. Or make one visual at the playhead</p>
           {hasVideo ? (
             <>
-              <div role="tablist" aria-label="What to generate" className="mt-2 flex gap-2">
+              <div role="group" aria-label="What to generate" className="mt-2 flex gap-2">
                 {(["image", "video"] as AiGenerateMode[]).map((m) => (
                   <button
                     key={m}
                     type="button"
-                    role="tab"
-                    aria-selected={mode === m}
+                    aria-pressed={mode === m}
                     onClick={() => { setMode(m); setError(""); setValidation(""); }}
                     className={`inline-flex min-h-[36px] items-center gap-2 rounded-full px-4 py-2 font-sora text-[13px] font-semibold ${mode === m ? "bg-st-em text-[#0B1512]" : "border border-st-line text-st-text"}`}
                   >

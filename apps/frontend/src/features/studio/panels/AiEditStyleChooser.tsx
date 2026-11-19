@@ -1,6 +1,7 @@
 "use client";
 
 import { AI_EDIT_STYLES, type AiEditPreviewShape, type AiEditStyle } from "../aiEditStyles";
+import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
 
 /**
  * AI Edit style chooser: one card per style, each with its house-made SVG
@@ -30,7 +31,7 @@ export interface AiEditStyleChooserProps {
 }
 
 export const AiEditStyleChooser: React.FC<AiEditStyleChooserProps> = ({ value, onChange, disabled }) => (
-  <div role="radiogroup" aria-label="Visual style" className="grid grid-cols-2 gap-2">
+  <div onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="Visual style" className="grid grid-cols-2 gap-2">
     {AI_EDIT_STYLES.map((style) => {
       const selected = value === style.id;
       return (

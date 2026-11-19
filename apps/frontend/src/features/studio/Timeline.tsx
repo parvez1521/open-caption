@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
 import { Eye, EyeOff, FoldHorizontal, Link2, Lock, LockOpen, Magnet, Maximize2, Plus, Scissors, SlidersHorizontal, Volume2, VolumeX, ZoomIn, ZoomOut } from "@/components/ui/icons";
 import type { AudioClip, AudioTrack, CompositionTrackKind, Page, TrackState, Word } from "@capseasy/shared";
 import { fmtTime } from "./controls";
@@ -865,7 +866,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
       }}
     >
       <div className="flex shrink-0 flex-nowrap items-center gap-x-1 gap-y-1 overflow-x-auto border-b border-st-line bg-st-panel px-2 py-1.5 text-xs text-st-muted [scrollbar-width:none] sm:flex-wrap sm:overflow-visible">
-        <div className="flex shrink-0 rounded-lg border border-st-line bg-st-raised p-0.5" role="radiogroup" aria-label="Show captions as">
+        <div className="flex shrink-0 rounded-lg border border-st-line bg-st-raised p-0.5" onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="Show captions as">
           {(["word", "line"] as const).map((m) => (
             <button key={m} role="radio" aria-checked={mode === m} onClick={() => setMode(m)} className={`relative rounded-md px-3 py-1.5 text-[11px] sm:py-1 font-semibold tracking-wide transition before:absolute before:-inset-y-2.5 before:-inset-x-1 before:content-[''] ${mode === m ? "bg-st-ink text-st-panel" : "text-st-muted hover:text-st-text"}`}>
               {m.toUpperCase()}

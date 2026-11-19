@@ -467,13 +467,12 @@ export default function PlannerPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <h2 className={sectionTitleCls}>Calendar</h2>
                 <div className="ml-auto flex flex-wrap items-center gap-2">
-                  <div className="flex rounded-full border border-sand-300 p-1" role="tablist" aria-label="Calendar view">
+                  <div className="flex rounded-full border border-sand-300 p-1" role="group" aria-label="Calendar view">
                     {(["month", "week", "day"] as ViewMode[]).map((mode) => (
                       <button
                         key={mode}
                         type="button"
-                        role="tab"
-                        aria-selected={view === mode}
+                        aria-pressed={view === mode}
                         onClick={() => setView(mode)}
                         className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold capitalize transition-colors cursor-pointer ${view === mode ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}
                       >

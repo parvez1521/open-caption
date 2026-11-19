@@ -243,13 +243,12 @@ export default function AiGenerator() {
         </div>
       ) : (
         <>
-          <div role="tablist" aria-label="What to generate" className="flex gap-2">
+          <div role="group" aria-label="What to generate" className="flex gap-2">
             {MODES.map((m) => (
               <button
                 key={m.id}
                 type="button"
-                role="tab"
-                aria-selected={mode === m.id}
+                aria-pressed={mode === m.id}
                 onClick={() => {
                   setMode(m.id);
                   setError("");

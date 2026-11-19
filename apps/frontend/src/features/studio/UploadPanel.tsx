@@ -7,6 +7,7 @@ import { getSession, startSession } from "@/features/transcribe/session";
 import { MODELS, PROJECT_LANGUAGE, SHIPPED_LANGUAGES, isConstrainedDevice, likelySpeechLanguage, saveSpeechLanguage, savedSpeechLanguage, speechLanguageOf, type SpeechLanguage } from "@/features/transcribe/runtime";
 import { studioService } from "@/services/studio";
 import { track } from "@/lib/track";
+import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
 import { ApiError } from "@/services/api-client";
 import { PrepareError, prepareVideo, type PrepareStage, type PreparedVideo } from "@/features/upload/prepareVideo";
 import { fetchMediaLink } from "@/features/upload/fetchMediaLink";
@@ -200,7 +201,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
         className={`w-full max-w-xl rounded-2xl border-2 border-dashed p-10 text-center transition ${over ? "border-st-ink bg-st-lav/40" : "border-st-hover bg-st-panel"}`}
       >
         {onModeChange && !busy && !prep && !linkBusy ? (
-          <div className="mx-auto mb-5 grid max-w-md grid-cols-3 gap-1 rounded-xl border border-st-line bg-st-raised/60 p-1" role="radiogroup" aria-label="How this project starts">
+          <div className="mx-auto mb-5 grid max-w-md grid-cols-3 gap-1 rounded-xl border border-st-line bg-st-raised/60 p-1" onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="How this project starts">
             {START_DOORS.map((o) => (
               <button
                 key={o.mode}
@@ -216,7 +217,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
           </div>
         ) : null}
         {replaceMode !== undefined && !busy && !prep ? (
-          <div className="mx-auto mb-5 max-w-md rounded-xl border border-st-line bg-st-raised/60 p-2 text-left" role="radiogroup" aria-label="What happens to your captions">
+          <div className="mx-auto mb-5 max-w-md rounded-xl border border-st-line bg-st-raised/60 p-2 text-left" onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="What happens to your captions">
             <button
               role="radio"
               aria-checked={replaceMode === "keep"}
@@ -369,7 +370,7 @@ export const UploadPanel: React.FC<Props> = ({ projectId, onUploaded, note, limi
  * only the language name.
  */
 const LanguageChoice: React.FC<{ value: SpeechLanguage | null; onChange: (l: SpeechLanguage) => void; asking: boolean }> = ({ value, onChange, asking }) => (
-  <div className={`mx-auto mt-6 max-w-md rounded-xl p-2 text-left ${asking ? "bg-st-lav/50 ring-2 ring-st-ink" : ""}`} role="radiogroup" aria-label="Language spoken in the video">
+  <div className={`mx-auto mt-6 max-w-md rounded-xl p-2 text-left ${asking ? "bg-st-lav/50 ring-2 ring-st-ink" : ""}`} onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="Language spoken in the video">
     <p className="mb-2 px-1 text-sm font-medium text-st-text">Language spoken in the video</p>
     <div className="grid grid-cols-2 gap-2">
       {SHIPPED_LANGUAGES.map((m) => (

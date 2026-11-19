@@ -2021,13 +2021,12 @@ export default function StudioPage({ projectId }: { projectId: string }) {
             </aside>
           ) : (
             <aside aria-label="Right panel" className="flex min-h-0 w-[340px] shrink-0 flex-row border-l border-st-line bg-st-panel 2xl:w-[376px]">
-              <nav role="tablist" aria-label="Right panel tabs" className="flex w-[76px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-st-line bg-st-panel px-2 py-3">
+              <nav role="group" aria-label="Right panel tabs" className="flex w-[76px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-st-line bg-st-panel px-2 py-3">
                 {RIGHT_TABS.filter((tab) => tab.id !== "inspector" || segmentInspector).map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
-                    role="tab"
-                    aria-selected={rightTab === tab.id}
+                    aria-pressed={rightTab === tab.id}
                     onClick={() => setRightTab(tab.id)}
                     className={`flex flex-col items-center gap-1.5 rounded-xl px-1 py-2.5 ${rightTab === tab.id ? "bg-st-lav text-st-ink" : "text-st-muted hover:bg-st-raised hover:text-st-text"}`}
                   >

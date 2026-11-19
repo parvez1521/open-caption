@@ -221,13 +221,12 @@ export default function PlannerCardFull({
 
       {previewOpen ? (
         <div className="mt-3 rounded-lg border border-sand-200 bg-sand-50 p-4">
-          <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Preview platform">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Preview platform">
             {PLANNER_PLATFORMS.map((p) => (
               <button
                 key={p.id}
                 type="button"
-                role="tab"
-                aria-selected={previewPlatform === p.id}
+                aria-pressed={previewPlatform === p.id}
                 onClick={() => setPreviewPlatform(p.id)}
                 className={`rounded-full px-3 py-1.5 font-sora text-[11px] font-semibold transition-colors cursor-pointer ${previewPlatform === p.id ? "bg-ink text-dune-white" : "border border-sand-300 text-sand-700 hover:text-ink"}`}
               >

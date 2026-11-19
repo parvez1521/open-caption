@@ -611,12 +611,11 @@ export default function GeneratorsPage() {
         ) : null}
 
         {/* Tabs */}
-        <div className="mt-8 flex flex-wrap gap-2" role="tablist" aria-label="Generators">
+        <div className="mt-8 flex flex-wrap gap-2" role="group" aria-label="Generators">
           {TABS.map((t) => (
             <button
               key={t.id}
-              role="tab"
-              aria-selected={tab === t.id}
+              aria-pressed={tab === t.id}
               onClick={() => setTab(t.id)}
               className={`rounded-full px-5 py-2.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${
                 tab === t.id ? "bg-ink text-dune-white" : "border border-sand-300 text-sand-800 hover:border-ink hover:text-ink"

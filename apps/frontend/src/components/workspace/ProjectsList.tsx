@@ -13,6 +13,7 @@ import { setProjectMode, START_DOORS, type ProjectStartMode } from "@/features/s
 import { createBlankAiEditProject, filterAiEditProjects, filterCaptionProjects } from "@/features/studio/aiEditFlow";
 import { copyLocalVideo } from "@/features/upload/localVideos";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
+import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
 
 const STATUS_CHIP: Record<ProjectStatus, { label: string; cls: string; pulse?: boolean }> = {
   CREATED: { label: "draft", cls: "border border-sand-300 text-sand-700 bg-white" },
@@ -291,9 +292,9 @@ export default function ProjectsList() {
           <svg className="h-4 w-4 shrink-0 text-sand-500" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M20 20l-3.5-3.5" /></svg>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search projects by title" aria-label="Search projects by title" className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-sand-500" />
         </label>
-        <div className="flex rounded-full border border-sand-300 p-1" role="tablist" aria-label="Project views">
+        <div className="flex rounded-full border border-sand-300 p-1" role="group" aria-label="Project views">
           {VIEWS.map((v) => (
-            <button key={v.id} role="tab" aria-selected={view === v.id} onClick={() => setView(v.id)} className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${view === v.id ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}>
+            <button key={v.id} aria-pressed={view === v.id} onClick={() => setView(v.id)} className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${view === v.id ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}>
               {v.label} ({counts[v.id]})
             </button>
           ))}
@@ -444,7 +445,7 @@ export default function ProjectsList() {
             {createError && <div className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{createError}</div>}
             <form onSubmit={handleCreate} className="mt-5 space-y-5">
               <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Podcast ep. 12 — hook cut" autoFocus required disabled={creating} className="w-full rounded-lg border border-sand-300 bg-white px-4 py-3 text-[14px] text-ink placeholder:text-sand-500 outline-none transition-colors focus:border-sand-600 focus:ring-2 focus:ring-sand-200" />
-              <div className="grid grid-cols-1 gap-2" role="radiogroup" aria-label="How this project starts">
+              <div className="grid grid-cols-1 gap-2" onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="How this project starts">
                 {START_DOORS.map((o) => (
                   <button
                     key={o.mode}

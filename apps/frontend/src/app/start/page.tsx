@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
 import { useRouter } from "next/navigation";
 import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
@@ -162,7 +163,7 @@ export default function StartPage() {
         <div className="flex w-full max-w-md flex-col items-center gap-5">
           <LoadingMark height={40} />
           <h1 className="text-xl font-bold text-[#FFFFEB]">How do you want to start?</h1>
-          <div className="grid w-full gap-2" role="radiogroup" aria-label="How this project starts">
+          <div className="grid w-full gap-2" onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="How this project starts">
             {START_DOORS.map((door) => (
               <button
                 key={door.mode}

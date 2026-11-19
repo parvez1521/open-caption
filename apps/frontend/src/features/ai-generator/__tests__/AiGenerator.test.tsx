@@ -58,12 +58,12 @@ afterEach(() => {
 });
 
 describe("AiGenerator", () => {
-  it("renders all three modes as tabs, Text first, with a prompt and Generate button", () => {
+  it("renders all three modes as toggle buttons, Text first, with a prompt and Generate button", () => {
     mockPuter();
     render(<AiGenerator />);
-    expect(screen.getByRole("tab", { name: "Text" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Image" })).toHaveAttribute("aria-selected", "false");
-    expect(screen.getByRole("tab", { name: "Video" })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getByRole("button", { name: "Text" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Image" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Video" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByLabelText(/What should it write\?/)).toBeTruthy();
     expect(screen.getByRole("button", { name: "Generate text" })).toBeTruthy();
   });
@@ -95,7 +95,7 @@ describe("AiGenerator", () => {
   it("image mode: generates and shows the image with a download link", async () => {
     const puter = mockPuter();
     render(<AiGenerator />);
-    fireEvent.click(screen.getByRole("tab", { name: "Image" }));
+    fireEvent.click(screen.getByRole("button", { name: "Image" }));
     fireEvent.change(screen.getByLabelText(/What should it draw\?/), { target: { value: "A red robot" } });
     fireEvent.click(screen.getByRole("button", { name: "Generate image" }));
     const img = (await screen.findByAltText("Image generated from your prompt")) as HTMLImageElement;
@@ -109,7 +109,7 @@ describe("AiGenerator", () => {
   it("video mode: warns about allowance, calls txt2vid with modest defaults, shows the clip with controls and download", async () => {
     const puter = mockPuter();
     render(<AiGenerator />);
-    fireEvent.click(screen.getByRole("tab", { name: "Video" }));
+    fireEvent.click(screen.getByRole("button", { name: "Video" }));
     expect(screen.getByText(/Video uses much more of your Puter allowance than text or images/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/What should the clip show\?/), { target: { value: "A forest at sunrise" } });
     fireEvent.click(screen.getByRole("button", { name: "Generate video" }));
@@ -133,7 +133,7 @@ describe("AiGenerator", () => {
     const puter = mockPuter();
     puter.ai.txt2vid.mockRejectedValueOnce({ message: "Provider timed out", code: "upstream_timeout" });
     render(<AiGenerator />);
-    fireEvent.click(screen.getByRole("tab", { name: "Video" }));
+    fireEvent.click(screen.getByRole("button", { name: "Video" }));
     fireEvent.change(screen.getByLabelText(/What should the clip show\?/), { target: { value: "A forest" } });
     fireEvent.click(screen.getByRole("button", { name: "Generate video" }));
     expect(await screen.findByText("Provider timed out (upstream_timeout)")).toBeTruthy();

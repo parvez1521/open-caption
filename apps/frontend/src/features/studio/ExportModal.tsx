@@ -20,6 +20,7 @@ import { useDialogEscapeAndTrap } from "./useDialogEscapeAndTrap";
 import { exportPreflightNote, fourKBlockReason } from "./preflight";
 import { VideoReady } from "./VideoReady";
 import { track } from "@/lib/track";
+import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
 
 /**
  * Export resolution options (owner 2026-11-10). The dims follow the shared short-edge rule from the
@@ -378,7 +379,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           <div className="mb-2 text-sm text-st-text/80">
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               <span>Video quality</span>
-              <div role="radiogroup" aria-label="Video quality" className="grid grid-cols-3 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
+              <div onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="Video quality" className="grid grid-cols-3 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
                 {QUALITY_OPTIONS.map((q) => (
                   <button key={q.id} role="radio" aria-checked={quality === q.id} onClick={() => setQuality(q.id)} className={`rounded-md px-2.5 py-1.5 text-xs sm:py-1 ${quality === q.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{q.label}</button>
                 ))}
@@ -390,7 +391,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           <div className="mb-2 text-sm text-st-text/80">
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               <span>Resolution</span>
-              <div role="radiogroup" aria-label="Export resolution" className="grid grid-cols-4 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
+              <div onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="Export resolution" className="grid grid-cols-4 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
                 {RESOLUTION_OPTIONS.map((r) => {
                   const blocked = r.id === "4k" && blocked4kReason !== null;
                   return (
@@ -406,7 +407,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           <div className="mb-2 text-sm text-st-text/80">
             <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
               <span>Frame rate</span>
-              <div role="radiogroup" aria-label="Export frame rate" className="grid grid-cols-2 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
+              <div onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="Export frame rate" className="grid grid-cols-2 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
                 {FPS_OPTIONS.map((f) => (
                   <button key={f.id} role="radio" aria-checked={exportSettings.fps === f.id} onClick={() => onExportSettings({ ...exportSettings, fps: f.id })} className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs sm:py-1 ${exportSettings.fps === f.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{f.label}</button>
                 ))}

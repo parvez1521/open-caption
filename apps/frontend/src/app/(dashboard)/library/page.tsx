@@ -285,9 +285,9 @@ export default function LibraryPage() {
                 <svg className="h-4 w-4 shrink-0 text-sand-500" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><circle cx="11" cy="11" r="7" /><path strokeLinecap="round" d="M20 20l-3.5-3.5" /></svg>
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by file name, type or project" aria-label="Search media by file name, type or project" className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-sand-500" />
               </label>
-              <div className="flex rounded-full border border-sand-300 p-1" role="tablist" aria-label="Media type filters">
+              <div className="flex rounded-full border border-sand-300 p-1" role="group" aria-label="Media type filters">
                 {LIBRARY_FILTERS.map((f) => (
-                  <button key={f.id} role="tab" aria-selected={filter === f.id} onClick={() => setFilter(f.id)} className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${filter === f.id ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}>
+                  <button key={f.id} aria-pressed={filter === f.id} onClick={() => setFilter(f.id)} className={`rounded-full px-3.5 py-1.5 font-sora text-[12px] font-semibold transition-colors cursor-pointer ${filter === f.id ? "bg-ink text-dune-white" : "text-sand-700 hover:text-ink"}`}>
                     {f.label} ({counts[f.id]})
                   </button>
                 ))}

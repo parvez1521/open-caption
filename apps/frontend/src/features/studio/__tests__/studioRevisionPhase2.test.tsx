@@ -315,9 +315,9 @@ describe("StudioPage phase 2 — right rail without Reels", () => {
     const { unmount } = renderStudio();
     try {
       for (const label of ["Motion", "Titles", "Stickers", "Sounds", "Graphics", "Transitions"]) {
-        expect(screen.getByRole("tab", { name: label })).toBeTruthy();
+        expect(screen.getByRole("button", { name: label })).toBeTruthy();
       }
-      expect(screen.queryByRole("tab", { name: "Reels" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Reels" })).toBeNull();
       expect(screen.queryByText("Reels")).toBeNull();
     } finally {
       unmount();
@@ -329,9 +329,9 @@ describe("StudioPage phase 2 — right rail without Reels", () => {
     studioState.current = makeStudio(twoClipSettings);
     const { unmount } = renderStudio();
     try {
-      fireEvent.click(screen.getByRole("tab", { name: "Graphics" }));
+      fireEvent.click(screen.getByRole("button", { name: "Graphics" }));
       expect(await screen.findByText("new-graphics-panel")).toBeTruthy();
-      expect((screen.getByRole("tab", { name: "Graphics" }) as HTMLButtonElement).getAttribute("aria-selected")).toBe("true");
+      expect((screen.getByRole("button", { name: "Graphics" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
     } finally {
       unmount();
     }
@@ -347,7 +347,7 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
       fireEvent.click(screen.getByRole("button", { name: "timeline-cut-2" }));
       expect(await screen.findByText("Applying to Cut after Clip 1")).toBeTruthy();
       expect(screen.getByText("join:seg-2")).toBeTruthy();
-      expect((screen.getByRole("tab", { name: "Transitions" }) as HTMLButtonElement).getAttribute("aria-selected")).toBe("true");
+      expect((screen.getByRole("button", { name: "Transitions" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
     } finally {
       unmount();
     }
@@ -415,7 +415,7 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
       fireEvent.click(screen.getByRole("button", { name: "timeline-segment-2" }));
       expect(screen.getByText("join:seg-2")).toBeTruthy();
       expect(screen.getByText("Applying to Cut after Clip 1")).toBeTruthy();
-      expect((screen.getByRole("tab", { name: "Transitions" }) as HTMLButtonElement).getAttribute("aria-selected")).toBe("true");
+      expect((screen.getByRole("button", { name: "Transitions" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
       // a different segment: the join is dropped, as before
       fireEvent.click(screen.getByRole("button", { name: "timeline-segment-1" }));
       expect(screen.getByText("join:none")).toBeTruthy();
@@ -429,7 +429,7 @@ describe("StudioPage phase 2 — cut selection and transitions", () => {
     studioState.current = makeStudio(twoClipSettings);
     const { unmount } = renderStudio();
     try {
-      fireEvent.click(screen.getByRole("tab", { name: "Transitions" }));
+      fireEvent.click(screen.getByRole("button", { name: "Transitions" }));
       expect(screen.getByText(/No cut selected/)).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Apply Cross Dissolve" }));
       expect(editAll).not.toHaveBeenCalled();
