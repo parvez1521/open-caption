@@ -94,6 +94,37 @@ export const extFromMime = (mime: string, filename: string): string => {
 };
 
 /**
+ * MA-A7-005: the DB-level owner rule for storage paths, mirrored in code
+ * (see supabase/APPLY-A7-002-STORAGE-PATH-PREFIX.sql). A videos row may
+ * only carry a path under its owner's id, a `local:` marker (on-device
+ * video, no object), or a legacy `projects/` path; an exports row may
+ * only carry a path under its owner's id (null = not rendered yet).
+ * The predicates match the CHECKs exactly, so the write sites can fail
+ * honestly here instead of tripping the constraint, and the download
+ * read-gate shares the same definition of "own path" (the studio
+ * read-gate stays stricter for legacy paths — only this project/video's
+ * `projects/<id>/video.mp4` — and is intentionally not folded into this).
+ */
+export const isOwnVideoStoragePath = (path: string, ownerId: string): boolean =>
+  path.startsWith(`${ownerId}/`) || path.startsWith("local:") || path.startsWith("projects/");
+
+export const isOwnExportStoragePath = (path: string | null, ownerId: string): boolean =>
+  path === null || path.startsWith(`${ownerId}/`);
+
+/** Fail honestly at the write site when a path would violate the MA-A7-005 CHECK. */
+export function assertOwnVideoStoragePath(path: string, ownerId: string): void {
+  if (!isOwnVideoStoragePath(path, ownerId)) {
+    throw new ApiFailure("INTERNAL", "Refusing to record a video path outside the owner's storage");
+  }
+}
+
+export function assertOwnExportStoragePath(path: string | null, ownerId: string): void {
+  if (!isOwnExportStoragePath(path, ownerId)) {
+    throw new ApiFailure("INTERNAL", "Refusing to record an export path outside the owner's storage");
+  }
+}
+
+/**
  * Where a video's cloud copy lives in the `media` bucket: one deterministic
  * object per video, so a retried sync reuses (and overwrites) the same path
  * instead of orphaning a new object each time. The project id is the second

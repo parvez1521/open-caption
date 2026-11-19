@@ -9,7 +9,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { enqueueJob, hasOnlineCompanion } from "@/lib/api/jobs";
 import { releaseVideoQuotaEvent, reserveVideoQuotaEvent, type VideoQuotaKind } from "@/lib/billing/videoQuota";
-import { putObject, signedGet } from "@/lib/api/storage";
+import { assertOwnExportStoragePath, putObject, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 
 // Extension / MIME naming comes from @capseasy/shared (EXPORT_EXTENSIONS / TEXT_EXPORT_MIME),
@@ -90,6 +90,8 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
       : body.kind === "json" ? toJson(d)
       : toAss(pages, style, { width: w, height: h });
     const path = `${user.id}/${projectId}/exports/${exportId}.${EXPORT_EXTENSIONS[body.kind]}`;
+    // MA-A7-005: never persist a path the DB owner CHECK would reject.
+    assertOwnExportStoragePath(path, user.id);
     await putObject(path, text, TEXT_EXPORT_MIME[body.kind as TextExportKind] ?? "text/plain");
     const { error } = await admin.from("exports").insert({
       id: exportId, project_id: projectId, owner_id: user.id, kind: body.kind, status_v2: "ready", status: "completed",

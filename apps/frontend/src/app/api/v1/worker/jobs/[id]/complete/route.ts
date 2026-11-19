@@ -3,7 +3,7 @@ import { requireWorker } from "@/lib/api/auth";
 import { ApiFailure, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { logJobEvent, requireHeldJob } from "@/lib/api/jobs";
 import { saveTranscription } from "@/lib/api/transcripts";
-import { objectSize } from "@/lib/api/storage";
+import { assertOwnExportStoragePath, objectSize } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 
 const EXPORT_EXT: Record<string, string> = { mp4: "mp4", mov_alpha: "mov", webm_alpha: "webm", png: "png" };
@@ -56,6 +56,8 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
     const { exportId, format } = job.payload as { exportId: string; format: string };
     await assertOwnedRow("exports", exportId, job.owner_id, "export");
     const { path, size } = await verifiedPath(`${job.owner_id}/${job.project_id}/exports/${exportId}.${EXPORT_EXT[format] ?? "mp4"}`);
+    // MA-A7-005: never persist a path the DB owner CHECK would reject.
+    assertOwnExportStoragePath(path, job.owner_id);
     await admin.from("exports").update({
       status_v2: "ready", status: "completed", storage_path: path, file_size: size,
       render_duration_ms: body.renderMs ? Math.round(body.renderMs) : null, duration_ms: body.durationMs ? Math.round(body.durationMs) : null, updated_at: now,

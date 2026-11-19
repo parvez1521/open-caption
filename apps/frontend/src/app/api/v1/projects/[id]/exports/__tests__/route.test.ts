@@ -35,15 +35,21 @@ vi.mock("@/lib/api/jobs", () => ({
   },
   hasOnlineCompanion: async () => state.companionOnline,
 }));
-vi.mock("@/lib/api/storage", () => ({
-  putObject: async (path: string, body: string, mime: string) => {
-    state.puts.push({ path, body, mime });
-  },
-  signedGet: async (path: string, _ttl: number, name?: string) => {
-    state.signedGets.push({ path, name });
-    return `signed:${path}`;
-  },
-}));
+vi.mock("@/lib/api/storage", async (importOriginal) => {
+  // MA-A7-005: keep the real path-ownership predicates — the route's
+  // assertOwnExportStoragePath guard must run here, not be stubbed out.
+  const actual = await importOriginal<typeof import("@/lib/api/storage")>();
+  return {
+    ...actual,
+    putObject: async (path: string, body: string, mime: string) => {
+      state.puts.push({ path, body, mime });
+    },
+    signedGet: async (path: string, _ttl: number, name?: string) => {
+      state.signedGets.push({ path, name });
+      return `signed:${path}`;
+    },
+  };
+});
 vi.mock("@/lib/supabase/admin", () => ({ getAdmin: () => state.adminDb }));
 
 // Free launch window (owner, 2026-11-15): off by default so the quota

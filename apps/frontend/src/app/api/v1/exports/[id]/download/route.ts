@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, route, type Ctx } from "@/lib/api/http";
-import { signedGet } from "@/lib/api/storage";
+import { isOwnExportStoragePath, signedGet } from "@/lib/api/storage";
 
 /** Fresh short-lived download link for an export the caller owns. */
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
@@ -13,7 +13,8 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
   // MA-A7-002: storage_path lives on the caller's own row and is
   // owner-writable via direct PostgREST — never sign a path outside this
   // caller's storage (exports always live under <owner>/<project>/exports/).
-  if (!(exp.storage_path as string).startsWith(`${user.id}/`)) throw notFound("Export");
+  // MA-A7-005: the check is the shared DB-CHECK predicate in storage.ts.
+  if (!isOwnExportStoragePath(exp.storage_path as string, user.id)) throw notFound("Export");
   const ext = exp.storage_path.split(".").pop() ?? "mp4";
   return ok({ url: await signedGet(exp.storage_path, 600, `captions-${exp.id.slice(0, 8)}.${ext}`) });
 });

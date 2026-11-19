@@ -2,7 +2,7 @@ import { rateLimit } from "@/lib/api/rateLimit";
 import { CreateVideoBody, VIDEO_MIME_TYPES, newId, effectivePlanId, planFor } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
-import { extFromMime, signedPut } from "@/lib/api/storage";
+import { assertOwnVideoStoragePath, extFromMime, signedPut } from "@/lib/api/storage";
 import { uploadLimitLabel } from "@/lib/billing/pricingDisplay";
 
 /** Step 1 of upload: validate against the plan, register the video, hand back a signed upload URL. */
@@ -32,6 +32,8 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
   const videoId = crypto.randomUUID();
   // on-device videos have no storage object: the path only marks them as local
   const path = body.local ? `local:${videoId}` : `${user.id}/${projectId}/source/${videoId}.${extFromMime(body.mime, body.filename)}`;
+  // MA-A7-005: never persist a path the DB owner CHECK would reject.
+  assertOwnVideoStoragePath(path, user.id);
   const p = body.probe;
   const { error } = await user.db.from("videos").insert({
     id: videoId,
