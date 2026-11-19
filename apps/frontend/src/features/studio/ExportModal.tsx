@@ -392,7 +392,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
               <span>Video quality</span>
               <div onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="Video quality" className="grid grid-cols-3 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
                 {QUALITY_OPTIONS.map((q) => (
-                  <button key={q.id} role="radio" aria-checked={quality === q.id} onClick={() => setQuality(q.id)} className={`rounded-md px-2.5 py-1.5 text-xs sm:py-1 ${quality === q.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{q.label}</button>
+                  <button key={q.id} role="radio" aria-checked={quality === q.id} onClick={() => setQuality(q.id)} className={`relative rounded-md px-2.5 py-1.5 text-xs sm:py-1 before:absolute before:-inset-y-2.5 before:-inset-x-1 before:content-[''] ${quality === q.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{q.label}</button>
                 ))}
               </div>
             </div>
@@ -406,7 +406,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
                 {RESOLUTION_OPTIONS.map((r) => {
                   const blocked = r.id === "4k" && blocked4kReason !== null;
                   return (
-                    <button key={r.id} role="radio" aria-checked={effectiveResolution === r.id} aria-disabled={blocked || undefined} disabled={blocked} title={blocked ? blocked4kReason ?? undefined : undefined} onClick={() => onExportSettings({ ...exportSettings, resolution: r.id })} className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs sm:py-1 ${effectiveResolution === r.id ? "bg-st-lav text-obsidian" : "text-st-text/80"} ${blocked ? "opacity-40" : ""}`}>{EXPORT_RESOLUTION_LABEL[r.id]}</button>
+                    <button key={r.id} role="radio" aria-checked={effectiveResolution === r.id} aria-disabled={blocked || undefined} disabled={blocked} title={blocked ? blocked4kReason ?? undefined : undefined} onClick={() => onExportSettings({ ...exportSettings, resolution: r.id })} className={`relative whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs sm:py-1 before:absolute before:-inset-y-2.5 before:-inset-x-1 before:content-[''] ${effectiveResolution === r.id ? "bg-st-lav text-obsidian" : "text-st-text/80"} ${blocked ? "opacity-40" : ""}`}>{EXPORT_RESOLUTION_LABEL[r.id]}</button>
                   );
                 })}
               </div>
@@ -420,7 +420,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
               <span>Frame rate</span>
               <div onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="Export frame rate" className="grid grid-cols-2 rounded-lg border border-st-line bg-st-raised p-0.5 sm:inline-flex">
                 {FPS_OPTIONS.map((f) => (
-                  <button key={f.id} role="radio" aria-checked={exportSettings.fps === f.id} onClick={() => onExportSettings({ ...exportSettings, fps: f.id })} className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs sm:py-1 ${exportSettings.fps === f.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{f.label}</button>
+                  <button key={f.id} role="radio" aria-checked={exportSettings.fps === f.id} onClick={() => onExportSettings({ ...exportSettings, fps: f.id })} className={`relative whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs sm:py-1 before:absolute before:-inset-y-2.5 before:-inset-x-1 before:content-[''] ${exportSettings.fps === f.id ? "bg-st-lav text-obsidian" : "text-st-text/80"}`}>{f.label}</button>
                 ))}
               </div>
             </div>
@@ -512,12 +512,12 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
                     ) : r.status_v2 === "queued" || r.status_v2 === "rendering" ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-st-text">Rendering…</span>
-                        {r.job_id ? <Button className="!px-2 !py-1 text-xs" onClick={() => void studioService.cancelJob(r.job_id!).then(() => exportsQ.refetch())}>Cancel</Button> : null}
+                        {r.job_id ? <Button className="relative !px-2 !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => void studioService.cancelJob(r.job_id!).then(() => exportsQ.refetch())}>Cancel</Button> : null}
                       </div>
                     ) : r.status_v2 === "failed" || r.status_v2 === "cancelled" ? (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-st-text capitalize">{r.status_v2}</span>
-                        {r.job_id ? <Button className="!px-2 !py-1 text-xs" onClick={() => void studioService.retryJob(r.job_id!).then(() => exportsQ.refetch())}>Retry</Button> : null}
+                        {r.job_id ? <Button className="relative !px-2 !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => void studioService.retryJob(r.job_id!).then(() => exportsQ.refetch())}>Retry</Button> : null}
                       </div>
                     ) : (
                       <span className="text-xs text-st-faint">Expired</span>
@@ -543,7 +543,7 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           <>
             <div className="flex items-center justify-between gap-2 text-sm">
               <span className="font-medium text-st-text">{phaseLabel ?? `Rendering your MP4 in this tab… ${Math.round(webProgress * 100)}%`}</span>
-              <Button className="!px-2 !py-1 text-xs" onClick={() => abort.current?.abort()}>Cancel</Button>
+              <Button className="relative !px-2 !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => abort.current?.abort()}>Cancel</Button>
             </div>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-st-line">
               <div className="h-full rounded-full bg-st-em transition-[width] duration-300" style={{ width: `${Math.max(2, webProgress * 100)}%` }} />
@@ -554,8 +554,8 @@ export const ExportModal: React.FC<Props> = ({ projectId, title, video, renderIn
           <div className="flex items-center justify-between gap-2 text-sm text-st-text">
             <span>✓ Your MP4 is downloading ({webDone}).</span>
             <span className="flex shrink-0 items-center gap-1">
-              {made ? <Button className="!px-2.5 !py-1 text-xs" onClick={() => setShowReady(true)}>Share</Button> : null}
-              <button aria-label="Dismiss" onClick={() => { setWebDone(null); setMade(null); }} className="grid h-8 w-8 place-items-center rounded-full text-st-muted hover:bg-st-raised hover:text-st-text">✕</button>
+              {made ? <Button className="relative !px-2.5 !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => setShowReady(true)}>Share</Button> : null}
+              <button aria-label="Dismiss" onClick={() => { setWebDone(null); setMade(null); }} className="relative grid h-8 w-8 place-items-center rounded-full text-st-muted before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] hover:bg-st-raised hover:text-st-text">✕</button>
             </span>
           </div>
         )}
