@@ -260,6 +260,12 @@ export const supabaseAuthProvider: AuthProvider = {
     if (!name) {
       throw new Error("Display name can't be empty.");
     }
+    // MA-A4-004: cap the name before any Supabase call — an over-long name
+    // used to fail with a raw provider error (user_metadata size limit)
+    // surfaced verbatim in Settings. 80 matches the tag-cap convention.
+    if (name.length > 80) {
+      throw new Error("Display name must be 80 characters or fewer.");
+    }
     const { data, error } = await supabase.auth.updateUser({
       // `display_name` is the durable override: Google never sends that key,
       // so the next sign-in can't overwrite it. `name` stays in sync for

@@ -142,6 +142,13 @@ describe("updateProfile", () => {
     await expect(authService.updateProfile({})).rejects.toThrow("Display name can't be empty.");
     expect(h.updateUserArgs).toBeNull();
   });
+
+  // MA-A4-004: a name over 80 chars is rejected with a friendly message
+  // before any Supabase call (the provider used to fail with a raw error).
+  it("rejects a name over 80 characters without calling updateUser", async () => {
+    await expect(authService.updateProfile({ name: "x".repeat(500) })).rejects.toThrow("Display name must be 80 characters or fewer.");
+    expect(h.updateUserArgs).toBeNull();
+  });
 });
 
 describe("subscribeToUserChanges (saved name shows without a reload)", () => {

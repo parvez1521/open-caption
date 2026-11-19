@@ -112,6 +112,7 @@ export default function SettingsPage() {
                   <input
                     id="settings-display-name"
                     type="text"
+                    maxLength={80}
                     value={displayName}
                     onChange={(e) => {
                       setDisplayName(e.target.value);
