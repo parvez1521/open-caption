@@ -28,4 +28,10 @@ describe("AuthShell Field / PasswordField label association (MA-A5-001)", () => 
     expect(input.id).toBe("field-email");
     expect(document.querySelector(`label[for="${input.id}"]`)).not.toBeNull();
   });
+
+  it("keeps the password toggle in the tab order (MA-A5-011)", () => {
+    render(<PasswordField id="login-password" label="Password" value="" onChange={() => {}} />);
+    const toggle = screen.getByLabelText("Show password");
+    expect(toggle.getAttribute("tabindex")).not.toBe("-1");
+  });
 });
