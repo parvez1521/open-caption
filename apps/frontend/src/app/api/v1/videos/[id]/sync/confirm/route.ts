@@ -18,7 +18,7 @@ export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) 
 
   const { data: video } = await user.db
     .from("videos")
-    .select("id, project_id, storage_path, cloud_storage_path, mime_type, original_filename")
+    .select("id, project_id, storage_path, cloud_storage_path, mime_type, original_filename, file_size")
     .eq("id", videoId)
     .maybeSingle();
   if (!video) throw notFound("Video");
