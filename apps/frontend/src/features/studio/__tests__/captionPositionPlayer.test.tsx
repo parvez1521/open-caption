@@ -135,6 +135,13 @@ describe("StudioPlayer — caption drag hit box", () => {
     expect(screen.getByRole("slider", { name: "Caption position (drag)" })).toBeTruthy();
   });
 
+  it("MA-A5-009: the 20px grip carries the 24px+ hit expander", () => {
+    renderPlayer();
+    const grip = screen.getByRole("slider", { name: "Caption position (drag)" });
+    // h-5 w-5 (20px) with before:-inset-2 expands the hit area to 36px
+    expect(grip.className).toContain("before:-inset-2");
+  });
+
   it("a drag ghost renders at the dragged spot with the caption text", () => {
     renderPlayer({ dragGhost: { x: 0.5, y: 0.3 }, dragGhostText: "Dulha Dulhan?", dragGhostFontPx: 32 });
     const ghost = screen.getByTestId("caption-position-ghost");

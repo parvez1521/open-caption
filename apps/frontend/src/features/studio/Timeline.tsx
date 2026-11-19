@@ -966,7 +966,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                 aria-pressed={m.id === selectedMarkerId}
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => { e.stopPropagation(); onSelectMarker?.(m.id); }}
-                className="absolute top-1/2 z-10 grid h-4 w-4 -translate-y-1/2 place-items-center"
+                className="absolute top-1/2 z-10 grid h-4 w-4 -translate-y-1/2 place-items-center before:absolute before:-inset-2 before:content-['']"
                 style={{ left: x(m.atMs) - 8 }}
               >
                 <span className={`block h-2.5 w-2.5 rotate-45 rounded-[2px] ${m.id === selectedMarkerId ? "bg-st-em ring-2 ring-st-em/40" : "bg-st-muted"}`} />
@@ -1218,7 +1218,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                           e.stopPropagation();
                           onDropTransition(c.id, payload);
                         }}
-                        className="absolute top-0 z-30 grid h-[18px] w-[14px] -translate-x-1/2 place-items-center"
+                        className="absolute top-0 z-30 grid h-[18px] w-[14px] -translate-x-1/2 place-items-center before:absolute before:-inset-2 before:content-['']"
                         style={{ left: x(c.startMs) }}
                       >
                         <span aria-hidden className={`block h-2 w-2 rotate-45 rounded-[1px] ${selected || dragOverJoinId === c.id ? "bg-st-em" : "bg-white/70"}`} />

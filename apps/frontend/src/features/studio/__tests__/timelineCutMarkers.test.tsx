@@ -127,6 +127,13 @@ describe("Timeline cut markers", () => {
     expect(onDropTransition).not.toHaveBeenCalled();
   });
 
+  it("MA-A5-009: the cut-marker buttons carry the 24px+ hit expander", () => {
+    const { getByRole } = renderTimeline(threeClipComp);
+    const marker = getByRole("button", { name: "Cut after Clip 1" }) as HTMLButtonElement;
+    // 18x14px join marker with before:-inset-2 expands the hit area to 34x30px
+    expect(marker.className).toContain("before:-inset-2");
+  });
+
   it("a single clip has no cut markers", () => {
     const { queryByRole } = renderTimeline(oneClipComp);
     expect(queryByRole("button", { name: /Cut after Clip/ })).toBeNull();

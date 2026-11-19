@@ -269,7 +269,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
           title={compact ? "Drag up or down to move the captions" : "Drag to move the captions"}
           className={compact
             ? `absolute right-0 z-10 flex h-11 w-7 -translate-y-1/2 cursor-grab touch-none items-center justify-center rounded-l-lg bg-st-panel/85 text-st-ink shadow-md ${dragging ? "cursor-grabbing bg-st-lav" : ""}`
-            : `absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 border-st-lav bg-transparent shadow-[0_0_0_3px_rgba(0,0,0,0.25)] transition ${dragging ? "scale-125 cursor-grabbing opacity-100" : "opacity-0 group-hover:opacity-90 focus:opacity-100"}`}
+            : `absolute z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none rounded-full border-2 border-st-lav bg-transparent shadow-[0_0_0_3px_rgba(0,0,0,0.25)] transition before:absolute before:-inset-2 before:content-[''] ${dragging ? "scale-125 cursor-grabbing opacity-100" : "opacity-0 group-hover:opacity-90 focus:opacity-100"}`}
           style={compact ? { top: `${position.y * 100}%` } : { left: `${position.x * 100}%`, top: `${position.y * 100}%` }}
           onPointerDown={(e) => { try { (e.target as HTMLElement).setPointerCapture(e.pointerId); } catch { /* capture unsupported: the moves still arrive on this element */ } setDragging(true); const rect = boxRef.current?.getBoundingClientRect(); if (rect) onPositionDragStart?.(fractionFromPointer(e.clientX, e.clientY, rect)); }}
           onPointerMove={(e) => dragging && move(e)}
