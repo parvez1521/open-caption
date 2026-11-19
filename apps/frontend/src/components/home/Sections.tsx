@@ -372,7 +372,7 @@ const PIPELINE_STEPS = [
   {
     n: "1",
     title: "Drop in a clip",
-    body: "One video file, straight from your camera roll. The file stays on your device.",
+    body: "One video file, straight from your camera roll. Videos up to 50 MB are automatically backed up to your project's cloud storage.",
     artifact: <UploadArtifact />,
   },
   {
@@ -617,9 +617,9 @@ export function Privacy() {
             <BrowserCard />
           </div>
           <div className="lg:pr-8 lg:order-2">
-            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight sm:text-5xl">Your video <em className="font-normal italic text-[#34D399]">never leaves</em> this tab.</h2>
+            <h2 className="font-styled text-4xl font-bold leading-tight tracking-tight sm:text-5xl">Your video is <em className="font-normal italic text-[#34D399]">edited</em> in this tab.</h2>
             <p className="mt-6 text-base sm:text-lg leading-relaxed text-[#FFFFEB]/75">
-              Transcription, styling and the MP4 export run in this tab. On your phone or your laptop. No app, no plugin, no per-minute bill.
+              Transcription, styling and the MP4 export run in this tab. On your phone or your laptop. No app, no plugin, no per-minute bill. Videos up to 50 MB are automatically backed up to your project&rsquo;s cloud storage, so you can keep editing on another device.
             </p>
           </div>
         </div>
