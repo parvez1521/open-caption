@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "check:js-budget": "node scripts/check-js-budget.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {
