@@ -201,7 +201,12 @@ const SAVE_LABEL: Record<SaveState, { text: string; dot: string }> = {
 
 /** Tracks the lg breakpoint so only ONE editor layout (and one Player) is mounted at a time. */
 function useIsDesktop() {
-  const [desktop, setDesktop] = useState(true);
+  // MA-A3-002: the first client render must already be the right layout —
+  // initialise from matchMedia when available instead of mounting the desktop
+  // layout on a phone and swapping after the effect. Server keeps true.
+  const [desktop, setDesktop] = useState(
+    () => (typeof window === "undefined" ? true : window.matchMedia("(min-width: 1024px)").matches),
+  );
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 1024px)");
     const on = () => setDesktop(mq.matches);

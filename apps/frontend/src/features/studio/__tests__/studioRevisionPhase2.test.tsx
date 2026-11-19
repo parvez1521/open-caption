@@ -627,3 +627,52 @@ describe("StudioPage phase 2 — blank AI-Edit projects", () => {
     }
   });
 });
+
+/**
+ * MA-A3-002: on a phone the FIRST client render must already be the phone
+ * layout. useIsDesktop used to initialise useState(true) and only correct
+ * itself in the effect, so a phone mounted the desktop layout (and its
+ * Player) and then swapped. The lazy matchMedia initializer fixes that —
+ * this test proves it by committing the first render with flushSync, which
+ * runs layout effects but NOT passive effects, so the effect-based
+ * correction cannot have run yet.
+ */
+describe("StudioPage phone first render (MA-A3-002)", () => {
+  it("a phone-width first commit renders the phone bottom bar, never the desktop right panel", async () => {
+    const { createRoot } = await import("react-dom/client");
+    const { flushSync } = await import("react-dom");
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio(twoClipSettings);
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    try {
+      flushSync(() => {
+        root.render(
+          <QueryClientProvider client={qc}>
+            <StudioPage projectId="p1" />
+          </QueryClientProvider>,
+        );
+      });
+      expect(host.querySelector('nav[aria-label="Editor sections"]')).not.toBeNull();
+      expect(host.querySelector('aside[aria-label="Right panel"]')).toBeNull();
+    } finally {
+      flushSync(() => root.unmount());
+      host.remove();
+    }
+  });
+});
