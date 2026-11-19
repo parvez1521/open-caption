@@ -283,7 +283,7 @@ describe("per-route metadata (shipped modules)", () => {
   it("the homepage title and OG title agree (both the full <title> copy)", () => {
     expect(homeMetadata.title).toEqual({ absolute: expect.stringContaining("Auto captions") });
     expect(homeMetadata.openGraph?.title).toBe("Auto captions for Reels, Shorts and TikTok, made in your browser | Captionit");
-    expect(homeMetadata.alternates?.canonical).toBe("/");
+    expect(homeMetadata.alternates?.canonical).toBe(`${SITE_URL}/`);
     expect(homeMetadata.description).toContain("auto captions timed to every word");
     // the home-layout override replaces the root openGraph/twitter wholesale,
     // so it must re-state everything the root provides (url, siteName,
