@@ -255,6 +255,23 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     return () => clearTimeout(t);
   }, [phase, docForTour]);
   const desktop = useIsDesktop();
+  // MA-A3-003: the phone bottom bar scrolls sideways — track whether there is
+  // more to scroll so the edge fades can say so.
+  const bottomBarRef = useRef<HTMLDivElement>(null);
+  const [bottomBarAtStart, setBottomBarAtStart] = useState(true);
+  const [bottomBarAtEnd, setBottomBarAtEnd] = useState(false);
+  const syncBottomBarScroll = useCallback(() => {
+    const el = bottomBarRef.current;
+    if (!el) return;
+    setBottomBarAtStart(el.scrollLeft <= 4);
+    setBottomBarAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 4);
+  }, []);
+  useEffect(() => {
+    if (desktop) return;
+    syncBottomBarScroll();
+    window.addEventListener("resize", syncBottomBarScroll);
+    return () => window.removeEventListener("resize", syncBottomBarScroll);
+  }, [desktop, syncBottomBarScroll]);
 
   // A blank AI-Edit project opens on its own rail section (never the
   // captions section, and no caption session or tutorial is started for it).
@@ -2097,23 +2114,36 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       <div key={mobileTimeline ? "timeline" : section} className="st-rise min-h-0 flex-1 bg-st-panel">
         {mobileTimeline ? timeline : renderPanel(section)}
       </div>
-      <nav className="flex shrink-0 flex-nowrap gap-1 overflow-x-auto border-t border-st-line bg-st-panel px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] [scrollbar-width:none]" aria-label="Editor sections">
-        {RAIL_SECTIONS.map((sec) => (
-          <button
-            key={sec.id}
-            data-tour={sec.tour}
-            onClick={() => { setSection(sec.id); setMobileTimeline(false); }}
-            aria-pressed={!mobileTimeline && section === sec.id}
-            className={`relative flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 before:absolute before:-inset-2 before:content-[''] ${!mobileTimeline && section === sec.id ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
-          >
-            {sec.icon}
-            <span className="text-[11px] font-medium leading-none">{sec.label}</span>
-          </button>
-        ))}
+      {/* MA-A3-003: the sections scroll sideways inside their own strip; the
+          Timeline button is pinned outside it so it is always reachable
+          without discovering the scroll, and edge fades (hidden at the ends)
+          say the strip scrolls. Hit expanders shrunk to -inset-y-2/-inset-x-1
+          so neighbouring buttons stop overlapping each other's targets. */}
+      <nav className="relative flex shrink-0 items-stretch gap-1 border-t border-st-line bg-st-panel px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]" aria-label="Editor sections">
+        <div ref={bottomBarRef} onScroll={syncBottomBarScroll} data-testid="bottom-bar-sections" className="flex min-w-0 flex-1 flex-nowrap gap-1 overflow-x-auto [scrollbar-width:none]">
+          {RAIL_SECTIONS.map((sec) => (
+            <button
+              key={sec.id}
+              data-tour={sec.tour}
+              onClick={() => { setSection(sec.id); setMobileTimeline(false); }}
+              aria-pressed={!mobileTimeline && section === sec.id}
+              className={`relative flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${!mobileTimeline && section === sec.id ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
+            >
+              {sec.icon}
+              <span className="text-[11px] font-medium leading-none">{sec.label}</span>
+            </button>
+          ))}
+        </div>
+        {!bottomBarAtStart ? (
+          <span aria-hidden className="pointer-events-none absolute bottom-0 left-0 top-0 z-10 w-8 bg-gradient-to-l from-transparent to-st-panel" />
+        ) : null}
+        {!bottomBarAtEnd ? (
+          <span aria-hidden className="pointer-events-none absolute bottom-0 right-[84px] top-0 z-10 w-8 bg-gradient-to-r from-transparent to-st-panel" />
+        ) : null}
         <button
           onClick={() => setMobileTimeline(true)}
           aria-pressed={mobileTimeline}
-          className={`relative flex min-w-[64px] flex-1 flex-col items-center gap-1 rounded-xl px-1 py-1.5 before:absolute before:-inset-2 before:content-[''] ${mobileTimeline ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
+          className={`relative z-10 flex w-[72px] shrink-0 flex-col items-center gap-1 rounded-xl border-l border-st-line px-1 py-1.5 before:absolute before:-inset-y-2 before:-inset-x-1 before:content-[''] ${mobileTimeline ? "bg-st-lav text-st-ink" : "text-st-muted"}`}
         >
           {railIcon(<><path d="M3 9h18M3 15h18" /><path d="M8 5v14M15 5v14" /></>)}
           <span className="text-[11px] font-medium leading-none">Timeline</span>

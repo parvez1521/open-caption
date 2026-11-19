@@ -670,9 +670,45 @@ describe("StudioPage phone first render (MA-A3-002)", () => {
       });
       expect(host.querySelector('nav[aria-label="Editor sections"]')).not.toBeNull();
       expect(host.querySelector('aside[aria-label="Right panel"]')).toBeNull();
+
     } finally {
       flushSync(() => root.unmount());
       host.remove();
+    }
+  });
+
+  it("MA-A3-003: Timeline is pinned outside the scrolling strip; section buttons use the shrunk hit expander", () => {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+    window.history.pushState({}, "", "/projects/p1");
+    studioState.current = makeStudio(twoClipSettings);
+    const { unmount } = renderStudio();
+    try {
+      // Timeline is a sibling of the scrolling strip, not one of its items —
+      // reachable without discovering the sideways scroll.
+      const strip = screen.getByTestId("bottom-bar-sections");
+      expect(strip.textContent).not.toContain("Timeline");
+      const timeline = screen.getByRole("button", { name: "Timeline" });
+      expect(timeline.closest('[data-testid="bottom-bar-sections"]')).toBeNull();
+      // Hit expanders shrunk from -inset-2 to -inset-y-2/-inset-x-1 so
+      // neighbours stop overlapping each other's targets.
+      const media = screen.getByRole("button", { name: "Media" });
+      expect(media.className).toContain("before:-inset-x-1");
+      expect(media.className).not.toContain("before:-inset-2");
+      expect(timeline.className).toContain("before:-inset-x-1");
+    } finally {
+      unmount();
     }
   });
 });
