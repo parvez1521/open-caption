@@ -575,6 +575,36 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
     setVDrag({ clipId, edge, x0: e.clientX, origMs, targetMs: origMs });
   };
 
+  // MA-A5-003: trim handles are role="slider" — they must be focusable and
+  // answer arrow keys through the same onTrimVideoEdge API the pointer drag
+  // commits through. One frame per press, ten frames with Shift.
+  const trimHandleKeyDown = (e: React.KeyboardEvent, clipId: string, edge: "start" | "end", currentMs: number) => {
+    if (tracks.video.locked) return;
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const frameMs = 1000 / fps;
+    const step = (e.shiftKey ? 10 : 1) * frameMs;
+    const target = e.key === "ArrowLeft" ? currentMs - step : currentMs + step;
+    onTrimVideoEdge?.(clipId, edge, Math.max(0, Math.min(total, target)));
+  };
+
+  // MA-A5-003: caption-card edge handles are mouse-only spans — give them a
+  // keyboard path via onRetimeRun, the API the edge drag commits through.
+  // 100 ms per press, 500 ms with Shift; the edge never crosses the other
+  // edge (MIN_MS floor per word) and locked tracks do not retime.
+  const captionEdgeKeyDown = (e: React.KeyboardEvent, b: Block, edge: "start" | "end") => {
+    if (tracks.captions.locked) return;
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const step = e.shiftKey ? 500 : 100;
+    const d = e.key === "ArrowLeft" ? -step : step;
+    const minLen = MIN_MS * b.wordIds.length;
+    if (edge === "start") onRetimeRun(b.firstId, b.lastId, Math.max(0, Math.min(b.e - minLen, b.s + d)), b.e, false);
+    else onRetimeRun(b.firstId, b.lastId, b.s, Math.max(b.s + minLen, Math.min(total, b.e + d)), false);
+  };
+
   const beginAudioDrag = (e: React.PointerEvent, c: AudioClip) => {
     if (renaming) return;
     if (audioTrackOfClip(c)?.locked) return;
@@ -996,8 +1026,28 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                   ) : null}
                   {wpx > 16 && renaming !== b.firstId ? (
                     <>
-                      <span onPointerDown={(e) => beginDrag(e, b, "start")} className="absolute inset-y-0 left-0 w-2.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-3 before:content-[''] hover:bg-st-ink/50" title={`Move start of ${b.text}`} />
-                      <span onPointerDown={(e) => beginDrag(e, b, "end")} className="absolute inset-y-0 right-0 w-2.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-3 before:content-[''] hover:bg-st-ink/50" title={`Move end of ${b.text}`} />
+                      <span
+                        role="slider"
+                        tabIndex={0}
+                        aria-label={`Move start of ${b.text}`}
+                        aria-valuenow={live.s}
+                        aria-valuemin={0}
+                        aria-valuemax={total}
+                        aria-valuetext={fmtTime(live.s)}
+                        onPointerDown={(e) => beginDrag(e, b, "start")}
+                        onKeyDown={(e) => captionEdgeKeyDown(e, b, "start")}
+                        className="absolute inset-y-0 left-0 w-2.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-3 before:content-[''] hover:bg-st-ink/50 focus:bg-st-ink/50" title={`Move start of ${b.text}`} />
+                      <span
+                        role="slider"
+                        tabIndex={0}
+                        aria-label={`Move end of ${b.text}`}
+                        aria-valuenow={live.e}
+                        aria-valuemin={0}
+                        aria-valuemax={total}
+                        aria-valuetext={fmtTime(live.e)}
+                        onPointerDown={(e) => beginDrag(e, b, "end")}
+                        onKeyDown={(e) => captionEdgeKeyDown(e, b, "end")}
+                        className="absolute inset-y-0 right-0 w-2.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-3 before:content-[''] hover:bg-st-ink/50 focus:bg-st-ink/50" title={`Move end of ${b.text}`} />
                     </>
                   ) : null}
                 </div>
@@ -1098,13 +1148,15 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                       <span
                         key={`${c.id}-start`}
                         role="slider"
+                        tabIndex={0}
                         aria-label="Trim start of first segment"
                         aria-valuenow={c.startMs}
                         aria-valuemin={0}
                         aria-valuemax={total}
                         aria-valuetext={fmtTime(c.startMs)}
                         onPointerDown={(e) => beginVideoEdgeDrag(e, c.id, "start")}
-                        className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/50"
+                        onKeyDown={(e) => trimHandleKeyDown(e, c.id, "start", c.startMs)}
+                        className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2.5 before:-inset-y-2 before:content-[''] hover:bg-st-ink/50 focus:bg-st-ink/50"
                         style={{ left: x(c.startMs) - 3 }}
                       />,
                     );
@@ -1113,13 +1165,15 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
                     <span
                       key={`${c.id}-end`}
                       role="slider"
+                      tabIndex={0}
                       aria-label={`Trim end of segment ${i + 1}`}
                       aria-valuenow={c.startMs + c.durationMs}
                       aria-valuemin={0}
                       aria-valuemax={total}
                       aria-valuetext={fmtTime(c.startMs + c.durationMs)}
                       onPointerDown={(e) => beginVideoEdgeDrag(e, c.id, "end")}
-                      className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2 before:content-[''] hover:bg-st-ink/50"
+                      onKeyDown={(e) => trimHandleKeyDown(e, c.id, "end", c.startMs + c.durationMs)}
+                      className="absolute inset-y-0 z-20 w-1.5 cursor-ew-resize bg-st-ink/20 before:absolute before:-inset-x-2.5 before:-inset-y-2 before:content-[''] hover:bg-st-ink/50 focus:bg-st-ink/50"
                       style={{ left: x(c.startMs + c.durationMs) - 3 }}
                     />,
                   );

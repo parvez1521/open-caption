@@ -3,8 +3,9 @@
  * reachable by keyboard — tabIndex=0 with Enter/Space to select — and the
  * video trim handles announce real milliseconds, not seconds-as-ms.
  *
- * Scoped fix only: selection via keyboard + the SegmentInspector numeric
- * controls is the keyboard path; keyboard drag/trim is out of scope.
+ * MA-A5-003: keyboard trim is now in scope — trim handles and caption-card
+ * edge handles are focusable sliders with arrow-key handlers through the
+ * same trim/retime APIs the pointer drags commit through.
  */
 import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
@@ -178,7 +179,53 @@ describe("Timeline video trim handle times (B-03)", () => {
     const start = screen.getByRole("slider", { name: "Trim start of first segment" });
     const end = screen.getByRole("slider", { name: "Trim end of segment 1" });
     for (const handle of [start, end]) {
-      expect(handle.className).toContain("before:-inset-x-2");
+      expect(handle.className).toContain("before:-inset-x-2.5");
     }
+  });
+
+  it("MA-A5-003: trim handles are focusable and ArrowRight trims one frame via onTrimVideoEdge", () => {
+    const onTrimVideoEdge = vi.fn();
+    render(
+      <Timeline
+        {...baseProps}
+        editorComp={editorComp}
+        selectedVideoClipId={null}
+        onSelectVideoClip={vi.fn()}
+        onTrimVideoEdge={onTrimVideoEdge}
+      />,
+    );
+    const end = screen.getByRole("slider", { name: "Trim end of segment 1" });
+    expect(end.getAttribute("tabindex")).toBe("0");
+    fireEvent.keyDown(end, { key: "ArrowRight" });
+    expect(onTrimVideoEdge).toHaveBeenCalledWith("a", "end", expect.closeTo(2000 + 1000 / 30, 0.01));
+    fireEvent.keyDown(end, { key: "ArrowLeft", shiftKey: true });
+    expect(onTrimVideoEdge).toHaveBeenCalledWith("a", "end", expect.closeTo(2000 - 10 * (1000 / 30), 0.01));
+  });
+
+  it("MA-A5-003: caption-card edge handles are focusable sliders and arrow keys retime the block", () => {
+    const onRetimeRun = vi.fn();
+    render(
+      <Timeline
+        {...baseProps}
+        words={[
+          // long spans: edge handles only render when the card is >16 px wide,
+          // and jsdom measures a narrow view, so short words hide them
+          { id: "w1", text: "hello", startMs: 500, endMs: 2500 },
+          { id: "w2", text: "world", startMs: 2500, endMs: 4500 },
+        ]}
+        pages={[]}
+        editorComp={editorComp}
+        selectedVideoClipId={null}
+        onSelectVideoClip={vi.fn()}
+        onRetimeRun={onRetimeRun}
+      />,
+    );
+    const start = screen.getByRole("slider", { name: "Move start of hello" });
+    expect(start.getAttribute("tabindex")).toBe("0");
+    fireEvent.keyDown(start, { key: "ArrowLeft" });
+    expect(onRetimeRun).toHaveBeenCalledWith("w1", "w1", 400, 2500, false);
+    const end = screen.getByRole("slider", { name: "Move end of world" });
+    fireEvent.keyDown(end, { key: "ArrowRight", shiftKey: true });
+    expect(onRetimeRun).toHaveBeenCalledWith("w2", "w2", 2500, 5000, false);
   });
 });
