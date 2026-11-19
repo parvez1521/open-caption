@@ -14,10 +14,7 @@ import { DEFAULT_OPENGRAPH_IMAGES, DEFAULT_TWITTER_IMAGES, SITE_URL, faqPageJson
 export const metadata: Metadata = {
   title: { absolute: BRAND_TITLE },
   description: BRAND_DESCRIPTION,
-  // MA-A8-002: the sitemap lists the homepage as ${SITE_URL}/ (trailing
-  // slash) — the canonical must match it exactly, so it is absolute here
-  // instead of "/" (which Next resolves to the bare origin, no slash).
-  alternates: { canonical: `${SITE_URL}/` },
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     siteName: BRAND_NAME,

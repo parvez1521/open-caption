@@ -13,7 +13,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // the site has no per-page publish timestamps to source them from.
   const lastModified = new Date();
   return INDEXABLE_PATHS.map((path) => ({
-    url: path === "/" ? `${SITE_URL}/` : `${SITE_URL}${path}`,
+    // MA-A8-002: the homepage loc must match the canonical Next actually
+    // renders. Next strips the trailing slash from the root canonical even
+    // when it is set as `${SITE_URL}/`, so the loc is the bare origin here
+    // (verified against the built output); every other path keeps its slash.
+    url: path === "/" ? SITE_URL : `${SITE_URL}${path}`,
     lastModified,
     changeFrequency:
       path === "/"

@@ -59,8 +59,8 @@ describe("sitemap", () => {
   const urls = entries.map((e) => e.url);
 
   it("lists exactly the indexable public routes on the production origin", () => {
-    expect(urls).toEqual(INDEXABLE_PATHS.map((p) => (p === "/" ? `${SITE_URL}/` : `${SITE_URL}${p}`)));
-    expect(urls).toContain("https://www.captionit.in/");
+    expect(urls).toEqual(INDEXABLE_PATHS.map((p) => (p === "/" ? SITE_URL : `${SITE_URL}${p}`)));
+    expect(urls).toContain("https://www.captionit.in");
     // MA-A8-004: /login is deliberately not in the sitemap (sign-in adds
     // nothing to discovery); it stays reachable with its own canonical.
     expect(urls).not.toContain("https://www.captionit.in/login");
@@ -115,7 +115,7 @@ describe("sitemap", () => {
   });
 
   it("gives the homepage top priority", () => {
-    expect(entries[0]).toMatchObject({ url: `${SITE_URL}/`, priority: 1 });
+    expect(entries[0]).toMatchObject({ url: SITE_URL, priority: 1 });
   });
 });
 
@@ -285,7 +285,7 @@ describe("per-route metadata (shipped modules)", () => {
   it("the homepage title and OG title agree (both the full <title> copy)", () => {
     expect(homeMetadata.title).toEqual({ absolute: expect.stringContaining("Auto captions") });
     expect(homeMetadata.openGraph?.title).toBe("Auto captions for Reels, Shorts and TikTok, made in your browser | Captionit");
-    expect(homeMetadata.alternates?.canonical).toBe(`${SITE_URL}/`);
+    expect(homeMetadata.alternates?.canonical).toBe("/");
     expect(homeMetadata.description).toContain("auto captions timed to every word");
     // the home-layout override replaces the root openGraph/twitter wholesale,
     // so it must re-state everything the root provides (url, siteName,
