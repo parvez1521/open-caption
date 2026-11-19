@@ -45,7 +45,14 @@ export async function decodeAudio(src: Blob): Promise<Float32Array> {
  * when the worker being dropped IS the shared one.
  */
 let shared: Worker | null = null;
-export const speechWorker = () => (shared ??= new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" }));
+/**
+ * MA-A1-009: the old exported `speechWorker` singleton is gone — no caller
+ * outside this file used it (sessions use `createSpeechWorker`), and an
+ * exported shared worker is exactly how PER-05-B happened. The warm-preload
+ * target stays, but module-private: only `preloadSpeechModel` may touch it,
+ * and it is never handed to a session.
+ */
+const sharedSpeechWorker = () => (shared ??= new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" }));
 /** A fresh worker for one transcription run; the caller owns it and drops it when the run ends. */
 export const createSpeechWorker = () => new Worker(new URL("./whisper.worker.ts", import.meta.url), { type: "module" });
 export const dropWorker = (w: Worker) => {
@@ -75,7 +82,7 @@ export function preloadSpeechModel(full = true, lang: SpeechLanguage = likelySpe
   if (preloaded === lang) return;
   preloaded = lang;
   void navigator.storage?.persist?.().catch(() => false);
-  sendToWorker(speechWorker(), { type: "preload", model: lang, forceWasm: webgpuMarkedBroken() });
+  sendToWorker(sharedSpeechWorker(), { type: "preload", model: lang, forceWasm: webgpuMarkedBroken() });
 }
 
 /**
