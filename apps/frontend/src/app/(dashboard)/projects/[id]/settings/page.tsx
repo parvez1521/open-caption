@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ import { projectsService } from "@/services/projects";
 import { studioService } from "@/services/studio";
 import StudioShell from "@/components/studio/StudioShell";
 import { buildStageCWritePatch, STAGE_C_ENABLED } from "@/features/studio/stageC";
+import { useDialogEscapeAndTrap } from "@/features/studio/useDialogEscapeAndTrap";
 
 const PLATFORMS: Platform[] = ["tiktok", "reels", "shorts", "youtube", "linkedin", "podcast", "custom"];
 const ASPECTS = ["9:16", "16:9", "1:1", "4:5"] as const;
@@ -68,6 +69,11 @@ export default function ProjectSettingsPage() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // MA-A2-005: the delete modal traps focus and answers Escape like the
+  // Studio dialogs and the ProjectsList modals (same shared hook).
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+  useDialogEscapeAndTrap(deleteDialogRef, () => !deleting && setDeleteOpen(false), deleteOpen);
 
   useEffect(() => {
     if (!project || detailsReady) return;
@@ -293,7 +299,7 @@ export default function ProjectSettingsPage() {
 
       {deleteOpen && project ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => !deleting && setDeleteOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
+          <div ref={deleteDialogRef} role="alertdialog" aria-modal="true" aria-label="Delete this project" tabIndex={-1} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-serif text-2xl font-semibold text-ink">Delete this project?</h3>
             <p className="mt-2 text-[14px] leading-relaxed text-sand-800"><strong className="text-ink">&quot;{project.title}&quot;</strong> and its uploads, transcript, and exports will be removed. This can&apos;t be undone.</p>
             <div className="mt-6 flex justify-end gap-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { projectsService } from "@/services/projects";
@@ -14,6 +14,7 @@ import { createBlankAiEditProject, filterAiEditProjects, filterCaptionProjects }
 import { copyLocalVideo } from "@/features/upload/localVideos";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
 import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
+import { useDialogEscapeAndTrap } from "@/features/studio/useDialogEscapeAndTrap";
 
 const STATUS_CHIP: Record<ProjectStatus, { label: string; cls: string; pulse?: boolean }> = {
   CREATED: { label: "draft", cls: "border border-sand-300 text-sand-700 bg-white" },
@@ -131,6 +132,16 @@ export default function ProjectsList() {
   const [orgTags, setOrgTags] = useState("");
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgError, setOrgError] = useState<string | null>(null);
+
+  // MA-A2-005: the three dashboard modals trap focus and answer Escape like
+  // the Studio dialogs do (same shared hook; the library alertdialogs use
+  // the same pattern). Each hook arms only while its modal is open.
+  const createDialogRef = useRef<HTMLDivElement>(null);
+  const orgDialogRef = useRef<HTMLDivElement>(null);
+  const deleteDialogRef = useRef<HTMLDivElement>(null);
+  useDialogEscapeAndTrap(createDialogRef, () => !creating && setCreateOpen(false), createOpen);
+  useDialogEscapeAndTrap(orgDialogRef, () => !orgSaving && setOrgTarget(null), orgTarget !== null);
+  useDialogEscapeAndTrap(deleteDialogRef, () => { if (!deleteBusy) setDeleteTarget(null); }, deleteTarget !== null);
 
   // NOTE: no speech-model warm-up here. This list used to download the ~90 MB Whisper
   // model on mount — on mobile data, for visitors who may never transcribe. The model
@@ -439,12 +450,12 @@ export default function ProjectsList() {
       {/* Create modal */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => !creating && setCreateOpen(false)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
+          <div ref={createDialogRef} role="dialog" aria-modal="true" aria-label="New project" tabIndex={-1} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-serif text-2xl font-semibold text-ink">New project</h3>
             <p className="mt-1 text-[13px] text-sand-800">Name it after the clip — you can change this later.</p>
             {createError && <div className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{createError}</div>}
             <form onSubmit={handleCreate} className="mt-5 space-y-5">
-              <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Podcast ep. 12 — hook cut" autoFocus required disabled={creating} className="w-full rounded-lg border border-sand-300 bg-white px-4 py-3 text-[14px] text-ink placeholder:text-sand-500 outline-none transition-colors focus:border-sand-600 focus:ring-2 focus:ring-sand-200" />
+              <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="e.g. Podcast ep. 12 — hook cut" required disabled={creating} className="w-full rounded-lg border border-sand-300 bg-white px-4 py-3 text-[14px] text-ink placeholder:text-sand-500 outline-none transition-colors focus:border-sand-600 focus:ring-2 focus:ring-sand-200" />
               <div className="grid grid-cols-1 gap-2" onKeyDown={radioGroupKeyDown} role="radiogroup" aria-label="How this project starts">
                 {START_DOORS.map((o) => (
                   <button
@@ -478,7 +489,7 @@ export default function ProjectsList() {
       {/* Folder & tags editor */}
       {orgTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => !orgSaving && setOrgTarget(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
+          <div ref={orgDialogRef} role="dialog" aria-modal="true" aria-label="Folder & tags" tabIndex={-1} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-serif text-2xl font-semibold text-ink">Folder &amp; tags</h3>
             <p className="mt-1 text-[13px] text-sand-800">Organise &quot;{orgTarget.title}&quot; — one folder, any number of tags.</p>
             {orgError && <div className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{orgError}</div>}
@@ -504,7 +515,7 @@ export default function ProjectsList() {
       {/* Delete confirmation */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => { if (!deleteBusy) setDeleteTarget(null); }}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
+          <div ref={deleteDialogRef} role="alertdialog" aria-modal="true" aria-label="Delete this project" tabIndex={-1} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-sand-deep animate-fade-in-up sm:p-8" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-serif text-2xl font-semibold text-ink">Delete this project?</h3>
             <p className="mt-2 text-[14px] leading-relaxed text-sand-800"><strong className="text-ink">&quot;{deleteTarget.title}&quot;</strong> and its uploads, transcript, and exports will be removed. This can&apos;t be undone.</p>
             {deleteError && <div role="alert" className="mt-4 rounded-lg border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13px] text-obsidian">{deleteError}</div>}
