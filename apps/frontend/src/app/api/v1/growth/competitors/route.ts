@@ -8,6 +8,7 @@ import {
   type CompetitorProfileRow,
 } from "@/lib/api/growth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * The caller's competitor profiles (Phase 6, Growth Studio): accounts the
@@ -22,6 +23,7 @@ import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_read", 600, 3600);
   const { data, error } = await user.db
     .from("competitor_profiles")
     .select(COMPETITOR_PROFILE_COLUMNS)
@@ -49,6 +51,7 @@ const emptyToNull = (value: string | null | undefined): string | null =>
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_write", 60, 3600);
   const body = await parseBody(req, CreateBody);
   const { data, error } = await user.db
     .from("competitor_profiles")

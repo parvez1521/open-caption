@@ -4,6 +4,7 @@ import { appOrigin, isConnectPlatform, instagramConfig, platformConfigured, redi
 import { signOAuthState } from "@/lib/api/connections/state";
 import { youtubeAuthUrl } from "@/lib/api/connections/youtube";
 import { instagramAuthUrl } from "@/lib/api/connections/instagram";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Begin a connect (P1): signed-in users only. The identity rides to the
@@ -21,6 +22,7 @@ import { instagramAuthUrl } from "@/lib/api/connections/instagram";
  */
 export const GET = route(async (req: Request, { params }: Ctx<{ platform: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_connect", 20, 3600);
   const { platform } = await params;
   if (!isConnectPlatform(platform)) throw notFound("Connect platform");
   if (!platformConfigured(platform)) {

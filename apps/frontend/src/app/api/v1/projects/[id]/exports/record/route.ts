@@ -10,6 +10,7 @@ import {
   recordVideoQuotaEvent,
 } from "@/lib/billing/videoQuota";
 import { isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 const Body = z.object({
   exportId: z.string().uuid(),
@@ -38,6 +39,7 @@ const Body = z.object({
  */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "export", 120, 3600);
   const { id: projectId } = await params;
   const body = await parseBody(req, Body);
 

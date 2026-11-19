@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, route } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Global exports list for the signed-in user (newest first), across all projects.
@@ -12,6 +13,7 @@ import { ApiFailure, route } from "@/lib/api/http";
  */
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "exports_read", 600, 3600);
   const url = new URL(req.url);
   const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? 100) || 100));
   const offset = Math.max(0, Number(url.searchParams.get("offset") ?? 0) || 0);

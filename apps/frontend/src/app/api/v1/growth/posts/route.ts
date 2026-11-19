@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/growth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import { validatePostRow, type GrowthPostInput } from "@/features/growth/model";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * The caller's growth posts (Phase 6, Growth Studio): posts they published,
@@ -27,6 +28,7 @@ import { validatePostRow, type GrowthPostInput } from "@/features/growth/model";
 
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_read", 600, 3600);
   // C-05: the list is capped at 500 rows, so the exact total rides along —
   // callers can say "showing 500 of N" instead of silently truncating.
   const { data, count, error } = await user.db
@@ -48,6 +50,7 @@ const Envelope = z.record(z.unknown());
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "growth_write", 60, 3600);
   const body = await parseBody(req, Envelope);
   const validated = validatePostRow(body);
   if (!validated.ok) throw new ApiFailure("VALIDATION", validated.errors.join("; "), validated.errors);

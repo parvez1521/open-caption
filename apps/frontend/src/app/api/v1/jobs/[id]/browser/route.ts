@@ -5,6 +5,7 @@ import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/
 import { logJobEvent } from "@/lib/api/jobs";
 import { saveTranscription } from "@/lib/api/transcripts";
 import { getAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /** A browser tab holding a transcribe job: long enough for a model download + a slow CPU, reaped if the tab vanishes. */
 const BROWSER_LEASE_S = 15 * 60;
@@ -30,6 +31,7 @@ const Body = z.discriminatedUnion("action", [
  */
 export const POST = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "jobs_write", 60, 3600);
   const { id } = await params;
   const body = await parseBody(req, Body);
   const { data: job } = await user.db.from("jobs").select("id, kind, status, worker_id, project_id, owner_id, payload, stage").eq("id", id).maybeSingle();

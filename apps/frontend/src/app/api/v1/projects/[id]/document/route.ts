@@ -2,11 +2,13 @@ import { SaveDocumentBody } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, failResponse, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 const MAX_DOC_BYTES = 8 * 1024 * 1024;
 
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "project_read", 600, 3600);
   const { id } = await params;
   const { data } = await user.db.from("caption_documents").select("revision, doc, updated_at").eq("project_id", id).maybeSingle();
   // no document yet (still transcribing) is a normal state, not an error
@@ -16,6 +18,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
 /** Autosave with optimistic concurrency: a stale revision gets 409 plus the server copy so the UI can resolve it. */
 export const PUT = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "project_doc", 1200, 3600);
   const { id } = await params;
   const body = await parseBody(req, SaveDocumentBody);
   if (JSON.stringify(body.doc).length > MAX_DOC_BYTES) throw new ApiFailure("LIMIT_EXCEEDED", "Caption document is too large");

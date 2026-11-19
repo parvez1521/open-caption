@@ -10,6 +10,7 @@ import {
   type BrandKitRow,
 } from "@/lib/api/brandProfiles";
 import { normalizeVoice } from "@/features/create/brandProfile";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * Brand Voice profiles: the caller's brand_kits rows, oldest first.
@@ -47,6 +48,7 @@ const CreateBody = z.object({
 
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "brand_read", 600, 3600);
   const full = await user.db
     .from("brand_kits")
     .select(PROFILE_COLUMNS)
@@ -73,6 +75,7 @@ export const GET = route(async (req: Request) => {
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "brand_write", 60, 3600);
   const body = await parseBody(req, CreateBody);
   // Counted with an id-only select, which works whether or not the voice
   // migration has landed — the insert below is the write that can hit it.

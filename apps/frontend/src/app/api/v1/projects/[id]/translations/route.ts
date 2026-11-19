@@ -1,6 +1,7 @@
 import { SaveTranslationBody } from "@capseasy/shared";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, failResponse, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 const MAX_DOC_BYTES = 8 * 1024 * 1024;
 
@@ -16,6 +17,7 @@ const MAX_DOC_BYTES = 8 * 1024 * 1024;
  */
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "project_read", 600, 3600);
   const { id } = await params;
   const { data, error } = await user.db
     .from("caption_translations")
@@ -28,6 +30,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
 
 export const PUT = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "project_write", 60, 3600);
   const { id } = await params;
   const body = await parseBody(req, SaveTranslationBody);
   if (body.doc.language !== body.language) {

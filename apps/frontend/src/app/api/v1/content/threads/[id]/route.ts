@@ -11,6 +11,7 @@ import {
   type ChatThreadRow,
 } from "@/lib/api/content";
 import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/http";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * One chat thread: read (with its messages, oldest first), rename /
@@ -24,6 +25,7 @@ import { ApiFailure, notFound, ok, parseBody, route, type Ctx } from "@/lib/api/
 
 export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_read", 600, 3600);
   const { id } = await params;
 
   const { data: thread, error: threadError } = await user.db
@@ -65,6 +67,7 @@ const PatchBody = z
 
 export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_write", 60, 3600);
   const { id } = await params;
   const patch = await parseBody(req, PatchBody);
   if (Object.keys(patch).length === 0) throw new ApiFailure("VALIDATION", "No editable fields provided");
@@ -100,6 +103,7 @@ export const PATCH = route(async (req: Request, { params }: Ctx<{ id: string }>)
 
 export const DELETE = route(async (req: Request, { params }: Ctx<{ id: string }>) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "content_write", 60, 3600);
   const { id } = await params;
   // Messages cascade with the thread (chat_messages.thread_id on delete cascade).
   const { data, error } = await user.db

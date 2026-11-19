@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, ok, route } from "@/lib/api/http";
 import { getAdmin } from "@/lib/supabase/admin";
 import { getVideoQuotaUsage } from "@/lib/billing/videoQuota";
+import { rateLimit } from "@/lib/api/rateLimit";
 
 /**
  * The caller's monthly video quota: plan, limit, used, remaining, window.
@@ -15,6 +16,7 @@ import { getVideoQuotaUsage } from "@/lib/billing/videoQuota";
  */
 export const GET = route(async (req: Request) => {
   const user = await requireUser(req);
+  await rateLimit(user.id, "billing_read", 600, 3600);
   const { data: profile } = await user.db
     .from("profiles")
     .select("plan, plan_expires_at")
