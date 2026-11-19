@@ -290,7 +290,7 @@ export function AccountsBar({ onSynced }: { onSynced?: () => void }) {
 
             {rowNote[row.platform] ? <p className="mt-2 text-[12.5px] text-sand-700">{rowNote[row.platform]}</p> : null}
             {rowError[row.platform] ? (
-              <p role="alert" className="mt-2 text-[12.5px] font-medium text-red-700">
+              <p role="alert" className="mt-2 text-[12.5px] font-medium text-red-400">
                 {rowError[row.platform]}
               </p>
             ) : null}

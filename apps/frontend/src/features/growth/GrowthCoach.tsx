@@ -208,7 +208,7 @@ export function GrowthCoach({ starters }: { starters: string[] }) {
             <div className="mt-8 flex w-full justify-center">{composer("welcome")}</div>
             <div className="mt-5">{starterChips("center")}</div>
             {error ? (
-              <p role="alert" className="mt-4 text-[13px] font-medium text-red-700">
+              <p role="alert" className="mt-4 text-[13px] font-medium text-red-400">
                 {error}
               </p>
             ) : null}
@@ -254,7 +254,7 @@ export function GrowthCoach({ starters }: { starters: string[] }) {
                 {!sending && lastTurn?.role === "assistant" ? starterChips("start") : null}
 
                 {error ? (
-                  <p role="alert" className="text-[13px] font-medium text-red-700">
+                  <p role="alert" className="text-[13px] font-medium text-red-400">
                     {error}
                   </p>
                 ) : null}
