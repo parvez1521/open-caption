@@ -16,7 +16,13 @@
 
 import { fromWhisperCaptions } from "@motion-ai/caption-engine/core";
 import { decodeAudio, type Out } from "../transcribe/browserWhisper";
-import { likelySpeechLanguage, webgpuMarkedBroken } from "../transcribe/runtime";
+import {
+  MODELS,
+  likelySpeechLanguage,
+  savedSpeechLanguage,
+  webgpuMarkedBroken,
+  type SpeechLanguage,
+} from "../transcribe/runtime";
 import { dropRepeatedRuns } from "../transcribe/speech";
 import type { TranscriptWord } from "./aiEditPlanner";
 
@@ -30,6 +36,24 @@ export interface PlanTranscriptionProgress {
 export interface TranscribeForPlanningOptions {
   onProgress?: (p: PlanTranscriptionProgress) => void;
   signal?: AbortSignal;
+}
+
+/**
+ * The Whisper language token for a planning run. The panel asks no language
+ * question, so the Studio session's rule is mirrored for a run with no
+ * explicit choice: a SAVED choice forces its model's token, a mere browser
+ * guess keeps auto-detect (null) so a wrong guess can't force the wrong
+ * token onto the stock model. One exception: the Hinglish fine-tune was
+ * trained with the "en" token only — letting Whisper auto-detect ("hi" for
+ * Hindi speech) would decode with a token the model never saw, so its token
+ * is always forced. Passing null before this fix was the leak: Hinglish
+ * planning transcripts were decoded window by window with whatever token
+ * auto-detect picked.
+ */
+export function planningLanguageToken(model: SpeechLanguage): string | null {
+  if (model === "hinglish") return MODELS.hinglish.language;
+  const saved = savedSpeechLanguage();
+  return saved ? MODELS[saved].language : null;
 }
 
 /**
@@ -72,14 +96,16 @@ export async function transcribeVideoForPlanning(
     const onAbort = () => fail(new Error("Transcription stopped."));
     opts.signal?.addEventListener("abort", onAbort, { once: true });
 
+    const model = likelySpeechLanguage();
+    const language = planningLanguageToken(model);
     const start = (audio?: Float32Array) => {
       worker.postMessage(
         {
           type: "run",
-          model: likelySpeechLanguage(),
+          model,
           file: audio ? null : file,
           audio,
-          language: null,
+          language,
           forceWasm: webgpuMarkedBroken(),
         },
         audio ? [audio.buffer] : [],

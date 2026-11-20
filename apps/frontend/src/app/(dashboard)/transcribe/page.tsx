@@ -23,6 +23,7 @@ import {
   type StandaloneRun,
   type StandaloneStage,
 } from "@/features/transcribe/standalone";
+import { requestTranscriptCorrection } from "@/features/transcribe/correctTranscript";
 
 /**
  * Standalone Transcribe — upload a file and get its transcript.
@@ -67,6 +68,11 @@ export default function TranscribePage() {
   const [words, setWords] = useState<Word[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Correction pass: the corrected plain text (null = showing Whisper's own
+  // words). The segments below always show the original timed words.
+  const [correctedText, setCorrectedText] = useState<string | null>(null);
+  const [correcting, setCorrecting] = useState(false);
+  const [correctError, setCorrectError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const runRef = useRef<StandaloneRun | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -87,6 +93,8 @@ export default function TranscribePage() {
     setFile(f);
     setWords([]);
     setError(null);
+    setCorrectedText(null);
+    setCorrectError(null);
     setPhase("idle");
     try {
       const probed = await probeMediaFile(f);
@@ -107,6 +115,8 @@ export default function TranscribePage() {
     }
     setError(null);
     setWords([]);
+    setCorrectedText(null);
+    setCorrectError(null);
     setStage({ stage: "download", progress: 0 });
     setPhase("running");
     const run = runStandaloneTranscribe(
@@ -146,6 +156,8 @@ export default function TranscribePage() {
     setFile(null);
     setWords([]);
     setError(null);
+    setCorrectedText(null);
+    setCorrectError(null);
     setStage(null);
     setPhase("idle");
   }, []);
@@ -153,16 +165,33 @@ export default function TranscribePage() {
   const pages: Page[] = words.length ? wordsToTranscriptPages(words) : [];
   const baseName = file ? file.name.replace(/\.[^.]+$/, "") : "transcript";
   const downloads = phase === "done" ? buildTranscriptDownloads(words) : null;
+  // The full transcript, all together: Whisper's own words, or the corrected
+  // text once the check has run. Segments below stay timed and original.
+  const fullText = correctedText ?? transcriptPlainText(pages);
 
   const copyAll = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(transcriptPlainText(pages));
+      await navigator.clipboard.writeText(fullText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setError("Copy didn't work in this browser — use a download instead.");
     }
-  }, [pages]);
+  }, [fullText]);
+
+  const fixMistakes = useCallback(async () => {
+    if (correcting || !words.length) return;
+    setCorrectError(null);
+    setCorrecting(true);
+    try {
+      const corrected = await requestTranscriptCorrection(transcriptPlainText(pages), language);
+      setCorrectedText(corrected);
+    } catch (e) {
+      setCorrectError(e instanceof Error ? e.message : "The check didn't work. Please try again.");
+    } finally {
+      setCorrecting(false);
+    }
+  }, [correcting, words.length, pages, language]);
 
   const running = phase === "running";
   const progress = stage ? Math.round(stage.progress * 100) : 0;
@@ -346,24 +375,62 @@ export default function TranscribePage() {
                       Download {label}
                     </button>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => void fixMistakes()}
+                    disabled={correcting || !words.length}
+                    className="rounded-full border border-sand-300 px-4 py-2 text-[13px] font-semibold text-ink disabled:opacity-40"
+                  >
+                    {correcting ? "Checking…" : "Fix mistakes"}
+                  </button>
                   <button type="button" onClick={reset} className="rounded-full bg-[#34D399] px-4 py-2 text-[13px] font-bold text-[#141412]">
                     Transcribe another
                   </button>
                 </div>
               </div>
+              {correctError && (
+                <p role="alert" className="rounded-xl border border-[#E5484D]/40 bg-[#E5484D]/10 px-4 py-3 text-[14px] text-ink">
+                  {correctError}
+                </p>
+              )}
               {pages.length === 0 ? (
                 <p className="rounded-2xl border border-sand-200 bg-[#1C1C1A] px-5 py-6 text-[14px] text-sand-800">
                   No speech was found in this file.
                 </p>
               ) : (
-                <ol className="space-y-3">
-                  {pages.map((p) => (
-                    <li key={p.id} className="rounded-2xl border border-sand-200 bg-[#1C1C1A] px-5 py-4">
-                      <p className="font-mono text-[12px] text-[#34D399]">{fmtSrtTime(p.startMs)}</p>
-                      <p className="mt-1 text-[15px] leading-relaxed text-ink">{pageText(p)}</p>
-                    </li>
-                  ))}
-                </ol>
+                <>
+                  <div>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h2 className="font-sora text-[15px] font-bold text-ink">Full transcript</h2>
+                      {correctedText !== null && (
+                        <span className="text-[12px] font-semibold text-[#34D399]">Corrected</span>
+                      )}
+                    </div>
+                    <p
+                      data-testid="full-transcript"
+                      className="mt-2 whitespace-pre-wrap rounded-2xl border border-sand-200 bg-[#1C1C1A] px-5 py-4 text-[15px] leading-relaxed text-ink"
+                    >
+                      {fullText}
+                    </p>
+                    {correctedText !== null && (
+                      <button
+                        type="button"
+                        onClick={() => setCorrectedText(null)}
+                        className="mt-2 text-[13px] font-semibold text-sand-600 underline underline-offset-4"
+                      >
+                        Show original
+                      </button>
+                    )}
+                  </div>
+                  <ol className="space-y-3">
+                    {pages.map((p) => (
+                      <li key={p.id} className="rounded-2xl border border-sand-200 bg-[#1C1C1A] px-5 py-4">
+                        <p className="font-mono text-[12px] text-[#34D399]">{fmtSrtTime(p.startMs)}</p>
+                        <p className="mt-1 text-[15px] leading-relaxed text-ink">{pageText(p)}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </>
               )}
             </div>
           )}
