@@ -8,3 +8,12 @@ allowBuilds:
   esbuild: true
   onnxruntime-node: false
   protobufjs: false
+  tesseract.js: true
+
+# @huggingface/transformers' browser bundle imports 'onnxruntime-common'
+# directly, but pnpm does not link it next to transformers — the build can
+# only resolve it from the hoisted .pnpm/node_modules (2026-11-18: a fresh
+# install stopped hoisting it, breaking `next build` while the older
+# node_modules in the main worktree still had the link).
+public-hoist-pattern:
+  - onnxruntime-common
