@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * configured:false with no model call.
  */
 
-const state = vi.hoisted(() => ({ configured: true, failUpstream: false }));
+const state = vi.hoisted(() => ({ configured: true, failUpstream: false, failStatus: null as number | null }));
 const ai = vi.hoisted(() => ({ calls: [] as Array<{ system: string; user: string; opts: unknown }> }));
 const rateLimitCalls = vi.hoisted(() => ({ calls: [] as unknown[][] }));
 
@@ -22,11 +22,28 @@ vi.mock("@/lib/api/rateLimit", () => ({
     rateLimitCalls.calls.push(args);
   },
 }));
+const errors = vi.hoisted(() => ({
+  CloudAiError: class extends Error {
+    status?: number;
+    constructor(message: string, status?: number) {
+      super(message);
+      this.name = "CloudAiError";
+      this.status = status;
+    }
+  },
+}));
+
 vi.mock("@/lib/api/cloudAi", () => ({
+  CloudAiError: errors.CloudAiError,
   cloudAiConfig: () =>
     state.configured ? { apiKey: "test-key", model: "test-model", endpoint: "https://example.test" } : null,
   runCloudChat: async (prompt: { system: string; user: string }, opts?: unknown) => {
-    if (state.failUpstream) throw new Error("upstream down");
+    if (state.failUpstream) {
+      if (state.failStatus !== null) {
+        throw new errors.CloudAiError(`The free AI service answered with HTTP ${state.failStatus}.`, state.failStatus);
+      }
+      throw new Error("upstream down");
+    }
     ai.calls.push({ ...prompt, opts });
     return `FIXED: ${prompt.user}`;
   },
@@ -47,6 +64,7 @@ const ask = (body: unknown) =>
 beforeEach(() => {
   state.configured = true;
   state.failUpstream = false;
+  state.failStatus = null;
   ai.calls = [];
   rateLimitCalls.calls = [];
 });
@@ -98,5 +116,25 @@ describe("POST /transcribe/correct", () => {
     expect(res.status).toBe(502);
     const body = (await res.json()) as { error: { code: string } };
     expect(body.error.code).toBe("UPSTREAM_FAILED");
+  });
+
+  it("a dead free AI key (401) says the key isn't working, not 'could not be reached'", async () => {
+    state.failUpstream = true;
+    state.failStatus = 401;
+    const res = await ask({ text: "Hello world.", language: "en" });
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe("UPSTREAM_FAILED");
+    expect(body.error.message).toContain("key isn't working");
+  });
+
+  it("a free-tier daily limit (429) answers 429 with the limit message", async () => {
+    state.failUpstream = true;
+    state.failStatus = 429;
+    const res = await ask({ text: "Hello world.", language: "en" });
+    expect(res.status).toBe(429);
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe("RATE_LIMITED");
+    expect(body.error.message).toContain("daily limit");
   });
 });

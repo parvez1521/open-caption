@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { cloudAiConfig, runCloudChat } from "@/lib/api/cloudAi";
+import { CloudAiError, cloudAiConfig, runCloudChat } from "@/lib/api/cloudAi";
 import {
   buildCorrectionPrompt,
   cleanCorrectionOutput,
@@ -24,6 +24,13 @@ import {
  * same one Growth Coach and AI Edit share. When the free AI service is not
  * configured the route answers configured:false and the page says so —
  * there is no canned correction.
+ *
+ * When the AI call itself fails, the user gets the reason, not one generic
+ * message: a 401/403 means the free AI key is dead (expired or revoked),
+ * a 429 means the free daily limit is used up, anything else keeps the
+ * "could not be reached" wording. The upstream status is also logged
+ * server-side (no key, no transcript text) so the failure can be traced
+ * in the deployment logs.
  */
 
 const Body = z.object({
@@ -47,7 +54,20 @@ export const POST = route(async (req: Request) => {
         temperature: 0.2,
         maxTokens: CORRECTION_MAX_TOKENS,
       });
-    } catch {
+    } catch (err) {
+      const status = err instanceof CloudAiError ? err.status : undefined;
+      console.error(
+        JSON.stringify({ level: "error", msg: "transcribe/correct free AI call failed", status: status ?? "unknown" }),
+      );
+      if (status === 401 || status === 403) {
+        throw new ApiFailure(
+          "UPSTREAM_FAILED",
+          "The free AI key isn't working. It may have expired, so check the key in Vercel.",
+        );
+      }
+      if (status === 429) {
+        throw new ApiFailure("RATE_LIMITED", "The free AI daily limit is used up. Try again tomorrow.");
+      }
       throw new ApiFailure("UPSTREAM_FAILED", "The free AI service could not be reached. Please try again in a moment.");
     }
     corrected.push(cleanCorrectionOutput(answer));
