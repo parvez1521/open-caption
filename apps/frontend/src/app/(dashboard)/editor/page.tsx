@@ -10,16 +10,26 @@ import { projectsService } from "@/services/projects";
 import StudioShell from "@/components/studio/StudioShell";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { useBrandNav } from "@/components/brand/BrandNav";
+import { createBlankAiEditProject } from "@/features/studio/aiEditFlow";
 
 /**
  * AI Edit entry: the editor itself is per-project (at /projects/[id]).
  * This page is the honest front door — continue the most recent project,
  * or pick any project to edit.
+ *
+ * Starting a NEW AI Edit happens here too: the "New AI Edit project"
+ * button creates a blank AI-Edit project (no captions, no transcription)
+ * and opens it, where the guided 5-step panel (upload → listen → visual
+ * prompts → Puter generate → add to timeline) lives. It used to live
+ * only on the Dashboard, so opening AI Edit from the sidebar showed
+ * nothing but old projects.
  */
 export default function VideoEditorPage() {
   const router = useRouter();
   const nav = useBrandNav();
   const [signedIn, setSignedIn] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -28,6 +38,29 @@ export default function VideoEditorPage() {
     }
     setSignedIn(true);
   }, [router]);
+
+  // New AI Edit: a BLANK project in its own flow — no captions, no
+  // transcription. Same creation as the Dashboard entry; opening it lands
+  // on the guided 5-step panel in the Studio.
+  const handleCreateAiEdit = async () => {
+    if (creating) return;
+    setCreating(true);
+    setCreateError(null);
+    const done = nav.busy("Creating your AI Edit project");
+    try {
+      const blank = await createBlankAiEditProject({
+        createProject: projectsService.createProject,
+        // the server tag is the cross-device flag; a failed write never fails creation (the local flag still holds)
+        tagProject: (id, tags) => projectsService.updateProjectOrg(id, { tags }),
+      });
+      nav.go(blank.timelineUrl, "Opening your AI Edit project");
+    } catch (err: any) {
+      setCreateError(err?.message || "Couldn't create the project. Please try again.");
+    } finally {
+      done();
+      setCreating(false);
+    }
+  };
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["projects"],
@@ -45,6 +78,8 @@ export default function VideoEditorPage() {
             AI <em className="italic text-sand-600">Edit</em>
           </h1>
           <p className="mt-2 text-[14px] text-sand-800">The editor opens per project. Captions, templates, overlays and adjust, all in one studio.</p>
+          <button type="button" onClick={() => void handleCreateAiEdit()} disabled={creating} className="mt-5 rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "New AI Edit project"}</button>
+          {createError ? <p role="alert" className="mt-3 text-[13px] text-red-700">{createError}</p> : null}
         </div>
 
         <div className="pt-8">
@@ -58,8 +93,9 @@ export default function VideoEditorPage() {
           ) : projects.length === 0 ? (
             <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
               <p className="font-serif text-2xl font-semibold text-ink">No project to edit <em className="italic text-sand-600">yet.</em></p>
-              <p className="mx-auto mt-3 max-w-[42ch] text-[14px] leading-relaxed text-sand-800">Create a project first. The editor opens as soon as it exists.</p>
-              <Link href="/captions" className="mt-7 inline-block rounded-full bg-ink px-7 py-3 font-sora text-[13px] font-semibold text-dune-white hover:bg-sand-800 transition-all">Go to Captions</Link>
+              <p className="mx-auto mt-3 max-w-[42ch] text-[14px] leading-relaxed text-sand-800">Start a new AI Edit — upload a video and the guided panel walks you through listen, visual prompts and Puter generation.</p>
+              <button type="button" onClick={() => void handleCreateAiEdit()} disabled={creating} className="mt-7 inline-block rounded-full bg-ink px-7 py-3 font-sora text-[13px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "New AI Edit project"}</button>
+              <p className="mt-4 text-[13px] text-sand-700">Or <Link href="/captions" className="font-semibold text-ink underline">go to Captions</Link> for a caption project.</p>
             </div>
           ) : (
             <>
