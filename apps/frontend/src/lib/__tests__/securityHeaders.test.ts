@@ -204,6 +204,26 @@ describe("securityHeaders", () => {
     expect(pp).toContain("payment=()");
   });
 
+  it("allows the footer listing badges (2026-11-20 nightly audit)", () => {
+    // The "Listed on" footer badges (PR #5, 2026-11-19) hotlink SVGs from
+    // indielaunch.dev and fazier.com. The live site proved the gap: the
+    // badge <img> tags were in the served HTML but the CSP blocked them,
+    // so both badges rendered as broken images in the footer — and the
+    // badges must stay up (IndieLaunch re-checks weekly). Regression: the
+    // badge hosts in the footer markup must be the hosts this policy allows.
+    const img = directive("img-src");
+    expect(img).toContain("https://indielaunch.dev");
+    expect(img).toContain("https://fazier.com");
+    const sections = readFileSync(
+      fileURLToPath(new URL("../../components/home/Sections.tsx", import.meta.url)),
+      "utf8",
+    );
+    expect(sections).toContain("https://indielaunch.dev/badges/indielaunch-light.svg");
+    expect(sections).toContain(
+      "https://fazier.com/api/v1/public/badges/launch_badges.svg?badge_type=featured&theme=neutral",
+    );
+  });
+
   it("allows the Puter.js AI Generator (2026-11-17) and nothing beyond its named origins", () => {
     // Evidence: the shipped https://js.puter.com/v2/ bundle (fetched
     // 2026-11-17) — the loader (script-src), defaultAPIOrigin api.puter.com

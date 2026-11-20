@@ -27,6 +27,9 @@
  * - Vercel Analytics + Speed Insights: script from va.vercel-scripts.com, beacons to
  *   vitals.vercel-insights.com (and same-origin /_vercel/*, covered by 'self').
  * - Images: DiceBear fallback avatars, Unsplash carousel photos, the Product Hunt badge,
+ *   the IndieLaunch / Fazier "Listed on" footer badges (2026-11-19, PR #5 — hotlinked
+ *   SVGs from indielaunch.dev / fazier.com, so both hosts must be in img-src or the
+ *   badges render as broken images; found by the 2026-11-20 nightly audit),
  *   and OAuth provider avatars (Google / GitHub).
  * - Pixabay (user's-own-key stock audio + Clipper B-roll, Phase 8 / Package 3): searches go
  *   to api.pixabay.com and the media files themselves are served from cdn.pixabay.com —
@@ -123,6 +126,11 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         "https://images.unsplash.com",
         "https://api.dicebear.com",
         "https://api.producthunt.com",
+        // "Listed on" footer badges (2026-11-19, PR #5): hotlinked SVGs —
+        // without these hosts the badges render as broken images in the
+        // footer (nightly audit 2026-11-20). Same precedent as Product Hunt.
+        "https://indielaunch.dev",
+        "https://fazier.com",
         "https://lh3.googleusercontent.com",
         "https://avatars.githubusercontent.com",
         // Pixabay stock thumbnails/posters (user's-own-key imports).
