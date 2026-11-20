@@ -595,6 +595,40 @@ describe("StudioPage phase 2 — blank AI-Edit projects", () => {
     }
   });
 
+  it("blank AI-Edit project with no editor: the AI Edit panel sits beside the stage, first step ready", () => {
+    window.history.pushState({}, "", "/projects/p1");
+    window.localStorage.setItem("oc:ai-edit-project:p1", "1");
+    studioState.current = makeStudio(twoClipSettings, null);
+    const { unmount } = renderStudio();
+    try {
+      expect(screen.getByText("ai-generate-panel")).toBeTruthy();
+      expect(screen.getByText("hasVideo:false")).toBeTruthy();
+      expect(screen.getByText("transcript:idle")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Choose a video" })).toBeTruthy();
+      expect(startSession).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("server-tagged AI-Edit project opens on Generate Image/Video with no local flag", async () => {
+    window.history.pushState({}, "", "/projects/p1");
+    // no localStorage flag on this device — the "ai-edit" tag alone must do it
+    studioState.current = {
+      ...makeStudio(twoClipSettings),
+      data: { ...loadedData, project: { ...loadedData.project, tags: ["ai-edit"] } },
+    };
+    const { unmount } = renderStudio();
+    try {
+      const gen = screen.getByRole("button", { name: "Generate Image/Video" });
+      expect(gen.getAttribute("aria-pressed")).toBe("true");
+      expect(await screen.findByText("ai-generate-panel")).toBeTruthy();
+      expect(startSession).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+    }
+  });
+
   it("AI-Edit project with an editor opens on Generate Image/Video, transcript idle", async () => {
     window.history.pushState({}, "", "/projects/p1");
     window.localStorage.setItem("oc:ai-edit-project:p1", "1");

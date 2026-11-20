@@ -10,7 +10,7 @@ import { LoadingMark } from "@/components/brand/LoadingMark";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { studioService } from "@/services/studio";
 import { setProjectMode, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
-import { createBlankAiEditProject, filterAiEditProjects, filterCaptionProjects } from "@/features/studio/aiEditFlow";
+import { AI_EDIT_PROJECT_TAG, createBlankAiEditProject, filterAiEditProjects, filterCaptionProjects } from "@/features/studio/aiEditFlow";
 import { copyLocalVideo } from "@/features/upload/localVideos";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
 import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
@@ -56,15 +56,17 @@ function ProjectCard({ project, menuOpen, orgReady, onToggleMenu, onOpen, onOpen
   onWarm: () => void;
 }) {
   const chip = STATUS_CHIP[project.status] ?? STATUS_CHIP.CREATED;
+  // the "ai-edit" server tag is the AI-Edit flag, not a user tag — it never shows as a chip
+  const visibleTags = (project.tags ?? []).filter((t) => t !== AI_EDIT_PROJECT_TAG);
   return (
     <div role="link" tabIndex={0} aria-label={`Open project ${project.title}`} onClick={onOpen} onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); onOpen(); } }} onPointerEnter={onWarm} onTouchStart={onWarm} className="group relative flex h-32 cursor-pointer flex-col justify-between rounded-xl border border-sand-200 bg-white p-4 sm:h-40 sm:p-5 transition-all hover:border-sand-500 hover:shadow-sand-deep">
       <div className="min-w-0">
         <h3 className="truncate pr-10 font-sora text-[15px] font-bold text-ink">{project.title}</h3>
         {project.archived_at ? <p className="mt-1 text-[11px] text-sand-600">Archived</p> : null}
-        {orgReady && (project.folder || (project.tags ?? []).length > 0) ? (
+        {orgReady && (project.folder || visibleTags.length > 0) ? (
           <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-sand-700">
             {project.folder ? <span className="rounded-full bg-sand-200 px-2 py-0.5 font-sora font-semibold">{project.folder}</span> : null}
-            {(project.tags ?? []).map((t) => <span key={t} className="rounded-full border border-sand-300 px-2 py-0.5">{t}</span>)}
+            {visibleTags.map((t) => <span key={t} className="rounded-full border border-sand-300 px-2 py-0.5">{t}</span>)}
           </p>
         ) : null}
       </div>
@@ -207,7 +209,11 @@ export default function ProjectsList() {
     setCreateError(null);
     const done = nav.busy("Creating your AI Edit project");
     try {
-      const blank = await createBlankAiEditProject({ createProject: projectsService.createProject });
+      const blank = await createBlankAiEditProject({
+        createProject: projectsService.createProject,
+        // the server tag is the cross-device flag; a failed write never fails creation (the local flag still holds)
+        tagProject: (id, tags) => projectsService.updateProjectOrg(id, { tags }),
+      });
       setCreateOpen(false);
       nav.go(blank.timelineUrl, "Opening your AI Edit project");
     } catch (err: any) {
@@ -413,10 +419,13 @@ export default function ProjectsList() {
           </>
         )}
       </div>
-      {visibleAiEdit.length > 0 ? (
-        <section aria-label="AI Edit projects" className="pt-8">
-          <h2 className="font-sora text-[15px] font-bold text-ink">AI Edit</h2>
-          <p className="mt-1 text-[13px] text-sand-600">Blank projects for planning visuals with AI — no captions, no transcription.</p>
+      {/* AI Edit always has a home here — even with zero AI-Edit projects,
+          so the workflow is visible instead of buried in the create modal. */}
+      <section aria-label="AI Edit projects" className="pt-8">
+        <h2 className="font-sora text-[15px] font-bold text-ink">AI Edit</h2>
+        <p className="mt-1 text-[13px] text-sand-600">Start blank, upload a video, plan visuals from what is said, and generate them with Puter. No captions, no transcription.</p>
+        <button type="button" onClick={() => void handleCreateAiEdit()} disabled={creating} className="mt-3 rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "New AI Edit project"}</button>
+        {visibleAiEdit.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pt-4">
             {visibleAiEdit.map((project) => (
               <ProjectCard
@@ -445,8 +454,10 @@ export default function ProjectsList() {
               />
             ))}
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <p className="pt-4 text-[13px] text-sand-600">No AI Edit projects yet.</p>
+        )}
+      </section>
       {/* Create modal */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => !creating && setCreateOpen(false)}>

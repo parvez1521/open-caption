@@ -36,6 +36,8 @@ export interface StudioData {
     /** Stage C primary column copy of the composition slice; the raw row value — useStudio resolves it through readCompositionSettings, which validates it. */
     composition_json?: unknown;
     platform: string | null;
+    /** AI Edit server flag (project tag "ai-edit"); absent when the org columns are not selected. */
+    tags?: string[] | null;
   };
   video: {
     id: string;

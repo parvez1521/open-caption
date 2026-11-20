@@ -93,10 +93,11 @@ import {
 } from "./segmentView";
 import { SegmentInspector, type SegmentProductionState } from "./panels/SegmentInspector";
 import { getLocalVideo } from "@/features/upload/localVideos";
-import type { PreparedVideo } from "@/features/upload/prepareVideo";
+import { prepareVideo, type PreparedVideo } from "@/features/upload/prepareVideo";
 import { resolveUploadOutcome } from "./footageSwap";
 import { listProjectAssets, saveAsset } from "./mediaStore";
-import { isAiEditProject } from "./aiEditFlow";
+import { hasAiEditTag, isAiEditProject } from "./aiEditFlow";
+import { uploadFirstAiEditVideo } from "./aiEditUpload";
 import { transcribeVideoForPlanning } from "./aiEditTranscribe";
 import type { ImportError } from "./useMediaAssets";
 import { splitWordIdAtPlayhead } from "./playheadSplit";
@@ -302,6 +303,18 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // A blank AI-Edit project opens on its own rail section (never the
   // captions section, and no caption session or tutorial is started for it).
   const [section, setSection] = useState<PanelId>(() => (isAiEditProject(projectId) ? "aiedit" : "captions"));
+  // A project tagged AI-Edit on another device has no local flag here, so
+  // the section above starts on captions — land it on the AI Edit rail
+  // once the Studio data loads. Once only, so a deliberate switch away is
+  // never yanked back.
+  const aiEditRailAppliedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (aiEditRailAppliedRef.current === projectId) return;
+    if (!data?.project?.tags || !hasAiEditTag(data.project.tags)) return;
+    if (isAiEditProject(projectId)) return;
+    aiEditRailAppliedRef.current = projectId;
+    setSection("aiedit");
+  }, [data?.project?.tags, projectId]);
   // Package 2 item G — the door this project started through (?mode= wins, then the
   // device record, then the captions default). Persisted the moment it's known/chosen.
   const [startMode, setStartMode] = useState<ProjectStartMode>(() => (typeof window !== "undefined" ? modeFromSearch(window.location.search) : null) ?? projectModeOf(projectId));
@@ -1357,23 +1370,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     }
   }, [video]);
 
-  // AI Edit video upload: the same device attach path MediaPanel uses for
-  // "Use as source" — the file lands under the project's video id on this
-  // device. A project with no video row yet has nothing to attach to; its
-  // first upload goes through the start screen instead.
-  const uploadAiEditVideo = useCallback(async (files: File[]): Promise<ImportError[]> => {
-    const file = files[0];
-    if (!file) return [];
-    if (!data?.video?.id) {
-      return [{ name: file.name, error: "This project has no video yet — upload one from the start screen first." }];
-    }
-    try {
-      await device.attach(file);
-      return [];
-    } catch (e) {
-      return [{ name: file.name, error: e instanceof Error ? e.message : "The video could not be added." }];
-    }
-  }, [data?.video?.id, device]);
+  // AI Edit video upload lives below, next to handleKeepFootage: its
+  // first-upload path needs setJustUploadedId (declared in the sync
+  // section) so the cloud sync picks the new video up.
 
   // Cloud video sync: a ≤50 MB copy of the video goes to the account's storage
   // so the project opens on a second device. A video uploaded in this session
@@ -1437,6 +1436,30 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     });
   }, [data?.video, device]);
 
+  // AI Edit video upload: once the project has a video row, the file lands
+  // under that id on this device (the same device attach path MediaPanel
+  // uses for "Use as source"). A blank project has no video row yet, so
+  // its first upload runs the editor-mode first upload instead — the same
+  // path the start screen uses, no caption session, no words written.
+  const uploadAiEditVideo = useCallback(async (files: File[]): Promise<ImportError[]> => {
+    const file = files[0];
+    if (!file) return [];
+    if (!data?.video?.id) {
+      const ctrl = new AbortController();
+      return uploadFirstAiEditVideo({
+        prepare: (f) => prepareVideo(f, data?.limits ?? { maxBytes: 2 * 1024 * 1024 * 1024, maxDurationSec: 5 * 60 }, () => undefined, ctrl.signal),
+        upload: (ready) => studioService.uploadVideo(projectId, ready, () => undefined, undefined, undefined, { editorMode: true }),
+        afterUpload: (videoId) => { setJustUploadedId(videoId); void refetchStudio(); },
+      }, file);
+    }
+    try {
+      await device.attach(file);
+      return [];
+    } catch (e) {
+      return [{ name: file.name, error: e instanceof Error ? e.message : "The video could not be added." }];
+    }
+  }, [data?.video?.id, data?.limits, device, projectId, refetchStudio]);
+
   if (s.query.isLoading) return <StudioSkeleton />;
   if (s.query.error instanceof ApiError && s.query.error.status === 401) {
     router.replace(`/login?redirect=${encodeURIComponent(`/projects/${projectId}`)}`);
@@ -1446,8 +1469,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   const noVideoYet = !video || video.status === "uploading";
   // a blank AI-Edit project is its own flow: its first upload must never
-  // start a caption session, so it always opens through the editor door
-  const isAiEdit = isAiEditProject(projectId);
+  // start a caption session, so it always opens through the editor door.
+  // The local flag OR the server tag marks it — a project tagged on
+  // another device is AI Edit here too.
+  const isAiEdit = isAiEditProject(projectId) || hasAiEditTag(data?.project?.tags);
   // the project's video isn't on this device (another device, cleared storage): add a video and caption it afresh
   const videoGone = !noVideoYet && device.status === "missing";
   const hasEditor = Boolean(doc && style && input) && !videoGone;
@@ -2017,6 +2042,40 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   // ---------- no editor yet: upload / processing screen, full width
   if (!hasEditor) {
+    // Blank AI-Edit project, desktop: the guided panel sits beside the
+    // upload stage from the first open — upload, listen, plan, generate —
+    // instead of a bare upload screen with no workflow in sight. The
+    // panel's own upload takes the first video (editor mode, no caption
+    // session); once it lands, the full Studio renders with the same panel
+    // wired to the timeline. Phones keep the stage alone: the panel opens
+    // from the rail once the video is in.
+    if (isAiEdit && desktop) {
+      return (
+        <main id="main-content" className="studio flex h-[100dvh] flex-col">
+          {header}
+          <div className="flex min-h-0 flex-1">
+            <aside aria-label="Tool panel" className="flex min-h-0 w-[min(340px,30vw)] min-w-[264px] shrink-0 flex-col border-r border-st-line bg-st-panel 2xl:w-[400px]">
+              <div className="st-rise min-h-0 flex-1">
+                <AiGeneratePanel
+                  projectId={projectId}
+                  getTimeMs={getPlayerMs}
+                  hasVideo={false}
+                  videoLocked={false}
+                  onImportMedia={mediaBin.importFiles}
+                  onPlaceImage={() => undefined}
+                  onInsertVideo={() => false}
+                  onUploadVideo={uploadAiEditVideo}
+                  transcript={aiEditTranscript}
+                  onTranscribe={() => void transcribeAiEditVideo()}
+                />
+              </div>
+            </aside>
+            <div className="st-rise min-h-0 flex-1">{stage}</div>
+          </div>
+          {overlays}
+        </main>
+      );
+    }
     return (
       <main id="main-content" className="studio flex h-[100dvh] flex-col">
         {header}

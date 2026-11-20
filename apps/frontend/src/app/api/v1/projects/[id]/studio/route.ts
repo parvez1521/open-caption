@@ -1,10 +1,14 @@
 import { legacyTranscriptToDoc } from "@motion-ai/caption-engine/core";
 import { requireUser } from "@/lib/api/auth";
 import { notFound, ok, route, type Ctx } from "@/lib/api/http";
+import { isMissingOrgColumnError, normalizeProjectTags } from "@/lib/api/projects";
 import { HOUR, signedGet } from "@/lib/api/storage";
 import { getAdmin } from "@/lib/supabase/admin";
 import { effectivePlanId, planFor, syncCapBytes } from "@capseasy/shared";
 import { rateLimit } from "@/lib/api/rateLimit";
+
+const PROJECT_COLUMNS =
+  "id, title, status, language, aspect_ratio, look_id, template_id, style_json, settings_json, composition_json, platform, updated_at";
 
 /**
  * Everything the editor needs in one RLS-scoped call: project, playable video URL, caption document and the latest
@@ -17,14 +21,30 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
   const { id } = await params;
   const knownRev = Number(new URL(req.url).searchParams.get("rev") ?? NaN);
 
-  // every independent read goes out together: the editor opens after ONE database round-trip, not five
-  const [{ data: project }, { data: video }, { data: docHead }, { data: jobs }, { data: profile }] = await Promise.all([
-    user.db
+  // AI Edit: the Studio needs the project's tags so a project flagged
+  // "ai-edit" on another device still opens in the AI Edit flow (editor
+  // door on first upload, Generate Image/Video rail). Same A15 fallback as
+  // the projects list: try the tags column, retry without it when the
+  // folders/tags migration has not been applied.
+  const projectQuery = (async () => {
+    const withTags = await user.db
       .from("projects")
-      .select("id, title, status, language, aspect_ratio, look_id, template_id, style_json, settings_json, composition_json, platform, updated_at")
+      .select(`${PROJECT_COLUMNS}, tags`)
       .eq("id", id)
       .is("deleted_at", null)
-      .maybeSingle(),
+      .maybeSingle();
+    if (!withTags.error || !isMissingOrgColumnError(withTags.error)) return withTags;
+    return user.db
+      .from("projects")
+      .select(PROJECT_COLUMNS)
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle();
+  })();
+
+  // every independent read goes out together: the editor opens after ONE database round-trip, not five
+  const [{ data: project }, { data: video }, { data: docHead }, { data: jobs }, { data: profile }] = await Promise.all([
+    projectQuery,
     user.db.from("videos").select("id, storage_path, preview_path, cloud_storage_path, status, width, height, fps, duration_ms, has_audio, original_filename, file_size, mime_type, probe_json").eq("project_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     Number.isFinite(knownRev)
       ? user.db.from("caption_documents").select("revision").eq("project_id", id).maybeSingle()
@@ -100,7 +120,7 @@ export const GET = route(async (req: Request, { params }: Ctx<{ id: string }>) =
 
   const planId = effectivePlanId(profile?.plan, (profile as { plan_expires_at?: string | null } | null)?.plan_expires_at);
   return ok({
-    project,
+    project: { ...project, tags: normalizeProjectTags((project as { tags?: unknown }).tags) },
     video: videoOut,
     document: unchanged ? { revision: knownRev, doc: null, unchanged: true } : doc ?? { revision: 0, doc: null },
     job: active ?? latestFailed ?? null,

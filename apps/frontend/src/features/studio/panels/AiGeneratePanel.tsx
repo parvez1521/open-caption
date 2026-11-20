@@ -35,19 +35,16 @@ import { AiEditStyleChooser } from "./AiEditStyleChooser";
  * `features/studio/aiEditFlow.ts`): no transcribe/caption pipeline is
  * attached to the project, and nothing here lists caption projects.
  *
- * Order inside the panel (owner's order):
- *   1. Video upload — LOCKED until Puter sign-in completes.
- *   2. Puter sign-in — MANDATORY. The visitor signs in with their OWN free
- *      Puter account (User-Pays, never the owner's cost). After sign-in the
- *      upload unlocks.
- *   3. Style chooser — a preview per style (house-made SVG, never copied art).
- *   4. Plan visuals — the uploaded video is transcribed in this tab with the
- *      existing in-browser speech pipeline (planning-only: no caption
- *      document is ever written), the timestamped transcript goes to the
- *      free server-side planner, and the user reviews the per-segment plan
- *      before generating each visual with Puter and adding it to the timeline.
- *   5. One-off visual — the previous describe-and-generate box, kept for a
- *      single image or clip at the playhead.
+ * The owner's workflow, as numbered steps:
+ *   1. Add your video — works on a blank project too, no sign-in needed.
+ *   2. Listen to the video — planning-only in-browser transcription, so
+ *      the plan follows what is actually said; nothing is saved as captions.
+ *   3. Visual prompts — pick a style, the free plan turns the transcript
+ *      into per-segment prompts, approve each one.
+ *   4. Generate with Puter — sign in with your OWN free Puter account
+ *      (User-Pays, never the owner's cost), then generate each visual.
+ *   5. Add to timeline — generated visuals land at their prompt's time;
+ *      or make one visual at the playhead and add it.
  *
  * Images land as timed overlays, videos as B-roll segments, both through
  * the existing systems — so they show in the preview and burn into export
@@ -151,15 +148,14 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
 
   const copy = MODE_COPY[mode];
   const showSignIn = sdkStatus === "ready" && signedIn === false;
-  /** The upload stays LOCKED until Puter sign-in completes — no signed-in state, no upload. */
-  const uploadLocked = signedIn !== true;
+  /** Generation needs the visitor's own free Puter account — upload, listen and plan run without it. */
+  const generationLocked = signedIn !== true;
   const style = aiEditStyleById(styleId);
   const videoDurationMs = durationMs ?? (transcript.words.length > 0 ? Math.max(...transcript.words.map((w) => w.endMs)) : 0);
 
   const pickVideo = useCallback(() => {
-    if (uploadLocked) return;
     fileRef.current?.click();
-  }, [uploadLocked]);
+  }, []);
 
   const onVideoPicked = useCallback(async (files: FileList | null) => {
     const file = files?.[0];
@@ -340,59 +336,27 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
           </div>
         ) : null}
 
-        {/* 1 — video upload (locked until Puter sign-in, step 2) */}
+        {/* 1 — add the video: no sign-in needed, and this is the first upload on a blank project too */}
         <div>
           <p className="font-sora text-[13px] font-bold text-st-text">1. Add your video</p>
           <input ref={fileRef} type="file" accept="video/*" className="hidden" aria-label="Choose a video file" onChange={(e) => void onVideoPicked(e.target.files)} />
           <button
             type="button"
             onClick={pickVideo}
-            disabled={uploadLocked || uploading || sdkStatus !== "ready"}
+            disabled={uploading}
             className="mt-2 inline-flex min-h-[44px] items-center justify-center rounded-full bg-st-em px-6 py-3 font-sora text-[14px] font-bold text-[#0B1512] disabled:opacity-50"
           >
             {uploading ? "Adding…" : hasVideo ? "Replace video" : "Upload video"}
           </button>
-          {uploadLocked ? (
-            <p className="mt-2 text-xs leading-relaxed text-st-faint">Upload is locked — sign in below first (step 2). Generation uses your own free account, never Captionit&apos;s.</p>
-          ) : hasVideo ? (
-            <p className="mt-2 text-xs leading-relaxed text-st-faint">Video added. Pick a style below, then plan the visuals.</p>
+          {hasVideo ? (
+            <p className="mt-2 text-xs leading-relaxed text-st-faint">Video added. Listen to it in step 2.</p>
           ) : null}
           {uploadError ? <p role="alert" className="mt-2 text-xs text-st-or">{uploadError}</p> : null}
-          {sdkStatus === "loading" ? <p className="mt-2 text-xs text-st-faint">Loading the free generation service…</p> : null}
         </div>
 
-        {/* 2 — Puter sign-in, MANDATORY: the upload above stays locked until this completes */}
-        {showSignIn ? (
-          <div className="rounded-lg border border-st-line bg-st-raised px-3 py-3">
-            <p className="font-sora text-[13px] font-bold text-st-text">2. Sign in to continue</p>
-            <p className="mt-1 text-xs leading-relaxed text-st-text">
-              Sign in with your own free Puter account. Generation uses your account and its allowance — Captionit charges nothing, and the upload above stays locked until you sign in.
-            </p>
-            <button
-              type="button"
-              onClick={() => void signIn()}
-              className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512]"
-            >
-              Sign in with Puter
-            </button>
-            {signInError ? <p role="alert" className="mt-2 text-xs text-st-text">{signInError}</p> : null}
-          </div>
-        ) : signedIn === true ? (
-          <p className="text-xs text-st-em">2. Signed in — upload is unlocked.</p>
-        ) : null}
-
-        {/* 3 — style chooser, one preview per style */}
+        {/* 2 — listen: planning-only transcription in this tab, nothing saved as captions */}
         <div>
-          <p className="font-sora text-[13px] font-bold text-st-text">3. Pick a visual style</p>
-          <div className="mt-2">
-            <AiEditStyleChooser value={styleId} onChange={setStyleId} disabled={!hasVideo} />
-          </div>
-          {!hasVideo ? <p className="mt-2 text-xs text-st-faint">Add a video first — the style applies to the visuals planned for it.</p> : null}
-        </div>
-
-        {/* 4 — plan visuals from the transcript, review, then generate each one */}
-        <div>
-          <p className="font-sora text-[13px] font-bold text-st-text">4. Plan visuals from what is said</p>
+          <p className="font-sora text-[13px] font-bold text-st-text">2. Listen to the video</p>
           {!hasVideo ? (
             <p className="mt-2 text-xs leading-relaxed text-st-faint">Add a video first — the plan is built from the words in your video.</p>
           ) : transcript.state === "idle" ? (
@@ -415,14 +379,25 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
               <Button tone="ghost" onClick={() => onTranscribe?.()} disabled={!onTranscribe} className="mt-2">Try again</Button>
             </div>
           ) : transcript.words.length === 0 ? (
-            <p className="mt-2 text-xs leading-relaxed text-st-faint">No speech was found in this video — add visuals one at a time below instead.</p>
+            <p className="mt-2 text-xs leading-relaxed text-st-faint">No speech was found in this video — make one visual at a time in step 5 instead.</p>
           ) : (
+            <p className="mt-2 text-xs leading-relaxed text-st-faint">{transcript.words.length} words heard. Make a plan in step 3.</p>
+          )}
+        </div>
+
+        {/* 3 — visual prompts: pick a style, make the plan, approve each prompt */}
+        <div>
+          <p className="font-sora text-[13px] font-bold text-st-text">3. Visual prompts</p>
+          <div className="mt-2">
+            <AiEditStyleChooser value={styleId} onChange={setStyleId} disabled={!hasVideo} />
+          </div>
+          {!hasVideo ? <p className="mt-2 text-xs text-st-faint">Add a video first — the style applies to the visuals planned for it.</p> : null}
+          {hasVideo && transcript.state === "ready" && transcript.words.length > 0 ? (
             <>
-              <p className="mt-2 text-xs leading-relaxed text-st-faint">{transcript.words.length} words heard. Make a plan, review it, then generate each visual.</p>
               <button
                 type="button"
                 onClick={() => void makePlan()}
-                disabled={planning || sdkStatus !== "ready" || uploadLocked}
+                disabled={planning}
                 className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512] disabled:opacity-50"
               >
                 {planning ? "Planning…" : plan.length > 0 ? "Plan again" : "Make a visual plan"}
@@ -430,7 +405,12 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
               {planError ? <p role="alert" className="mt-2 text-xs text-st-or">{planError}</p> : null}
               {planDropped > 0 ? <p className="mt-2 text-xs text-st-faint">{planDropped} planned visual{planDropped === 1 ? " was" : "s were"} dropped as unusable.</p> : null}
             </>
-          )}
+          ) : hasVideo ? (
+            <p className="mt-2 text-xs leading-relaxed text-st-faint">Listen to the video first — the plan follows what is said.</p>
+          ) : null}
+          {generationLocked && plan.length > 0 ? (
+            <p className="mt-2 text-xs text-st-faint">Generation needs a free Puter sign-in — step 4.</p>
+          ) : null}
 
           {plan.length > 0 ? (
             <ul className="mt-3 space-y-2">
@@ -475,7 +455,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
                       <button
                         type="button"
                         onClick={() => void generateItem(item)}
-                        disabled={!isApproved || itemBusy === key || sdkStatus !== "ready"}
+                        disabled={!isApproved || itemBusy === key || sdkStatus !== "ready" || signedIn !== true}
                         className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full border border-st-line px-5 py-2 font-sora text-[13px] font-bold text-st-text disabled:opacity-50"
                       >
                         {itemBusy === key ? "Generating…" : `Generate this ${item.kind}`}
@@ -488,9 +468,34 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
           ) : null}
         </div>
 
-        {/* 5 — one-off visual at the playhead (kept from the previous panel) */}
+        {/* 4 — generate with Puter: sign-in lives here, right before generation */}
         <div>
-          <p className="font-sora text-[13px] font-bold text-st-text">5. Or make one visual at the playhead</p>
+          <p className="font-sora text-[13px] font-bold text-st-text">4. Generate with Puter</p>
+          {showSignIn ? (
+            <div className="mt-2 rounded-lg border border-st-line bg-st-raised px-3 py-3">
+              <p className="text-xs leading-relaxed text-st-text">
+                Sign in with your own free Puter account. Generation uses your account and its allowance — Captionit charges nothing.
+              </p>
+              <button
+                type="button"
+                onClick={() => void signIn()}
+                className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512]"
+              >
+                Sign in with Puter
+              </button>
+              {signInError ? <p role="alert" className="mt-2 text-xs text-st-text">{signInError}</p> : null}
+            </div>
+          ) : signedIn === true ? (
+            <p className="mt-2 text-xs text-st-em">Signed in — press Generate on any approved prompt in step 3.</p>
+          ) : sdkStatus === "loading" ? (
+            <p className="mt-2 text-xs text-st-faint">Loading the free generation service…</p>
+          ) : null}
+        </div>
+
+        {/* 5 — add to timeline: one visual at the playhead, then add it */}
+        <div>
+          <p className="font-sora text-[13px] font-bold text-st-text">5. Add to timeline</p>
+          <p className="mt-2 text-xs leading-relaxed text-st-faint">Plan visuals add from step 3, at the time on each prompt. Or make one visual at the playhead:</p>
           {hasVideo ? (
             <>
               <div role="group" aria-label="What to generate" className="mt-2 flex gap-2">
@@ -526,7 +531,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
                 <button
                   type="button"
                   onClick={() => void generate()}
-                  disabled={busy || adding || sdkStatus !== "ready" || uploadLocked}
+                  disabled={busy || adding || sdkStatus !== "ready" || signedIn !== true}
                   className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full bg-st-em px-6 py-3 font-sora text-[14px] font-bold text-[#0B1512] disabled:opacity-50"
                 >
                   {busy ? copy.waiting : copy.button}

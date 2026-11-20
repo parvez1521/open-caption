@@ -72,29 +72,67 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof AiGeneratePa
   return { ...utils, props };
 }
 
-describe("AiGeneratePanel — login gate", () => {
-  it("locks the upload until Puter sign-in completes, then unlocks it", async () => {
+describe("AiGeneratePanel — sign-in gates generation, not upload", () => {
+  it("upload works without Puter sign-in; the sign-in box waits at step 4", async () => {
     mockSdk.signedIn = false;
     const { props, rerender } = renderPanel({ hasVideo: false });
-    const upload = screen.getByRole("button", { name: "Upload video" });
-    expect(upload.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Upload video" }).hasAttribute("disabled")).toBe(false);
     expect(screen.getByRole("button", { name: "Sign in with Puter" })).toBeTruthy();
-    expect(screen.getByText(/Upload is locked/)).toBeTruthy();
+    expect(screen.queryByText(/Upload is locked/)).toBeNull();
 
     mockSdk.signedIn = true;
     rerender(<AiGeneratePanel {...props} />);
-    expect(screen.getByRole("button", { name: "Upload video" }).hasAttribute("disabled")).toBe(false);
     expect(screen.queryByRole("button", { name: "Sign in with Puter" })).toBeNull();
-    expect(screen.getByText(/Signed in — upload is unlocked/)).toBeTruthy();
+    expect(screen.getByText(/Signed in — press Generate on any approved prompt in step 3/)).toBeTruthy();
   });
 
-  it("uploads a video once unlocked", async () => {
-    mockSdk.signedIn = true;
-    renderPanel({ hasVideo: false });
+  it("uploads a video without signing in", async () => {
+    mockSdk.signedIn = false;
+    const { props } = renderPanel({ hasVideo: false });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["video"], "clip.mp4", { type: "video/mp4" });
     fireEvent.change(input, { target: { files: [file] } });
     await waitFor(() => expect(screen.queryByText("Adding…")).toBeNull());
+    expect(props.onUploadVideo).toHaveBeenCalledTimes(1);
+  });
+
+  it("planning works without sign-in, but Generate stays locked until sign-in", async () => {
+    mockSdk.signedIn = false;
+    const { props, rerender } = renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Make a visual plan" }));
+    await waitFor(() => expect(screen.getByText("a sunrise over hills")).toBeTruthy());
+    const generate = screen.getByRole("button", { name: "Generate this image" });
+    expect(generate.hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/Generation needs a free Puter sign-in — step 4/)).toBeTruthy();
+
+    mockSdk.signedIn = true;
+    rerender(<AiGeneratePanel {...props} />);
+    expect(screen.getByRole("button", { name: "Generate this image" }).hasAttribute("disabled")).toBe(false);
+  });
+});
+
+describe("AiGeneratePanel — guided steps", () => {
+  it("each step says what it needs: no video blocks listen and plan, no transcript blocks the plan", () => {
+    mockSdk.signedIn = true;
+    renderPanel({ hasVideo: false, transcript: { state: "idle", words: [] } });
+    expect(screen.getByText("1. Add your video")).toBeTruthy();
+    expect(screen.getByText(/Add a video first — the plan is built from the words in your video/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Listen to the video" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Make a visual plan" })).toBeNull();
+  });
+
+  it("with a video but no transcript yet, step 3 waits for step 2", () => {
+    mockSdk.signedIn = true;
+    renderPanel({ transcript: { state: "idle", words: [] } });
+    expect(screen.getByRole("button", { name: "Listen to the video" })).toBeTruthy();
+    expect(screen.getByText(/Listen to the video first — the plan follows what is said/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Make a visual plan" })).toBeNull();
+  });
+
+  it("transcribing shows progress in step 2", () => {
+    mockSdk.signedIn = true;
+    renderPanel({ transcript: { state: "transcribing", words: [], progress: 0.5 } });
+    expect(screen.getByText(/Listening to the video… 50%/)).toBeTruthy();
   });
 });
 
