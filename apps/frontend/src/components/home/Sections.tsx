@@ -813,7 +813,7 @@ export function Faq() {
  */
 export function HomePricingSection() {
   // Free launch window (owner, 2026-11-15): one line, gone on its own
-  // when the window ends on 1 Dec.
+  // when the window ends on 6 Dec.
   const freeLaunch = isFreeLaunchWindow();
   return (
     <section id="pricing" className="scroll-mt-20 border-t border-[#FFFFEB]/10 px-4 py-16 sm:py-24">
@@ -828,7 +828,7 @@ export function HomePricingSection() {
           </p>
           {freeLaunch ? (
             <p className="mt-4 text-base font-semibold leading-relaxed text-[#34D399]">
-              Everything free till 30 Nov — no card needed.
+              Everything free till 5 Dec — no card needed.
             </p>
           ) : null}
         </div>

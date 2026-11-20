@@ -37,12 +37,12 @@ export const POST = route(async (req: Request) => {
   if (user.guest) {
     throw new ApiFailure("FORBIDDEN", "Guests can't buy a plan — create a free account first, then upgrade.");
   }
-  // Free launch window (owner, 2026-11-15): everything is free till 30 Nov,
-  // so no 30-day pass can be bought until paid resumes on 1 Dec. This is
+  // Free launch window (owner, 2026-11-15): everything is free till 5 Dec,
+  // so no 30-day pass can be bought until paid resumes on 6 Dec. This is
   // the server-side backstop for the disabled buttons on /pricing and the
   // billing page — a direct API call cannot buy a pass either.
   if (isFreeLaunchWindow()) {
-    throw new ApiFailure("FORBIDDEN", "Everything is free till 30 Nov — paid plans return on 1 Dec.");
+    throw new ApiFailure("FORBIDDEN", "Everything is free till 5 Dec — paid plans return on 6 Dec.");
   }
   // Rate limit (C-08): without it a signed-in user can spam checkout to mint
   // unlimited payments rows + Cashfree orders. 10/hr is plenty for a human

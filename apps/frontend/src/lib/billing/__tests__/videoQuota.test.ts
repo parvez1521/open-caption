@@ -25,11 +25,11 @@ import {
 const NOW = new Date("2026-11-14T10:00:00.000Z");
 
 // Enforcement tests run AFTER the free launch window ends
-// (30 Nov 2026, 23:59:59 IST): inside the window the quota is lifted, so
-// counting/blocking only applies from 1 Dec. Window behaviour itself is
+// (5 Dec 2026, 23:59:59 IST): inside the window the quota is lifted, so
+// counting/blocking only applies from 6 Dec. Window behaviour itself is
 // pinned in freeLaunch.test.ts. The videoQuotaWindow tests above keep NOW
 // — that function is pure date math, unaffected by the window.
-const AFTER_WINDOW = new Date("2026-12-01T10:00:00.000Z"); // 1 Dec, after the extended window ends 30 Nov 23:59:59 IST
+const AFTER_WINDOW = new Date("2026-12-06T10:00:00.000Z"); // 6 Dec, after the extended window ends 5 Dec 23:59:59 IST
 
 /** Chainable stand-in for the supabase query builder, as videoQuota uses it. */
 function fakeDb(rows: Array<{ id: string }>, error: { code?: string; message?: string } | null = null) {

@@ -81,8 +81,8 @@ const fmtMoney = (amount: number, currency: string) =>
 
 export default function BillingPage() {
   const [state, setState] = useState<BillingState | null>(null);
-  // Free launch window (owner, 2026-11-15): everything free till 30 Nov,
-  // paid plans return 1 Dec. Buttons stay disabled until then; the
+  // Free launch window (owner, 2026-11-15): everything free till 5 Dec,
+  // paid plans return 6 Dec. Buttons stay disabled until then; the
   // checkout API refuses orders too, so this is display, not the guard.
   const freeLaunch = isFreeLaunchWindow();
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -210,7 +210,7 @@ export default function BillingPage() {
                 {state.videoQuota ? (
                   <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
                     {state.videoQuota.freeLaunch
-                      ? "Unlimited videos till 30 Nov — everything is free."
+                      ? "Unlimited videos till 5 Dec — everything is free."
                       : `${state.videoQuota.remaining} of ${state.videoQuota.limit} videos left this month.`}
                   </p>
                 ) : null}
@@ -252,7 +252,7 @@ export default function BillingPage() {
               <h2 className="font-sora text-[15px] font-bold text-ink">Plans</h2>
               {freeLaunch ? (
                 <p className="mt-2 text-[13.5px] leading-relaxed text-sand-800">
-                  Everything is free till 30 Nov — paid plans return on 1 Dec.
+                  Everything is free till 5 Dec — paid plans return on 6 Dec.
                 </p>
               ) : null}
               <div className="mt-4">
@@ -309,7 +309,7 @@ export default function BillingPage() {
                           onClick={() => void buy(entry.id)}
                           className="rounded-full bg-ink px-5 py-2.5 font-sora text-[13.5px] font-semibold text-sand-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {freeLaunch ? "Available 1 Dec" : busyPlan === entry.id ? "Opening checkout…" : state.plan === "free" ? `Get ${entry.name}` : `Switch to ${entry.name}`}
+                          {freeLaunch ? "Available 6 Dec" : busyPlan === entry.id ? "Opening checkout…" : state.plan === "free" ? `Get ${entry.name}` : `Switch to ${entry.name}`}
                         </button>
                       )}
                     </div>

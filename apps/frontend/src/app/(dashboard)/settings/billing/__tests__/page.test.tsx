@@ -24,10 +24,10 @@ const launch = vi.hoisted(() => ({ active: false }));
 
 vi.mock("@/lib/billing/freeLaunch", () => ({
   isFreeLaunchWindow: () => launch.active,
-  FREE_LAUNCH_UNTIL_ISO: "2026-11-30T18:29:59.000Z",
-  FREE_LAUNCH_UNTIL: new Date("2026-11-30T18:29:59.000Z"),
-  FREE_LAUNCH_END_LABEL: "30 Nov",
-  PAID_FROM_LABEL: "1 Dec",
+  FREE_LAUNCH_UNTIL_ISO: "2026-12-05T18:29:59.000Z",
+  FREE_LAUNCH_UNTIL: new Date("2026-12-05T18:29:59.000Z"),
+  FREE_LAUNCH_END_LABEL: "5 Dec",
+  PAID_FROM_LABEL: "6 Dec",
 }));
 
 vi.mock("@/services/api-client", () => ({
@@ -142,9 +142,9 @@ describe("billing page free launch window (owner, 2026-11-15)", () => {
       videoQuota: { plan: "free", limit: 3, used: 2, remaining: 9007199254740991, windowStart: "", windowEnd: "", freeLaunch: true },
     });
     render(<BillingPage />);
-    expect(await screen.findByText("Unlimited videos till 30 Nov — everything is free.")).toBeTruthy();
-    expect(await screen.findByText("Everything is free till 30 Nov — paid plans return on 1 Dec.")).toBeTruthy();
-    const buttons = await screen.findAllByRole("button", { name: "Available 1 Dec" });
+    expect(await screen.findByText("Unlimited videos till 5 Dec — everything is free.")).toBeTruthy();
+    expect(await screen.findByText("Everything is free till 5 Dec — paid plans return on 6 Dec.")).toBeTruthy();
+    const buttons = await screen.findAllByRole("button", { name: "Available 6 Dec" });
     expect(buttons).toHaveLength(3);
     for (const button of buttons) expect(button).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Get Starter" })).toBeNull();
