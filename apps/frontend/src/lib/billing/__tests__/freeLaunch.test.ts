@@ -85,6 +85,7 @@ function walkFiles(dir: string, out: string[] = []): string[] {
 const pricingPage = readFileSync(join(process.cwd(), "src/app/pricing/page.tsx"), "utf8");
 const billingPage = readFileSync(join(process.cwd(), "src/app/(dashboard)/settings/billing/page.tsx"), "utf8");
 const homeSections = readFileSync(join(process.cwd(), "src/components/home/Sections.tsx"), "utf8");
+const startPage = readFileSync(join(process.cwd(), "src/app/start/page.tsx"), "utf8");
 const checkoutRoute = readFileSync(join(process.cwd(), "src/app/api/v1/billing/checkout/route.ts"), "utf8");
 
 describe("free launch copy + guards (source pins)", () => {
@@ -110,6 +111,17 @@ describe("free launch copy + guards (source pins)", () => {
 
   it("the homepage pricing section names the free window", () => {
     expect(homeSections).toContain("Everything free till 5 Dec — no card needed.");
+  });
+
+  it("the homepage hero names the free window — the pricing section is hidden by owner order 2026-11-17, so the hero carries the date", () => {
+    expect(homeSections).toContain('data-hero="free-launch"');
+    expect(homeSections).toContain("FREE_LAUNCH_END_LABEL");
+    expect(homeSections).toContain("isFreeLaunchWindow()");
+  });
+
+  it("/start names the free window in the chooser", () => {
+    expect(startPage).toContain("FREE_LAUNCH_END_LABEL");
+    expect(startPage).toContain("isFreeLaunchWindow()");
   });
 
   it("the checkout API refuses orders during the window", () => {

@@ -7,7 +7,7 @@ import { MOTION_TEMPLATES, defaultMotionConfig } from "@capseasy/motion";
 import type { OverlayItem, OverlaySocialVariant } from "@capseasy/shared";
 import { PLAN_PRICING } from "@capseasy/shared";
 import { priceLabel } from "@/lib/billing/pricingDisplay";
-import { isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
+import { FREE_LAUNCH_END_LABEL, isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
 import { FAQS } from "./faqs";
 import { HeroCylinder } from "./HeroCylinder";
 
@@ -236,6 +236,11 @@ export function Hero() {
             Browse the looks
           </a>
         </div>
+        {isFreeLaunchWindow() ? (
+          <p data-hero="free-launch" className="mt-3 text-sm font-semibold text-[#34D399]">
+            Everything free till {FREE_LAUNCH_END_LABEL} — no card needed.
+          </p>
+        ) : null}
         <p data-hero="editor-door" className="mt-3 text-sm text-[#FFFFEB]/60">
           Just want to edit?{" "}
           <Link href="/start?mode=editor" className="font-semibold text-[#FFFFEB]/85 underline decoration-[#FFA946] decoration-2 underline-offset-4 hover:text-[#FFFFEB]">
