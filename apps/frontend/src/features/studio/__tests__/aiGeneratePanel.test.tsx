@@ -25,6 +25,7 @@ const txt2img = vi.fn(async (_prompt: string) => ({ src: "https://example.invali
 const txt2vid = vi.fn(async (_prompt: string, _opts: unknown) => ({ src: "https://example.invalid/gen.mp4" }));
 vi.mock("../../ai-generator/puter", () => ({
   getPuter: () => ({ ai: { txt2img, txt2vid }, auth: { isSignedIn: () => mockSdk.signedIn } }),
+  PUTER_IMAGE_MODEL: "qwen/qwen-image",
   puterErrorMessage: (err: unknown) => (err instanceof Error ? err.message : "Puter failed."),
 }));
 
@@ -112,7 +113,7 @@ describe("AiGeneratePanel — one tap runs the whole chain", () => {
     );
 
     await waitFor(() => expect(screen.getByText(/2 visuals on your timeline/)).toBeTruthy(), { timeout: 5000 });
-    expect(txt2img).toHaveBeenCalledWith(expect.stringContaining("a sunrise over hills"));
+    expect(txt2img).toHaveBeenCalledWith(expect.stringContaining("a sunrise over hills"), { model: "qwen/qwen-image" });
     expect(txt2vid).toHaveBeenCalledWith(expect.stringContaining("a forest at dawn"), expect.anything());
     expect(props.onImportMedia).toHaveBeenCalledTimes(2);
     expect(props.onPlaceImageAt).toHaveBeenCalledWith({ id: "asset-1", name: expect.stringContaining("AI image") }, 0);

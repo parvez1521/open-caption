@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { Film, Image as ImageIcon } from "@/components/ui/icons";
-import { getPuter, puterErrorMessage } from "../../ai-generator/puter";
+import { getPuter, PUTER_IMAGE_MODEL, puterErrorMessage } from "../../ai-generator/puter";
 import { usePuterSdk } from "../../ai-generator/usePuterSdk";
 import { Button, Section } from "../controls";
 import { listProjectAssets } from "../mediaStore";
@@ -247,7 +247,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     try {
       const fullPrompt = `${item.prompt}, ${style.promptSuffix}`;
       if (item.kind === "image") {
-        const image = await puter.ai.txt2img(fullPrompt);
+        const image = await puter.ai.txt2img(fullPrompt, { model: PUTER_IMAGE_MODEL });
         if (runId !== runIdRef.current) throw new Error("__cancelled__");
         if (!image?.src) throw new Error("No image came back. Try again.");
         setItemResults((prev) => ({ ...prev, [key]: { mode: "image", src: image.src } }));
@@ -420,7 +420,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     setBusy(true);
     try {
       if (mode === "image") {
-        const image = await puter.ai.txt2img(prompt.trim());
+        const image = await puter.ai.txt2img(prompt.trim(), { model: PUTER_IMAGE_MODEL });
         if (!image?.src) {
           setError("No image came back. Try again.");
         } else {

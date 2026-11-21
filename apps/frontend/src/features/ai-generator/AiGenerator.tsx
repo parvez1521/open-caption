@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { Copy, Download, Film, Image as ImageIcon, Keyboard } from "@/components/ui/icons";
-import { extractChatText, getPuter, puterErrorMessage } from "./puter";
+import { extractChatText, getPuter, PUTER_IMAGE_MODEL, puterErrorMessage } from "./puter";
 
 /**
  * /ai-generator — Text / Image / Video generation powered by Puter.js.
@@ -183,7 +183,7 @@ export default function AiGenerator() {
           setTextResult(text);
         }
       } else if (mode === "image") {
-        const image = await puter.ai.txt2img(trimmed);
+        const image = await puter.ai.txt2img(trimmed, { model: PUTER_IMAGE_MODEL });
         if (!image?.src) {
           setError("Puter returned an image with no address. Try again.");
         } else {

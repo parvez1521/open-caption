@@ -100,7 +100,7 @@ describe("AiGenerator", () => {
     fireEvent.click(screen.getByRole("button", { name: "Generate image" }));
     const img = (await screen.findByAltText("Image generated from your prompt")) as HTMLImageElement;
     expect(img.src).toContain("blob:https://example.test/generated-image");
-    expect(puter.ai.txt2img).toHaveBeenCalledWith("A red robot");
+    expect(puter.ai.txt2img).toHaveBeenCalledWith("A red robot", { model: "qwen/qwen-image" });
     const download = screen.getByRole("link", { name: "Download image" });
     expect(download).toHaveAttribute("href", "blob:https://example.test/generated-image");
     expect(download).toHaveAttribute("download", "captionit-ai-image.png");

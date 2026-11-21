@@ -6,10 +6,17 @@
  * - `puter.ai.chat(prompt, { normalize: true })` resolves with a response
  *   whose `message.content` is a string on normalized responses; the array
  *   shape (`content[0].text`) is still handled defensively.
- * - `puter.ai.txt2img(prompt)` resolves with an HTMLImageElement; read
+ * - `puter.ai.txt2img(prompt, { model })` resolves with an HTMLImageElement; read
  *   `image.src` (hosted URL or data URI, provider-dependent). The SDK
  *   builds that src as a blob: URL from the returned bytes, so no extra
- *   img-src host is needed in the CSP.
+ *   img-src host is needed in the CSP. The app ALWAYS passes
+ *   `PUTER_IMAGE_MODEL` (`qwen/qwen-image`): Puter's own tutorial
+ *   (developer.puter.com, updated 2026-11-16) says Qwen models via
+ *   Puter.js are free with no quota to run down, while the default image
+ *   model bills against the visitor's monthly allowance — the owner hit
+ *   Puter's "Low Balance" upgrade prompt with 8 failed AI Edit visuals
+ *   on 2026-11-21 after his allowance ran out, so no call may rely on
+ *   the default.
  * - `puter.ai.txt2vid(prompt, options)` resolves with an HTMLVideoElement
  *   (docs.puter.com/AI/txt2vid/); read `video.src`. Default model is
  *   `togetherai:wan-ai/wan2.7-t2v` (Wan 2.7 text-to-video, per-second
@@ -49,9 +56,16 @@ export interface PuterTxt2VidOptions {
   size?: string;
 }
 
+export interface PuterTxt2ImgOptions {
+  model?: string;
+}
+
+/** The image model every txt2img call in the app uses — see the header note. */
+export const PUTER_IMAGE_MODEL = "qwen/qwen-image";
+
 export interface PuterAi {
   chat: (prompt: string, options?: { normalize?: boolean }) => Promise<PuterChatResponse>;
-  txt2img: (prompt: string) => Promise<HTMLImageElement>;
+  txt2img: (prompt: string, options?: PuterTxt2ImgOptions) => Promise<HTMLImageElement>;
   txt2vid: (prompt: string, options?: PuterTxt2VidOptions) => Promise<HTMLVideoElement>;
 }
 
