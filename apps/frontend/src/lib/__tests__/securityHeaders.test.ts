@@ -214,6 +214,7 @@ describe("securityHeaders", () => {
     const img = directive("img-src");
     expect(img).toContain("https://indielaunch.dev");
     expect(img).toContain("https://fazier.com");
+    expect(img).toContain("https://saashunt.best");
     const sections = readFileSync(
       fileURLToPath(new URL("../../components/home/Sections.tsx", import.meta.url)),
       "utf8",
@@ -222,6 +223,8 @@ describe("securityHeaders", () => {
     expect(sections).toContain(
       "https://fazier.com/api/v1/public/badges/launch_badges.svg?badge_type=featured&theme=neutral",
     );
+    expect(sections).toContain("https://saashunt.best/images/badges/featured-on-light.svg");
+    expect(sections).toContain("https://saashunt.best/projects/captionit?utm_source=badge");
   });
 
   it("allows the Puter.js AI Generator (2026-11-17) and nothing beyond its named origins", () => {

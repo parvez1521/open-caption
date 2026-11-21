@@ -131,6 +131,10 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         // footer (nightly audit 2026-11-20). Same precedent as Product Hunt.
         "https://indielaunch.dev",
         "https://fazier.com",
+        // SaaSHunt badge (2026-11-21): hotlinked SVG in the footer row;
+        // without this host the badge renders as a broken image and the
+        // free-launch backlink check cannot pass.
+        "https://saashunt.best",
         "https://lh3.googleusercontent.com",
         "https://avatars.githubusercontent.com",
         // Pixabay stock thumbnails/posters (user's-own-key imports).
