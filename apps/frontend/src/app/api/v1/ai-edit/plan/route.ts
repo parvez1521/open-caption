@@ -138,13 +138,19 @@ export const POST = route(async (req: Request) => {
     throw new ApiFailure("UPSTREAM_FAILED", "The free AI service could not be reached. Please try again in a moment.");
   }
   const { plan, dropped } = parsePlannerResponse(answer, { durationMs: body.durationMs });
-  // Success-path parse outcome (counts and one structural character only —
-  // no answer text, no transcript): live on 2026-11-21 Gemma started
-  // answering with HTTP 200 but the parsed plan was still 0 items, so the
-  // panel showed its empty-plan message. These three numbers say whether
-  // the model's JSON was unparseable (long answer, kept 0, dropped 0) or
-  // its items all failed validation (dropped > 0, e.g. seconds instead of
-  // milliseconds, overlapping spans, missing kind/prompt).
+  // Success-path parse outcome: live on 2026-11-21 Gemma started answering
+  // with HTTP 200 but the parsed plan was still 0 items, so the panel
+  // showed its empty-plan message. The counts say whether the model's JSON
+  // was unparseable (long answer, kept 0, dropped 0) or its items all
+  // failed validation (dropped > 0, e.g. seconds instead of milliseconds,
+  // overlapping spans, missing kind/prompt). The preview is the first 400
+  // characters of the model's own plan text (no transcript) — added after
+  // the 23:50 IST retest showed Gemma STILL answers with a Markdown bullet
+  // list (~4,200 chars, startsWith "*") even with response_format
+  // json_object, which the endpoint silently ignores for this model. The
+  // bullet format is the one thing left unseen, and a parser for it can
+  // only be written once it is known. TEMPORARY diagnostic: remove the
+  // preview once the bullet parser lands.
   const trimmed = answer.trim();
   console.info(
     JSON.stringify({
@@ -155,6 +161,7 @@ export const POST = route(async (req: Request) => {
       dropped,
       startsWith: trimmed.slice(0, 1),
       hasFence: answer.includes("```"),
+      preview: trimmed.slice(0, 400),
     }),
   );
   return ok({ configured: true as const, plan, dropped });

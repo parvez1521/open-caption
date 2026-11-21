@@ -114,7 +114,7 @@ describe("POST /ai-edit/plan", () => {
     expect(ai.calls[0]?.user).not.toMatch(/gpt|groq|whisper/i);
   });
 
-  it("logs the parse outcome on success (answer length, kept/dropped — no text)", async () => {
+  it("logs the parse outcome on success (answer length, kept/dropped, 400-char preview)", async () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     try {
       const res = await ask(validBody);
@@ -130,6 +130,10 @@ describe("POST /ai-edit/plan", () => {
       expect(line.startsWith).toBe("[");
       expect(line.hasFence).toBe(false);
       expect(typeof line.answerLength).toBe("number");
+      // TEMPORARY diagnostic preview (see route comment): the first 400
+      // chars of the model's plan text, so the bullet format can be read.
+      expect(typeof line.preview).toBe("string");
+      expect((line.preview as string).length).toBeLessThanOrEqual(400);
     } finally {
       infoSpy.mockRestore();
     }
