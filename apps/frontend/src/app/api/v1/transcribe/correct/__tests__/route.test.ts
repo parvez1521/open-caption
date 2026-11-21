@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * configured:false with no model call.
  */
 
-const state = vi.hoisted(() => ({ configured: true, failUpstream: false, failStatus: null as number | null }));
+const state = vi.hoisted(() => ({ configured: true, failUpstream: false, failStatus: null as number | null, failKind: null as string | null }));
 const ai = vi.hoisted(() => ({ calls: [] as Array<{ system: string; user: string; opts: unknown }> }));
 const rateLimitCalls = vi.hoisted(() => ({ calls: [] as unknown[][] }));
 
@@ -25,10 +25,12 @@ vi.mock("@/lib/api/rateLimit", () => ({
 const errors = vi.hoisted(() => ({
   CloudAiError: class extends Error {
     status?: number;
-    constructor(message: string, status?: number) {
+    kind?: string;
+    constructor(message: string, status?: number, kind?: string) {
       super(message);
       this.name = "CloudAiError";
       this.status = status;
+      this.kind = kind ?? (status !== undefined ? "http" : undefined);
     }
   },
 }));
@@ -39,8 +41,12 @@ vi.mock("@/lib/api/cloudAi", () => ({
     state.configured ? { apiKey: "test-key", model: "test-model", endpoint: "https://example.test" } : null,
   runCloudChat: async (prompt: { system: string; user: string }, opts?: unknown) => {
     if (state.failUpstream) {
-      if (state.failStatus !== null) {
-        throw new errors.CloudAiError(`The free AI service answered with HTTP ${state.failStatus}.`, state.failStatus);
+      if (state.failStatus !== null || state.failKind !== null) {
+        throw new errors.CloudAiError(
+          state.failKind ? `The free AI request ${state.failKind}.` : `The free AI service answered with HTTP ${state.failStatus}.`,
+          state.failStatus ?? undefined,
+          state.failKind ?? undefined,
+        );
       }
       throw new Error("upstream down");
     }
@@ -65,6 +71,7 @@ beforeEach(() => {
   state.configured = true;
   state.failUpstream = false;
   state.failStatus = null;
+  state.failKind = null;
   ai.calls = [];
   rateLimitCalls.calls = [];
 });
@@ -146,5 +153,25 @@ describe("POST /transcribe/correct", () => {
     const body = (await res.json()) as { error: { code: string; message: string } };
     expect(body.error.code).toBe("UPSTREAM_FAILED");
     expect(body.error.message).toContain("retired");
+  });
+
+  it("a timeout says the AI took too long, not 'could not be reached'", async () => {
+    state.failUpstream = true;
+    state.failKind = "timeout";
+    const res = await ask({ text: "Hello world.", language: "en" });
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe("UPSTREAM_FAILED");
+    expect(body.error.message).toContain("took too long");
+  });
+
+  it("an empty completion says the AI made no correction, not 'could not be reached'", async () => {
+    state.failUpstream = true;
+    state.failKind = "empty";
+    const res = await ask({ text: "Hello world.", language: "en" });
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe("UPSTREAM_FAILED");
+    expect(body.error.message).toContain("made no correction");
   });
 });

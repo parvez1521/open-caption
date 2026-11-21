@@ -156,10 +156,46 @@ describe("runCloudChat", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("propagates a network failure as a throw (the caller falls back)", async () => {
+  it("propagates a network failure as a CloudAiError with kind network (the caller falls back)", async () => {
     const fetchImpl = (async () => {
       throw new Error("ECONNRESET");
     }) as unknown as typeof fetch;
-    await expect(runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl })).rejects.toThrow("ECONNRESET");
+    await expect(runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl })).rejects.toMatchObject({
+      name: "CloudAiError",
+      kind: "network",
+    });
+  });
+
+  it("a request that never answers aborts as kind timeout, not a raw AbortError", async () => {
+    // A real fetch rejects when its signal aborts; the mock does the same.
+    const fetchImpl = ((_: string, init?: { signal?: AbortSignal }) =>
+      new Promise<never>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          const err = new Error("This operation was aborted");
+          err.name = "AbortError";
+          reject(err);
+        });
+      })) as unknown as typeof fetch;
+    await expect(
+      runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, timeoutMs: 5, maxAttempts: 1 }),
+    ).rejects.toMatchObject({ name: "CloudAiError", kind: "timeout" });
+  });
+
+  it("joins text-part content instead of calling the completion empty", async () => {
+    const fetchImpl = (async () =>
+      jsonResponse(true, 200, {
+        choices: [{ message: { content: [{ type: "text", text: "hello" }, { type: "text", text: " world" }] } }],
+      })) as unknown as typeof fetch;
+    const text = await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl });
+    expect(text).toBe("hello world");
+  });
+
+  it("an empty completion carries kind empty (so the route can name it, not log unknown)", async () => {
+    const fetchImpl = (async () =>
+      jsonResponse(true, 200, { choices: [{ message: { content: "  " } }] })) as unknown as typeof fetch;
+    await expect(runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl })).rejects.toMatchObject({
+      name: "CloudAiError",
+      kind: "empty",
+    });
   });
 });

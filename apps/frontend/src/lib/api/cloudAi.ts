@@ -90,12 +90,21 @@ export interface CloudAiStatus {
   modelName: string;
 }
 
+/** Failure kind, so callers (and the server logs) can tell a timeout from an
+ * empty answer instead of both collapsing into "unknown": "http" is an HTTP
+ * error status from Workers AI, "timeout" is the request abort, "network"
+ * is a fetch-level failure before any response, "empty" is a 200 whose
+ * completion carried no usable text. */
+export type CloudAiErrorKind = "http" | "timeout" | "network" | "empty";
+
 export class CloudAiError extends Error {
   readonly status?: number;
-  constructor(message: string, status?: number) {
+  readonly kind?: CloudAiErrorKind;
+  constructor(message: string, status?: number, kind?: CloudAiErrorKind) {
     super(message);
     this.name = "CloudAiError";
     this.status = status;
+    this.kind = kind ?? (status !== undefined ? "http" : undefined);
   }
 }
 
@@ -153,6 +162,13 @@ interface ChatCompletionBody {
  * spend the whole budget on one longer attempt (the AI Edit planner does
  * this: two 25s attempts timed out twice on the live test project
  * 2026-11-21, while one 45s attempt fits the route's budget).
+ *
+ * Every throw is a CloudAiError with a kind — a fetch-level throw used to
+ * escape as a raw AbortError/TypeError, and an empty completion carried no
+ * status, so both logged server-side as status "unknown" and the user saw
+ * the same generic message for a timeout, a dead network and an unusable
+ * answer (seen live 2026-11-21 on Gemma: two plan failures, both
+ * "unknown"). Callers map the kind to the user-facing wording.
  */
 export async function runCloudChat(
   prompt: { system: string; user: string },
@@ -184,7 +200,11 @@ export async function runCloudChat(
       // Retryable: a free-tier 429 / 5xx from Workers AI, or a fetch-level throw (network blip,
       // timeout abort). Not retryable: any other HTTP status, or an empty/malformed completion.
       const retryable =
-        (err instanceof CloudAiError && (err.status === 429 || (err.status !== undefined && err.status >= 500))) ||
+        (err instanceof CloudAiError &&
+          (err.status === 429 ||
+            (err.status !== undefined && err.status >= 500) ||
+            err.kind === "timeout" ||
+            err.kind === "network")) ||
         !(err instanceof CloudAiError);
       if (!retryable || attempt === maxAttempts - 1) throw err;
       await sleep(opts.retryDelayMs ?? 1000);
@@ -204,26 +224,54 @@ async function attemptCloudChat(
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? TIMEOUT_MS);
   try {
-    const res = await doFetch(config.endpoint, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: "system", content: prompt.system },
-          { role: "user", content: prompt.user },
-        ],
-        temperature: opts.temperature ?? 0.8,
-        max_tokens: opts.maxTokens ?? MAX_TOKENS,
-      }),
-      signal: ctrl.signal,
-    });
-    if (!res.ok) throw new CloudAiError(`The free AI service answered with HTTP ${res.status}.`, res.status);
+    let res: Response;
+    try {
+      res = await doFetch(config.endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [
+            { role: "system", content: prompt.system },
+            { role: "user", content: prompt.user },
+          ],
+          temperature: opts.temperature ?? 0.8,
+          max_tokens: opts.maxTokens ?? MAX_TOKENS,
+        }),
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      // A fetch-level throw has no HTTP status — name it, or the caller
+      // logs "unknown" and the user gets the generic message (2026-11-21).
+      if (ctrl.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+        throw new CloudAiError("The free AI request timed out.", undefined, "timeout");
+      }
+      throw new CloudAiError("The free AI request failed before answering.", undefined, "network");
+    }
+    if (!res.ok) throw new CloudAiError(`The free AI service answered with HTTP ${res.status}.`, res.status, "http");
     const body = (await res.json().catch(() => null)) as ChatCompletionBody | null;
-    const content = body?.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || !content.trim()) throw new CloudAiError("The free AI service returned an empty completion.");
+    // Some models answer content as text parts instead of one string —
+    // join the parts instead of calling the completion empty.
+    const content = extractContent(body?.choices?.[0]?.message?.content);
+    if (!content.trim()) throw new CloudAiError("The free AI service returned an empty completion.", undefined, "empty");
     return content;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** A completion's text: a plain string, or an array of `{type:"text",text}`
+ * parts (some Workers AI models answer that way). Anything else is empty. */
+function extractContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part) =>
+        typeof part === "object" && part !== null && "text" in part && typeof (part as { text: unknown }).text === "string"
+          ? (part as { text: string }).text
+          : "",
+      )
+      .join("");
+  }
+  return "";
 }

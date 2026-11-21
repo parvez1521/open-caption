@@ -29,10 +29,12 @@ import {
  * message: a 401/403 means the free AI key is dead (expired or revoked),
  * a 429 means the free daily limit is used up, a 410 means Cloudflare
  * retired the model (the Llama 3.1 8B default did exactly this on
- * 2026-11-21 — five logged 410s on the plan route), anything else keeps
- * the "could not be reached" wording. The upstream status is also logged
- * server-side (no key, no transcript text) so the failure can be traced
- * in the deployment logs.
+ * 2026-11-21 — five logged 410s on the plan route), a timeout means the
+ * model took too long to answer, an empty completion means it answered
+ * with nothing usable — anything else keeps the "could not be reached"
+ * wording. The upstream status, failure kind and error message are also
+ * logged server-side (no key, no transcript text) so the failure can be
+ * traced in the deployment logs.
  */
 
 const Body = z.object({
@@ -58,8 +60,15 @@ export const POST = route(async (req: Request) => {
       });
     } catch (err) {
       const status = err instanceof CloudAiError ? err.status : undefined;
+      const kind = err instanceof CloudAiError ? err.kind : undefined;
       console.error(
-        JSON.stringify({ level: "error", msg: "transcribe/correct free AI call failed", status: status ?? "unknown" }),
+        JSON.stringify({
+          level: "error",
+          msg: "transcribe/correct free AI call failed",
+          status: status ?? "unknown",
+          kind: kind ?? "unknown",
+          error: err instanceof Error ? err.message : String(err),
+        }),
       );
       if (status === 401 || status === 403) {
         throw new ApiFailure(
@@ -74,6 +83,18 @@ export const POST = route(async (req: Request) => {
         throw new ApiFailure(
           "UPSTREAM_FAILED",
           "Cloudflare retired this free AI model, so no correction can be made right now. The site needs a newer model set in Vercel.",
+        );
+      }
+      if (kind === "timeout") {
+        throw new ApiFailure(
+          "UPSTREAM_FAILED",
+          "The free AI took too long to answer. Try again in a moment.",
+        );
+      }
+      if (kind === "empty") {
+        throw new ApiFailure(
+          "UPSTREAM_FAILED",
+          "The free AI answered but made no correction. Try again.",
         );
       }
       throw new ApiFailure("UPSTREAM_FAILED", "The free AI service could not be reached. Please try again in a moment.");
