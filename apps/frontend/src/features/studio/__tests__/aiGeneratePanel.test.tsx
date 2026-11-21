@@ -41,6 +41,15 @@ const PLAN: AiEditPlanItem[] = [
   { startMs: 5000, endMs: 9000, kind: "video", prompt: "a forest at dawn", sourceText: "now a new idea" },
 ];
 
+const READY_TRANSCRIPT = {
+  state: "ready" as const,
+  words: [
+    { text: "hello", startMs: 0, endMs: 400 },
+    { text: "world", startMs: 500, endMs: 900 },
+    { text: "now", startMs: 5000, endMs: 5400 },
+  ],
+};
+
 function renderPanel(overrides: Partial<React.ComponentProps<typeof AiGeneratePanel>> = {}) {
   const props: React.ComponentProps<typeof AiGeneratePanel> = {
     projectId: "p1",
@@ -55,14 +64,7 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof AiGeneratePa
     onPlaceImageAt: vi.fn(),
     onInsertVideo: vi.fn(() => true),
     onUploadVideo: vi.fn(async () => []),
-    transcript: {
-      state: "ready",
-      words: [
-        { text: "hello", startMs: 0, endMs: 400 },
-        { text: "world", startMs: 500, endMs: 900 },
-        { text: "now", startMs: 5000, endMs: 5400 },
-      ],
-    },
+    transcript: READY_TRANSCRIPT,
     onTranscribe: vi.fn(),
     planRunner: vi.fn(async () => ({ plan: PLAN, dropped: 0 })),
     durationMs: 20_000,
@@ -73,17 +75,13 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof AiGeneratePa
 }
 
 describe("AiGeneratePanel — sign-in gates generation, not upload", () => {
-  it("upload works without Puter sign-in; the sign-in box waits at step 4", async () => {
+  it("upload works without Puter sign-in, and no sign-in box shows until a run needs it", async () => {
     mockSdk.signedIn = false;
-    const { props, rerender } = renderPanel({ hasVideo: false });
+    const { props } = renderPanel({ hasVideo: false });
     expect(screen.getByRole("button", { name: "Upload video" }).hasAttribute("disabled")).toBe(false);
-    expect(screen.getByRole("button", { name: "Sign in with Puter" })).toBeTruthy();
-    expect(screen.queryByText(/Upload is locked/)).toBeNull();
-
-    mockSdk.signedIn = true;
-    rerender(<AiGeneratePanel {...props} />);
     expect(screen.queryByRole("button", { name: "Sign in with Puter" })).toBeNull();
-    expect(screen.getByText(/Signed in — press Generate on any approved prompt in step 3/)).toBeTruthy();
+    expect(screen.queryByText(/Upload is locked/)).toBeNull();
+    expect(props.onUploadVideo).not.toHaveBeenCalled();
   });
 
   it("uploads a video without signing in", async () => {
@@ -95,44 +93,115 @@ describe("AiGeneratePanel — sign-in gates generation, not upload", () => {
     await waitFor(() => expect(screen.queryByText("Adding…")).toBeNull());
     expect(props.onUploadVideo).toHaveBeenCalledTimes(1);
   });
+});
 
-  it("planning works without sign-in, but Generate stays locked until sign-in", async () => {
+describe("AiGeneratePanel — one tap runs the whole chain", () => {
+  it("plans from the transcript, then generates + places every visual at its planned time, on its own", async () => {
+    mockSdk.signedIn = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, blob: async () => new Blob(["bytes"], { type: "image/png" }) })),
+    );
+    const { props } = renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
+    await waitFor(() => expect(screen.getByText("a sunrise over hills")).toBeTruthy(), { timeout: 5000 });
+    expect(screen.getByText(/0:00 – 0:02 · Image/)).toBeTruthy();
+    expect(screen.getByText(/0:05 – 0:09 · Video/)).toBeTruthy();
+    expect(props.planRunner).toHaveBeenCalledWith(
+      expect.objectContaining({ styleId: "cinematic", durationMs: 20_000 }),
+    );
+
+    await waitFor(() => expect(screen.getByText(/2 visuals on your timeline/)).toBeTruthy(), { timeout: 5000 });
+    expect(txt2img).toHaveBeenCalledWith(expect.stringContaining("a sunrise over hills"));
+    expect(txt2vid).toHaveBeenCalledWith(expect.stringContaining("a forest at dawn"), expect.anything());
+    expect(props.onImportMedia).toHaveBeenCalledTimes(2);
+    expect(props.onPlaceImageAt).toHaveBeenCalledWith({ id: "asset-1", name: expect.stringContaining("AI image") }, 0);
+    expect(props.onInsertVideo).toHaveBeenCalledWith(
+      { id: "asset-1", name: expect.stringContaining("AI video"), durationMs: 5000 },
+      5000,
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it("listens and plans without sign-in, then waits for sign-in and resumes generating on its own", async () => {
     mockSdk.signedIn = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, blob: async () => new Blob(["bytes"], { type: "image/png" }) })),
+    );
     const { props, rerender } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Make a visual plan" }));
-    await waitFor(() => expect(screen.getByText("a sunrise over hills")).toBeTruthy());
-    const generate = screen.getByRole("button", { name: "Generate this image" });
-    expect(generate.hasAttribute("disabled")).toBe(true);
-    expect(screen.getByText(/Generation needs a free Puter sign-in — step 4/)).toBeTruthy();
+    const imgCallsBefore = txt2img.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
+    await waitFor(() => expect(screen.getByText("a sunrise over hills")).toBeTruthy(), { timeout: 5000 });
+    expect(screen.getByRole("button", { name: "Sign in with Puter" })).toBeTruthy();
+    expect(txt2img.mock.calls.length).toBe(imgCallsBefore);
 
     mockSdk.signedIn = true;
     rerender(<AiGeneratePanel {...props} />);
-    expect(screen.getByRole("button", { name: "Generate this image" }).hasAttribute("disabled")).toBe(false);
+    // the waiting chain notices the sign-in on the next poll and carries on by itself.
+    await waitFor(() => expect(screen.getByText(/2 visuals on your timeline/)).toBeTruthy(), { timeout: 5000 });
+    expect(txt2img.mock.calls.length).toBe(imgCallsBefore + 1);
+    vi.unstubAllGlobals();
+  });
+
+  it("starts listening when there is no transcript yet, then carries on once the words arrive", async () => {
+    mockSdk.signedIn = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, blob: async () => new Blob(["bytes"], { type: "image/png" }) })),
+    );
+    const onTranscribe = vi.fn();
+    const { props, rerender } = renderPanel({ transcript: { state: "idle", words: [] }, onTranscribe });
+    fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
+    expect(onTranscribe).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Listening to your video/)).toBeTruthy();
+
+    rerender(<AiGeneratePanel {...props} transcript={READY_TRANSCRIPT} />);
+    await waitFor(() => expect(screen.getByText(/2 visuals on your timeline/)).toBeTruthy(), { timeout: 5000 });
+    expect(props.planRunner).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("one failed visual does not stop the rest, and its retry works", async () => {
+    mockSdk.signedIn = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, blob: async () => new Blob(["bytes"], { type: "image/png" }) })),
+    );
+    txt2img.mockRejectedValueOnce(new Error("Puter failed."));
+    const { props } = renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
+    await waitFor(() => expect(screen.getByText(/1 visual on your timeline — 1 failed/)).toBeTruthy(), { timeout: 5000 });
+    expect(props.onInsertVideo).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Puter failed/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry 1 failed visual" }));
+    await waitFor(() => expect(screen.getByText(/2 visuals on your timeline/)).toBeTruthy(), { timeout: 5000 });
+    expect(props.onPlaceImageAt).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it("a failed plan says so instead of spinning", async () => {
+    mockSdk.signedIn = true;
+    renderPanel({ planRunner: vi.fn(async () => { throw new Error("The free AI service is not switched on yet."); }) });
+    fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
+    await waitFor(() => expect(screen.getByText(/The free AI service is not switched on yet/)).toBeTruthy(), { timeout: 5000 });
   });
 });
 
-describe("AiGeneratePanel — guided steps", () => {
-  it("each step says what it needs: no video blocks listen and plan, no transcript blocks the plan", () => {
+describe("AiGeneratePanel — no video, no run", () => {
+  it("without a video the run button is disabled and the look is locked", () => {
     mockSdk.signedIn = true;
     renderPanel({ hasVideo: false, transcript: { state: "idle", words: [] } });
-    expect(screen.getByText("1. Add your video")).toBeTruthy();
-    expect(screen.getByText(/Add a video first — the plan is built from the words in your video/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Listen to the video" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Make a visual plan" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Create visuals" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByText(/Add a video first — the look applies to the visuals made for it/)).toBeTruthy();
   });
 
-  it("with a video but no transcript yet, step 3 waits for step 2", () => {
-    mockSdk.signedIn = true;
-    renderPanel({ transcript: { state: "idle", words: [] } });
-    expect(screen.getByRole("button", { name: "Listen to the video" })).toBeTruthy();
-    expect(screen.getByText(/Listen to the video first — the plan follows what is said/)).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Make a visual plan" })).toBeNull();
-  });
-
-  it("transcribing shows progress in step 2", () => {
+  it("transcribing shows progress while the run waits", () => {
     mockSdk.signedIn = true;
     renderPanel({ transcript: { state: "transcribing", words: [], progress: 0.5 } });
-    expect(screen.getByText(/Listening to the video… 50%/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
+    expect(screen.getByText(/Listening to your video… 50%/)).toBeTruthy();
   });
 });
 
@@ -142,42 +211,5 @@ describe("AiGeneratePanel — style chooser", () => {
     const { container } = renderPanel();
     expect(container.querySelectorAll('svg[role="img"]').length).toBe(4);
     for (const label of ["Cinematic", "Clean", "Bold", "Warm"]) expect(screen.getByText(label)).toBeTruthy();
-  });
-});
-
-describe("AiGeneratePanel — transcript plan to timeline", () => {
-  it("plans from the transcript, shows placements with timestamps, and generates + places a visual at its planned time", async () => {
-    mockSdk.signedIn = true;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({ ok: true, blob: async () => new Blob(["bytes"], { type: "image/png" }) })),
-    );
-    const { props } = renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Make a visual plan" }));
-    await waitFor(() => expect(screen.getByText("a sunrise over hills")).toBeTruthy());
-    expect(screen.getByText(/0:00 – 0:02 · Image/)).toBeTruthy();
-    expect(screen.getByText(/0:05 – 0:09 · Video/)).toBeTruthy();
-    expect(props.planRunner).toHaveBeenCalledWith(
-      expect.objectContaining({ styleId: "cinematic", durationMs: 20_000 }),
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Generate this image" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Add to timeline" })).toBeTruthy());
-    expect(txt2img).toHaveBeenCalledWith(expect.stringContaining("a sunrise over hills"));
-
-    fireEvent.click(screen.getByRole("button", { name: "Add to timeline" }));
-    await waitFor(() => expect(props.onPlaceImageAt).toHaveBeenCalled());
-    expect(props.onImportMedia).toHaveBeenCalledTimes(1);
-    expect(props.onPlaceImageAt).toHaveBeenCalledWith({ id: "asset-1", name: expect.stringContaining("AI image") }, 0);
-    vi.unstubAllGlobals();
-  });
-
-  it("asks to listen first when there is no transcript yet", () => {
-    mockSdk.signedIn = true;
-    const onTranscribe = vi.fn();
-    renderPanel({ transcript: { state: "idle", words: [] }, onTranscribe });
-    fireEvent.click(screen.getByRole("button", { name: "Listen to the video" }));
-    expect(onTranscribe).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("button", { name: "Make a visual plan" })).toBeNull();
   });
 });

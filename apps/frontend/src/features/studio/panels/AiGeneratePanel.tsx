@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { Film, Image as ImageIcon } from "@/components/ui/icons";
 import { getPuter, puterErrorMessage } from "../../ai-generator/puter";
@@ -35,16 +35,17 @@ import { AiEditStyleChooser } from "./AiEditStyleChooser";
  * `features/studio/aiEditFlow.ts`): no transcribe/caption pipeline is
  * attached to the project, and nothing here lists caption projects.
  *
- * The owner's workflow, as numbered steps:
- *   1. Add your video — works on a blank project too, no sign-in needed.
- *   2. Listen to the video — planning-only in-browser transcription, so
- *      the plan follows what is actually said; nothing is saved as captions.
- *   3. Visual prompts — pick a style, the free plan turns the transcript
- *      into per-segment prompts, approve each one.
- *   4. Generate with Puter — sign in with your OWN free Puter account
- *      (User-Pays, never the owner's cost), then generate each visual.
- *   5. Add to timeline — generated visuals land at their prompt's time;
- *      or make one visual at the playhead and add it.
+ * The owner's flow is two choices, then everything runs itself:
+ *   1. Upload your video — works on a blank project too, no sign-in needed.
+ *   2. Pick a look — then press "Create visuals" once.
+ * From there the panel runs the whole chain on its own: it listens to the
+ * video in this tab (planning-only transcription, nothing saved as
+ * captions), the free plan turns the transcript into per-segment prompts,
+ * each visual generates with the visitor's OWN free Puter account
+ * (User-Pays, never the owner's cost), and each one lands on the timeline
+ * at its prompt's time. The plan is shown as it runs — nothing waits on a
+ * review, and no step asks for another tap. A visual that fails is listed
+ * with a retry; the rest carry on.
  *
  * Images land as timed overlays, videos as B-roll segments, both through
  * the existing systems — so they show in the preview and burn into export
@@ -102,6 +103,17 @@ const MODE_COPY: Record<AiGenerateMode, { label: string; placeholder: string; bu
 
 const planKey = (item: AiEditPlanItem) => `${item.startMs}-${item.endMs}-${item.kind}`;
 
+/** One run of the chain, and where it is. A run id guards stale chains: starting over or stopping bumps it, and every awaited step bails when it no longer matches. */
+type RunPhase = "idle" | "listening" | "planning" | "waiting-signin" | "generating" | "done";
+type ItemStatus = "queued" | "generating" | "adding" | "added" | "failed";
+
+/** How often the chain re-checks the transcript / Puter sign-in while it waits on them. */
+const WAIT_POLL_MS = 400;
+/** Listening runs in-browser Whisper on the whole video — give it up to ten minutes before calling it stuck. */
+const LISTEN_TIMEOUT_MS = 10 * 60 * 1000;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
   projectId,
   getTimeMs,
@@ -123,17 +135,23 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  // plan state
+  // the run: one phase, one error, per-item progress
+  const [runPhase, setRunPhase] = useState<RunPhase>("idle");
+  const [runError, setRunError] = useState("");
   const [plan, setPlan] = useState<AiEditPlanItem[]>([]);
   const [planDropped, setPlanDropped] = useState(0);
-  const [planning, setPlanning] = useState(false);
-  const [planError, setPlanError] = useState("");
-  const [approved, setApproved] = useState<Record<string, boolean>>({});
-  const [itemBusy, setItemBusy] = useState("");
-  const [itemAdding, setItemAdding] = useState("");
+  const [itemStatus, setItemStatus] = useState<Record<string, ItemStatus>>({});
   const [itemResults, setItemResults] = useState<Record<string, { mode: AiGenerateMode; src: string }>>({});
   const [itemErrors, setItemErrors] = useState<Record<string, string>>({});
   const [itemAdded, setItemAdded] = useState<Record<string, string>>({});
+  const runIdRef = useRef(0);
+  // the chain waits on props the parent owns — mirror them in refs so the polling loop always sees the latest.
+  const transcriptRef = useRef(transcript);
+  useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
+  const signedInRef = useRef(signedIn);
+  useEffect(() => { signedInRef.current = signedIn; }, [signedIn]);
+  const sdkStatusRef = useRef(sdkStatus);
+  useEffect(() => { sdkStatusRef.current = sdkStatus; }, [sdkStatus]);
 
   // one-off visual state
   const [mode, setMode] = useState<AiGenerateMode>("image");
@@ -152,9 +170,24 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
   const generationLocked = signedIn !== true;
   const style = aiEditStyleById(styleId);
   const videoDurationMs = durationMs ?? (transcript.words.length > 0 ? Math.max(...transcript.words.map((w) => w.endMs)) : 0);
+  const runActive = runPhase !== "idle" && runPhase !== "done";
+  const addedCount = Object.values(itemStatus).filter((s) => s === "added").length;
+  const failedKeys = Object.entries(itemStatus).filter(([, s]) => s === "failed").map(([k]) => k);
 
   const pickVideo = useCallback(() => {
     fileRef.current?.click();
+  }, []);
+
+  const resetRun = useCallback(() => {
+    runIdRef.current += 1;
+    setRunPhase("idle");
+    setRunError("");
+    setPlan([]);
+    setPlanDropped(0);
+    setItemStatus({});
+    setItemResults({});
+    setItemErrors({});
+    setItemAdded({});
   }, []);
 
   const onVideoPicked = useCallback(async (files: FileList | null) => {
@@ -165,39 +198,82 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     try {
       const errs = await onUploadVideo([file]);
       if (errs.length > 0) setUploadError(errs[0]!.error);
+      else resetRun();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "The video could not be added.");
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
     }
-  }, [onUploadVideo, uploading]);
+  }, [onUploadVideo, uploading, resetRun]);
 
-  const makePlan = useCallback(async () => {
-    if (planning || transcript.words.length === 0) return;
-    setPlanning(true);
-    setPlanError("");
-    try {
-      const { plan: items, dropped } = await planRunner({
-        segments: segmentsOfTranscript(transcript.words),
-        styleId,
-        durationMs: videoDurationMs,
-      });
-      setPlan(items);
-      setPlanDropped(dropped);
-      setApproved(Object.fromEntries(items.map((it) => [planKey(it), true])));
-      if (items.length === 0) setPlanError("No visuals could be planned from this transcript — the video may have no clear speech.");
-    } catch (err) {
-      setPlanError(err instanceof Error ? err.message : "The plan could not be made. Try again.");
-    } finally {
-      setPlanning(false);
+  /** Changing the look after a run discards that run's plan — it was planned for the old look. */
+  const changeStyle = useCallback((next: string) => {
+    setStyleId(next);
+    if (plan.length > 0) resetRun();
+  }, [plan.length, resetRun]);
+
+  const waitForTranscript = useCallback(async (runId: number) => {
+    const started = Date.now();
+    for (;;) {
+      if (runId !== runIdRef.current) throw new Error("__cancelled__");
+      const t = transcriptRef.current;
+      if (t.state === "ready") {
+        if (t.words.length === 0) throw new Error("No speech was found in this video — make one visual at a time below instead.");
+        return;
+      }
+      if (t.state === "error") throw new Error(t.error ?? "The video could not be listened to.");
+      if (Date.now() - started > LISTEN_TIMEOUT_MS) throw new Error("Listening took too long — try a shorter video, or try again.");
+      await sleep(WAIT_POLL_MS);
     }
-  }, [planning, transcript.words, planRunner, styleId, videoDurationMs]);
+  }, []);
+
+  const waitForSignIn = useCallback(async (runId: number) => {
+    for (;;) {
+      if (runId !== runIdRef.current) throw new Error("__cancelled__");
+      if (sdkStatusRef.current === "failed") throw new Error("The free generation service could not be loaded — check your connection and try again.");
+      if (signedInRef.current === true) return;
+      await sleep(WAIT_POLL_MS);
+    }
+  }, []);
+
+  /** Generate one plan item's visual; returns the result, or throws with the message for that item. */
+  const generateItemResult = useCallback(async (item: AiEditPlanItem, runId: number) => {
+    const puter = getPuter();
+    if (!puter) throw new Error("The free generation service is not loaded yet.");
+    const key = planKey(item);
+    setItemStatus((prev) => ({ ...prev, [key]: "generating" }));
+    setItemErrors((prev) => ({ ...prev, [key]: "" }));
+    try {
+      const fullPrompt = `${item.prompt}, ${style.promptSuffix}`;
+      if (item.kind === "image") {
+        const image = await puter.ai.txt2img(fullPrompt);
+        if (runId !== runIdRef.current) throw new Error("__cancelled__");
+        if (!image?.src) throw new Error("No image came back. Try again.");
+        setItemResults((prev) => ({ ...prev, [key]: { mode: "image", src: image.src } }));
+        return { mode: "image" as AiGenerateMode, src: image.src };
+      }
+      const video = await puter.ai.txt2vid(fullPrompt, { seconds: AI_VIDEO_SECONDS, size: AI_VIDEO_SIZE });
+      if (runId !== runIdRef.current) throw new Error("__cancelled__");
+      if (!video?.src) throw new Error("No clip came back. Try again.");
+      setItemResults((prev) => ({ ...prev, [key]: { mode: "video", src: video.src } }));
+      return { mode: "video" as AiGenerateMode, src: video.src };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Could not generate this visual.";
+      if (message !== "__cancelled__") {
+        setItemErrors((prev) => ({ ...prev, [key]: puterErrorMessage(err) }));
+        setItemStatus((prev) => ({ ...prev, [key]: "failed" }));
+      }
+      throw err;
+    } finally {
+      refreshSignedIn();
+    }
+  }, [style, refreshSignedIn]);
 
   /** Import a generated file and place it on the timeline at a plan item's time. */
-  const placeGenerated = useCallback(async (item: AiEditPlanItem, mode: AiGenerateMode, src: string) => {
+  const placeGenerated = useCallback(async (item: AiEditPlanItem, mode: AiGenerateMode, src: string, runId: number) => {
     const key = planKey(item);
-    setItemAdding(key);
+    setItemStatus((prev) => ({ ...prev, [key]: "adding" }));
     setItemErrors((prev) => ({ ...prev, [key]: "" }));
     try {
       const res = await fetch(src);
@@ -208,6 +284,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
       if (errs.length > 0) throw new Error(errs[0]!.error);
       const record = findImportedAsset(await listProjectAssets(projectId), file.name);
       if (!record) throw new Error("saved to the media bin, but it could not be found again — add it from Media.");
+      if (runId !== runIdRef.current) throw new Error("__cancelled__");
       if (mode === "image") {
         const placeAt = onPlaceImageAt ?? ((asset: { id: string; name: string }) => onPlaceImage(asset));
         placeAt({ id: record.id, name: record.name }, item.startMs);
@@ -223,37 +300,106 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
         delete next[key];
         return next;
       });
+      setItemStatus((prev) => ({ ...prev, [key]: "added" }));
     } catch (err) {
-      setItemErrors((prev) => ({ ...prev, [key]: err instanceof Error ? err.message : "Could not save the generated file." }));
-    } finally {
-      setItemAdding("");
+      const message = err instanceof Error ? err.message : "Could not save the generated file.";
+      if (message !== "__cancelled__") {
+        setItemErrors((prev) => ({ ...prev, [key]: message }));
+        setItemStatus((prev) => ({ ...prev, [key]: "failed" }));
+      }
+      throw err;
     }
   }, [onImportMedia, projectId, onPlaceImageAt, onPlaceImage, onInsertVideo]);
 
-  const generateItem = useCallback(async (item: AiEditPlanItem) => {
-    const puter = getPuter();
-    if (!puter) return;
-    const key = planKey(item);
-    setItemBusy(key);
-    setItemErrors((prev) => ({ ...prev, [key]: "" }));
-    try {
-      const fullPrompt = `${item.prompt}, ${style.promptSuffix}`;
-      if (item.kind === "image") {
-        const image = await puter.ai.txt2img(fullPrompt);
-        if (!image?.src) setItemErrors((prev) => ({ ...prev, [key]: "No image came back. Try again." }));
-        else setItemResults((prev) => ({ ...prev, [key]: { mode: "image", src: image.src } }));
-      } else {
-        const video = await puter.ai.txt2vid(fullPrompt, { seconds: AI_VIDEO_SECONDS, size: AI_VIDEO_SIZE });
-        if (!video?.src) setItemErrors((prev) => ({ ...prev, [key]: "No clip came back. Try again." }));
-        else setItemResults((prev) => ({ ...prev, [key]: { mode: "video", src: video.src } }));
+  /** Generate + place each item in turn; one failure never stops the rest. */
+  const runItems = useCallback(async (items: AiEditPlanItem[], runId: number) => {
+    for (const item of items) {
+      if (runId !== runIdRef.current) throw new Error("__cancelled__");
+      try {
+        const res = await generateItemResult(item, runId);
+        await placeGenerated(item, res.mode, res.src, runId);
+      } catch (err) {
+        if (err instanceof Error && err.message === "__cancelled__") throw err;
+        // the item already carries its failure — carry on with the next one.
       }
-    } catch (err) {
-      setItemErrors((prev) => ({ ...prev, [key]: puterErrorMessage(err) }));
-    } finally {
-      setItemBusy("");
-      refreshSignedIn();
     }
-  }, [style, refreshSignedIn]);
+  }, [generateItemResult, placeGenerated]);
+
+  /** The whole chain, in order: listen → plan → (sign in if needed) → generate each → add each. */
+  const startRun = useCallback(async () => {
+    if (!hasVideo || runActive) return;
+    const runId = runIdRef.current + 1;
+    runIdRef.current = runId;
+    setRunError("");
+    setPlan([]);
+    setPlanDropped(0);
+    setItemStatus({});
+    setItemResults({});
+    setItemErrors({});
+    setItemAdded({});
+    try {
+      const t = transcriptRef.current;
+      if (t.state !== "ready" || t.words.length === 0) {
+        setRunPhase("listening");
+        if (t.state === "idle" || t.state === "error") onTranscribe?.();
+        await waitForTranscript(runId);
+      }
+      setRunPhase("planning");
+      const { plan: items, dropped } = await planRunner({
+        segments: segmentsOfTranscript(transcriptRef.current.words),
+        styleId,
+        durationMs: videoDurationMs,
+      });
+      if (runId !== runIdRef.current) return;
+      setPlan(items);
+      setPlanDropped(dropped);
+      setItemStatus(Object.fromEntries(items.map((it) => [planKey(it), "queued" as ItemStatus])));
+      if (items.length === 0) throw new Error("No visuals could be planned from this transcript — the video may have no clear speech.");
+      if (signedInRef.current !== true) {
+        setRunPhase("waiting-signin");
+        await waitForSignIn(runId);
+      }
+      setRunPhase("generating");
+      await runItems(items, runId);
+      if (runId !== runIdRef.current) return;
+      setRunPhase("done");
+    } catch (err) {
+      if (err instanceof Error && err.message === "__cancelled__") return;
+      if (runId !== runIdRef.current) return;
+      setRunError(err instanceof Error ? err.message : "The visuals could not be made. Try again.");
+      setRunPhase("idle");
+    }
+  }, [hasVideo, runActive, onTranscribe, waitForTranscript, planRunner, styleId, videoDurationMs, waitForSignIn, runItems]);
+
+  /** Re-run only the items that failed, with the plan as it stands. */
+  const retryFailed = useCallback(async () => {
+    if (runActive || failedKeys.length === 0) return;
+    const runId = runIdRef.current + 1;
+    runIdRef.current = runId;
+    setRunError("");
+    try {
+      if (signedInRef.current !== true) {
+        setRunPhase("waiting-signin");
+        await waitForSignIn(runId);
+      }
+      setRunPhase("generating");
+      const failed = plan.filter((it) => failedKeys.includes(planKey(it)));
+      setItemStatus((prev) => ({ ...prev, ...Object.fromEntries(failed.map((it) => [planKey(it), "queued" as ItemStatus])) }));
+      await runItems(failed, runId);
+      if (runId !== runIdRef.current) return;
+      setRunPhase("done");
+    } catch (err) {
+      if (err instanceof Error && err.message === "__cancelled__") return;
+      if (runId !== runIdRef.current) return;
+      setRunError(err instanceof Error ? err.message : "The retry could not finish. Try again.");
+      setRunPhase("idle");
+    }
+  }, [runActive, failedKeys, plan, waitForSignIn, runItems]);
+
+  const stopRun = useCallback(() => {
+    runIdRef.current += 1;
+    setRunPhase("idle");
+  }, []);
 
   const generate = useCallback(async () => {
     const puter = getPuter();
@@ -325,10 +471,26 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     }
   }, [result, adding, onImportMedia, projectId, getTimeMs, onPlaceImage, onInsertVideo]);
 
+  const generatingIndex = plan.findIndex((it) => itemStatus[planKey(it)] === "generating" || itemStatus[planKey(it)] === "adding");
+  const runStatusText =
+    runPhase === "listening"
+      ? transcript.state === "transcribing"
+        ? `Listening to your video… ${Math.round((transcript.progress ?? 0) * 100)}%`
+        : "Listening to your video…"
+      : runPhase === "planning"
+        ? "Planning your visuals…"
+        : runPhase === "waiting-signin"
+          ? "Waiting for Puter sign-in…"
+          : runPhase === "generating"
+            ? `Generating visual ${generatingIndex >= 0 ? generatingIndex + 1 : addedCount + 1} of ${plan.length}…`
+            : runPhase === "done"
+              ? `${addedCount} visual${addedCount === 1 ? "" : "s"} on your timeline${failedKeys.length > 0 ? ` — ${failedKeys.length} failed` : ""}.`
+              : "";
+
   return (
     <div className="h-full overflow-y-auto">
       <Script key={loadAttempt} src="https://js.puter.com/v2/" strategy="afterInteractive" onLoad={handleScriptLoad} onError={handleScriptError} />
-      <Section title="AI Edit" hint="Your video, planned visuals, generated with your free account — never mixed with caption projects.">
+      <Section title="AI Edit" hint="Upload a video, pick a look — the visuals plan themselves, generate, and land on your timeline.">
         {sdkStatus === "failed" ? (
           <div role="alert" className="rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">
             <p>The free generation service could not be loaded — check your connection and try again.</p>
@@ -336,9 +498,9 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
           </div>
         ) : null}
 
-        {/* 1 — add the video: no sign-in needed, and this is the first upload on a blank project too */}
+        {/* your video: no sign-in needed, and this is the first upload on a blank project too */}
         <div>
-          <p className="font-sora text-[13px] font-bold text-st-text">1. Add your video</p>
+          <p className="font-sora text-[13px] font-bold text-st-text">Your video</p>
           <input ref={fileRef} type="file" accept="video/*" className="hidden" aria-label="Choose a video file" onChange={(e) => void onVideoPicked(e.target.files)} />
           <button
             type="button"
@@ -349,92 +511,95 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
             {uploading ? "Adding…" : hasVideo ? "Replace video" : "Upload video"}
           </button>
           {hasVideo ? (
-            <p className="mt-2 text-xs leading-relaxed text-st-faint">Video added. Listen to it in step 2.</p>
+            <p className="mt-2 text-xs leading-relaxed text-st-faint">Video added — pick a look below, then create your visuals.</p>
           ) : null}
           {uploadError ? <p role="alert" className="mt-2 text-xs text-st-or">{uploadError}</p> : null}
         </div>
 
-        {/* 2 — listen: planning-only transcription in this tab, nothing saved as captions */}
+        {/* the look: applies to every visual the plan makes */}
         <div>
-          <p className="font-sora text-[13px] font-bold text-st-text">2. Listen to the video</p>
-          {!hasVideo ? (
-            <p className="mt-2 text-xs leading-relaxed text-st-faint">Add a video first — the plan is built from the words in your video.</p>
-          ) : transcript.state === "idle" ? (
-            <>
-              <p className="mt-2 text-xs leading-relaxed text-st-faint">First the video is listened to in this tab, so the plan follows what is actually said. Nothing is saved as captions.</p>
-              <button
-                type="button"
-                onClick={() => onTranscribe?.()}
-                disabled={!onTranscribe}
-                className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512] disabled:opacity-50"
-              >
-                Listen to the video
-              </button>
-            </>
-          ) : transcript.state === "transcribing" ? (
-            <p className="mt-2 text-xs text-st-faint">Listening to the video… {Math.round((transcript.progress ?? 0) * 100)}%</p>
-          ) : transcript.state === "error" ? (
-            <div role="alert" className="mt-2 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">
-              <p>{transcript.error ?? "The video could not be listened to."}</p>
-              <Button tone="ghost" onClick={() => onTranscribe?.()} disabled={!onTranscribe} className="mt-2">Try again</Button>
-            </div>
-          ) : transcript.words.length === 0 ? (
-            <p className="mt-2 text-xs leading-relaxed text-st-faint">No speech was found in this video — make one visual at a time in step 5 instead.</p>
-          ) : (
-            <p className="mt-2 text-xs leading-relaxed text-st-faint">{transcript.words.length} words heard. Make a plan in step 3.</p>
-          )}
+          <p className="font-sora text-[13px] font-bold text-st-text">Look</p>
+          <div className="mt-2">
+            <AiEditStyleChooser value={styleId} onChange={changeStyle} disabled={!hasVideo || runActive} />
+          </div>
+          {!hasVideo ? <p className="mt-2 text-xs text-st-faint">Add a video first — the look applies to the visuals made for it.</p> : null}
         </div>
 
-        {/* 3 — visual prompts: pick a style, make the plan, approve each prompt */}
+        {/* the run: one tap, then listen → plan → generate → timeline, on its own */}
         <div>
-          <p className="font-sora text-[13px] font-bold text-st-text">3. Visual prompts</p>
-          <div className="mt-2">
-            <AiEditStyleChooser value={styleId} onChange={setStyleId} disabled={!hasVideo} />
-          </div>
-          {!hasVideo ? <p className="mt-2 text-xs text-st-faint">Add a video first — the style applies to the visuals planned for it.</p> : null}
-          {hasVideo && transcript.state === "ready" && transcript.words.length > 0 ? (
-            <>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void startRun()}
+              disabled={!hasVideo || runActive}
+              className="mt-2 inline-flex min-h-[44px] items-center justify-center rounded-full bg-st-em px-6 py-3 font-sora text-[14px] font-bold text-[#0B1512] disabled:opacity-50"
+            >
+              {runPhase === "done" && plan.length > 0 ? "Create visuals again" : "Create visuals"}
+            </button>
+            {runActive ? (
               <button
                 type="button"
-                onClick={() => void makePlan()}
-                disabled={planning}
-                className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512] disabled:opacity-50"
+                onClick={stopRun}
+                className="mt-2 inline-flex min-h-[44px] items-center justify-center rounded-full border border-st-line px-5 py-3 font-sora text-[14px] font-bold text-st-text"
               >
-                {planning ? "Planning…" : plan.length > 0 ? "Plan again" : "Make a visual plan"}
+                Stop
               </button>
-              {planError ? <p role="alert" className="mt-2 text-xs text-st-or">{planError}</p> : null}
-              {planDropped > 0 ? <p className="mt-2 text-xs text-st-faint">{planDropped} planned visual{planDropped === 1 ? " was" : "s were"} dropped as unusable.</p> : null}
-            </>
-          ) : hasVideo ? (
-            <p className="mt-2 text-xs leading-relaxed text-st-faint">Listen to the video first — the plan follows what is said.</p>
+            ) : null}
+          </div>
+          {runStatusText ? <p className="mt-2 text-xs leading-relaxed text-st-faint">{runStatusText}</p> : null}
+          {runError ? <p role="alert" className="mt-2 text-xs text-st-or">{runError}</p> : null}
+          {planDropped > 0 ? <p className="mt-2 text-xs text-st-faint">{planDropped} planned visual{planDropped === 1 ? " was" : "s were"} dropped as unusable.</p> : null}
+
+          {runPhase === "waiting-signin" ? (
+            <div className="mt-2 rounded-lg border border-st-line bg-st-raised px-3 py-3">
+              <p className="text-xs leading-relaxed text-st-text">
+                Sign in with your own free Puter account. Generation uses your account and its allowance — Captionit charges nothing. The visuals start generating as soon as you sign in.
+              </p>
+              {showSignIn ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void signIn()}
+                    className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512]"
+                  >
+                    Sign in with Puter
+                  </button>
+                  {signInError ? <p role="alert" className="mt-2 text-xs text-st-text">{signInError}</p> : null}
+                </>
+              ) : sdkStatus === "loading" ? (
+                <p className="mt-2 text-xs text-st-faint">Loading the free generation service…</p>
+              ) : null}
+            </div>
           ) : null}
-          {generationLocked && plan.length > 0 ? (
-            <p className="mt-2 text-xs text-st-faint">Generation needs a free Puter sign-in — step 4.</p>
+          {generationLocked && plan.length > 0 && runPhase !== "waiting-signin" && runPhase !== "done" ? (
+            <p className="mt-2 text-xs text-st-faint">Generation needs a free Puter sign-in — you will be asked when the plan is ready.</p>
           ) : null}
 
           {plan.length > 0 ? (
             <ul className="mt-3 space-y-2">
               {plan.map((item) => {
                 const key = planKey(item);
+                const status = itemStatus[key] ?? "queued";
                 const itemResult = itemResults[key];
-                const isApproved = approved[key] !== false;
+                const statusText =
+                  status === "added"
+                    ? itemAdded[key] ?? "On your timeline."
+                    : status === "generating"
+                      ? "Generating…"
+                      : status === "adding"
+                        ? "Adding to your timeline…"
+                        : status === "failed"
+                          ? "Could not be made."
+                          : "Waiting…";
                 return (
                   <li key={key} className="rounded-lg border border-st-line bg-st-raised p-3">
-                    <label className="flex items-start gap-2 text-[13px] text-st-text">
-                      <input
-                        type="checkbox"
-                        checked={isApproved}
-                        onChange={(e) => setApproved((prev) => ({ ...prev, [key]: e.target.checked }))}
-                        className="mt-0.5 accent-[#34D399]"
-                      />
-                      <span>
-                        <span className="font-sora font-bold">{formatAtMs(item.startMs)} – {formatAtMs(item.endMs)} · {item.kind === "image" ? "Image" : "Video"}</span>
-                        <span className="mt-0.5 block text-xs leading-relaxed text-st-faint">{item.prompt}</span>
-                        {item.sourceText ? <span className="mt-0.5 block text-xs italic leading-relaxed text-st-faint">&ldquo;{item.sourceText}&rdquo;</span> : null}
-                      </span>
-                    </label>
-                    {itemAdded[key] ? <p className="mt-2 text-xs text-st-em">{itemAdded[key]}</p> : null}
-                    {itemErrors[key] ? <p role="alert" className="mt-2 text-xs text-st-or">{itemErrors[key]}</p> : null}
+                    <p className="text-[13px] text-st-text">
+                      <span className="font-sora font-bold">{formatAtMs(item.startMs)} – {formatAtMs(item.endMs)} · {item.kind === "image" ? "Image" : "Video"}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-st-faint">{item.prompt}</span>
+                      {item.sourceText ? <span className="mt-0.5 block text-xs italic leading-relaxed text-st-faint">&ldquo;{item.sourceText}&rdquo;</span> : null}
+                    </p>
+                    <p className={`mt-2 text-xs ${status === "added" ? "text-st-em" : status === "failed" ? "text-st-or" : "text-st-faint"}`}>{statusText}</p>
+                    {itemErrors[key] ? <p role="alert" className="mt-1 text-xs text-st-or">{itemErrors[key]}</p> : null}
                     {itemResult ? (
                       <div className="mt-2">
                         {itemResult.mode === "image" ? (
@@ -442,60 +607,27 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
                         ) : (
                           <video src={itemResult.src} controls preload="metadata" playsInline className="w-full rounded-lg" />
                         )}
-                        <button
-                          type="button"
-                          onClick={() => void placeGenerated(item, itemResult.mode, itemResult.src)}
-                          disabled={itemAdding === key || (videoLocked && itemResult.mode === "video")}
-                          className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512] disabled:opacity-50"
-                        >
-                          {itemAdding === key ? "Adding…" : "Add to timeline"}
-                        </button>
                       </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void generateItem(item)}
-                        disabled={!isApproved || itemBusy === key || sdkStatus !== "ready" || signedIn !== true}
-                        className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full border border-st-line px-5 py-2 font-sora text-[13px] font-bold text-st-text disabled:opacity-50"
-                      >
-                        {itemBusy === key ? "Generating…" : `Generate this ${item.kind}`}
-                      </button>
-                    )}
+                    ) : null}
                   </li>
                 );
               })}
             </ul>
           ) : null}
-        </div>
-
-        {/* 4 — generate with Puter: sign-in lives here, right before generation */}
-        <div>
-          <p className="font-sora text-[13px] font-bold text-st-text">4. Generate with Puter</p>
-          {showSignIn ? (
-            <div className="mt-2 rounded-lg border border-st-line bg-st-raised px-3 py-3">
-              <p className="text-xs leading-relaxed text-st-text">
-                Sign in with your own free Puter account. Generation uses your account and its allowance — Captionit charges nothing.
-              </p>
-              <button
-                type="button"
-                onClick={() => void signIn()}
-                className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512]"
-              >
-                Sign in with Puter
-              </button>
-              {signInError ? <p role="alert" className="mt-2 text-xs text-st-text">{signInError}</p> : null}
-            </div>
-          ) : signedIn === true ? (
-            <p className="mt-2 text-xs text-st-em">Signed in — press Generate on any approved prompt in step 3.</p>
-          ) : sdkStatus === "loading" ? (
-            <p className="mt-2 text-xs text-st-faint">Loading the free generation service…</p>
+          {runPhase === "done" && failedKeys.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => void retryFailed()}
+              className="mt-3 inline-flex min-h-[40px] items-center justify-center rounded-full border border-st-line px-5 py-2 font-sora text-[13px] font-bold text-st-text"
+            >
+              Retry {failedKeys.length} failed visual{failedKeys.length === 1 ? "" : "s"}
+            </button>
           ) : null}
         </div>
 
-        {/* 5 — add to timeline: one visual at the playhead, then add it */}
+        {/* one visual at the playhead, outside the automatic run */}
         <div>
-          <p className="font-sora text-[13px] font-bold text-st-text">5. Add to timeline</p>
-          <p className="mt-2 text-xs leading-relaxed text-st-faint">Plan visuals add from step 3, at the time on each prompt. Or make one visual at the playhead:</p>
+          <p className="font-sora text-[13px] font-bold text-st-text">Or make one visual at the playhead</p>
           {hasVideo ? (
             <>
               <div role="group" aria-label="What to generate" className="mt-2 flex gap-2">
@@ -537,6 +669,19 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
                   {busy ? copy.waiting : copy.button}
                 </button>
                 {sdkStatus === "loading" ? <p className="mt-2 text-xs text-st-faint">Loading the free generation service…</p> : null}
+                {showSignIn && runPhase !== "waiting-signin" ? (
+                  <>
+                    <p className="mt-2 text-xs text-st-faint">Sign in with your own free Puter account to generate — Captionit charges nothing.</p>
+                    <button
+                      type="button"
+                      onClick={() => void signIn()}
+                      className="mt-2 inline-flex min-h-[40px] items-center justify-center rounded-full bg-st-em px-5 py-2 font-sora text-[13px] font-bold text-[#0B1512]"
+                    >
+                      Sign in with Puter
+                    </button>
+                    {signInError ? <p role="alert" className="mt-2 text-xs text-st-text">{signInError}</p> : null}
+                  </>
+                ) : null}
               </div>
               {error ? (
                 <div role="alert" className="mt-2 rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">

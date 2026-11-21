@@ -13,8 +13,8 @@
  *        shipped; see `aiEditTranscribe.ts` — planning-only, it never writes
  *        a caption document), feed the timestamped transcript to the existing
  *        free server-side text AI, and it returns a per-segment visual plan.
- *        Zero new cost, zero new provider, zero new key. The user reviews
- *        the plan before anything is generated.
+ *        Zero new cost, zero new provider, zero new key. The panel shows
+ *        the plan as it runs — nothing waits on a review.
  *
  * No model or provider name ever appears in the UI or in these prompts:
  * the server route picks the configured free text service.
