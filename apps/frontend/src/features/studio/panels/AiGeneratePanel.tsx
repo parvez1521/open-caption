@@ -354,7 +354,10 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
       setPlan(items);
       setPlanDropped(dropped);
       setItemStatus(Object.fromEntries(items.map((it) => [planKey(it), "queued" as ItemStatus])));
-      if (items.length === 0) throw new Error("No visuals could be planned from this transcript — the video may have no clear speech.");
+      // The transcript is guaranteed to have words here (waitForTranscript
+      // throws first when it is empty), so "no clear speech" would be a
+      // lie — the model answered but made nothing usable from them.
+      if (items.length === 0) throw new Error("The free AI answered but made no visuals from this transcript. Try again.");
       if (signedInRef.current !== true) {
         setRunPhase("waiting-signin");
         await waitForSignIn(runId);

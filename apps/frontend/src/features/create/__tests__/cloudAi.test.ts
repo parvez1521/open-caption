@@ -57,14 +57,14 @@ describe("fetchCloudAiStatus", () => {
     vi.mocked(freshClient.get).mockResolvedValue({
       configured: true,
       provider: "Cloudflare",
-      model: "@cf/openai/gpt-oss-120b",
-      modelName: "GPT-OSS 120B",
+      model: "@cf/meta/llama-3.1-8b-instruct",
+      modelName: "Llama 3.1 8B",
     });
     await expect(fresh.fetchCloudAiStatus()).resolves.toEqual({
       configured: true,
       provider: "Cloudflare",
-      model: "@cf/openai/gpt-oss-120b",
-      modelName: "GPT-OSS 120B",
+      model: "@cf/meta/llama-3.1-8b-instruct",
+      modelName: "Llama 3.1 8B",
     });
   });
 

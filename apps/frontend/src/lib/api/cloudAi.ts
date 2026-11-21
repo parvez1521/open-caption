@@ -17,17 +17,29 @@ import "server-only";
  *
  * Current provider (2026-11-21): Cloudflare Workers AI — the documented
  * runner-up from the 2026-11-10 comparison (research/free-ai-options.md).
- * Same 120B model (`@cf/openai/gpt-oss-120b`), called through Workers AI's
- * OpenAI-compatible endpoint, so the request/response shape is unchanged:
+ * Called through Workers AI's OpenAI-compatible endpoint, so the
+ * request/response shape is unchanged:
  * `https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions`
  * (verified on developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility/,
  * updated 2026-09-17). Standing free allocation: 10,000 Neurons/day, resets
- * 00:00 UTC, hard stop when exhausted. At the official Neuron rates
- * (31,818/M input, 68,182/M output) a short call costs ~17 Neurons
- * (~600/day); a full 2,000-token planner reply costs ~200 Neurons, so the
- * Neuron budget binds before the site's own daily buckets only if planner
- * use grows far past today's traffic. Exhaustion answers 429 and the routes
- * report it as "daily limit" — the same message as before.
+ * 00:00 UTC, hard stop when exhausted.
+ *
+ * Model history: the switch first kept Groq's model (`@cf/openai/gpt-oss-120b`,
+ * a reasoning model — Workers AI runs it at medium reasoning by default).
+ * Live on 2026-11-21 it failed the AI Edit plan step twice in a row: once
+ * the call never came back inside the 25s timeout (reasoning models are
+ * slow), once it answered but with no plan items the parser could use
+ * (Workers AI blank/unparseable completions are a known failure mode of
+ * the free tier). Auth was never the problem — no 401/403 in either
+ * attempt. So the default is now `@cf/meta/llama-3.1-8b-instruct`: a fast
+ * non-reasoning instruct model on the same free tier (official Neuron
+ * rates 25,608/M input, 75,147/M output — a short call costs ~35 Neurons,
+ * ~280/day; a full 2,000-token planner reply ~165 Neurons, so the Neuron
+ * budget binds before the site's own daily buckets only if planner use
+ * grows far past today's traffic; a ~580-token reply was independently
+ * measured at ~5.5s). Exhaustion answers 429 and the routes report it as
+ * "daily limit" — the same message as before. The model stays overridable
+ * via CLOUDFLARE_AI_MODEL, so a swap needs no code change.
  *
  * Why not Gemini free (the owner asked for "Gemini or any other free model"):
  * the 2026-11-10 research rejected it — Google's Unpaid Services terms let
@@ -50,9 +62,9 @@ import "server-only";
  */
 
 export const CLOUD_AI_PROVIDER = "Cloudflare";
-export const CLOUD_AI_DEFAULT_MODEL = "@cf/openai/gpt-oss-120b";
+export const CLOUD_AI_DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
 /** Display name for the default model (an operator-set CLOUDFLARE_AI_MODEL override shows its raw id instead). */
-export const CLOUD_AI_DEFAULT_MODEL_NAME = "GPT-OSS 120B";
+export const CLOUD_AI_DEFAULT_MODEL_NAME = "Llama 3.1 8B";
 
 const WORKERS_AI_BASE = "https://api.cloudflare.com/client/v4/accounts";
 const TIMEOUT_MS = 25_000;

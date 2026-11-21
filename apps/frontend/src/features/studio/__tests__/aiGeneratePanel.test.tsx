@@ -187,6 +187,14 @@ describe("AiGeneratePanel — one tap runs the whole chain", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
     await waitFor(() => expect(screen.getByText(/The free AI service is not switched on yet/)).toBeTruthy(), { timeout: 5000 });
   });
+
+  it("an empty plan with words in the transcript does not blame the speech", async () => {
+    mockSdk.signedIn = true;
+    renderPanel({ planRunner: vi.fn(async () => ({ plan: [], dropped: 0 })) });
+    fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
+    await waitFor(() => expect(screen.getByText(/The free AI answered but made no visuals from this transcript/)).toBeTruthy(), { timeout: 5000 });
+    expect(screen.queryByText(/no clear speech/)).toBeNull();
+  });
 });
 
 describe("AiGeneratePanel — no video, no run", () => {

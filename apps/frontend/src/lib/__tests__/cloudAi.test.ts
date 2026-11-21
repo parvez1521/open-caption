@@ -6,7 +6,7 @@ import { CloudAiError, cloudAiConfig, cloudAiStatus, runCloudChat } from "../api
 
 const CONFIG = {
   apiKey: "cf_test_token",
-  model: "@cf/openai/gpt-oss-120b",
+  model: "@cf/meta/llama-3.1-8b-instruct",
   endpoint: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1/chat/completions",
 };
 
@@ -22,7 +22,7 @@ describe("cloudAiConfig", () => {
 
   it("defaults to the production free-tier model on the Workers AI endpoint", () => {
     const cfg = cloudAiConfig({ CLOUDFLARE_ACCOUNT_ID: "acct-1", CLOUDFLARE_API_KEY: "tok" });
-    expect(cfg?.model).toBe("@cf/openai/gpt-oss-120b");
+    expect(cfg?.model).toBe("@cf/meta/llama-3.1-8b-instruct");
     expect(cfg?.endpoint).toBe(
       "https://api.cloudflare.com/client/v4/accounts/acct-1/ai/v1/chat/completions",
     );
@@ -39,8 +39,8 @@ describe("cloudAiConfig", () => {
     const s = cloudAiStatus({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_API_KEY: "k" });
     expect(s.configured).toBe(true);
     expect(s.provider).toBe("Cloudflare");
-    expect(s.model).toBe("@cf/openai/gpt-oss-120b");
-    expect(s.modelName).toBe("GPT-OSS 120B");
+    expect(s.model).toBe("@cf/meta/llama-3.1-8b-instruct");
+    expect(s.modelName).toBe("Llama 3.1 8B");
   });
 });
 
@@ -56,7 +56,7 @@ describe("runCloudChat", () => {
     expect(seen.current?.url).toBe(CONFIG.endpoint);
     expect(seen.current?.init?.headers).toMatchObject({ Authorization: "Bearer cf_test_token" });
     const body = JSON.parse(seen.current?.init?.body as string) as { model: string; messages: unknown };
-    expect(body.model).toBe("@cf/openai/gpt-oss-120b");
+    expect(body.model).toBe("@cf/meta/llama-3.1-8b-instruct");
     expect(body.messages).toEqual([
       { role: "system", content: "sys" },
       { role: "user", content: "usr" },

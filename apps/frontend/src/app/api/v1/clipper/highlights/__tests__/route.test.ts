@@ -26,12 +26,12 @@ vi.mock("@/lib/api/rateLimit", () => ({
   },
 }));
 vi.mock("@/lib/api/cloudAi", () => ({
-  cloudAiConfig: () => (cloud.configured ? { apiKey: "k", baseUrl: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1", model: "@cf/openai/gpt-oss-120b" } : null),
+  cloudAiConfig: () => (cloud.configured ? { apiKey: "k", baseUrl: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1", model: "@cf/meta/llama-3.1-8b-instruct" } : null),
   cloudAiStatus: () => ({
     configured: cloud.configured,
     provider: cloud.configured ? "cloudflare" : "none",
-    model: cloud.configured ? "@cf/openai/gpt-oss-120b" : "",
-    modelName: cloud.configured ? "GPT-OSS 120B" : "",
+    model: cloud.configured ? "@cf/meta/llama-3.1-8b-instruct" : "",
+    modelName: cloud.configured ? "Llama 3.1 8B" : "",
   }),
   runCloudChat: async (prompt: { system: string; user: string }, opts: Record<string, unknown>) => {
     cloud.calls.push({ prompt, opts });
@@ -63,7 +63,7 @@ describe("clipper highlights route", () => {
     const body = (await res.json()) as { success: boolean; data: { configured: boolean; modelName: string } };
     expect(body.success).toBe(true);
     expect(body.data.configured).toBe(true);
-    expect(body.data.modelName).toBe("GPT-OSS 120B");
+    expect(body.data.modelName).toBe("Llama 3.1 8B");
   });
 
   it("POST runs the prompt with clip-sized options and both rate buckets", async () => {
