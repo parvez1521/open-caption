@@ -40,7 +40,16 @@ import "server-only";
  * 401/403/429). A retired model answers 410, never a plan, so no timeout
  * or token change can fix it. The default is now
  * `@cf/google/gemma-4-26b-a4b-it`, Cloudflare's own recommended smaller
- * replacement for the retired models. Exhaustion answers 429 and the
+ * replacement for the retired models. Live on 2026-11-21 Gemma answered
+ * the plan twice (21:17/21:18 IST) with an EMPTY completion after 26s/40s
+ * of generation — kind "empty", no status, HTTP 502 to the caller. Cause:
+ * Gemma 4 thinks before it answers and can put its whole answer in a
+ * `reasoning` field with `content` empty (documented on Ollama's
+ * /v1/chat/completions for gemma4:26b, ollama/ollama #15288, where
+ * `reasoning_effort: "none"` moved the answer back into `content`). The
+ * client now sends `reasoning_effort: "none"` and reads the reasoning
+ * fields as a fallback; a still-empty completion logs its structural
+ * shape (`detail`) instead of just "empty". Exhaustion answers 429 and the
  * routes report it as "daily limit" — the same message as before. The
  * model stays overridable via CLOUDFLARE_AI_MODEL, so a swap needs no
  * code change.
@@ -100,11 +109,14 @@ export type CloudAiErrorKind = "http" | "timeout" | "network" | "empty";
 export class CloudAiError extends Error {
   readonly status?: number;
   readonly kind?: CloudAiErrorKind;
-  constructor(message: string, status?: number, kind?: CloudAiErrorKind) {
+  /** Structural detail about the failure (never content text): the routes log it. */
+  readonly detail?: Record<string, unknown>;
+  constructor(message: string, status?: number, kind?: CloudAiErrorKind, detail?: Record<string, unknown>) {
     super(message);
     this.name = "CloudAiError";
     this.status = status;
     this.kind = kind ?? (status !== undefined ? "http" : undefined);
+    this.detail = detail;
   }
 }
 
@@ -141,9 +153,26 @@ export function cloudAiStatus(env: CloudAiEnv = defaultEnv()): CloudAiStatus {
   };
 }
 
-interface ChatCompletionBody {
-  choices?: { message?: { content?: unknown } }[];
+interface ChatCompletionMessage {
+  content?: unknown;
+  reasoning_content?: unknown;
+  reasoning?: unknown;
 }
+
+interface ChatCompletionBody {
+  choices?: { message?: ChatCompletionMessage; finish_reason?: unknown }[];
+}
+
+/** Gemma 4 thinks before it answers: on OpenAI-compatible endpoints it can
+ * put its whole answer in a `reasoning` / `reasoning_content` field and
+ * leave `content` empty (seen on Ollama's /v1/chat/completions for
+ * gemma4:26b — GitHub ollama/ollama #15288 — where `reasoning_effort:
+ * "none"` moved the answer back into `content`). Live on Workers AI
+ * 2026-11-21 Gemma answered the AI Edit plan twice with an empty
+ * completion after 26s/40s of generation — the thinking consumed the call
+ * and `content` came back empty. So: ask for no reasoning, and read the
+ * reasoning fields as a fallback in case the endpoint ignores the flag. */
+const REASONING_EFFORT_NONE = "none";
 
 /**
  * One chat completion against Workers AI's OpenAI-compatible endpoint.
@@ -237,6 +266,9 @@ async function attemptCloudChat(
           ],
           temperature: opts.temperature ?? 0.8,
           max_tokens: opts.maxTokens ?? MAX_TOKENS,
+          // Gemma 4 thinks by default and can leave `content` empty (see
+          // REASONING_EFFORT_NONE above); ask for the answer directly.
+          reasoning_effort: REASONING_EFFORT_NONE,
         }),
         signal: ctrl.signal,
       });
@@ -251,13 +283,30 @@ async function attemptCloudChat(
     if (!res.ok) throw new CloudAiError(`The free AI service answered with HTTP ${res.status}.`, res.status, "http");
     const body = (await res.json().catch(() => null)) as ChatCompletionBody | null;
     // Some models answer content as text parts instead of one string —
-    // join the parts instead of calling the completion empty.
-    const content = extractContent(body?.choices?.[0]?.message?.content);
-    if (!content.trim()) throw new CloudAiError("The free AI service returned an empty completion.", undefined, "empty");
+    // join the parts instead of calling the completion empty; Gemma 4 can
+    // also put its answer in a reasoning field with `content` empty, so
+    // read those fields too (see REASONING_EFFORT_NONE above).
+    const content = extractMessageText(body?.choices?.[0]?.message);
+    if (!content.trim())
+      throw new CloudAiError(
+        "The free AI service returned an empty completion.",
+        undefined,
+        "empty",
+        describeCompletion(body),
+      );
     return content;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** A completion message's text: `content` first (a plain string, or an
+ * array of `{type:"text",text}` parts — some Workers AI models answer that
+ * way), then the reasoning fields Gemma 4 can use instead (`reasoning_content`,
+ * `reasoning`). Anything else is empty. */
+function extractMessageText(message: ChatCompletionMessage | undefined): string {
+  if (!message) return "";
+  return extractContent(message.content) || extractContent(message.reasoning_content) || extractContent(message.reasoning);
 }
 
 /** A completion's text: a plain string, or an array of `{type:"text",text}`
@@ -274,4 +323,33 @@ function extractContent(content: unknown): string {
       .join("");
   }
   return "";
+}
+
+/**
+ * The structural shape of an empty completion — field names and types only,
+ * never any text — so the next failure names exactly where the answer went
+ * instead of just "empty". Recorded on the CloudAiError as `detail` and
+ * logged by the routes.
+ */
+function describeCompletion(body: ChatCompletionBody | null): Record<string, unknown> {
+  if (body === null) return { bodyJson: false };
+  const choice = body.choices?.[0];
+  const message = choice?.message;
+  return {
+    bodyJson: true,
+    choices: Array.isArray(body.choices) ? body.choices.length : 0,
+    finishReason: typeof choice?.finish_reason === "string" ? choice.finish_reason : null,
+    messageKeys: message && typeof message === "object" ? Object.keys(message).sort() : [],
+    contentType: message === undefined ? "no-message" : contentTypeOf(message.content),
+    reasoningContentType: message === undefined ? "no-message" : contentTypeOf(message.reasoning_content),
+    reasoningType: message === undefined ? "no-message" : contentTypeOf(message.reasoning),
+  };
+}
+
+function contentTypeOf(value: unknown): string {
+  if (value === undefined) return "undefined";
+  if (value === null) return "null";
+  if (typeof value === "string") return value.length === 0 ? "empty-string" : "string";
+  if (Array.isArray(value)) return `array:${value.length}`;
+  return typeof value;
 }

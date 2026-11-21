@@ -198,4 +198,50 @@ describe("runCloudChat", () => {
       kind: "empty",
     });
   });
+
+  it("asks for no reasoning (Gemma 4 thinks and can leave content empty)", async () => {
+    let sentBody: Record<string, unknown> = {};
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      sentBody = JSON.parse(String(init?.body));
+      return jsonResponse(true, 200, { choices: [{ message: { content: "hook line" } }] });
+    }) as unknown as typeof fetch;
+    await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl });
+    expect(sentBody.reasoning_effort).toBe("none");
+  });
+
+  it("reads the answer from the reasoning field when content is empty", async () => {
+    const fetchImpl = (async () =>
+      jsonResponse(true, 200, {
+        choices: [{ message: { content: "", reasoning_content: "hook line" } }],
+      })) as unknown as typeof fetch;
+    const text = await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl });
+    expect(text).toBe("hook line");
+  });
+
+  it("joins reasoning text parts when content is empty", async () => {
+    const fetchImpl = (async () =>
+      jsonResponse(true, 200, {
+        choices: [{ message: { content: null, reasoning: [{ type: "text", text: "hello" }, { type: "text", text: " world" }] } }],
+      })) as unknown as typeof fetch;
+    const text = await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl });
+    expect(text).toBe("hello world");
+  });
+
+  it("a still-empty completion carries the response shape as detail (field names only, no text)", async () => {
+    const fetchImpl = (async () =>
+      jsonResponse(true, 200, {
+        choices: [{ message: { content: "", reasoning_content: "" }, finish_reason: "stop" }],
+      })) as unknown as typeof fetch;
+    const err = await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ name: "CloudAiError", kind: "empty" });
+    expect((err as CloudAiError).detail).toEqual({
+      bodyJson: true,
+      choices: 1,
+      finishReason: "stop",
+      messageKeys: ["content", "reasoning_content"],
+      contentType: "empty-string",
+      reasoningContentType: "empty-string",
+      reasoningType: "undefined",
+    });
+  });
 });

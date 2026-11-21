@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * configured:false with no model call.
  */
 
-const state = vi.hoisted(() => ({ configured: true, failUpstream: false, failStatus: null as number | null, failKind: null as string | null }));
+const state = vi.hoisted(() => ({ configured: true, failUpstream: false, failStatus: null as number | null, failKind: null as string | null, failDetail: null as Record<string, unknown> | null }));
 const ai = vi.hoisted(() => ({ calls: [] as Array<{ system: string; user: string; opts: unknown }> }));
 const rateLimitCalls = vi.hoisted(() => ({ calls: [] as unknown[][] }));
 
@@ -26,11 +26,13 @@ const errors = vi.hoisted(() => ({
   CloudAiError: class extends Error {
     status?: number;
     kind?: string;
-    constructor(message: string, status?: number, kind?: string) {
+    detail?: Record<string, unknown>;
+    constructor(message: string, status?: number, kind?: string, detail?: Record<string, unknown>) {
       super(message);
       this.name = "CloudAiError";
       this.status = status;
       this.kind = kind ?? (status !== undefined ? "http" : undefined);
+      this.detail = detail;
     }
   },
 }));
@@ -46,6 +48,7 @@ vi.mock("@/lib/api/cloudAi", () => ({
           state.failKind ? `The free AI request ${state.failKind}.` : `The free AI service answered with HTTP ${state.failStatus}.`,
           state.failStatus ?? undefined,
           state.failKind ?? undefined,
+          state.failDetail ?? undefined,
         );
       }
       throw new Error("upstream down");
@@ -72,6 +75,7 @@ beforeEach(() => {
   state.failUpstream = false;
   state.failStatus = null;
   state.failKind = null;
+  state.failDetail = null;
   ai.calls = [];
   rateLimitCalls.calls = [];
 });
@@ -173,5 +177,21 @@ describe("POST /transcribe/correct", () => {
     const body = (await res.json()) as { error: { code: string; message: string } };
     expect(body.error.code).toBe("UPSTREAM_FAILED");
     expect(body.error.message).toContain("made no correction");
+  });
+
+  it("an empty completion logs the response shape detail", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      state.failUpstream = true;
+      state.failKind = "empty";
+      state.failDetail = { bodyJson: true, choices: 1, contentType: "empty-string" };
+      const res = await ask({ text: "Hello world.", language: "en" });
+      expect(res.status).toBe(502);
+      const logged = errorSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      expect(logged).toContain('"detail"');
+      expect(logged).toContain("empty-string");
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });
