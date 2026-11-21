@@ -29,7 +29,7 @@ import { buildCoachPrompt, buildGrowthContext, starterQuestions, type CoachSecti
  * (features/growth/coach.ts) forbids inventing figures and requires naming
  * what to add/connect when the data is missing.
  *
- * Free AI only: the same Groq path as /create (runCloudChat), the same
+ * Free AI only: the same Cloudflare path as /create (runCloudChat), the same
  * per-user limit shape (30/hour in its own bucket) and the SHARED site-wide
  * daily bucket, so the free quota is one pool across surfaces. When no key
  * is configured the route answers configured:false and the panel shows its

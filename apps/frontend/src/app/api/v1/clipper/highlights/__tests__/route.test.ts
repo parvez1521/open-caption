@@ -26,11 +26,11 @@ vi.mock("@/lib/api/rateLimit", () => ({
   },
 }));
 vi.mock("@/lib/api/cloudAi", () => ({
-  cloudAiConfig: () => (cloud.configured ? { apiKey: "k", baseUrl: "https://api.groq.com/openai/v1", model: "openai/gpt-oss-120b" } : null),
+  cloudAiConfig: () => (cloud.configured ? { apiKey: "k", baseUrl: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1", model: "@cf/openai/gpt-oss-120b" } : null),
   cloudAiStatus: () => ({
     configured: cloud.configured,
-    provider: cloud.configured ? "groq" : "none",
-    model: cloud.configured ? "openai/gpt-oss-120b" : "",
+    provider: cloud.configured ? "cloudflare" : "none",
+    model: cloud.configured ? "@cf/openai/gpt-oss-120b" : "",
     modelName: cloud.configured ? "GPT-OSS 120B" : "",
   }),
   runCloudChat: async (prompt: { system: string; user: string }, opts: Record<string, unknown>) => {

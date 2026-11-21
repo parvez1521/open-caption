@@ -6,7 +6,7 @@ import { cloudAiConfig, cloudAiStatus, runCloudChat } from "@/lib/api/cloudAi";
 
 /**
  * AI Clipping Studio "Free AI" proxy — the sibling of /api/v1/create/generate
- * (same provider record: lib/api/cloudAi.ts, Groq free tier, key server-side
+ * (same provider record: lib/api/cloudAi.ts, Cloudflare Workers AI free tier, token server-side
  * only), sized for transcript work instead of short batches:
  *
  * GET  — status only: is the free AI configured on this deployment?
@@ -19,7 +19,8 @@ import { cloudAiConfig, cloudAiStatus, runCloudChat } from "@/lib/api/cloudAi";
  * several scored candidates (2,000 tokens at temperature 0.4 — editorial
  * judgment, not creative writing). Rate-limited per user (90/hour — a
  * two-hour video is ~17 windows, with headroom for retries) and site-wide
- * (500/day, under the free tier's 200K tokens/day at these prompt sizes).
+ * (500/day site cap; a 2,000-token reply costs ~330 Neurons, so the 10,000-Neuron/day budget
+ * would bind near ~30 such calls — real traffic is far below the cap, and exhaustion answers 429).
  * Any upstream failure becomes UPSTREAM_FAILED and the client falls back to
  * the on-device model or the measured-signals path with an honest note.
  */

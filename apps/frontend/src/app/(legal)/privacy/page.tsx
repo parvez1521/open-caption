@@ -47,7 +47,7 @@ export default function PrivacyPage() {
       </Sec>
 
       <Sec id="ai" title="AI features">
-        <p>Some features send text you choose to our AI provider, Groq (see the <Link href="/subprocessors">Subprocessors page</Link>). Growth Coach sends the question you ask, the last few turns of that chat, and a summary of your own Growth Studio data — your post titles and their views, reach, likes, comments, shares and saves, and the names, handles and notes of competitors you track. The Create tools send the prompt text you write, and Clipper highlights send transcript text from your video. No audio or video is ever sent to Groq, and we do not train AI models on anything you send.</p>
+        <p>Some features send text you choose to our AI provider, Cloudflare (see the <Link href="/subprocessors">Subprocessors page</Link>). Growth Coach sends the question you ask, the last few turns of that chat, and a summary of your own Growth Studio data — your post titles and their views, reach, likes, comments, shares and saves, and the names, handles and notes of competitors you track. The Create tools send the prompt text you write, and Clipper highlights send transcript text from your video. No audio or video is ever sent to Cloudflare, and we do not train AI models on anything you send.</p>
       </Sec>
 
       <Sec id="cloud" title="4. Transcription">

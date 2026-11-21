@@ -12,17 +12,18 @@ import { cloudAiConfig, cloudAiStatus, runCloudChat } from "@/lib/api/cloudAi";
  * POST — one chat completion with the prompt the client built (features/create/prompts.ts).
  *
  * The key is a single shared free-tier key, so the POST is rate-limited twice: per user
- * (30/hour — generous for a person, useless for a script) and site-wide (600/day — sized to sit
- * just under Groq's free 200K tokens/day at our short prompt/response sizes, so no day's traffic
- * can drain the tier for everyone). Any upstream failure becomes UPSTREAM_FAILED and the client
+ * (30/hour — generous for a person, useless for a script) and site-wide (600/day — at ~17
+ * Neurons per short call this sits just inside Workers AI's free 10,000 Neurons/day; real
+ * traffic is far below the cap, and exhaustion answers 429 so no day's traffic can silently
+ * drain the tier for everyone). Any upstream failure becomes UPSTREAM_FAILED and the client
  * falls back to the template engine / local model with an honest note — never an empty screen.
  *
  * The `user` cap is 12,000 chars, not 4,000: the emphasis feature sends one numbered line per
  * transcript word plus ~724 chars of instructions, so a 4,000 cap rejected every transcript
  * over ~250–365 words (a 2–3 minute video) with VALIDATION — which the client reported as
  * "the free AI service was not available", a failure no retry could ever fix. 12,000 chars is
- * ~3,000 prompt tokens worst case, still small against the 200K/day tier (the clipper's
- * highlight route already allows 24,000 for the same reason).
+ * ~3,000 prompt tokens worst case, still small against the 10,000-Neuron/day budget (~145 Neurons
+ * worst case for one call — the clipper's highlight route already allows 24,000 for the same reason).
  */
 
 const Body = z.object({

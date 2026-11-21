@@ -2,7 +2,7 @@
  * Auto-emphasis + keyword-emoji suggestions (Phase 5, addition A1).
  *
  * The user presses "Suggest emphasis" in the captions panel; the transcript is
- * sent through the SAME honest routing as every Phase-3 generator (cloud Groq
+ * sent through the SAME honest routing as every Phase-3 generator (cloud Cloudflare
  * free AI first when configured, then the opt-in on-device model) with a
  * dedicated prompt whose output contract is a strict JSON array. Each parsed
  * item is bound to a REAL word of the current document — by the word's index

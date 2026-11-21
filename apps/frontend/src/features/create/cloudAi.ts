@@ -1,6 +1,6 @@
 /**
  * Client side of the Creator Studio "Free AI" (the server route is /api/v1/create/generate,
- * the provider record lives in lib/api/cloudAi.ts — Groq free tier, model GPT-OSS 120B).
+ * the provider record lives in lib/api/cloudAi.ts — Cloudflare Workers AI free tier, model GPT-OSS 120B).
  *
  * The status probe is cached for the session: the page asks once whether this deployment has a
  * provider key configured, and only then offers the cloud runner to the generation service.
@@ -22,7 +22,7 @@ let statusPromise: Promise<CloudAiStatus | null> | null = null;
 /**
  * What runCloudModel throws when the generate route answers with an error: the server's error
  * code (RATE_LIMITED, UPSTREAM_FAILED, VALIDATION …) survives the throw, so a caller can tell
- * "the free AI is at its limit, wait a while" apart from "Groq blipped, retry now" apart from
+ * "the free AI is at its limit, wait a while" apart from "Cloudflare blipped, retry now" apart from
  * "this request can never succeed". Duck-typed off the thrown value's `code` — the real
  * ApiError carries it, and the api-client mock in tests does not export the class.
  */

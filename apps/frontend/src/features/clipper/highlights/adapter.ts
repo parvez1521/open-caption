@@ -2,7 +2,7 @@
  * The highlight engine's provider adapter — the seam where the semantic
  * model plugs in, with the product's standing routing discipline:
  *
- *  1. The dedicated clipper cloud runner (Groq free tier via
+ *  1. The dedicated clipper cloud runner (Cloudflare Workers AI free tier via
  *     /api/v1/clipper/highlights, key server-side only) when the deployment
  *     has it switched on;
  *  2. The opt-in on-device model (SmolLM2) when the visitor enabled it;

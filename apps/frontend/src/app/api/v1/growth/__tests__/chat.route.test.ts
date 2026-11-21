@@ -27,8 +27,8 @@ vi.mock("@/lib/api/rateLimit", () => ({
   },
 }));
 vi.mock("@/lib/api/cloudAi", () => ({
-  cloudAiConfig: () => (ai.configured ? { apiKey: "<redacted>", model: "openai/gpt-oss-120b", endpoint: "https://api.groq.com" } : null),
-  cloudAiStatus: () => ({ configured: ai.configured, provider: "Groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" }),
+  cloudAiConfig: () => (ai.configured ? { apiKey: "<redacted>", model: "@cf/openai/gpt-oss-120b", endpoint: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1/chat/completions" } : null),
+  cloudAiStatus: () => ({ configured: ai.configured, provider: "Cloudflare", model: "@cf/openai/gpt-oss-120b", modelName: "GPT-OSS 120B" }),
   runCloudChat: async (prompt: { system: string; user: string }) => {
     ai.calls.push(prompt);
     return "Your top post earned 117 engagement.";
@@ -128,6 +128,6 @@ describe("GET /growth/chat", () => {
   it("reports the free-AI status for the panel badge", async () => {
     const res = await GET(new Request("http://localhost/api/v1/growth/chat"));
     const body = (await res.json()) as { data: { configured: boolean; provider: string; modelName: string } };
-    expect(body.data).toMatchObject({ configured: true, provider: "Groq", modelName: "GPT-OSS 120B" });
+    expect(body.data).toMatchObject({ configured: true, provider: "Cloudflare", modelName: "GPT-OSS 120B" });
   });
 });

@@ -5,36 +5,41 @@ vi.mock("server-only", () => ({}));
 import { CloudAiError, cloudAiConfig, cloudAiStatus, runCloudChat } from "../api/cloudAi";
 
 const CONFIG = {
-  apiKey: "gsk_test_key",
-  model: "openai/gpt-oss-120b",
-  endpoint: "https://api.groq.com/openai/v1/chat/completions",
+  apiKey: "cf_test_token",
+  model: "@cf/openai/gpt-oss-120b",
+  endpoint: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1/chat/completions",
 };
 
 const jsonResponse = (ok: boolean, status: number, body: unknown): Response =>
   ({ ok, status, json: async () => body }) as unknown as Response;
 
 describe("cloudAiConfig", () => {
-  it("is null without a key — the cloud path does not exist then", () => {
+  it("is null without credentials — the cloud path does not exist then", () => {
     expect(cloudAiConfig({})).toBeNull();
-    expect(cloudAiConfig({ GROQ_API_KEY: "   " })).toBeNull();
+    expect(cloudAiConfig({ CLOUDFLARE_ACCOUNT_ID: "acct", CLOUDFLARE_API_KEY: "   " })).toBeNull();
+    expect(cloudAiConfig({ CLOUDFLARE_API_KEY: "tok" })).toBeNull();
   });
 
-  it("defaults to the production free-tier model on the Groq endpoint", () => {
-    const cfg = cloudAiConfig({ GROQ_API_KEY: "gsk_x" });
-    expect(cfg?.model).toBe("openai/gpt-oss-120b");
-    expect(cfg?.endpoint).toContain("api.groq.com");
+  it("defaults to the production free-tier model on the Workers AI endpoint", () => {
+    const cfg = cloudAiConfig({ CLOUDFLARE_ACCOUNT_ID: "acct-1", CLOUDFLARE_API_KEY: "tok" });
+    expect(cfg?.model).toBe("@cf/openai/gpt-oss-120b");
+    expect(cfg?.endpoint).toBe(
+      "https://api.cloudflare.com/client/v4/accounts/acct-1/ai/v1/chat/completions",
+    );
   });
 
-  it("honours the GROQ_MODEL override, trimmed", () => {
-    expect(cloudAiConfig({ GROQ_API_KEY: "k", GROQ_MODEL: " openai/gpt-oss-20b " })?.model).toBe("openai/gpt-oss-20b");
+  it("honours the CLOUDFLARE_AI_MODEL override, trimmed", () => {
+    expect(
+      cloudAiConfig({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_API_KEY: "k", CLOUDFLARE_AI_MODEL: " @cf/openai/gpt-oss-20b " })?.model,
+    ).toBe("@cf/openai/gpt-oss-20b");
   });
 
-  it("status reports unconfigured without a key, configured with the display name with one", () => {
+  it("status reports unconfigured without credentials, configured with the display name with them", () => {
     expect(cloudAiStatus({}).configured).toBe(false);
-    const s = cloudAiStatus({ GROQ_API_KEY: "k" });
+    const s = cloudAiStatus({ CLOUDFLARE_ACCOUNT_ID: "a", CLOUDFLARE_API_KEY: "k" });
     expect(s.configured).toBe(true);
-    expect(s.provider).toBe("Groq");
-    expect(s.model).toBe("openai/gpt-oss-120b");
+    expect(s.provider).toBe("Cloudflare");
+    expect(s.model).toBe("@cf/openai/gpt-oss-120b");
     expect(s.modelName).toBe("GPT-OSS 120B");
   });
 });
@@ -49,9 +54,9 @@ describe("runCloudChat", () => {
     const text = await runCloudChat({ system: "sys", user: "usr" }, { config: CONFIG, fetchImpl });
     expect(text).toBe("hook line");
     expect(seen.current?.url).toBe(CONFIG.endpoint);
-    expect(seen.current?.init?.headers).toMatchObject({ Authorization: "Bearer gsk_test_key" });
+    expect(seen.current?.init?.headers).toMatchObject({ Authorization: "Bearer cf_test_token" });
     const body = JSON.parse(seen.current?.init?.body as string) as { model: string; messages: unknown };
-    expect(body.model).toBe("openai/gpt-oss-120b");
+    expect(body.model).toBe("@cf/openai/gpt-oss-120b");
     expect(body.messages).toEqual([
       { role: "system", content: "sys" },
       { role: "user", content: "usr" },

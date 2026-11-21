@@ -1,31 +1,62 @@
 import "server-only";
 
 /**
- * The Creator Studio "Free AI": one shared Groq free-tier key, called server-side only.
+ * The Creator Studio "Free AI": one shared server-side key for a small
+ * production Next.js app; short-form text generation (hooks, content ideas,
+ * caption suggestions, transcript correction, visual plans, clip highlights).
  *
- * Provider choice verified 2026-11-10 against official pages (full comparison:
- * workspace/open-caption-studio-2026-11-09/research/free-ai-options.md). Groq's Free Plan is a standing
- * tier — not a trial — with the production model openai/gpt-oss-120b (120B-class open-weight flagship):
- * 30 requests/min, 1,000 requests/day, 8,000 tokens/min, 200,000 tokens/day at organisation level,
- * no card required, no training on inputs, no retention by default. Cloudflare Workers AI is the
- * documented runner-up if Groq ever withdraws the tier.
+ * Provider history: Groq's Free Plan served this from 2026-11-10 (model
+ * openai/gpt-oss-120b — 30 RPM / 1,000 RPD / 8,000 TPM / 200K TPD, no card,
+ * no training on inputs). In production the Groq calls started failing on
+ * every feature from 2026-11-20 with no named cause, and the owner ordered
+ * the switch off Groq on 2026-11-21. Note for the record: Groq's free tier
+ * itself was still live when checked publicly on 2026-11-19, so the likeliest
+ * cause was the production key (expired/revoked) rather than the tier being
+ * withdrawn — regenerating the Groq key would probably have fixed it, but the
+ * owner chose a new provider instead.
  *
- * Groq churns its free roster (Llama 3.3 70B left the free tier in Aug 2026), so the model id can be
- * swapped via GROQ_MODEL without a code change — but the user-facing name in features/create/model.ts
- * (CLOUD_AI) describes the DEFAULT model; update both together if the default ever changes.
+ * Current provider (2026-11-21): Cloudflare Workers AI — the documented
+ * runner-up from the 2026-11-10 comparison (research/free-ai-options.md).
+ * Same 120B model (`@cf/openai/gpt-oss-120b`), called through Workers AI's
+ * OpenAI-compatible endpoint, so the request/response shape is unchanged:
+ * `https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions`
+ * (verified on developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility/,
+ * updated 2026-09-17). Standing free allocation: 10,000 Neurons/day, resets
+ * 00:00 UTC, hard stop when exhausted. At the official Neuron rates
+ * (31,818/M input, 68,182/M output) a short call costs ~17 Neurons
+ * (~600/day); a full 2,000-token planner reply costs ~200 Neurons, so the
+ * Neuron budget binds before the site's own daily buckets only if planner
+ * use grows far past today's traffic. Exhaustion answers 429 and the routes
+ * report it as "daily limit" — the same message as before.
  *
- * Nothing in here may run without GROQ_API_KEY: with no key the config is null, the status route
- * reports "not configured", and /create simply never offers the cloud path (template engine instead).
+ * Why not Gemini free (the owner asked for "Gemini or any other free model"):
+ * the 2026-11-10 research rejected it — Google's Unpaid Services terms let
+ * Google use submitted content to improve its products with human review
+ * possible, numeric limits are unpublished per-project and "not guaranteed",
+ * and the free tier may not serve EEA/CH/UK users. It also matches the
+ * owner's own history of dropping Gemini free as unreliable.
+ *
+ * Data terms (Workers AI): zero data retention for standard inference,
+ * "Cloudflare does not use Customer Content processed by Workers AI to train
+ * AI models" — developers.cloudflare.com/workers-ai/platform/data-usage/.
+ * No commercial ban found; REST API callable from Vercel with an API token
+ * + account id. The token is created in the Cloudflare dashboard (Workers AI
+ * page → "Use REST API" → "Create a Workers AI API Token"); it needs the
+ * Account > Workers AI > Read permission.
+ *
+ * Nothing in here may run without the Cloudflare credentials: with no account
+ * id or token the config is null, the status route reports "not configured",
+ * and /create simply never offers the cloud path (template engine instead).
  */
 
-export const CLOUD_AI_PROVIDER = "Groq";
-export const CLOUD_AI_DEFAULT_MODEL = "openai/gpt-oss-120b";
-/** Display name for the default model (an operator-set GROQ_MODEL override shows its raw id instead). */
+export const CLOUD_AI_PROVIDER = "Cloudflare";
+export const CLOUD_AI_DEFAULT_MODEL = "@cf/openai/gpt-oss-120b";
+/** Display name for the default model (an operator-set CLOUDFLARE_AI_MODEL override shows its raw id instead). */
 export const CLOUD_AI_DEFAULT_MODEL_NAME = "GPT-OSS 120B";
 
-const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+const WORKERS_AI_BASE = "https://api.cloudflare.com/client/v4/accounts";
 const TIMEOUT_MS = 25_000;
-/** Short batches only (hooks/ideas/captions): caps token spend well inside the free 200K tokens/day. */
+/** Short batches only (hooks/ideas/captions): caps token spend well inside the free 10,000 Neurons/day. */
 const MAX_TOKENS = 700;
 
 export interface CloudAiConfig {
@@ -37,7 +68,7 @@ export interface CloudAiConfig {
 export interface CloudAiStatus {
   configured: boolean;
   provider: string;
-  /** The model id that will serve requests (the default, or the GROQ_MODEL override). */
+  /** The model id that will serve requests (the default, or the CLOUDFLARE_AI_MODEL override). */
   model: string;
   /** Human-readable model name for UI copy. */
   modelName: string;
@@ -54,19 +85,24 @@ export class CloudAiError extends Error {
 
 /** The only env this module reads (a minimal shape so tests can pass plain objects). */
 export interface CloudAiEnv {
-  GROQ_API_KEY?: string;
-  GROQ_MODEL?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_API_KEY?: string;
+  CLOUDFLARE_AI_MODEL?: string;
 }
 
 /** process.env, viewed through the only two keys this module reads. */
 const defaultEnv = (): CloudAiEnv => process.env as unknown as CloudAiEnv;
 
-/** Null when GROQ_API_KEY is unset or blank — the cloud path simply does not exist then. */
+/**
+ * Null when CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_KEY is unset or blank —
+ * the cloud path simply does not exist then.
+ */
 export function cloudAiConfig(env: CloudAiEnv = defaultEnv()): CloudAiConfig | null {
-  const apiKey = env.GROQ_API_KEY?.trim();
-  if (!apiKey) return null;
-  const model = env.GROQ_MODEL?.trim() || CLOUD_AI_DEFAULT_MODEL;
-  return { apiKey, model, endpoint: GROQ_ENDPOINT };
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const apiKey = env.CLOUDFLARE_API_KEY?.trim();
+  if (!accountId || !apiKey) return null;
+  const model = env.CLOUDFLARE_AI_MODEL?.trim() || CLOUD_AI_DEFAULT_MODEL;
+  return { apiKey, model, endpoint: `${WORKERS_AI_BASE}/${accountId}/ai/v1/chat/completions` };
 }
 
 export function cloudAiStatus(env: CloudAiEnv = defaultEnv()): CloudAiStatus {
@@ -85,15 +121,18 @@ interface ChatCompletionBody {
 }
 
 /**
- * One chat completion against Groq's OpenAI-compatible endpoint. Resolves with the raw text;
- * throws CloudAiError on any failure (HTTP error, timeout, malformed or empty completion) —
- * callers treat every throw the same way: the generation falls back to another honest source.
- * `fetchImpl`/`config` are injectable so tests never touch the network or a real key.
+ * One chat completion against Workers AI's OpenAI-compatible endpoint.
+ * Resolves with the raw text; throws CloudAiError on any failure (HTTP
+ * error, timeout, malformed or empty completion) — callers treat every
+ * throw the same way: the generation falls back to another honest source.
+ * `fetchImpl`/`config` are injectable so tests never touch the network or a
+ * real token.
  *
- * Transient upstream failures (Groq 429 on the free tier, 5xx, a network blip, a timeout) get
- * exactly ONE retry after a short delay — a single-attempt call turned every free-tier hiccup
- * into a dead feature. Deterministic failures (other 4xx, an empty or malformed completion)
- * are never retried: a second attempt would fail the same way.
+ * Transient upstream failures (a 429 when the daily Neuron budget is spent,
+ * 5xx, a network blip, a timeout) get exactly ONE retry after a short
+ * delay — a single-attempt call turned every free-tier hiccup into a dead
+ * feature. Deterministic failures (other 4xx, an empty or malformed
+ * completion) are never retried: a second attempt would fail the same way.
  */
 export async function runCloudChat(
   prompt: { system: string; user: string },
@@ -111,14 +150,14 @@ export async function runCloudChat(
   } = {},
 ): Promise<string> {
   const config = opts.config !== undefined ? opts.config : cloudAiConfig();
-  if (!config) throw new CloudAiError("The free AI service is not configured (GROQ_API_KEY is unset).");
+  if (!config) throw new CloudAiError("The free AI service is not configured (Cloudflare credentials are unset).");
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       return await attemptCloudChat(prompt, config, opts);
     } catch (err) {
       lastError = err;
-      // Retryable: a free-tier 429 / 5xx from Groq, or a fetch-level throw (network blip,
+      // Retryable: a free-tier 429 / 5xx from Workers AI, or a fetch-level throw (network blip,
       // timeout abort). Not retryable: any other HTTP status, or an empty/malformed completion.
       const retryable =
         (err instanceof CloudAiError && (err.status === 429 || (err.status !== undefined && err.status >= 500))) ||

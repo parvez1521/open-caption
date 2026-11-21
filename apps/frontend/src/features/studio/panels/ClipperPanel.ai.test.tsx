@@ -21,7 +21,7 @@ vi.mock("@/features/clipper/useSceneAnalysis", () => ({
 vi.mock("@/features/clipper/highlightAi", () => ({
   fetchClipAiStatus: async () =>
     cloud.configured
-      ? { configured: true, provider: "groq", model: "openai/gpt-oss-120b", modelName: "GPT-OSS 120B" }
+      ? { configured: true, provider: "cloudflare", model: "@cf/openai/gpt-oss-120b", modelName: "GPT-OSS 120B" }
       : { configured: false, provider: "none", model: "", modelName: "" },
   runClipCloudModel: async () =>
     JSON.stringify({

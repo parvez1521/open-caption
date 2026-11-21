@@ -52,7 +52,7 @@ export default function CookiesPage() {
       </Sec>
 
       <Sec id="third" title="Third-party requests">
-        <p>The caption preview loads the fonts used by each look from Google Fonts, so your browser contacts Google&rsquo;s font servers when you open the studio or the looks gallery. Speech and translation models are downloaded from Hugging Face when you first use them. When you use an AI feature (Growth Coach, the Create tools or Clipper highlights), the text you send goes to Groq. When something goes wrong, an error report goes to Sentry. Searching stock media contacts Pixabay directly from your browser, using a key you provide. Our hosting provider records basic request logs for security. See the <Link href="/subprocessors">subprocessors</Link>.</p>
+        <p>The caption preview loads the fonts used by each look from Google Fonts, so your browser contacts Google&rsquo;s font servers when you open the studio or the looks gallery. Speech and translation models are downloaded from Hugging Face when you first use them. When you use an AI feature (Growth Coach, the Create tools or Clipper highlights), the text you send goes to Cloudflare. When something goes wrong, an error report goes to Sentry. Searching stock media contacts Pixabay directly from your browser, using a key you provide. Our hosting provider records basic request logs for security. See the <Link href="/subprocessors">subprocessors</Link>.</p>
       </Sec>
 
       <Sec id="control" title="Your control">

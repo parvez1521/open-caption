@@ -38,7 +38,7 @@ type Phase = "idle" | "running" | "done" | "cancelled";
  * AI Clipper — a separate section from the Clipper panel (/clipper). Same
  * shipped highlight engine, one workflow: pick a captioned project, run the
  * clipper, get ranked clips. Slice 1 on top of the engine: cross-window
- * rerank calibration (one extra free Groq call), durable runs (IndexedDB
+ * rerank calibration (one extra free Cloudflare call), durable runs (IndexedDB
  * checkpoints with resume), and a real Cancel button.
  *
  * Honest states only: progress comes from the engine's real stage events,

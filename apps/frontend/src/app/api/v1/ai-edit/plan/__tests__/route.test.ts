@@ -47,7 +47,7 @@ vi.mock("@/lib/api/cloudAi", () => ({
   CloudAiError: errors.CloudAiError,
   cloudAiConfig: () =>
     state.configured ? { apiKey: "test-key", model: "test-model", endpoint: "https://example.test" } : null,
-  cloudAiStatus: () => ({ configured: state.configured, provider: "Groq", model: "test-model", modelName: "Test" }),
+  cloudAiStatus: () => ({ configured: state.configured, provider: "Cloudflare", model: "test-model", modelName: "Test" }),
   runCloudChat: async (prompt: { system: string; user: string }, opts?: unknown) => {
     if (state.failUpstream) {
       if (state.failStatus !== null) {

@@ -3,7 +3,7 @@
  *
  * Three generation sources exist and they are never blurred:
  *   - "template": the built-in pattern engine (templates.ts). Deterministic, works offline, NOT a model.
- *   - "cloud":    a full-size model on a server (Groq free tier), reached via /api/v1/create/generate
+ *   - "cloud":    a full-size model on a server (Cloudflare Workers AI free tier), reached via /api/v1/create/generate
  *                 when the site has a provider key configured. The primary AI path — nothing runs on
  *                 the visitor's device; their topic text IS sent to the provider (cloudAi.ts).
  *   - "model":    one small open-weight model that runs on the visitor's own device, opt-in only (localModel.ts).
@@ -183,15 +183,17 @@ export const LOCAL_MODEL = {
 
 /**
  * The site's free cloud AI. Provider choice verified 2026-11-10 against official pages (full
- * comparison in the project research notes, free-ai-options.md): Groq's Free Plan is a standing tier
- * whose production model openai/gpt-oss-120b is a 120B-class open-weight flagship — 30 requests/min,
- * 1,000/day, 200,000 tokens/day at organisation level; no card; no training on inputs. The server
- * record (endpoint, key handling, the GROQ_MODEL override) lives in lib/api/cloudAi.ts; this record
- * names the DEFAULT model for labelling — if the default model ever changes, change both together.
+ * comparison in the project research notes, free-ai-options.md): Cloudflare Workers AI's free
+ * allocation is 10,000 Neurons/day with the production model @cf/openai/gpt-oss-120b, a 120B-class
+ * open-weight flagship — no card; no training on inputs; zero data retention. (Groq's Free Plan
+ * served this before, until the owner ordered the switch on 2026-11-21 after its calls kept
+ * failing in production.) The server record (endpoint, token handling, the CLOUDFLARE_AI_MODEL
+ * override) lives in lib/api/cloudAi.ts; this record names the DEFAULT model for labelling — if
+ * the default model ever changes, change both together.
  */
 export const CLOUD_AI = {
-  provider: "Groq",
-  modelId: "openai/gpt-oss-120b",
+  provider: "Cloudflare",
+  modelId: "@cf/openai/gpt-oss-120b",
   modelName: "GPT-OSS 120B",
 } as const;
 

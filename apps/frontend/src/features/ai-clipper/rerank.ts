@@ -4,7 +4,7 @@
  * The highlight engine scores each transcript window on its own, so a clip
  * that scored 88 in a quiet section can outrank a clip that scored 82 in a
  * packed one. This step re-scores every finished clip side by side in ONE
- * extra call through the existing free Groq route (the same
+ * extra call through the existing free Cloudflare route (the same
  * /api/v1/clipper/highlights route and buckets as the per-window calls — no
  * cap raised, no new provider), using OUR OWN prompt and rubric wording
  * (features/clipper/highlights/rubrics.ts + prompt.ts criteria). No SupoClip

@@ -1,7 +1,7 @@
 /**
  * Client side of the AI Clipping Studio's free AI (the server route is
  * /api/v1/clipper/highlights; the provider record lives in lib/api/cloudAi.ts —
- * Groq free tier, GPT-OSS 120B, key server-side only).
+ * Cloudflare Workers AI free tier, GPT-OSS 120B, token server-side only).
  *
  * Mirrors features/create/cloudAi.ts: the status probe is cached for the
  * session, and only a "configured" answer makes the panel offer the cloud

@@ -15,7 +15,7 @@ import { proposeTrimCuts } from "./trim";
 /**
  * Edit Assistant (Phase 8, Addition A8) — the honest Chat-to-Edit.
  *
- * The user types an instruction; a Phase-3 route (Groq free AI first, then
+ * The user types an instruction; a Phase-3 route (Cloudflare free AI first, then
  * the opt-in on-device model — the SAME runners, rate limits and server
  * route as AI Studio Chat) translates it into ONE structured command from
  * the FIXED intent set below; the client then builds a previewable plan

@@ -56,14 +56,14 @@ describe("fetchCloudAiStatus", () => {
     const freshClient = (await import("@/services/api-client")).apiClient;
     vi.mocked(freshClient.get).mockResolvedValue({
       configured: true,
-      provider: "Groq",
-      model: "openai/gpt-oss-120b",
+      provider: "Cloudflare",
+      model: "@cf/openai/gpt-oss-120b",
       modelName: "GPT-OSS 120B",
     });
     await expect(fresh.fetchCloudAiStatus()).resolves.toEqual({
       configured: true,
-      provider: "Groq",
-      model: "openai/gpt-oss-120b",
+      provider: "Cloudflare",
+      model: "@cf/openai/gpt-oss-120b",
       modelName: "GPT-OSS 120B",
     });
   });
