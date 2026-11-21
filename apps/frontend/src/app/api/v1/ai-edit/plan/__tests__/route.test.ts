@@ -114,6 +114,27 @@ describe("POST /ai-edit/plan", () => {
     expect(ai.calls[0]?.user).not.toMatch(/gpt|groq|whisper/i);
   });
 
+  it("logs the parse outcome on success (answer length, kept/dropped — no text)", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const res = await ask(validBody);
+      expect(res.status).toBe(200);
+      const logged = infoSpy.mock.calls.map((c) => String(c[0])).join("\n");
+      const line = JSON.parse(logged.split("\n").find((l) => l.includes("ai-edit/plan free AI call succeeded")) ?? "{}") as Record<
+        string,
+        unknown
+      >;
+      expect(line.msg).toBe("ai-edit/plan free AI call succeeded");
+      expect(line.kept).toBe(1);
+      expect(line.dropped).toBe(0);
+      expect(line.startsWith).toBe("[");
+      expect(line.hasFence).toBe(false);
+      expect(typeof line.answerLength).toBe("number");
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
   it("reuses the free-AI limits: own 30/hour bucket + the shared site daily bucket", async () => {
     await ask(validBody);
     expect(rateLimitCalls.calls).toContainEqual(["user-1", "ai_edit_plan", 30, 3600]);

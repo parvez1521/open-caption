@@ -34,6 +34,14 @@ import {
  * logs. (Before 2026-11-21 the log carried only the status, so timeouts
  * and empty answers both showed up as "unknown" — that is what the Gemma
  * retest hit twice.)
+ *
+ * 2026-11-21 ~22:46 IST: after the reasoning fix (reasoning_effort "none"
+ * + reading the reasoning fields) the route started answering HTTP 200
+ * twice on the live Sherlock test — but the parsed plan was still 0 items,
+ * so the panel showed its empty-plan message. The success path therefore
+ * logs the parse outcome (answer length, kept/dropped counts, first
+ * character, fenced or not — no text) so the next failure names whether
+ * the model's JSON was unparseable or its items all failed validation.
  */
 
 /** A full plan is at most 8 items (aiEditPlanner.ts) with prompts up to 500
@@ -127,5 +135,24 @@ export const POST = route(async (req: Request) => {
     throw new ApiFailure("UPSTREAM_FAILED", "The free AI service could not be reached. Please try again in a moment.");
   }
   const { plan, dropped } = parsePlannerResponse(answer, { durationMs: body.durationMs });
+  // Success-path parse outcome (counts and one structural character only —
+  // no answer text, no transcript): live on 2026-11-21 Gemma started
+  // answering with HTTP 200 but the parsed plan was still 0 items, so the
+  // panel showed its empty-plan message. These three numbers say whether
+  // the model's JSON was unparseable (long answer, kept 0, dropped 0) or
+  // its items all failed validation (dropped > 0, e.g. seconds instead of
+  // milliseconds, overlapping spans, missing kind/prompt).
+  const trimmed = answer.trim();
+  console.info(
+    JSON.stringify({
+      level: "info",
+      msg: "ai-edit/plan free AI call succeeded",
+      answerLength: answer.length,
+      kept: plan.length,
+      dropped,
+      startsWith: trimmed.slice(0, 1),
+      hasFence: answer.includes("```"),
+    }),
+  );
   return ok({ configured: true as const, plan, dropped });
 });
