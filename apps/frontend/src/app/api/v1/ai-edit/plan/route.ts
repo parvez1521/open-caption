@@ -2,7 +2,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/api/auth";
 import { ApiFailure, ok, parseBody, route } from "@/lib/api/http";
 import { rateLimit } from "@/lib/api/rateLimit";
-import { cloudAiConfig, cloudAiStatus, runCloudChat } from "@/lib/api/cloudAi";
+import { CloudAiError, cloudAiConfig, cloudAiStatus, runCloudChat } from "@/lib/api/cloudAi";
 import {
   buildPlannerPrompt,
   parsePlannerResponse,
@@ -20,7 +20,20 @@ import {
  *
  * When the free AI service is not configured the route answers
  * configured:false and the panel says so — there is no canned plan.
+ *
+ * When the AI call itself fails, the user gets the reason, not one generic
+ * message (same rule as POST /api/v1/transcribe/correct, 2026-11-20): a
+ * 401/403 means the free AI key is dead (expired or revoked), a 429 means
+ * the free daily limit is used up, anything else keeps the "could not be
+ * reached" wording. The upstream status is also logged server-side (no
+ * key, no transcript text) so the failure can be traced in the deployment
+ * logs.
  */
+
+/** A full plan is at most 12 items (aiEditPlanner.ts) with prompts up to 500
+ *  chars each — the shared 700-token default would truncate it mid-JSON,
+ *  so the planner asks for a larger cap (12 items x ~150 tokens). */
+const PLAN_MAX_TOKENS = 2000;
 
 export const GET = route(async (req: Request) => {
   await requireUser(req);
@@ -50,8 +63,21 @@ export const POST = route(async (req: Request) => {
   const prompt = buildPlannerPrompt(segments, body.styleId, body.durationMs);
   let answer: string;
   try {
-    answer = await runCloudChat(prompt, { temperature: 0.4 });
-  } catch {
+    answer = await runCloudChat(prompt, { temperature: 0.4, maxTokens: PLAN_MAX_TOKENS });
+  } catch (err) {
+    const status = err instanceof CloudAiError ? err.status : undefined;
+    console.error(
+      JSON.stringify({ level: "error", msg: "ai-edit/plan free AI call failed", status: status ?? "unknown" }),
+    );
+    if (status === 401 || status === 403) {
+      throw new ApiFailure(
+        "UPSTREAM_FAILED",
+        "The free AI key isn't working. It may have expired, so check the key in Vercel.",
+      );
+    }
+    if (status === 429) {
+      throw new ApiFailure("RATE_LIMITED", "The free AI daily limit is used up. Try again tomorrow.");
+    }
     throw new ApiFailure("UPSTREAM_FAILED", "The free AI service could not be reached. Please try again in a moment.");
   }
   const { plan, dropped } = parsePlannerResponse(answer, { durationMs: body.durationMs });
