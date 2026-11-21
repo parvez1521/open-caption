@@ -27,8 +27,10 @@ import {
  *
  * When the AI call itself fails, the user gets the reason, not one generic
  * message: a 401/403 means the free AI key is dead (expired or revoked),
- * a 429 means the free daily limit is used up, anything else keeps the
- * "could not be reached" wording. The upstream status is also logged
+ * a 429 means the free daily limit is used up, a 410 means Cloudflare
+ * retired the model (the Llama 3.1 8B default did exactly this on
+ * 2026-11-21 — five logged 410s on the plan route), anything else keeps
+ * the "could not be reached" wording. The upstream status is also logged
  * server-side (no key, no transcript text) so the failure can be traced
  * in the deployment logs.
  */
@@ -67,6 +69,12 @@ export const POST = route(async (req: Request) => {
       }
       if (status === 429) {
         throw new ApiFailure("RATE_LIMITED", "The free AI daily limit is used up. Try again tomorrow.");
+      }
+      if (status === 410) {
+        throw new ApiFailure(
+          "UPSTREAM_FAILED",
+          "Cloudflare retired this free AI model, so no correction can be made right now. The site needs a newer model set in Vercel.",
+        );
       }
       throw new ApiFailure("UPSTREAM_FAILED", "The free AI service could not be reached. Please try again in a moment.");
     }

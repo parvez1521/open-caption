@@ -1,6 +1,6 @@
 /**
  * Client side of the Creator Studio "Free AI" (the server route is /api/v1/create/generate,
- * the provider record lives in lib/api/cloudAi.ts — Cloudflare Workers AI free tier, model Llama 3.1 8B).
+ * the provider record lives in lib/api/cloudAi.ts — Cloudflare Workers AI free tier, model Gemma 4 26B).
  *
  * The status probe is cached for the session: the page asks once whether this deployment has a
  * provider key configured, and only then offers the cloud runner to the generation service.

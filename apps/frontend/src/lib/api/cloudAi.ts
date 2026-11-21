@@ -31,15 +31,19 @@ import "server-only";
  * slow), once it answered but with no plan items the parser could use
  * (Workers AI blank/unparseable completions are a known failure mode of
  * the free tier). Auth was never the problem — no 401/403 in either
- * attempt. So the default is now `@cf/meta/llama-3.1-8b-instruct`: a fast
- * non-reasoning instruct model on the same free tier (official Neuron
- * rates 25,608/M input, 75,147/M output — a short call costs ~35 Neurons,
- * ~280/day; a full 2,000-token planner reply ~165 Neurons, so the Neuron
- * budget binds before the site's own daily buckets only if planner use
- * grows far past today's traffic; a ~580-token reply was independently
- * measured at ~5.5s). Exhaustion answers 429 and the routes report it as
- * "daily limit" — the same message as before. The model stays overridable
- * via CLOUDFLARE_AI_MODEL, so a swap needs no code change.
+ * attempt. So the default moved to `@cf/meta/llama-3.1-8b-instruct`, a fast
+ * non-reasoning instruct model — and that one was dead on arrival:
+ * Cloudflare retired the Llama 3.1 8B family on 2026-11-20 (changelog
+ * 2026-11-05; the deprecated list names the `-fp8` variant, our exact id
+ * was not listed, but every live call to it returned HTTP 410 Gone from
+ * 18:13 IST on 2026-11-21 — five logged failures, all status 410, no
+ * 401/403/429). A retired model answers 410, never a plan, so no timeout
+ * or token change can fix it. The default is now
+ * `@cf/google/gemma-4-26b-a4b-it`, Cloudflare's own recommended smaller
+ * replacement for the retired models. Exhaustion answers 429 and the
+ * routes report it as "daily limit" — the same message as before. The
+ * model stays overridable via CLOUDFLARE_AI_MODEL, so a swap needs no
+ * code change.
  *
  * Why not Gemini free (the owner asked for "Gemini or any other free model"):
  * the 2026-11-10 research rejected it — Google's Unpaid Services terms let
@@ -62,9 +66,9 @@ import "server-only";
  */
 
 export const CLOUD_AI_PROVIDER = "Cloudflare";
-export const CLOUD_AI_DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct";
+export const CLOUD_AI_DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 /** Display name for the default model (an operator-set CLOUDFLARE_AI_MODEL override shows its raw id instead). */
-export const CLOUD_AI_DEFAULT_MODEL_NAME = "Llama 3.1 8B";
+export const CLOUD_AI_DEFAULT_MODEL_NAME = "Gemma 4 26B";
 
 const WORKERS_AI_BASE = "https://api.cloudflare.com/client/v4/accounts";
 const TIMEOUT_MS = 25_000;

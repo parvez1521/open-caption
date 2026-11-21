@@ -71,7 +71,7 @@ describe("EditAssistantPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show me the plan" }));
     await waitFor(() => expect(screen.getByText("Remove filler words")).toBeTruthy());
     expect(screen.getByText("AI-suggested")).toBeTruthy();
-    expect(screen.getByText(/Free AI · Llama 3.1 8B \(Cloudflare\)/)).toBeTruthy();
+    expect(screen.getByText(/Free AI · Gemma 4 26B \(Cloudflare\)/)).toBeTruthy();
     expect(screen.getByText(/Remove 1 filler/)).toBeTruthy();
     // preview only — nothing committed yet
     expect(onCommit).not.toHaveBeenCalled();

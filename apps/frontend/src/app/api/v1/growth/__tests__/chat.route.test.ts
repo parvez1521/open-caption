@@ -27,8 +27,8 @@ vi.mock("@/lib/api/rateLimit", () => ({
   },
 }));
 vi.mock("@/lib/api/cloudAi", () => ({
-  cloudAiConfig: () => (ai.configured ? { apiKey: "<redacted>", model: "@cf/meta/llama-3.1-8b-instruct", endpoint: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1/chat/completions" } : null),
-  cloudAiStatus: () => ({ configured: ai.configured, provider: "Cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", modelName: "Llama 3.1 8B" }),
+  cloudAiConfig: () => (ai.configured ? { apiKey: "<redacted>", model: "@cf/google/gemma-4-26b-a4b-it", endpoint: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1/chat/completions" } : null),
+  cloudAiStatus: () => ({ configured: ai.configured, provider: "Cloudflare", model: "@cf/google/gemma-4-26b-a4b-it", modelName: "Gemma 4 26B" }),
   runCloudChat: async (prompt: { system: string; user: string }) => {
     ai.calls.push(prompt);
     return "Your top post earned 117 engagement.";
@@ -128,6 +128,6 @@ describe("GET /growth/chat", () => {
   it("reports the free-AI status for the panel badge", async () => {
     const res = await GET(new Request("http://localhost/api/v1/growth/chat"));
     const body = (await res.json()) as { data: { configured: boolean; provider: string; modelName: string } };
-    expect(body.data).toMatchObject({ configured: true, provider: "Cloudflare", modelName: "Llama 3.1 8B" });
+    expect(body.data).toMatchObject({ configured: true, provider: "Cloudflare", modelName: "Gemma 4 26B" });
   });
 });

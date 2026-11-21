@@ -21,7 +21,7 @@ vi.mock("@/features/clipper/useSceneAnalysis", () => ({
 vi.mock("@/features/clipper/highlightAi", () => ({
   fetchClipAiStatus: async () =>
     cloud.configured
-      ? { configured: true, provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", modelName: "Llama 3.1 8B" }
+      ? { configured: true, provider: "cloudflare", model: "@cf/google/gemma-4-26b-a4b-it", modelName: "Gemma 4 26B" }
       : { configured: false, provider: "none", model: "", modelName: "" },
   runClipCloudModel: async () =>
     JSON.stringify({
@@ -104,7 +104,7 @@ const renderPanel = () =>
 const runStudio = async (engine: "cloud" | "signals") => {
   // wait for the status probe to land first — clicking earlier would race it
   // and the run would (correctly) take whichever engine was ready
-  if (engine === "cloud") await waitFor(() => expect(screen.getAllByText(/Llama 3.1 8B/).length).toBeGreaterThan(0));
+  if (engine === "cloud") await waitFor(() => expect(screen.getAllByText(/Gemma 4 26B/).length).toBeGreaterThan(0));
   else await waitFor(() => expect(screen.getAllByText(/Signals only — free AI unavailable/).length).toBeGreaterThanOrEqual(1));
   fireEvent.change(screen.getByLabelText(/Clip length/), { target: { value: "15-30" } });
   fireEvent.click(screen.getByRole("button", { name: "Find clips" }));

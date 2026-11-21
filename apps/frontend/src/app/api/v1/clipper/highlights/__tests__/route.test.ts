@@ -26,12 +26,12 @@ vi.mock("@/lib/api/rateLimit", () => ({
   },
 }));
 vi.mock("@/lib/api/cloudAi", () => ({
-  cloudAiConfig: () => (cloud.configured ? { apiKey: "k", baseUrl: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1", model: "@cf/meta/llama-3.1-8b-instruct" } : null),
+  cloudAiConfig: () => (cloud.configured ? { apiKey: "k", baseUrl: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1", model: "@cf/google/gemma-4-26b-a4b-it" } : null),
   cloudAiStatus: () => ({
     configured: cloud.configured,
     provider: cloud.configured ? "cloudflare" : "none",
-    model: cloud.configured ? "@cf/meta/llama-3.1-8b-instruct" : "",
-    modelName: cloud.configured ? "Llama 3.1 8B" : "",
+    model: cloud.configured ? "@cf/google/gemma-4-26b-a4b-it" : "",
+    modelName: cloud.configured ? "Gemma 4 26B" : "",
   }),
   runCloudChat: async (prompt: { system: string; user: string }, opts: Record<string, unknown>) => {
     cloud.calls.push({ prompt, opts });
@@ -63,7 +63,7 @@ describe("clipper highlights route", () => {
     const body = (await res.json()) as { success: boolean; data: { configured: boolean; modelName: string } };
     expect(body.success).toBe(true);
     expect(body.data.configured).toBe(true);
-    expect(body.data.modelName).toBe("Llama 3.1 8B");
+    expect(body.data.modelName).toBe("Gemma 4 26B");
   });
 
   it("POST runs the prompt with clip-sized options and both rate buckets", async () => {

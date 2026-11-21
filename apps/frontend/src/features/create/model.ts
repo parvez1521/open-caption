@@ -184,9 +184,11 @@ export const LOCAL_MODEL = {
 /**
  * The site's free cloud AI. Provider choice verified 2026-11-10 against official pages (full
  * comparison in the project research notes, free-ai-options.md): Cloudflare Workers AI's free
- * allocation is 10,000 Neurons/day with the production model @cf/meta/llama-3.1-8b-instruct, a fast
- * 8B instruct model (the switch first kept Groq's @cf/openai/gpt-oss-120b, but that reasoning model
- * timed out and returned unusable plans live on 2026-11-21, so the default moved to Llama) — no
+ * allocation is 10,000 Neurons/day with the production model @cf/google/gemma-4-26b-a4b-it
+ * (the switch first kept Groq's @cf/openai/gpt-oss-120b, but that reasoning model
+ * timed out and returned unusable plans live on 2026-11-21, so the default moved to
+ * @cf/meta/llama-3.1-8b-instruct — which Cloudflare had retired on 2026-11-20, so every
+ * live call to it answered HTTP 410; the default moved to Gemma 4 26B the same day) — no
  * card; no training on inputs; zero data retention. (Groq's Free Plan
  * served this before, until the owner ordered the switch on 2026-11-21 after its calls kept
  * failing in production.) The server record (endpoint, token handling, the CLOUDFLARE_AI_MODEL
@@ -195,8 +197,8 @@ export const LOCAL_MODEL = {
  */
 export const CLOUD_AI = {
   provider: "Cloudflare",
-  modelId: "@cf/meta/llama-3.1-8b-instruct",
-  modelName: "Llama 3.1 8B",
+  modelId: "@cf/google/gemma-4-26b-a4b-it",
+  modelName: "Gemma 4 26B",
 } as const;
 
 /** The visible source badge for one batch of output. The template engine is never called AI, anywhere. */

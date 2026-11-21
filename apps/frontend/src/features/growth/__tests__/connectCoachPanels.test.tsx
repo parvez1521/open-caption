@@ -189,7 +189,7 @@ describe("AccountsBar", () => {
 
 describe("GrowthCoach", () => {
   it("unconfigured free AI: the off state, with no input offered", async () => {
-    stubFetch(() => envelope({ configured: false, provider: "Cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", modelName: "Llama 3.1 8B" }));
+    stubFetch(() => envelope({ configured: false, provider: "Cloudflare", model: "@cf/google/gemma-4-26b-a4b-it", modelName: "Gemma 4 26B" }));
     render(<GrowthCoach starters={["Why did reach drop last week?"]} />);
     expect(await screen.findByText(/the coach is off/)).toBeTruthy();
     expect(screen.queryByLabelText("Ask about your analytics")).toBeNull();
@@ -198,11 +198,11 @@ describe("GrowthCoach", () => {
   });
 
   it("welcome state: headline, central composer and starter chips, with no model badge", async () => {
-    stubFetch(() => envelope({ configured: true, provider: "Cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", modelName: "Llama 3.1 8B" }));
+    stubFetch(() => envelope({ configured: true, provider: "Cloudflare", model: "@cf/google/gemma-4-26b-a4b-it", modelName: "Gemma 4 26B" }));
     render(<GrowthCoach starters={["Why did reach drop last week?"]} />);
     expect(await screen.findByRole("heading", { name: /Ask about your channel/ })).toBeTruthy();
-    expect(screen.queryByText("Free AI · Llama 3.1 8B (Cloudflare)")).toBeNull();
-    expect(screen.queryByText(/Llama 3.1 8B/)).toBeNull();
+    expect(screen.queryByText("Free AI · Gemma 4 26B (Cloudflare)")).toBeNull();
+    expect(screen.queryByText(/Gemma 4 26B/)).toBeNull();
     expect(screen.getByLabelText("Ask about your analytics")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Why did reach drop last week?" })).toBeTruthy();
     expectEveryCallAuthed();
@@ -217,7 +217,7 @@ describe("GrowthCoach", () => {
             "You have no posts tracked yet.\n\n**How to bring in past posts**\n\n- Connect YouTube in the accounts bar above\n- Then press Sync now on its card",
         });
       }
-      return envelope({ configured: true, provider: "Cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", modelName: "Llama 3.1 8B" });
+      return envelope({ configured: true, provider: "Cloudflare", model: "@cf/google/gemma-4-26b-a4b-it", modelName: "Gemma 4 26B" });
     });
     render(<GrowthCoach starters={[]} />);
     const input = await screen.findByLabelText("Ask about your analytics");
@@ -241,7 +241,7 @@ describe("GrowthCoach", () => {
             "Your top posts, side by side:\n\n| Post | Engagement |\n|---|---|\n| **Launch** | 900 |\n| Follow-up | 450 |\n\n**Takeaway:** launches land harder.",
         });
       }
-      return envelope({ configured: true, provider: "Cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", modelName: "Llama 3.1 8B" });
+      return envelope({ configured: true, provider: "Cloudflare", model: "@cf/google/gemma-4-26b-a4b-it", modelName: "Gemma 4 26B" });
     });
     const { container } = render(<GrowthCoach starters={[]} />);
     const input = await screen.findByLabelText("Ask about your analytics");
@@ -261,7 +261,7 @@ describe("GrowthCoach", () => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     stubFetch((url, init) => {
       if (init?.method === "POST") return envelope({ configured: true, answer: "Reach fell because your top post aged out." });
-      return envelope({ configured: true, provider: "Cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", modelName: "Llama 3.1 8B" });
+      return envelope({ configured: true, provider: "Cloudflare", model: "@cf/google/gemma-4-26b-a4b-it", modelName: "Gemma 4 26B" });
     });
     render(<GrowthCoach starters={["What should I post next based on my data?"]} />);
     fireEvent.click(await screen.findByRole("button", { name: "What should I post next based on my data?" }));
@@ -277,7 +277,7 @@ describe("GrowthCoach", () => {
   it("configured: a starter chip asks, and the round-trip renders the answer", async () => {
     stubFetch((url, init) => {
       if (init?.method === "POST") return envelope({ configured: true, answer: "Reach fell because your top post aged out." });
-      return envelope({ configured: true, provider: "Cloudflare", model: "@cf/meta/llama-3.1-8b-instruct", modelName: "Llama 3.1 8B" });
+      return envelope({ configured: true, provider: "Cloudflare", model: "@cf/google/gemma-4-26b-a4b-it", modelName: "Gemma 4 26B" });
     });
     render(<GrowthCoach starters={["Why did reach drop last week?"]} />);
     fireEvent.click(await screen.findByRole("button", { name: "Why did reach drop last week?" }));

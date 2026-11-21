@@ -57,14 +57,14 @@ describe("fetchCloudAiStatus", () => {
     vi.mocked(freshClient.get).mockResolvedValue({
       configured: true,
       provider: "Cloudflare",
-      model: "@cf/meta/llama-3.1-8b-instruct",
-      modelName: "Llama 3.1 8B",
+      model: "@cf/google/gemma-4-26b-a4b-it",
+      modelName: "Gemma 4 26B",
     });
     await expect(fresh.fetchCloudAiStatus()).resolves.toEqual({
       configured: true,
       provider: "Cloudflare",
-      model: "@cf/meta/llama-3.1-8b-instruct",
-      modelName: "Llama 3.1 8B",
+      model: "@cf/google/gemma-4-26b-a4b-it",
+      modelName: "Gemma 4 26B",
     });
   });
 

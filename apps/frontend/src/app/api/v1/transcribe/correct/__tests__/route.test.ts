@@ -137,4 +137,14 @@ describe("POST /transcribe/correct", () => {
     expect(body.error.code).toBe("RATE_LIMITED");
     expect(body.error.message).toContain("daily limit");
   });
+
+  it("a retired model (410) says the model was retired, not 'could not be reached'", async () => {
+    state.failUpstream = true;
+    state.failStatus = 410;
+    const res = await ask({ text: "Hello world.", language: "en" });
+    expect(res.status).toBe(502);
+    const body = (await res.json()) as { error: { code: string; message: string } };
+    expect(body.error.code).toBe("UPSTREAM_FAILED");
+    expect(body.error.message).toContain("retired");
+  });
 });
