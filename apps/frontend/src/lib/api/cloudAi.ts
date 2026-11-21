@@ -215,6 +215,15 @@ export async function runCloudChat(
     /** max attempts (transient retry included); defaults to 2. Callers with a
      *  tight serverless budget pass 1 and spend it all on one longer attempt. */
     maxAttempts?: number;
+    /** Ask the endpoint for JSON object mode (`response_format: json_object`).
+     * Only the AI Edit planner passes this: Gemma 4 answered the plan
+     * prompt twice on 2026-11-21 with a long Markdown bullet list
+     * (startsWith "*", ~4,300 chars, no fence, HTTP 200) instead of the
+     * JSON array the prompt asks for, so the parser found no array at all
+     * (kept 0, dropped 0). JSON mode constrains the reply to one object;
+     * the planner asks for {"plan": [...]}, which the parser already
+     * accepts. Other callers keep free-form text. */
+    responseFormat?: "json_object";
   } = {},
 ): Promise<string> {
   const config = opts.config !== undefined ? opts.config : cloudAiConfig();
@@ -247,7 +256,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 async function attemptCloudChat(
   prompt: { system: string; user: string },
   config: CloudAiConfig,
-  opts: { fetchImpl?: typeof fetch; timeoutMs?: number; maxTokens?: number; temperature?: number },
+  opts: { fetchImpl?: typeof fetch; timeoutMs?: number; maxTokens?: number; temperature?: number; responseFormat?: "json_object" },
 ): Promise<string> {
   const doFetch = opts.fetchImpl ?? fetch;
   const ctrl = new AbortController();
@@ -269,6 +278,9 @@ async function attemptCloudChat(
           // Gemma 4 thinks by default and can leave `content` empty (see
           // REASONING_EFFORT_NONE above); ask for the answer directly.
           reasoning_effort: REASONING_EFFORT_NONE,
+          // The planner alone asks for JSON object mode (see runCloudChat);
+          // other callers keep free-form text.
+          ...(opts.responseFormat !== undefined ? { response_format: { type: opts.responseFormat } } : {}),
         }),
         signal: ctrl.signal,
       });

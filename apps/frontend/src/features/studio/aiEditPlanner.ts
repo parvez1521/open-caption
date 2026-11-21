@@ -101,7 +101,8 @@ export function buildPlannerPrompt(segments: readonly TranscriptSegment[], style
   return {
     system: [
       "You plan visuals for a short video edit. You are given a timestamped transcript of the video.",
-      "Return ONLY a JSON array. Each item: {\"startMs\": number, \"endMs\": number, \"kind\": \"image\" | \"video\", \"prompt\": string, \"sourceText\": string}.",
+      "Return ONLY one JSON object of the form {\"plan\": [...]}. Each item: {\"startMs\": number, \"endMs\": number, \"kind\": \"image\" | \"video\", \"prompt\": string, \"sourceText\": string}.",
+      "Your entire reply must be that JSON object, starting with { and ending with }. No introduction, no explanation, no bullet points, no markdown.",
       "Rules:",
       "- One visual per spoken idea, at most 8 items. Prefer images; use video only where motion clearly helps.",
       "- startMs/endMs must sit inside the video and cover the words the visual illustrates; endMs after startMs, at least 1000ms long.",
@@ -113,7 +114,7 @@ export function buildPlannerPrompt(segments: readonly TranscriptSegment[], style
       `Video length: ${(durationMs / 1000).toFixed(1)}s. Visual style: ${style.label} (${style.promptSuffix}).`,
       "Transcript:",
       ...(lines.length > 0 ? lines : ["(no speech detected)"]),
-      "Return the JSON array now.",
+      "Return the JSON object now.",
     ].join("\n"),
   };
 }

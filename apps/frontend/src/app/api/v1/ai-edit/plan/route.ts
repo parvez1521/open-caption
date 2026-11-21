@@ -90,6 +90,9 @@ export const POST = route(async (req: Request) => {
       maxTokens: PLAN_MAX_TOKENS,
       timeoutMs: PLAN_TIMEOUT_MS,
       maxAttempts: 1,
+      // Gemma answered the plan prompt with a Markdown bullet list twice
+      // (2026-11-21); JSON object mode constrains the reply to one object.
+      responseFormat: "json_object",
     });
   } catch (err) {
     const status = err instanceof CloudAiError ? err.status : undefined;

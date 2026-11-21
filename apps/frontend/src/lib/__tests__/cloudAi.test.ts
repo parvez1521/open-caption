@@ -209,6 +209,18 @@ describe("runCloudChat", () => {
     expect(sentBody.reasoning_effort).toBe("none");
   });
 
+  it("sends response_format json_object only when the caller asks for it", async () => {
+    let sentBody: Record<string, unknown> = {};
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      sentBody = JSON.parse(String(init?.body));
+      return jsonResponse(true, 200, { choices: [{ message: { content: "hook line" } }] });
+    }) as unknown as typeof fetch;
+    await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, responseFormat: "json_object" });
+    expect(sentBody.response_format).toEqual({ type: "json_object" });
+    await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl });
+    expect(sentBody.response_format).toBeUndefined();
+  });
+
   it("reads the answer from the reasoning field when content is empty", async () => {
     const fetchImpl = (async () =>
       jsonResponse(true, 200, {

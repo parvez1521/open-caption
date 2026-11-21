@@ -50,7 +50,10 @@ describe("buildPlannerPrompt", () => {
     const prompt = buildPlannerPrompt(segments, "cinematic", 10_000);
     expect(prompt.user).toContain("hello world");
     expect(prompt.user).toContain("0.0s - 0.9s");
-    expect(prompt.system).toContain("JSON array");
+    // One JSON object {"plan": [...]}, never a bare array or a bullet list
+    // (Gemma answered the array prompt with Markdown bullets, 2026-11-21).
+    expect(prompt.system).toContain('{"plan": [...]}');
+    expect(prompt.system).toContain("No introduction, no explanation, no bullet points, no markdown");
     for (const banned of ["groq", "gpt", "openai", "Muse", "Gemini", "llama"]) {
       expect(prompt.system.toLowerCase()).not.toContain(banned);
       expect(prompt.user.toLowerCase()).not.toContain(banned);
