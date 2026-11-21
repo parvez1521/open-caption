@@ -106,6 +106,18 @@ describe("runCloudChat", () => {
     expect(calls).toBe(1);
   });
 
+  it("maxAttempts: 1 spends the whole budget on one attempt (no retry even on a 5xx)", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      return jsonResponse(false, 503, {});
+    }) as unknown as typeof fetch;
+    await expect(
+      runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, retryDelayMs: 0, maxAttempts: 1 }),
+    ).rejects.toMatchObject({ name: "CloudAiError", status: 503 });
+    expect(calls).toBe(1);
+  });
+
   it("does NOT retry an empty completion (deterministic, not transient)", async () => {
     let calls = 0;
     const fetchImpl = (async () => {

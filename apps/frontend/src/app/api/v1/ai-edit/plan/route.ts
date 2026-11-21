@@ -30,10 +30,18 @@ import {
  * logs.
  */
 
-/** A full plan is at most 12 items (aiEditPlanner.ts) with prompts up to 500
+/** A full plan is at most 8 items (aiEditPlanner.ts) with prompts up to 500
  *  chars each — the shared 700-token default would truncate it mid-JSON,
- *  so the planner asks for a larger cap (12 items x ~150 tokens). */
-const PLAN_MAX_TOKENS = 2000;
+ *  so the planner asks for a larger cap (8 items x ~150 tokens).
+ *  The cap used to be 12 items / 2000 tokens, but the live test project
+ *  timed out twice at 25s per attempt on 2026-11-21 (two attempts, ~60s,
+ *  "could not be reached") — a 2000-token reply does not finish inside the
+ *  25s budget on the shared free tier. One 45s attempt for a shorter plan
+ *  fits the route's serverless budget instead. */
+const PLAN_MAX_TOKENS = 1200;
+/** One long attempt, not two short ones: the retry would push the route
+ *  past its serverless budget (see cloudAi.ts). */
+const PLAN_TIMEOUT_MS = 45_000;
 
 export const GET = route(async (req: Request) => {
   await requireUser(req);
@@ -63,7 +71,12 @@ export const POST = route(async (req: Request) => {
   const prompt = buildPlannerPrompt(segments, body.styleId, body.durationMs);
   let answer: string;
   try {
-    answer = await runCloudChat(prompt, { temperature: 0.4, maxTokens: PLAN_MAX_TOKENS });
+    answer = await runCloudChat(prompt, {
+      temperature: 0.4,
+      maxTokens: PLAN_MAX_TOKENS,
+      timeoutMs: PLAN_TIMEOUT_MS,
+      maxAttempts: 1,
+    });
   } catch (err) {
     const status = err instanceof CloudAiError ? err.status : undefined;
     console.error(

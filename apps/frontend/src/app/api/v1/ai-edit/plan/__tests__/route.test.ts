@@ -87,7 +87,7 @@ beforeEach(() => {
 });
 
 describe("POST /ai-edit/plan", () => {
-  it("returns a validated plan and asks for a 2000-token cap (12 items fit)", async () => {
+  it("returns a validated plan and asks for a 1200-token cap, one 45s attempt (8 items fit)", async () => {
     const res = await ask(validBody);
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -97,7 +97,7 @@ describe("POST /ai-edit/plan", () => {
     expect(body.data.plan).toHaveLength(1);
     expect(body.data.plan[0]?.kind).toBe("image");
     expect(ai.calls).toHaveLength(1);
-    expect(ai.calls[0]?.opts).toMatchObject({ temperature: 0.4, maxTokens: 2000 });
+    expect(ai.calls[0]?.opts).toMatchObject({ temperature: 0.4, maxTokens: 1200, timeoutMs: 45000, maxAttempts: 1 });
     // No model or provider name ever leaks into the prompt.
     expect(ai.calls[0]?.system).not.toMatch(/gpt|groq|whisper/i);
     expect(ai.calls[0]?.user).not.toMatch(/gpt|groq|whisper/i);

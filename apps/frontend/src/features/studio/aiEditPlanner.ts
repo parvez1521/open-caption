@@ -103,7 +103,7 @@ export function buildPlannerPrompt(segments: readonly TranscriptSegment[], style
       "You plan visuals for a short video edit. You are given a timestamped transcript of the video.",
       "Return ONLY a JSON array. Each item: {\"startMs\": number, \"endMs\": number, \"kind\": \"image\" | \"video\", \"prompt\": string, \"sourceText\": string}.",
       "Rules:",
-      "- One visual per spoken idea, at most 12 items. Prefer images; use video only where motion clearly helps.",
+      "- One visual per spoken idea, at most 8 items. Prefer images; use video only where motion clearly helps.",
       "- startMs/endMs must sit inside the video and cover the words the visual illustrates; endMs after startMs, at least 1000ms long.",
       "- prompt is a short visual description (under 500 characters), no text in the image unless the words ask for it.",
       "- sourceText is the transcript line the visual illustrates, copied as spoken.",

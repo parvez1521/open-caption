@@ -145,6 +145,10 @@ interface ChatCompletionBody {
  * delay — a single-attempt call turned every free-tier hiccup into a dead
  * feature. Deterministic failures (other 4xx, an empty or malformed
  * completion) are never retried: a second attempt would fail the same way.
+ * Callers with a tight serverless budget pass `maxAttempts: 1` instead and
+ * spend the whole budget on one longer attempt (the AI Edit planner does
+ * this: two 25s attempts timed out twice on the live test project
+ * 2026-11-21, while one 45s attempt fits the route's budget).
  */
 export async function runCloudChat(
   prompt: { system: string; user: string },
@@ -159,12 +163,16 @@ export async function runCloudChat(
     temperature?: number;
     /** delay before the single transient retry; defaults to 1000ms. Tests pass 0. */
     retryDelayMs?: number;
+    /** max attempts (transient retry included); defaults to 2. Callers with a
+     *  tight serverless budget pass 1 and spend it all on one longer attempt. */
+    maxAttempts?: number;
   } = {},
 ): Promise<string> {
   const config = opts.config !== undefined ? opts.config : cloudAiConfig();
   if (!config) throw new CloudAiError("The free AI service is not configured (Cloudflare credentials are unset).");
+  const maxAttempts = Math.max(1, opts.maxAttempts ?? 2);
   let lastError: unknown = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       return await attemptCloudChat(prompt, config, opts);
     } catch (err) {
@@ -174,7 +182,7 @@ export async function runCloudChat(
       const retryable =
         (err instanceof CloudAiError && (err.status === 429 || (err.status !== undefined && err.status >= 500))) ||
         !(err instanceof CloudAiError);
-      if (!retryable || attempt === 1) throw err;
+      if (!retryable || attempt === maxAttempts - 1) throw err;
       await sleep(opts.retryDelayMs ?? 1000);
     }
   }
