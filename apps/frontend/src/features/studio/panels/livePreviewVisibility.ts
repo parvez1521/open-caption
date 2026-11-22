@@ -27,9 +27,20 @@
  *    on visibilitychange back to visible (background tabs throttle rAF/timers).
  *    (A sweep on registration was tried and dropped: it fires with unlaid-out rects
  *    at mount and marks every card near before the observer ever reports.)
+ *  - v3: the slot lifecycle keys on ACTUAL visibility (`visible`, 0px margin), not
+ *    `near` (240px). v2 proved the interval moves slots, but holders kept theirs
+ *    while parked in the 240px margin just off-screen, so all 3 slots could sit
+ *    invisible while in-view cards queued. `visible` is set from the live rect in
+ *    two places that must agree: the observer callback (immediate — an in-view card
+ *    goes live on enter with no 1s wait) and this sweep (corrective — it fixes
+ *    `visible` within ~1s when the observer exit never arrives, the live failure
+ *    mode). `near` keeps its 240px margin for preload only (fonts) and never holds
+ *    a slot. No hysteresis: a card crossing the viewport edge is a genuine state
+ *    change (scrolling is monotonic there), and re-entering restarts the animation
+ *    — the desired behaviour, not thrash.
  *  - the listeners and the interval attach on first registration and detach/clear when
  *    the registry empties, so pages without live previews pay nothing; the sweep only
- *    calls setNear when a card's computed visibility actually changed.
+ *    calls setNear/setVisible when a card's computed visibility actually changed.
  *
  * Zero-size rects (an element not laid out yet, or jsdom in tests, where every rect is
  * 0x0 at the origin) count as near/visible with distance 0: a real preview box always
@@ -72,6 +83,9 @@ interface LivePreviewEntry {
   el: Element;
   getNear: () => boolean;
   setNear: (near: boolean) => void;
+  /** Strict-visibility signal (fix v3): present only for previews whose slot keys on it. */
+  getVisible?: () => boolean;
+  setVisible?: (visible: boolean) => void;
 }
 
 const entries = new Map<Element, LivePreviewEntry>();
@@ -79,11 +93,18 @@ let listening = false;
 let rafId = 0;
 let intervalId = 0;
 
-/** Recompute every registered card's visibility from its real rect; correct `near` where it disagrees. */
+/**
+ * Recompute every registered card's visibility from its real rect; correct `near`
+ * (240px, preload) and `visible` (0px, slot lifecycle) where they disagree.
+ */
 export function revalidateLivePreviews(): void {
   for (const entry of entries.values()) {
-    const computed = isNearViewport(entry.el);
-    if (computed !== entry.getNear()) entry.setNear(computed);
+    const computedNear = isNearViewport(entry.el);
+    if (computedNear !== entry.getNear()) entry.setNear(computedNear);
+    if (entry.getVisible && entry.setVisible) {
+      const computedVisible = isVisibleInViewport(entry.el);
+      if (computedVisible !== entry.getVisible()) entry.setVisible(computedVisible);
+    }
   }
 }
 
@@ -148,13 +169,18 @@ function stopListening(): void {
 /**
  * Register a preview box for geometry re-validation. Returns an unregister function;
  * call it on unmount. The listener is shared across all registered previews.
+ * `getVisible`/`setVisible` are optional: pass them when the preview's slot lifecycle
+ * keys on actual visibility (fix v3) so the sweep corrects that signal too; previews
+ * that key on `near` alone omit them and behave exactly as before.
  */
 export function registerLivePreviewElement(
   el: Element,
   getNear: () => boolean,
   setNear: (near: boolean) => void,
+  getVisible?: () => boolean,
+  setVisible?: (visible: boolean) => void,
 ): () => void {
-  entries.set(el, { el, getNear, setNear });
+  entries.set(el, { el, getNear, setNear, getVisible, setVisible });
   ensureListening();
   return () => unregisterLivePreviewElement(el);
 }

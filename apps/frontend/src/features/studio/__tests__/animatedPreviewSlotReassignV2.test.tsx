@@ -277,7 +277,12 @@ describe("AnimatedTemplatePreview v2: reassignment without scroll events", () =>
     expect(livePreviewWaiterCount("template")).toBe(0);
   }, 30000);
 
-  it("a margin-zone card queues instead of taking a free slot, then goes live via the interval", async () => {
+  it("a margin-zone card does not take a slot, then goes live via the interval once visible", async () => {
+    // Fix v3 changed this test's middle: the margin-zone card no longer QUEUES
+    // (v2 asserted waiterCount 1). The slot effect keys on actual visibility, so a
+    // card that is near but not visible never acquires or queues — it simply waits
+    // for `visible` to flip and acquires then. The end state is unchanged: once it
+    // scrolls fully into view it goes live.
     setup();
     const { view, cards } = renderCards(12);
     // Explicit geometry for every card from the start, so no default rect leaks in:
@@ -288,13 +293,14 @@ describe("AnimatedTemplatePreview v2: reassignment without scroll events", () =>
     expect(livePreviewCount("template")).toBe(1);
     // Card 5 approaches (IO enter): a slot is free, but the card is only in the
     // margin zone — v1 takes the free slot immediately (its grant accepts "near");
-    // v2 must decline the strict grant and QUEUE instead.
+    // v2 declines the strict grant and QUEUES instead; v3 does not queue at all —
+    // its slot effect keys on `visible`, which is false here.
     await act(async () => { FakeIO.setVisible(cards[5]!, true); });
     expect(isLive(cards[5]!)).toBe(false);
     expect(livePreviewCount("template")).toBe(1);
-    expect(livePreviewWaiterCount("template")).toBe(1);
+    expect(livePreviewWaiterCount("template")).toBe(0);
     // Card 5 scrolls fully into view; no scroll event fires — the interval alone
-    // must grant the queued slot.
+    // must make it live (its effect acquires on the `visible` flip).
     setRect(cards[5]!, NEAR_RECT);
     await waitForIntervalTick();
     expect(isLive(cards[5]!)).toBe(true);

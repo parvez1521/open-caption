@@ -24,6 +24,13 @@ import { isVisibleInViewport, registerLivePreviewElement, viewportDistancePx } f
  *    misfires, and a grant is declined when the card is no longer geometrically near —
  *    on the live site the first cards kept their slots forever while scrolled-to cards
  *    never went live, even though this logic passes every mocked-IO test,
+ *  - v3: the slot lifecycle keys on ACTUAL visibility (`visible`, 0px margin), not
+ *    `near` (240px). v2 moved slots on a 1s interval but holders kept theirs while
+ *    parked in the margin just off-screen, so all 3 slots could sit invisible while
+ *    in-view cards queued. `near` now only preloads fonts; only a card any part of
+ *    which is actually in the viewport holds a slot, and it releases the moment it
+ *    leaves. `visible` is set from the live rect in the observer callback (immediate)
+ *    and corrected by the sweep (within ~1s if the observer exit never arrives).
  *  - prefers-reduced-motion keeps the poster, always.
  */
 
@@ -56,6 +63,9 @@ const reducedMotion = () =>
 const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: React.ReactNode }> = ({ look, poster }) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
+  // Fix v3: actual visibility (0px margin) — the signal the SLOT lifecycle keys on.
+  // `near` (240px) only preloads fonts; a card in the margin zone must never hold a slot.
+  const [visible, setVisible] = useState(false);
   const [live, setLive] = useState(false);
   const [boxW, setBoxW] = useState(0);
   const [timeMs, setTimeMs] = useState(0);
@@ -69,6 +79,12 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
     nearRef.current = near;
   }, [near]);
 
+  // Same mirror for `visible` — the sweep corrects it from the live rect too.
+  const visibleRef = useRef(false);
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
+
   // Templates are composed for a full frame; in the small card the type is scaled up so the motion
   // reads at card size (the pre-rendered stills exaggerate size the same way). Motion is untouched.
   const style = useMemo(
@@ -79,12 +95,20 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
   useEffect(() => {
     const el = boxRef.current;
     if (!el || reducedMotion()) return;
-    const io = new IntersectionObserver((entries) => setNear(entries.some((e) => e.isIntersecting)), { rootMargin: "240px" });
+    const io = new IntersectionObserver((entries) => {
+      // `near` follows the observer's 240px margin (preload); `visible` follows the
+      // card's real rect (0px, strict) so an in-view card goes live on enter with no
+      // wait for the next sweep/interval tick. The sweep corrects `visible` within
+      // ~1s when the observer exit never arrives — the live failure mode.
+      setNear(entries.some((e) => e.isIntersecting));
+      setVisible(isVisibleInViewport(el));
+    }, { rootMargin: "240px" });
     io.observe(el);
     // Geometry safety net: the shared scroll/resize sweep re-checks this card's real rect
-    // and corrects `near` when the observer misfires (the /looks jam). Same reduced-motion
-    // gate as the observer — reduced-motion cards never register, they keep the poster.
-    const unregister = registerLivePreviewElement(el, () => nearRef.current, setNear);
+    // and corrects `near` AND `visible` when the observer misfires (the /looks jam).
+    // Same reduced-motion gate as the observer — reduced-motion cards never register,
+    // they keep the poster.
+    const unregister = registerLivePreviewElement(el, () => nearRef.current, setNear, () => visibleRef.current, setVisible);
     return () => {
       io.disconnect();
       unregister();
@@ -111,11 +135,22 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
     void Promise.all(families.map(loadFontFamily)).then(() => setFontTick((n) => n + 1));
   }, [near, look.style.fontId, look.style.hero.fontId]);
 
-  // Slot lifecycle, keyed on visibility: near -> acquire (or queue); the cleanup — which runs when the
-  // card leaves the viewport AND on unmount — releases a held slot or cancels a queued wait, so slots
-  // recycle through the list instead of being held forever by the first cards that approached.
+  // Slot lifecycle, keyed on ACTUAL visibility (fix v3): visible -> acquire (or queue);
+  // the cleanup — which runs when the card leaves the viewport AND on unmount —
+  // releases a held slot or cancels a queued wait, so slots recycle through the list
+  // instead of being held forever by the first cards that approached.
   // (The previous version never invoked the grant callback on the immediate-acquire path, so no
   // preview ever went live and the leaked slots starved every other card.)
+  //
+  // Why `visible` and not `near`: `near` stays true while the card sits in the 240px
+  // margin just off-screen, so a holder that scrolled out kept its slot and all 3
+  // slots could park invisible while in-view cards queued (the v2 live result).
+  // Keying on `visible` releases the slot the moment no part of the card is on
+  // screen. `near` keeps only its preload job (fonts above); a margin-zone card
+  // never acquires or queues here — when it scrolls into view, `visible` flips and
+  // this effect acquires then. No hysteresis is applied: a card crossing the
+  // viewport edge is a genuine state change, and re-entering restarts the
+  // animation, which is the desired behaviour.
   //
   // Grant-time validation (v2, strict): a freed slot goes only to a card ACTUALLY in
   // the viewport, not one merely inside the 240px queueing margin — otherwise the slot
@@ -127,7 +162,7 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
   // no later flip would re-run this effect and the card would never go live when it
   // scrolls into view.
   useEffect(() => {
-    if (!near) {
+    if (!visible) {
       setLive(false);
       return;
     }
@@ -161,7 +196,7 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
         cancelLivePreviewWait("template", grant);
       }
     };
-  }, [near]);
+  }, [visible]);
 
   // The clock steps in authored frames (CANVAS.fps = 30), exactly like the Player and the export
   // advance the composition: stepping on every display refresh (60Hz+) would double the React
