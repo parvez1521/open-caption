@@ -31,6 +31,12 @@ import { isVisibleInViewport, registerLivePreviewElement, viewportDistancePx } f
  *    which is actually in the viewport holds a slot, and it releases the moment it
  *    leaves. `visible` is set from the live rect in the observer callback (immediate)
  *    and corrected by the sweep (within ~1s if the observer exit never arrives).
+ *  - hover-to-play (owner direction): pointer over the preview box plays the
+ *    animation immediately, bypassing the slot budget entirely — the 3-slot cap
+ *    is why most cards never animate on /looks, and hover makes the card under
+ *    the pointer play at once. The slot lifecycle is untouched: hover is an
+ *    additional trigger, not a replacement, so a hovered card that also holds a
+ *    slot never double-acquires and never leaks on unhover/unmount.
  *  - prefers-reduced-motion keeps the poster, always.
  */
 
@@ -67,6 +73,11 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
   // `near` (240px) only preloads fonts; a card in the margin zone must never hold a slot.
   const [visible, setVisible] = useState(false);
   const [live, setLive] = useState(false);
+  // Hover-to-play: pointer over the preview box. Independent of `live` (the slot
+  // signal) — the live layer renders when EITHER is true, so a hovered card plays
+  // at once with no slot, and a slotted card keeps playing after unhover.
+  const [hovered, setHovered] = useState(false);
+  const showLive = live || hovered;
   const [boxW, setBoxW] = useState(0);
   const [timeMs, setTimeMs] = useState(0);
   const [, setFontTick] = useState(0);
@@ -201,8 +212,12 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
   // The clock steps in authored frames (CANVAS.fps = 30), exactly like the Player and the export
   // advance the composition: stepping on every display refresh (60Hz+) would double the React
   // renders of every live preview while producing frames the composition never actually shows.
+  // It runs whenever the live layer shows — slot-held OR hovered — and restarts from
+  // the top each time the layer mounts, so a hover always plays the animation from
+  // the start. When a slotted card is hovered and then unhovered, `showLive` stays
+  // true and this effect does not re-run: no restart glitch, no second clock.
   useEffect(() => {
-    if (!live) return;
+    if (!showLive) return;
     let raf = 0;
     const frameMs = 1000 / CANVAS.fps;
     const t0 = performance.now();
@@ -217,13 +232,25 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [live]);
+  }, [showLive]);
 
   const scale = boxW > 0 ? boxW / CANVAS.width : 0;
   return (
-    <div ref={boxRef} className="relative aspect-[8/3] overflow-hidden bg-black">
+    // Hover-to-play: pointer events (not mouse events) so touch works too. On a
+    // touch device there is no hover: a tap fires pointerenter on touch-down and
+    // pointerleave on touch-up, so tapping a card previews it while the finger is
+    // down (a long-press holds it); lifting the finger returns to the poster.
+    // There is deliberately no click-toggle — the pointer path covers tap as well.
+    // Reduced-motion users never get the live layer: the enter handler checks the
+    // same gate as the observer effect below.
+    <div
+      ref={boxRef}
+      className="relative aspect-[8/3] overflow-hidden bg-black"
+      onPointerEnter={() => { if (!reducedMotion()) setHovered(true); }}
+      onPointerLeave={() => setHovered(false)}
+    >
       {poster}
-      {live && scale > 0 ? (
+      {showLive && scale > 0 ? (
         <div className="absolute inset-0 bg-black" aria-hidden>
           <div style={{ width: CANVAS.width, height: CANVAS.height, transform: `scale(${scale})`, transformOrigin: "top left", position: "relative" }}>
             <PageView page={PREVIEW_PAGE} timeMs={timeMs} style={style} canvas={CANVAS} measure={measure} />
