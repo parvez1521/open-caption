@@ -111,10 +111,11 @@ export function buildPlannerPrompt(segments: readonly TranscriptSegment[], style
       "- Never invent words the speaker did not say. If the transcript is empty, return [].",
     ].join("\n"),
     user: [
+      "Reply with ONLY one JSON object of the form {\"plan\": [...]}. Start your reply with { and end with }. No introduction, no explanation, no bullet points, no markdown.",
       `Video length: ${(durationMs / 1000).toFixed(1)}s. Visual style: ${style.label} (${style.promptSuffix}).`,
       "Transcript:",
       ...(lines.length > 0 ? lines : ["(no speech detected)"]),
-      "Return the JSON object now.",
+      "Return the JSON object now. Start your reply with {.",
     ].join("\n"),
   };
 }

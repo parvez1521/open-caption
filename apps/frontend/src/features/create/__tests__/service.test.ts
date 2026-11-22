@@ -194,7 +194,7 @@ describe("honest labelling", () => {
     const badge = sourceBadge("cloud");
     expect(badge).toBe(`Free AI · ${CLOUD_AI.modelName} (${CLOUD_AI.provider})`);
     expect(badge).toContain("Free AI");
-    expect(CLOUD_AI.modelId).toBe("@cf/google/gemma-4-26b-a4b-it");
+    expect(CLOUD_AI.modelId).toBe("@cf/openai/gpt-oss-120b");
     expect(sourceNote("cloud")).toContain("nothing ran on your device");
     expect(sourceNote("cloud")).toContain("sent to Cloudflare");
   });

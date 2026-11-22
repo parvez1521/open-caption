@@ -49,10 +49,29 @@ import "server-only";
  * `reasoning_effort: "none"` moved the answer back into `content`). The
  * client now sends `reasoning_effort: "none"` and reads the reasoning
  * fields as a fallback; a still-empty completion logs its structural
- * shape (`detail`) instead of just "empty". Exhaustion answers 429 and the
- * routes report it as "daily limit" — the same message as before. The
- * model stays overridable via CLOUDFLARE_AI_MODEL, so a swap needs no
- * code change.
+ * shape (`detail`) instead of just "empty". That fixed the empty
+ * completions — Gemma started answering with text — but the plan still
+ * parsed to 0 items. A success-path parse log then showed why: Gemma
+ * answers the plan prompt with a long Markdown bullet list (~4,200
+ * chars, startsWith "*", no fence, HTTP 200), even with
+ * `response_format: json_object` (the endpoint silently ignores JSON
+ * mode for this model — no 400) and even with the prompt demanding one
+ * `{"plan": [...]}` object. A 400-char preview of the answer (logged
+ * 00:40 IST 2026-11-22) showed the real shape: Gemma ECHOES the user
+ * message back as bullets — "Video length: 43.5s.", "Visual style:
+ * Cinematic (...).", "Transcript:", then the transcript lines
+ * numbered — and spends its whole 1200-token budget restating the
+ * input, never reaching a plan. The system instruction ("Return ONLY
+ * one JSON object...") is sent correctly but has no visible effect, so
+ * the planner prompt now ALSO carries the instruction inside the user
+ * message itself (first line and last line). And the default is back
+ * to `@cf/openai/gpt-oss-120b`: it is the only model with a PROVEN plan
+ * on this exact flow — the owner's own run on 2026-11-21 planned 8
+ * visuals on his "Untitled AI Edit" project. It is slow (a reasoning
+ * model; the plan call gets one 45s attempt), but a slow plan beats a
+ * fast echo. Exhaustion answers 429 and the routes report it as
+ * "daily limit" — the same message as before. The model stays
+ * overridable via CLOUDFLARE_AI_MODEL, so a swap needs no code change.
  *
  * Why not Gemini free (the owner asked for "Gemini or any other free model"):
  * the 2026-11-10 research rejected it — Google's Unpaid Services terms let
@@ -75,9 +94,9 @@ import "server-only";
  */
 
 export const CLOUD_AI_PROVIDER = "Cloudflare";
-export const CLOUD_AI_DEFAULT_MODEL = "@cf/google/gemma-4-26b-a4b-it";
+export const CLOUD_AI_DEFAULT_MODEL = "@cf/openai/gpt-oss-120b";
 /** Display name for the default model (an operator-set CLOUDFLARE_AI_MODEL override shows its raw id instead). */
-export const CLOUD_AI_DEFAULT_MODEL_NAME = "Gemma 4 26B";
+export const CLOUD_AI_DEFAULT_MODEL_NAME = "GPT-OSS 120B";
 
 const WORKERS_AI_BASE = "https://api.cloudflare.com/client/v4/accounts";
 const TIMEOUT_MS = 25_000;

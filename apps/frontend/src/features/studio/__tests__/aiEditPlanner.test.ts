@@ -54,6 +54,11 @@ describe("buildPlannerPrompt", () => {
     // (Gemma answered the array prompt with Markdown bullets, 2026-11-21).
     expect(prompt.system).toContain('{"plan": [...]}');
     expect(prompt.system).toContain("No introduction, no explanation, no bullet points, no markdown");
+    // The instruction ALSO lives in the user message itself, first and
+    // last: Gemma echoed the user message back as bullets on 2026-11-22
+    // (00:40 IST) as if the system instruction never reached it.
+    expect(prompt.user.startsWith('Reply with ONLY one JSON object of the form {"plan": [...]}.')).toBe(true);
+    expect(prompt.user).toContain("Return the JSON object now. Start your reply with {.");
     for (const banned of ["groq", "gpt", "openai", "Muse", "Gemini", "llama"]) {
       expect(prompt.system.toLowerCase()).not.toContain(banned);
       expect(prompt.user.toLowerCase()).not.toContain(banned);

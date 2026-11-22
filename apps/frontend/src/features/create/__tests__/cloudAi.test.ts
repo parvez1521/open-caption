@@ -57,14 +57,14 @@ describe("fetchCloudAiStatus", () => {
     vi.mocked(freshClient.get).mockResolvedValue({
       configured: true,
       provider: "Cloudflare",
-      model: "@cf/google/gemma-4-26b-a4b-it",
-      modelName: "Gemma 4 26B",
+      model: "@cf/openai/gpt-oss-120b",
+      modelName: "GPT-OSS 120B",
     });
     await expect(fresh.fetchCloudAiStatus()).resolves.toEqual({
       configured: true,
       provider: "Cloudflare",
-      model: "@cf/google/gemma-4-26b-a4b-it",
-      modelName: "Gemma 4 26B",
+      model: "@cf/openai/gpt-oss-120b",
+      modelName: "GPT-OSS 120B",
     });
   });
 

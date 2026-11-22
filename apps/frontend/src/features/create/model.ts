@@ -184,21 +184,24 @@ export const LOCAL_MODEL = {
 /**
  * The site's free cloud AI. Provider choice verified 2026-11-10 against official pages (full
  * comparison in the project research notes, free-ai-options.md): Cloudflare Workers AI's free
- * allocation is 10,000 Neurons/day with the production model @cf/google/gemma-4-26b-a4b-it
+ * allocation is 10,000 Neurons/day with the production model @cf/openai/gpt-oss-120b
  * (the switch first kept Groq's @cf/openai/gpt-oss-120b, but that reasoning model
  * timed out and returned unusable plans live on 2026-11-21, so the default moved to
  * @cf/meta/llama-3.1-8b-instruct — which Cloudflare had retired on 2026-11-20, so every
- * live call to it answered HTTP 410; the default moved to Gemma 4 26B the same day) — no
- * card; no training on inputs; zero data retention. (Groq's Free Plan
- * served this before, until the owner ordered the switch on 2026-11-21 after its calls kept
- * failing in production.) The server record (endpoint, token handling, the CLOUDFLARE_AI_MODEL
- * override) lives in lib/api/cloudAi.ts; this record names the DEFAULT model for labelling — if
- * the default model ever changes, change both together.
+ * live call to it answered HTTP 410; the default moved to @cf/google/gemma-4-26b-a4b-it
+ * the same day — but Gemma echoed the plan prompt back as a bullet list instead of
+ * answering it (00:40 IST 2026-11-22), so the default is back to GPT-OSS 120B, the only
+ * model with a proven plan on this flow) — no card; no training on inputs; zero data
+ * retention. (Groq's Free Plan served this before, until the owner ordered the switch on
+ * 2026-11-21 after its calls kept failing in production.) The server record (endpoint,
+ * token handling, the CLOUDFLARE_AI_MODEL override) lives in lib/api/cloudAi.ts; this
+ * record names the DEFAULT model for labelling — if the default model ever changes,
+ * change both together.
  */
 export const CLOUD_AI = {
   provider: "Cloudflare",
-  modelId: "@cf/google/gemma-4-26b-a4b-it",
-  modelName: "Gemma 4 26B",
+  modelId: "@cf/openai/gpt-oss-120b",
+  modelName: "GPT-OSS 120B",
 } as const;
 
 /** The visible source badge for one batch of output. The template engine is never called AI, anywhere. */
