@@ -6,9 +6,9 @@ import { FREE_LAUNCH_END_LABEL, isFreeLaunchWindow } from "@/lib/billing/freeLau
 import { useRouter } from "next/navigation";
 import { supabase, isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { projectsService } from "@/services/projects";
-import { modeFromSearch, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
+import { modeFromSearch, lookFromSearch, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
 import { isOnboardingDone } from "@/features/onboarding/survey";
-import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, takeAfterSignIn } from "@/services/auth/guest";
+import { claimPendingGuest, clearPendingGuestClaim, hadAccountHere, isGuestUser, setAfterSignIn, takeAfterSignIn } from "@/services/auth/guest";
 import { captureEmailSubscription } from "@/services/marketing";
 import type { Project } from "@/services/types";
 import { LoadingMark } from "@/components/brand/LoadingMark";
@@ -63,10 +63,14 @@ export default function StartPage() {
   const once = useRef(false);
 
   const createAndRoute = useCallback(
-    async (projects: Project[], mode: ProjectStartMode | null) => {
+    async (projects: Project[], mode: ProjectStartMode | null, lookId: string | null = null) => {
       try {
         const project = await projectsService.createProject(nextUntitled(projects));
-        router.replace(mode ? `/projects/${project.id}?mode=${mode}` : `/projects/${project.id}`);
+        const params = new URLSearchParams();
+        if (mode) params.set("mode", mode);
+        if (lookId) params.set("look", lookId);
+        const query = params.toString();
+        router.replace(query ? `/projects/${project.id}?${query}` : `/projects/${project.id}`);
       } catch {
         setChooser(null);
         setFailed(true);
@@ -100,6 +104,25 @@ export default function StartPage() {
         await captureEmailSubscription();
         const after = takeAfterSignIn();
         if (after) return router.replace(after);
+        // A ?look= click is an explicit "start a project with this look":
+        // it opens a fresh project with the look, never the dashboard. The
+        // one-time onboarding survey still runs first for a brand-new user —
+        // the look is stashed as the after-sign-in destination so the
+        // survey's return to /start resumes it.
+        const lookId = lookFromSearch(window.location.search);
+        if (lookId) {
+          if (!isOnboardingDone()) {
+            setAfterSignIn(`/start?look=${lookId}`);
+            return router.replace("/onboarding");
+          }
+          try {
+            const projects = await projectsService.getProjects();
+            return createAndRoute(projects, modeFromSearch(window.location.search), lookId);
+          } catch {
+            setFailed(true);
+            return;
+          }
+        }
         // First visit after sign-up: the one-time onboarding survey, before
         // the doors. An explicit after-sign-in destination wins over it.
         if (!isOnboardingDone()) return router.replace("/onboarding");
@@ -122,9 +145,12 @@ export default function StartPage() {
         // any session is created — no guest account on this path. Returning
         // guests already have a session (handled above), so they still
         // continue where they left off; a browser that had a real account
-        // goes to sign-in instead of sign-up.
-        if (hadAccountHere()) return router.replace("/login");
-        return router.replace("/login?mode=signup");
+        // goes to sign-in instead of sign-up. A ?look= click survives the
+        // round trip as the login redirect, so sign-in resumes the look flow.
+        const lookId = lookFromSearch(window.location.search);
+        const redirect = lookId ? `&redirect=${encodeURIComponent(`/start?look=${lookId}`)}` : "";
+        if (hadAccountHere()) return router.replace(`/login${redirect ? `?${redirect.slice(1)}` : ""}`);
+        return router.replace(`/login?mode=signup${redirect}`);
       }
       try {
         const projects = await projectsService.getProjects();
@@ -135,6 +161,14 @@ export default function StartPage() {
         // project already exists, because the click asked for the choice. Plain
         // /start keeps the "continue where you left off" redirect below.
         const doorMode = modeFromSearch(window.location.search);
+        // a ?look= click is an explicit "start a project with this look": a
+        // fresh project with the look, not the latest project — for guests
+        // as well as signed-in users (handled above).
+        const lookId = lookFromSearch(window.location.search);
+        if (lookId) {
+          await createAndRoute(projects, doorMode, lookId);
+          return;
+        }
         if (!doorMode && new URLSearchParams(window.location.search).get("choose") === "1") {
           setChooser({ projects, existing: live[0] ?? null });
           return;

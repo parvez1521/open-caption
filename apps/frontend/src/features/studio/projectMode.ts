@@ -14,6 +14,8 @@
  * a silent video). Projects with no recorded mode are "captions" projects — every project
  * created before this feature behaves exactly as it always did.
  */
+import { getLook, isRetiredLook } from "@capseasy/templates";
+
 export type ProjectStartMode = "captions" | "editor";
 
 /** The two doors, one source for the /start chooser, the dashboard create modal and the upload-panel toggle. */
@@ -50,6 +52,24 @@ export function modeFromSearch(search: string): ProjectStartMode | null {
   try {
     const m = new URLSearchParams(search).get("mode");
     return isMode(m) ? m : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ?look=<id> on a project URL (the /looks gallery links here through /start).
+ * Answers the look id only when it names a real built-in look; anything else
+ * (unknown id, retired id, empty) answers null, so the caller keeps the
+ * project's own look. Retired looks still resolve through getLook, but they
+ * are out of the gallery — a ?look= pointing at one is treated as unknown.
+ */
+export function lookFromSearch(search: string): string | null {
+  try {
+    const id = new URLSearchParams(search).get("look");
+    if (!id || isRetiredLook(id)) return null;
+    const look = getLook(id);
+    return look && !look.id.startsWith("user:") ? look.id : null;
   } catch {
     return null;
   }

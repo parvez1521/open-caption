@@ -52,7 +52,7 @@ export function Logo({ light = false }: { light?: boolean }) {
 const NAV_LINKS = [
   ["How it works", "/#how"],
   ["Editor", "/#control"],
-  ["Looks", "/#looks"],
+  ["Looks", "/looks"],
   ["On your device", "/#privacy"],
   ["FAQ", "/#faq"],
 ] as const;
@@ -232,9 +232,9 @@ export function Hero() {
           <Link href="/start?choose=1" onClick={warmModel} className="flex w-full items-center justify-center gap-2 rounded-full bg-[#34D399] px-8 py-4 text-base font-bold text-[#141412] sm:w-auto">
             Caption your first video free <span aria-hidden>→</span>
           </Link>
-          <a href="#looks" className="w-full rounded-full border border-[#FFFFEB]/15 bg-[#1C1C1A] px-7 py-4 text-center text-base font-semibold text-[#FFFFEB]/80 hover:text-[#FFFFEB] sm:w-auto">
+          <Link href="/looks" className="w-full rounded-full border border-[#FFFFEB]/15 bg-[#1C1C1A] px-7 py-4 text-center text-base font-semibold text-[#FFFFEB]/80 hover:text-[#FFFFEB] sm:w-auto">
             Browse the looks
-          </a>
+          </Link>
         </div>
         {isFreeLaunchWindow() ? (
           <p data-hero="free-launch" className="mt-3 text-sm font-semibold text-[#34D399]">
@@ -928,14 +928,14 @@ const FOOTER_COLUMNS = [
       { label: "Auto captions for Reels", href: "/auto-captions-for-reels" },
       { label: "AI Generator", href: "/ai-generator" },
       { label: "Transcribe", href: "/transcribe" },
-      { label: "Looks gallery", href: "/#looks" },
+      { label: "Looks gallery", href: "/looks" },
       { label: "Precision controls", href: "/#control" },
     ],
   },
   {
     title: "For creators",
     links: [
-      { label: "Looks for Shorts, Reels & TikTok", href: "/#looks" },
+      { label: "Looks for Shorts, Reels & TikTok", href: "/looks" },
       { label: "Hindi & Hinglish support", href: "/#faq" },
       { label: "Export formats, incl. overlays", href: "/#faq" },
     ],

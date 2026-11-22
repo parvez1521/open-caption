@@ -70,7 +70,7 @@ import { VideoSyncStatus } from "./VideoSyncStatus";
 import { useCompatCopy } from "@/features/upload/useCompatCopy";
 import { etaText } from "./ProcessingPanel";
 import { getSession, startSession, useSessionView } from "@/features/transcribe/session";
-import { modeFromSearch, projectModeOf, setProjectMode, type ProjectStartMode } from "./projectMode";
+import { lookFromSearch, modeFromSearch, projectModeOf, setProjectMode, type ProjectStartMode } from "./projectMode";
 import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError } from "@/services/auth/guest";
 import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
 import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
@@ -319,6 +319,23 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // device record, then the captions default). Persisted the moment it's known/chosen.
   const [startMode, setStartMode] = useState<ProjectStartMode>(() => (typeof window !== "undefined" ? modeFromSearch(window.location.search) : null) ?? projectModeOf(projectId));
   useEffect(() => { if (!isAiEditProject(projectId)) setProjectMode(projectId, startMode); }, [projectId, startMode]);
+  // A ?look= deep link (the /looks gallery, via /start) applies that look to
+  // this project exactly once, after the studio state has loaded — then the
+  // param is stripped from the URL so a refresh doesn't re-apply it. Unknown
+  // ids never reach here (lookFromSearch validates); an already-matching look
+  // is a no-op inside chooseLook.
+  const [pendingLookId] = useState<string | null>(() => (typeof window !== "undefined" ? lookFromSearch(window.location.search) : null));
+  const pendingLookAppliedRef = useRef(false);
+  useEffect(() => {
+    if (pendingLookAppliedRef.current || !pendingLookId || !data || s.lookId === null) return;
+    const look = getLook(pendingLookId);
+    if (!look) return;
+    pendingLookAppliedRef.current = true;
+    if (look.id !== s.lookId) s.chooseLook(look);
+    const u = new URL(window.location.href);
+    u.searchParams.delete("look");
+    window.history.replaceState(null, "", `${u.pathname}${u.search}${u.hash}`);
+  }, [pendingLookId, data, s]);
   // right column (desktop): Motion Studio lives there permanently; the segment inspector
   // shares the column as a second tab that takes focus when a segment is selected. The
   // column collapses to a slim strip so the centre can reclaim the width on demand.

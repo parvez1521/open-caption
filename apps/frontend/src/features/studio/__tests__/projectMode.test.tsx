@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CaptionDocSchema, type CaptionDoc } from "@capseasy/shared";
 import { CaptionsPanel } from "../panels/CaptionsPanel";
-import { aiEditIntroSeen, markAiEditIntroSeen, modeFromSearch, projectModeOf, setProjectMode, START_DOORS } from "../projectMode";
+import { aiEditIntroSeen, lookFromSearch, markAiEditIntroSeen, modeFromSearch, projectModeOf, setProjectMode, START_DOORS } from "../projectMode";
 
 /**
  * Package 2 item G — the two doors. Covered here:
@@ -173,5 +173,24 @@ describe("UploadPanel — the doors at upload time", () => {
     expect(startSession).toHaveBeenCalled();
     const opts = uploadVideo.mock.calls[0]?.[5] as { editorMode?: boolean } | undefined;
     expect(opts?.editorMode).toBeFalsy();
+  });
+});
+
+describe("?look= deep link (the /looks gallery, via /start)", () => {
+  it("answers the look id for a real built-in look", () => {
+    expect(lookFromSearch("?look=hormozi_box")).toBe("hormozi_box");
+    expect(lookFromSearch("?mode=captions&look=kinetic_mix")).toBe("kinetic_mix");
+  });
+
+  it("answers null for an unknown id, an empty value, or no param", () => {
+    expect(lookFromSearch("?look=no_such_look")).toBeNull();
+    expect(lookFromSearch("?look=")).toBeNull();
+    expect(lookFromSearch("?mode=editor")).toBeNull();
+    expect(lookFromSearch("")).toBeNull();
+  });
+
+  it("answers null for a retired look (out of the gallery)", () => {
+    // look #46 is retired: getLook still resolves it, but the gallery link must not apply it
+    expect(lookFromSearch("?look=karaoke_fill")).toBeNull();
   });
 });
