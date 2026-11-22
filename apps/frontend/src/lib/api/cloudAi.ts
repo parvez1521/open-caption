@@ -228,7 +228,12 @@ export async function runCloudImage(
       res = await doFetch(config.endpoint, {
         method: "POST",
         headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, seed: Math.floor(Math.random() * 1_000_000) }),
+        // FLUX.1 schnell takes prompt + steps ONLY on the REST /ai/run endpoint:
+        // a `seed` in the body is rejected with HTTP 400 (proven live 2026-11-22 —
+        // all 11 generate-image calls 400'd on `{prompt, seed}`). The Workers
+        // binding (env.AI.run) accepts seed; the REST API does not. `steps: 4`
+        // is the documented schnell default and the value the tutorial confirms.
+        body: JSON.stringify({ prompt, steps: 4 }),
         signal: ctrl.signal,
       });
     } catch (err) {
@@ -237,7 +242,24 @@ export async function runCloudImage(
       }
       throw new CloudAiError("The free AI image request failed before answering.", undefined, "network");
     }
-    if (!res.ok) throw new CloudAiError(`The free AI service answered with HTTP ${res.status}.`, res.status, "http");
+    if (!res.ok) {
+      // Capture the upstream error body (first 300 chars, error text only) so
+      // the server log names the cause instead of just the status — the 400
+      // above would have said the seed was unsupported had we logged it.
+      let upstream: string | undefined;
+      try {
+        const text = typeof res.text === "function" ? await res.text() : "";
+        if (text) upstream = text.slice(0, 300);
+      } catch {
+        // Reading the error body must never mask the failure itself.
+      }
+      throw new CloudAiError(
+        `The free AI service answered with HTTP ${res.status}.`,
+        res.status,
+        "http",
+        upstream !== undefined ? { upstream } : undefined,
+      );
+    }
     const contentType = res.headers?.get?.("content-type") ?? "";
     if (contentType.includes("application/json")) {
       const body = (await res.json().catch(() => null)) as { result?: { image?: unknown }; image?: unknown } | null;

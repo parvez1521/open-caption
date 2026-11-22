@@ -297,6 +297,36 @@ describe("cloudImageConfig + runCloudImage", () => {
     });
   });
 
+  it("sends prompt + steps only — the REST endpoint 400s on a seed", async () => {
+    let sentBody: unknown;
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      sentBody = init?.body !== undefined ? JSON.parse(String(init.body)) : undefined;
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: async () => ({ result: { image: "aGVsbG8=" } }),
+      } as unknown as Response;
+    }) as unknown as typeof fetch;
+    await runCloudImage("a cat", { config: IMAGE_CONFIG, fetchImpl });
+    expect(Object.keys(sentBody as Record<string, unknown>).sort()).toEqual(["prompt", "steps"]);
+    expect(sentBody).toMatchObject({ prompt: "a cat", steps: 4 });
+  });
+
+  it("carries the upstream error body in detail on an HTTP error", async () => {
+    const fetchImpl = (async () =>
+      ({
+        ok: false,
+        status: 400,
+        text: async () => '{"success":false,"errors":[{"message":"seed is not supported"}]}',
+      }) as unknown as Response) as unknown as typeof fetch;
+    await expect(runCloudImage("a cat", { config: IMAGE_CONFIG, fetchImpl })).rejects.toMatchObject({
+      status: 400,
+      kind: "http",
+      detail: { upstream: expect.stringContaining("seed is not supported") },
+    });
+  });
+
   it("names a timeout instead of collapsing it into unknown", async () => {
     const hanging = (async (_url: string, init?: RequestInit) => {
       await new Promise<void>((_, reject) => {

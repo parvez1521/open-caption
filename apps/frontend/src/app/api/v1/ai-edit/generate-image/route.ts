@@ -55,6 +55,7 @@ export const POST = route(async (req: Request) => {
   } catch (err) {
     const status = err instanceof CloudAiError ? err.status : undefined;
     const kind = err instanceof CloudAiError ? err.kind : undefined;
+    const detail = err instanceof CloudAiError ? err.detail : undefined;
     console.error(
       JSON.stringify({
         level: "error",
@@ -62,6 +63,7 @@ export const POST = route(async (req: Request) => {
         status: status ?? "unknown",
         kind: kind ?? "unknown",
         error: err instanceof Error ? err.message : String(err),
+        ...(detail !== undefined ? { detail } : {}),
       }),
     );
     if (status === 401 || status === 403) {
