@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Page, Word } from "@capseasy/shared";
 import { PageView, loadFontFamily, measure, type LookDefinition } from "@capseasy/templates";
 import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot } from "./livePreviewBudget";
+import { isNearViewport, registerLivePreviewElement } from "./livePreviewVisibility";
 
 /**
  * Live animated template preview for the picker: instead of a pre-rendered clip (which only 39 templates
@@ -18,6 +19,11 @@ import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot }
  *    FIFO slot budget in livePreviewBudget.ts, also used by the Social Media previews),
  *  - leaving the viewport releases the slot (so below-fold cards are not starved by the first cards
  *    that ever approached) and stops the clock; unmounting does the same,
+ *  - the slot lifecycle does NOT trust the observer alone: the shared scroll/resize sweep in
+ *    livePreviewVisibility.ts re-checks each card's real rect and corrects `near` when IO
+ *    misfires, and a grant is declined when the card is no longer geometrically near —
+ *    on the live site the first cards kept their slots forever while scrolled-to cards
+ *    never went live, even though this logic passes every mocked-IO test,
  *  - prefers-reduced-motion keeps the poster, always.
  */
 
@@ -55,6 +61,14 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
   const [timeMs, setTimeMs] = useState(0);
   const [, setFontTick] = useState(0);
 
+  // Mirror of `near` for the geometry sweep (livePreviewVisibility.ts), which reads it
+  // outside React renders: the sweep must compare the card's real rect against the
+  // visibility the component currently believes, not a stale closure.
+  const nearRef = useRef(false);
+  useEffect(() => {
+    nearRef.current = near;
+  }, [near]);
+
   // Templates are composed for a full frame; in the small card the type is scaled up so the motion
   // reads at card size (the pre-rendered stills exaggerate size the same way). Motion is untouched.
   const style = useMemo(
@@ -67,7 +81,14 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
     if (!el || reducedMotion()) return;
     const io = new IntersectionObserver((entries) => setNear(entries.some((e) => e.isIntersecting)), { rootMargin: "240px" });
     io.observe(el);
-    return () => io.disconnect();
+    // Geometry safety net: the shared scroll/resize sweep re-checks this card's real rect
+    // and corrects `near` when the observer misfires (the /looks jam). Same reduced-motion
+    // gate as the observer — reduced-motion cards never register, they keep the poster.
+    const unregister = registerLivePreviewElement(el, () => nearRef.current, setNear);
+    return () => {
+      io.disconnect();
+      unregister();
+    };
   }, []);
 
   useEffect(() => {
@@ -95,17 +116,28 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
   // recycle through the list instead of being held forever by the first cards that approached.
   // (The previous version never invoked the grant callback on the immediate-acquire path, so no
   // preview ever went live and the leaked slots starved every other card.)
+  //
+  // Grant-time validation: a slot freed while this card was queued can be offered after the card
+  // already scrolled away (its exit signal / cleanup hasn't run yet). Decline it — the budget
+  // offers the slot to the next waiter instead of parking a live slot on an off-screen card.
+  // The same check runs on the immediate-acquire path: if the card is no longer near by the
+  // time the grant lands, the slot goes straight back.
   useEffect(() => {
     if (!near) {
       setLive(false);
       return;
     }
     let granted = false;
-    const grant = () => {
+    const grant = (): boolean => {
+      const el = boxRef.current;
+      if (el && !isNearViewport(el)) return false;
       granted = true;
       setLive(true);
+      return true;
     };
-    if (acquireLivePreviewSlot("template", grant)) grant();
+    if (acquireLivePreviewSlot("template", grant)) {
+      if (!grant()) releaseLivePreviewSlot("template");
+    }
     return () => {
       if (granted) {
         setLive(false);

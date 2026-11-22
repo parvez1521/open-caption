@@ -122,9 +122,10 @@ const TitleLivePreviewInner: React.FC<{ style: TitleStyle }> = ({ style }) => {
       return;
     }
     let granted = false;
-    const grant = () => {
+    const grant = (): boolean => {
       granted = true;
       setLive(true);
+      return true;
     };
     if (acquireLivePreviewSlot("template", grant)) grant();
     return () => {

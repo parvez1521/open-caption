@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TRENDING_LOOKS, fontStack, loadFontFamily, type LookDefinition } from "@capseasy/templates";
 import { AnimatedTemplatePreview } from "@/features/studio/panels/AnimatedTemplatePreview";
-import { AUTO_DEG_PER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, facingOpacity, shouldResumeAutoRotate } from "./heroCylinderMath";
+import { AUTO_DEG_PER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, facingOpacity, frontIndex, shouldResumeAutoRotate } from "./heroCylinderMath";
 
 /**
  * Hero visual: the curated Trending templates on a slowly rotating 3D cylinder.
@@ -23,6 +23,12 @@ import { AUTO_DEG_PER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, f
  *   through PageView over the same synthetic page — so hero motion is the real template motion.
  *   That component's shared FIFO budget caps live previews at 6 across the page, and each preview
  *   only mounts near the viewport, so the cylinder never runs 10 live renderers at once.
+ * - Only the FRONT card mounts the live layer (frozen-preview fix): every ring card always
+ *   intersects the viewport — they rotate in place, never leave it — so letting all of them
+ *   request slots jammed the shared budget and the front card never went live. The rest
+ *   render their poster in the same box. The front index is tracked in React state and only
+ *   changes when the front card actually changes (one turn / 72 s, so a few re-renders a
+ *   minute); the rotation itself still runs on direct DOM writes, never on React renders.
  */
 
 const CARD_W_DESKTOP = 288;
@@ -61,6 +67,17 @@ export function HeroCylinder() {
   const reducedRef = useRef(false);
   const [cardW, setCardW] = useState(CARD_W_DESKTOP);
   const [, setFontsTick] = useState(0);
+  // Which card faces dead ahead right now (frontIndex): only it mounts the live preview.
+  // Updated from the rotation loop / drag handlers, only when the front actually changes.
+  const [front, setFront] = useState(0);
+  const frontRef = useRef(0);
+  const syncFront = useCallback(() => {
+    const next = frontIndex(looks.length, angleRef.current);
+    if (next !== frontRef.current) {
+      frontRef.current = next;
+      setFront(next);
+    }
+  }, [looks.length]);
 
   const radius = useMemo(() => cylinderRadius(cardW, looks.length), [cardW, looks.length]);
 
@@ -113,6 +130,7 @@ export function HeroCylinder() {
         const el = cardRefs.current[i];
         if (el) el.style.opacity = String(facingOpacity(facing(i, looks.length, angleRef.current)));
       }
+      syncFront();
     };
     apply();
 
@@ -133,7 +151,7 @@ export function HeroCylinder() {
       io.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [looks.length]);
+  }, [looks.length, syncFront]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     dragRef.current = { startX: e.clientX, startAngle: angleRef.current };
@@ -148,6 +166,7 @@ export function HeroCylinder() {
       const el = cardRefs.current[i];
       if (el) el.style.opacity = String(facingOpacity(facing(i, looks.length, angleRef.current)));
     }
+    syncFront();
   };
   const endDrag = () => {
     if (!dragRef.current) return;
@@ -185,7 +204,16 @@ export function HeroCylinder() {
                 <span className="shrink-0 rounded-full bg-[#FFA946] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#141412]">Trending</span>
               </div>
               <div className="mt-2">
-                <AnimatedTemplatePreview look={look} poster={<CylinderPoster look={look} />} />
+                {i === front ? (
+                  <AnimatedTemplatePreview look={look} poster={<CylinderPoster look={look} />} />
+                ) : (
+                  // Poster only (same box, same layout): only the front card requests a
+                  // slot — every ring card always intersects, so all of them holding
+                  // slots jammed the budget and the front card never went live.
+                  <div className="relative aspect-[8/3] overflow-hidden bg-black" aria-hidden>
+                    <CylinderPoster look={look} />
+                  </div>
+                )}
               </div>
               <div className="flex flex-wrap gap-1.5 px-3 py-2.5">
                 {(look.tags ?? []).slice(0, 2).map((t) => (

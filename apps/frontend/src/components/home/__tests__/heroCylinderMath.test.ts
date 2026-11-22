@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AUTO_DEG_PER_MS, RESUME_AFTER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, facingOpacity, shouldResumeAutoRotate, stepDeg } from "../heroCylinderMath";
+import { AUTO_DEG_PER_MS, RESUME_AFTER_MS, cardTransform, cylinderRadius, dragDeltaDeg, facing, facingOpacity, frontIndex, shouldResumeAutoRotate, stepDeg } from "../heroCylinderMath";
 
 describe("hero cylinder geometry", () => {
   it("spaces 10 trending cards evenly around the ring", () => {
@@ -25,6 +25,27 @@ describe("hero cylinder geometry", () => {
     expect(facing(0, 10, 180)).toBeCloseTo(-1);
     expect(facing(0, 10, 360)).toBeCloseTo(1);
     expect(facing(5, 10, 0)).toBeCloseTo(-1);
+  });
+
+  it("frontIndex is the card facing dead ahead (the argmax of facing)", () => {
+    for (const count of [10, 12, 14]) {
+      for (let deg = 0; deg < 360; deg += 3) {
+        // The nearest card sits at most half a step away: facing >= cos(step/2),
+        // which is cos(18deg) ~= 0.951 for the widest (10-card) ring.
+        const f = frontIndex(count, deg);
+        expect(facing(f, count, deg)).toBeGreaterThan(0.95);
+      }
+    }
+    expect(frontIndex(10, 0)).toBe(0);
+    expect(frontIndex(10, 36)).toBe(9);
+    expect(frontIndex(10, -36)).toBe(1);
+    expect(frontIndex(10, 180)).toBe(5);
+    expect(frontIndex(10, 360)).toBe(0);
+    expect(frontIndex(0, 0)).toBe(0);
+    // Exact half-step rotations tie two cards (same facing); either is front — the
+    // round-half-up tie-break just picks the next one. Assert the tie, not the winner.
+    expect(facing(6, 10, 126)).toBeCloseTo(facing(7, 10, 126));
+    expect([6, 7]).toContain(frontIndex(10, 126));
   });
 
   it("opacity keeps backs readable as depth, never as competition", () => {

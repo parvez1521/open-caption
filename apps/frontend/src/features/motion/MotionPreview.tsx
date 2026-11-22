@@ -89,9 +89,10 @@ export const MotionPreview: React.FC<MotionPreviewProps> = ({ item, assetSrc, ti
       return;
     }
     let granted = false;
-    const grant = () => {
+    const grant = (): boolean => {
       granted = true;
       setLive(true);
+      return true;
     };
     if (acquireLivePreviewSlot("social", grant)) grant();
     return () => {

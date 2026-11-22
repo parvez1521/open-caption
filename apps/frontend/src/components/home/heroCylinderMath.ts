@@ -28,6 +28,20 @@ export const facing = (index: number, count: number, rotationDeg: number): numbe
   return Math.cos((deg * Math.PI) / 180);
 };
 
+/**
+ * Which card faces dead ahead for a given ring rotation: the card whose own rotation best
+ * cancels the ring's, i.e. (rotationDeg + index * step) nearest 0 mod 360. The hero only
+ * mounts the live preview on this one card (HeroCylinder.tsx) — every ring card always
+ * intersects the viewport (they rotate in place, never leave it), so letting all of them
+ * request slots jammed the shared budget and the front card never went live.
+ */
+export const frontIndex = (count: number, rotationDeg: number): number => {
+  if (count <= 0) return 0;
+  const step = stepDeg(count);
+  const raw = Math.round(-rotationDeg / step) % count;
+  return (raw + count) % count;
+};
+
 /** Card opacity from facing: front 1, edge-on 0.45, back 0.15. */
 export const facingOpacity = (f: number): number => (f >= 0 ? 0.45 + 0.55 * f : 0.15);
 

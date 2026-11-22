@@ -112,9 +112,10 @@ const AnimatedSocialPreviewInner: React.FC<{ variant: OverlaySocialVariant }> = 
       return;
     }
     let granted = false;
-    const grant = () => {
+    const grant = (): boolean => {
       granted = true;
       setLive(true);
+      return true;
     };
     if (acquireLivePreviewSlot("social", grant)) grant();
     return () => {
