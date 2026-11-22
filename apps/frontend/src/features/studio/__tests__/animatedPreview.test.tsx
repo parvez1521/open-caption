@@ -29,6 +29,11 @@ class FakeIO {
     this.cb([{ isIntersecting, target: el } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
   }
   static setVisible(el: Element, v: boolean) {
+    // Keep geometry in sync with the driven visibility: fix v2 revalidates from
+    // rects (periodic interval + scroll sweep), so a rect left at its default would
+    // resurrect a card the test just hid. Unlisted cards keep the FAR default — on
+    // the real page most cards start below the fold.
+    rects.set(el, v ? { ...NEAR_RECT } : { ...FAR_RECT });
     for (const io of FakeIO.instances) io.fire(el, v);
   }
 }
@@ -42,14 +47,30 @@ const liveLayers = (root: HTMLElement) => root.querySelectorAll('div[style*="108
 
 function setup() {
   FakeIO.instances = [];
+  rects.clear();
   const g = globalThis as unknown as Record<string, unknown>;
   g["IntersectionObserver"] = FakeIO;
   g["ResizeObserver"] = FakeRO;
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get() { return 320; } });
+  // Per-element geometry: fix v2 revalidates from getBoundingClientRect (periodic
+  // interval + scroll sweep), so tests must drive it — otherwise the interval reads
+  // every card as visible (jsdom zero rects count as near) and resurrects cards the
+  // test hid. IO-driven visibility is mirrored into rects by FakeIO.setVisible above.
+  Object.defineProperty(Element.prototype, "getBoundingClientRect", {
+    configurable: true,
+    value: function (this: Element) {
+      return rects.get(this) ?? { ...FAR_RECT };
+    },
+  });
 }
+
+const rects = new Map<Element, { top: number; bottom: number; left: number; right: number; width: number; height: number }>();
+const NEAR_RECT = { top: 0, bottom: 100, left: 0, right: 320, width: 320, height: 100 };
+const FAR_RECT = { top: 5000, bottom: 5100, left: 0, right: 320, width: 320, height: 100 };
 
 afterEach(() => {
   FakeIO.instances = [];
+  rects.clear();
 });
 
 describe("AnimatedTemplatePreview live-slot lifecycle", () => {

@@ -33,6 +33,11 @@ class FakeIO {
     this.cb([{ isIntersecting, target: el } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
   }
   static setVisible(el: Element, v: boolean) {
+    // Keep geometry in sync with the driven visibility: fix v2 revalidates from
+    // rects (periodic interval + scroll sweep), so a rect left at its default would
+    // resurrect a card the test just hid, or hide one it just showed. Unlisted cards
+    // keep the FAR default — on the real page most cards start below the fold.
+    rects.set(el, v ? { ...NEAR_RECT } : { ...FAR_RECT });
     for (const io of FakeIO.instances) io.fire(el, v);
   }
 }
@@ -50,12 +55,14 @@ function setup() {
   g["ResizeObserver"] = FakeRO;
   Object.defineProperty(HTMLElement.prototype, "clientWidth", { configurable: true, get() { return 320; } });
   // Per-element geometry: the fix's grant check and scroll sweep read getBoundingClientRect,
-  // so tests drive it explicitly. Unlisted elements default to NEAR — the old tests never
-  // mock layout and must keep passing (a grant for an unlaid-out box is accepted).
+  // so tests drive it explicitly. Unlisted elements default to FAR — fix v2 also
+  // revalidates from rects on a ~1s interval, so a NEAR default would mark every card
+  // visible and resurrect cards the test hid; IO-driven visibility is mirrored into
+  // rects by FakeIO.setVisible above, and geometry tests set rects explicitly.
   Object.defineProperty(Element.prototype, "getBoundingClientRect", {
     configurable: true,
     value: function (this: Element) {
-      return rects.get(this) ?? { ...NEAR_RECT };
+      return rects.get(this) ?? { ...FAR_RECT };
     },
   });
 }

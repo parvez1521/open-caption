@@ -3,8 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Page, Word } from "@capseasy/shared";
 import { PageView, loadFontFamily, measure, type LookDefinition } from "@capseasy/templates";
-import { acquireLivePreviewSlot, cancelLivePreviewWait, releaseLivePreviewSlot } from "./livePreviewBudget";
-import { isNearViewport, registerLivePreviewElement } from "./livePreviewVisibility";
+import { acquireLivePreviewSlot, cancelLivePreviewWait, queueLivePreviewWait, releaseLivePreviewSlot } from "./livePreviewBudget";
+import { isVisibleInViewport, registerLivePreviewElement, viewportDistancePx } from "./livePreviewVisibility";
 
 /**
  * Live animated template preview for the picker: instead of a pre-rendered clip (which only 39 templates
@@ -117,32 +117,47 @@ const AnimatedTemplatePreviewInner: React.FC<{ look: LookDefinition; poster: Rea
   // (The previous version never invoked the grant callback on the immediate-acquire path, so no
   // preview ever went live and the leaked slots starved every other card.)
   //
-  // Grant-time validation: a slot freed while this card was queued can be offered after the card
-  // already scrolled away (its exit signal / cleanup hasn't run yet). Decline it — the budget
-  // offers the slot to the next waiter instead of parking a live slot on an off-screen card.
-  // The same check runs on the immediate-acquire path: if the card is no longer near by the
-  // time the grant lands, the slot goes straight back.
+  // Grant-time validation (v2, strict): a freed slot goes only to a card ACTUALLY in
+  // the viewport, not one merely inside the 240px queueing margin — otherwise the slot
+  // parks just off-screen while visible cards wait. The grant therefore checks strict
+  // visibility (isVisibleInViewport, 0px margin) while `near` (queueing) keeps the
+  // 240px margin. If the immediate acquire's strict grant declines — the card is in
+  // the margin zone with a slot free — hand the slot back and QUEUE for the next
+  // release / interval drain instead of dropping the wait: `near` is already true, so
+  // no later flip would re-run this effect and the card would never go live when it
+  // scrolls into view.
   useEffect(() => {
     if (!near) {
       setLive(false);
       return;
     }
     let granted = false;
+    let queued = false;
+    const distance = (): number => {
+      const el = boxRef.current;
+      return el ? viewportDistancePx(el) : 0;
+    };
     const grant = (): boolean => {
       const el = boxRef.current;
-      if (el && !isNearViewport(el)) return false;
+      if (el && !isVisibleInViewport(el)) return false;
       granted = true;
       setLive(true);
       return true;
     };
-    if (acquireLivePreviewSlot("template", grant)) {
-      if (!grant()) releaseLivePreviewSlot("template");
+    if (acquireLivePreviewSlot("template", grant, distance)) {
+      if (!grant()) {
+        releaseLivePreviewSlot("template");
+        queueLivePreviewWait("template", grant, distance);
+        queued = true;
+      }
+    } else {
+      queued = true;
     }
     return () => {
       if (granted) {
         setLive(false);
         releaseLivePreviewSlot("template");
-      } else {
+      } else if (queued) {
         cancelLivePreviewWait("template", grant);
       }
     };

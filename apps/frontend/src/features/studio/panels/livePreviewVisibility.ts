@@ -9,23 +9,39 @@
  *
  *  - `isNearViewport` answers "is this element in or near the viewport right now?" from
  *    getBoundingClientRect, with the same 240px margin the observers use;
+ *  - `isVisibleInViewport` answers the stricter "is any part of it ACTUALLY visible?"
+ *    (0px margin) — a freed slot goes only to a card the user can see, never to one
+ *    parked in the queueing margin;
+ *  - `viewportDistancePx` is the gap from the viewport edge in pixels (0 when visible),
+ *    so the slot budget can grant the NEAREST waiter instead of the oldest;
  *  - every preview registers its box here; ONE shared, rAF-throttled scroll/resize sweep
  *    (a single window listener, capture phase so inner scroll containers are covered too)
  *    recomputes each registered card's geometry and corrects its `near` state when the
  *    geometry disagrees with it. Scroll is exactly when visibility changes, so a sweep
  *    on scroll is what re-assigns slots to the cards actually in view — even if no IO
  *    exit ever arrives for the cards that scrolled away.
- *  - the listener attaches on first registration and detaches when the registry empties,
- *    so pages without live previews pay nothing; the sweep only calls setNear when a
- *    card's computed visibility actually changed.
+ *  - v2: the sweep is NOT scroll-only any more. The live failure of v1 was that scroll
+ *    events evidently rarely reach the listener, so a scroll-driven sweep alone never
+ *    reassigns. A ~1s interval revalidates every registered card AND drains any free
+ *    slot to a visible waiter while any preview is registered; a sweep is also run
+ *    on visibilitychange back to visible (background tabs throttle rAF/timers).
+ *    (A sweep on registration was tried and dropped: it fires with unlaid-out rects
+ *    at mount and marks every card near before the observer ever reports.)
+ *  - the listeners and the interval attach on first registration and detach/clear when
+ *    the registry empties, so pages without live previews pay nothing; the sweep only
+ *    calls setNear when a card's computed visibility actually changed.
  *
  * Zero-size rects (an element not laid out yet, or jsdom in tests, where every rect is
- * 0x0 at the origin) count as near: a real preview box always has size once laid out,
- * and treating an unlaid-out box as far would decline every grant in tests and at
- * mount. IO remains the primary signal for genuinely hidden elements.
+ * 0x0 at the origin) count as near/visible with distance 0: a real preview box always
+ * has size once laid out, and treating an unlaid-out box as far would decline every
+ * grant in tests and at mount. IO remains the primary signal for genuinely hidden elements.
  */
 
+import { drainFreePreviewSlots } from "./livePreviewBudget";
+
 const NEAR_MARGIN_PX = 240;
+/** How often the periodic revalidation re-checks every registered card (fix v2). */
+export const REVALIDATE_INTERVAL_MS = 1000;
 
 export function isNearViewport(el: Element, margin: number = NEAR_MARGIN_PX): boolean {
   const r = el.getBoundingClientRect();
@@ -33,6 +49,23 @@ export function isNearViewport(el: Element, margin: number = NEAR_MARGIN_PX): bo
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   return r.bottom >= -margin && r.top <= vh + margin && r.right >= -margin && r.left <= vw + margin;
+}
+
+/** Is any part of the element actually in the viewport right now (0px margin)? */
+export function isVisibleInViewport(el: Element): boolean {
+  return isNearViewport(el, 0);
+}
+
+/**
+ * Pixels from the viewport edge; 0 when any part of the element is actually visible.
+ * Zero-size rects count as 0 (same convention as isNearViewport).
+ */
+export function viewportDistancePx(el: Element): number {
+  const r = el.getBoundingClientRect();
+  if (r.width === 0 && r.height === 0) return 0;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  return Math.max(0, -r.bottom, r.top - vh, -r.right, r.left - vw);
 }
 
 interface LivePreviewEntry {
@@ -44,6 +77,7 @@ interface LivePreviewEntry {
 const entries = new Map<Element, LivePreviewEntry>();
 let listening = false;
 let rafId = 0;
+let intervalId = 0;
 
 /** Recompute every registered card's visibility from its real rect; correct `near` where it disagrees. */
 export function revalidateLivePreviews(): void {
@@ -51,6 +85,12 @@ export function revalidateLivePreviews(): void {
     const computed = isNearViewport(entry.el);
     if (computed !== entry.getNear()) entry.setNear(computed);
   }
+}
+
+/** One periodic tick: revalidate geometry, then grant any free slot to a visible waiter. */
+function onPeriodicRevalidation(): void {
+  revalidateLivePreviews();
+  drainFreePreviewSlots();
 }
 
 function scheduleRevalidation(): void {
@@ -65,6 +105,14 @@ function scheduleRevalidation(): void {
   });
 }
 
+function handleVisibilityChange(): void {
+  // Background tabs throttle rAF and timers, so a returning tab can hold stale
+  // `near` state for seconds; revalidate the moment it becomes visible again.
+  if (typeof document !== "undefined" && document.visibilityState === "visible") {
+    scheduleRevalidation();
+  }
+}
+
 function ensureListening(): void {
   if (listening || typeof window === "undefined") return;
   listening = true;
@@ -72,6 +120,12 @@ function ensureListening(): void {
   // window down — so this also sees scrolls inside inner containers (e.g. the Studio panels).
   window.addEventListener("scroll", scheduleRevalidation, { passive: true, capture: true });
   window.addEventListener("resize", scheduleRevalidation, { passive: true });
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  // Periodic revalidation (fix v2): scroll events evidently rarely reach the listener
+  // live, so scroll alone can never be the only trigger. Re-check every second while
+  // any preview is registered; 150 getBoundingClientRect calls per tick is trivial,
+  // and the tick also drains any free slot to a visible waiter.
+  intervalId = window.setInterval(onPeriodicRevalidation, REVALIDATE_INTERVAL_MS);
 }
 
 function stopListening(): void {
@@ -82,8 +136,13 @@ function stopListening(): void {
     else window.clearTimeout(rafId);
     rafId = 0;
   }
+  if (intervalId !== 0) {
+    window.clearInterval(intervalId);
+    intervalId = 0;
+  }
   window.removeEventListener("scroll", scheduleRevalidation, { capture: true });
   window.removeEventListener("resize", scheduleRevalidation);
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
 }
 
 /**
