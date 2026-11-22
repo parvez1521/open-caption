@@ -199,26 +199,18 @@ describe("runCloudChat", () => {
     });
   });
 
-  it("asks for no reasoning (Gemma 4 thinks and can leave content empty)", async () => {
+  it("sends only model, messages, temperature and max_tokens — no reasoning_effort, no response_format", async () => {
     let sentBody: Record<string, unknown> = {};
     const fetchImpl = (async (_url: string, init?: RequestInit) => {
       sentBody = JSON.parse(String(init?.body));
       return jsonResponse(true, 200, { choices: [{ message: { content: "hook line" } }] });
     }) as unknown as typeof fetch;
     await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl });
-    expect(sentBody.reasoning_effort).toBe("none");
-  });
-
-  it("sends response_format json_object only when the caller asks for it", async () => {
-    let sentBody: Record<string, unknown> = {};
-    const fetchImpl = (async (_url: string, init?: RequestInit) => {
-      sentBody = JSON.parse(String(init?.body));
-      return jsonResponse(true, 200, { choices: [{ message: { content: "hook line" } }] });
-    }) as unknown as typeof fetch;
-    await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl, responseFormat: "json_object" });
-    expect(sentBody.response_format).toEqual({ type: "json_object" });
-    await runCloudChat({ system: "s", user: "u" }, { config: CONFIG, fetchImpl });
-    expect(sentBody.response_format).toBeUndefined();
+    // Both extra params are suspects for the live HTTP 400 on GPT-OSS
+    // (2026-11-22 09:46 IST, rejected in ~2s): reasoning_effort "none"
+    // is not in OpenAI's low/medium/high enum, and response_format was
+    // silently ignored by Gemma but may be rejected for this model.
+    expect(Object.keys(sentBody).sort()).toEqual(["max_tokens", "messages", "model", "temperature"]);
   });
 
   it("reads the answer from the reasoning field when content is empty", async () => {

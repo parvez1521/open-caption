@@ -182,16 +182,24 @@ interface ChatCompletionBody {
   choices?: { message?: ChatCompletionMessage; finish_reason?: unknown }[];
 }
 
-/** Gemma 4 thinks before it answers: on OpenAI-compatible endpoints it can
- * put its whole answer in a `reasoning` / `reasoning_content` field and
- * leave `content` empty (seen on Ollama's /v1/chat/completions for
- * gemma4:26b — GitHub ollama/ollama #15288 — where `reasoning_effort:
- * "none"` moved the answer back into `content`). Live on Workers AI
- * 2026-11-21 Gemma answered the AI Edit plan twice with an empty
- * completion after 26s/40s of generation — the thinking consumed the call
- * and `content` came back empty. So: ask for no reasoning, and read the
- * reasoning fields as a fallback in case the endpoint ignores the flag. */
-const REASONING_EFFORT_NONE = "none";
+/** Reasoning models can put their whole answer in a `reasoning` /
+ * `reasoning_content` field and leave `content` empty (seen on Ollama's
+ * /v1/chat/completions for gemma4:26b — GitHub ollama/ollama #15288).
+ * Live on Workers AI 2026-11-21 Gemma answered the AI Edit plan twice
+ * with an empty completion after 26s/40s of generation — the thinking
+ * consumed the call and `content` came back empty. So the reader below
+ * reads the reasoning fields as a fallback. Do NOT also send
+ * `reasoning_effort: "none"`: it was added for Gemma on 2026-11-21, but
+ * live on 2026-11-22 the endpoint answered the GPT-OSS plan call with
+ * HTTP 400 in ~2s — and "none" is not in OpenAI's reasoning_effort enum
+ * (low/medium/high), so it is a suspect for the rejection. Likewise do
+ * NOT send `response_format: json_object`: it was added for the planner
+ * on 2026-11-21, Gemma silently ignored it, and it is the other suspect
+ * for the same 400. The request body now carries ONLY model, messages,
+ * temperature and max_tokens — the exact shape of the owner's one
+ * successful GPT-OSS plan run (2026-11-21 17:21 IST, 8 visuals). The
+ * planner's JSON format is enforced by the prompt alone (the instruction
+ * sits in the user message, first and last line). */
 
 /**
  * One chat completion against Workers AI's OpenAI-compatible endpoint.
@@ -234,15 +242,6 @@ export async function runCloudChat(
     /** max attempts (transient retry included); defaults to 2. Callers with a
      *  tight serverless budget pass 1 and spend it all on one longer attempt. */
     maxAttempts?: number;
-    /** Ask the endpoint for JSON object mode (`response_format: json_object`).
-     * Only the AI Edit planner passes this: Gemma 4 answered the plan
-     * prompt twice on 2026-11-21 with a long Markdown bullet list
-     * (startsWith "*", ~4,300 chars, no fence, HTTP 200) instead of the
-     * JSON array the prompt asks for, so the parser found no array at all
-     * (kept 0, dropped 0). JSON mode constrains the reply to one object;
-     * the planner asks for {"plan": [...]}, which the parser already
-     * accepts. Other callers keep free-form text. */
-    responseFormat?: "json_object";
   } = {},
 ): Promise<string> {
   const config = opts.config !== undefined ? opts.config : cloudAiConfig();
@@ -275,7 +274,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 async function attemptCloudChat(
   prompt: { system: string; user: string },
   config: CloudAiConfig,
-  opts: { fetchImpl?: typeof fetch; timeoutMs?: number; maxTokens?: number; temperature?: number; responseFormat?: "json_object" },
+  opts: { fetchImpl?: typeof fetch; timeoutMs?: number; maxTokens?: number; temperature?: number },
 ): Promise<string> {
   const doFetch = opts.fetchImpl ?? fetch;
   const ctrl = new AbortController();
@@ -294,12 +293,12 @@ async function attemptCloudChat(
           ],
           temperature: opts.temperature ?? 0.8,
           max_tokens: opts.maxTokens ?? MAX_TOKENS,
-          // Gemma 4 thinks by default and can leave `content` empty (see
-          // REASONING_EFFORT_NONE above); ask for the answer directly.
-          reasoning_effort: REASONING_EFFORT_NONE,
-          // The planner alone asks for JSON object mode (see runCloudChat);
-          // other callers keep free-form text.
-          ...(opts.responseFormat !== undefined ? { response_format: { type: opts.responseFormat } } : {}),
+          // NOTHING else goes in this body. Two extra params were tried
+          // and both are suspects for a live HTTP 400 on GPT-OSS
+          // (2026-11-22 09:46 IST, rejected in ~2s): `reasoning_effort:
+          // "none"` ("none" is not in OpenAI's low/medium/high enum) and
+          // `response_format: json_object` (Gemma silently ignored it).
+          // The prompt alone carries the JSON format instruction.
         }),
         signal: ctrl.signal,
       });
@@ -314,9 +313,9 @@ async function attemptCloudChat(
     if (!res.ok) throw new CloudAiError(`The free AI service answered with HTTP ${res.status}.`, res.status, "http");
     const body = (await res.json().catch(() => null)) as ChatCompletionBody | null;
     // Some models answer content as text parts instead of one string —
-    // join the parts instead of calling the completion empty; Gemma 4 can
-    // also put its answer in a reasoning field with `content` empty, so
-    // read those fields too (see REASONING_EFFORT_NONE above).
+    // join the parts instead of calling the completion empty; a reasoning
+    // model can also put its answer in a reasoning field with `content`
+    // empty, so read those fields too (see the note above).
     const content = extractMessageText(body?.choices?.[0]?.message);
     if (!content.trim())
       throw new CloudAiError(

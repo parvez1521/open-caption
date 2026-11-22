@@ -42,6 +42,17 @@ import {
  * logs the parse outcome (answer length, kept/dropped counts, first
  * character, fenced or not — no text) so the next failure names whether
  * the model's JSON was unparseable or its items all failed validation.
+ *
+ * 2026-11-22 ~09:46 IST: after the model switched back to GPT-OSS 120B,
+ * both live plan calls failed with HTTP 400 from Cloudflare in ~2s —
+ * the endpoint rejected the request outright. The only params added
+ * since the owner's one successful GPT-OSS plan run (2026-11-21 17:21
+ * IST, 8 visuals) were `reasoning_effort: "none"` and
+ * `response_format: json_object`, so both are gone: the request body
+ * now carries only model, messages, temperature and max_tokens, and the
+ * planner's JSON format is enforced by the prompt alone (see
+ * aiEditPlanner.ts — the instruction sits in the user message, first
+ * and last line).
  */
 
 /** A full plan is at most 8 items (aiEditPlanner.ts) with prompts up to 500
@@ -90,9 +101,9 @@ export const POST = route(async (req: Request) => {
       maxTokens: PLAN_MAX_TOKENS,
       timeoutMs: PLAN_TIMEOUT_MS,
       maxAttempts: 1,
-      // Gemma answered the plan prompt with a Markdown bullet list twice
-      // (2026-11-21); JSON object mode constrains the reply to one object.
-      responseFormat: "json_object",
+      // No response_format here: it (with reasoning_effort "none") is a
+      // suspect for the live HTTP 400 on GPT-OSS (2026-11-22 09:46 IST).
+      // The prompt alone carries the JSON format instruction.
     });
   } catch (err) {
     const status = err instanceof CloudAiError ? err.status : undefined;

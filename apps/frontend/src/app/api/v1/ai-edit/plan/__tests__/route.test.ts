@@ -108,7 +108,8 @@ describe("POST /ai-edit/plan", () => {
     expect(body.data.plan).toHaveLength(1);
     expect(body.data.plan[0]?.kind).toBe("image");
     expect(ai.calls).toHaveLength(1);
-    expect(ai.calls[0]?.opts).toMatchObject({ temperature: 0.4, maxTokens: 1200, timeoutMs: 45000, maxAttempts: 1, responseFormat: "json_object" });
+    expect(ai.calls[0]?.opts).toMatchObject({ temperature: 0.4, maxTokens: 1200, timeoutMs: 45000, maxAttempts: 1 });
+    expect(ai.calls[0]?.opts).not.toHaveProperty("responseFormat");
     // No model or provider name ever leaks into the prompt.
     expect(ai.calls[0]?.system).not.toMatch(/gpt|groq|whisper/i);
     expect(ai.calls[0]?.user).not.toMatch(/gpt|groq|whisper/i);
