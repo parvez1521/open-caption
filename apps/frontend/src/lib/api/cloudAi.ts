@@ -98,6 +98,19 @@ export const CLOUD_AI_DEFAULT_MODEL = "@cf/openai/gpt-oss-120b";
 /** Display name for the default model (an operator-set CLOUDFLARE_AI_MODEL override shows its raw id instead). */
 export const CLOUD_AI_DEFAULT_MODEL_NAME = "GPT-OSS 120B";
 
+/** Text-to-image model for AI Edit visuals (server route, no visitor
+ * sign-in). FLUX.1 [schnell] is Cloudflare's flagship text-to-image
+ * model and was live on 2026-11-22 (live catalog, 52 models) — it was
+ * NOT in the 24 models retired on 2026-11-20 (those were SDXL and
+ * friends, whose recommended replacement is flux-2-klein-9b). It
+ * replaces Puter image generation, whose free monthly allowance was
+ * spent on 2026-11-21 ("Low Balance" on all 8 visuals) and whose Qwen
+ * Image switch was never proven free live. Same free 10,000 Neurons/day
+ * pool as the text planner, so the generate-image route caps it
+ * separately (see that route). */
+export const FLUX_IMAGE_MODEL = "@cf/black-forest-labs/flux-1-schnell";
+export const FLUX_IMAGE_MODEL_NAME = "FLUX.1 schnell";
+
 const WORKERS_AI_BASE = "https://api.cloudflare.com/client/v4/accounts";
 const TIMEOUT_MS = 25_000;
 /** Short batches only (hooks/ideas/captions): caps token spend well inside the free 10,000 Neurons/day. */
@@ -170,6 +183,78 @@ export function cloudAiStatus(env: CloudAiEnv = defaultEnv()): CloudAiStatus {
     model,
     modelName: model === CLOUD_AI_DEFAULT_MODEL ? CLOUD_AI_DEFAULT_MODEL_NAME : model,
   };
+}
+
+export interface CloudImageConfig {
+  apiKey: string;
+  /** The Workers AI `/ai/run/<model>` endpoint for FLUX.1 schnell. */
+  endpoint: string;
+}
+
+/**
+ * Null when CLOUDFLARE_ACCOUNT_ID or CLOUDFLARE_API_KEY is unset or blank —
+ * the image path simply does not exist then (same rule as the text path).
+ */
+export function cloudImageConfig(env: CloudAiEnv = defaultEnv()): CloudImageConfig | null {
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID?.trim();
+  const apiKey = env.CLOUDFLARE_API_KEY?.trim();
+  if (!accountId || !apiKey) return null;
+  return { apiKey, endpoint: `${WORKERS_AI_BASE}/${accountId}/ai/run/${FLUX_IMAGE_MODEL}` };
+}
+
+/** One FLUX.1 schnell image per call. Resolves with the base64 bytes and
+ * their mime type; throws CloudAiError on any failure (same kinds as the
+ * text path: "http" with a status, "timeout", "network", "empty"). No
+ * retry: every attempt costs Neurons from the shared free pool, and the
+ * caller (one image per plan item) already carries on with the rest.
+ * `fetchImpl`/`config` are injectable so tests never touch the network or
+ * a real token. The REST `/ai/run/` endpoint answers image models two
+ * ways — raw image bytes, or JSON wrapping the base64 under
+ * `result.image` — so both shapes are read. */
+const IMAGE_TIMEOUT_MS = 45_000;
+
+export async function runCloudImage(
+  prompt: string,
+  opts: { config?: CloudImageConfig | null; fetchImpl?: typeof fetch; timeoutMs?: number } = {},
+): Promise<{ imageBase64: string; mime: string }> {
+  const config = opts.config !== undefined ? opts.config : cloudImageConfig();
+  if (!config) throw new CloudAiError("The free AI service is not configured (Cloudflare credentials are unset).");
+  const doFetch = opts.fetchImpl ?? fetch;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? IMAGE_TIMEOUT_MS);
+  try {
+    let res: Response;
+    try {
+      res = await doFetch(config.endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, seed: Math.floor(Math.random() * 1_000_000) }),
+        signal: ctrl.signal,
+      });
+    } catch (err) {
+      if (ctrl.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
+        throw new CloudAiError("The free AI image request timed out.", undefined, "timeout");
+      }
+      throw new CloudAiError("The free AI image request failed before answering.", undefined, "network");
+    }
+    if (!res.ok) throw new CloudAiError(`The free AI service answered with HTTP ${res.status}.`, res.status, "http");
+    const contentType = res.headers?.get?.("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      const body = (await res.json().catch(() => null)) as { result?: { image?: unknown }; image?: unknown } | null;
+      const image = body?.result?.image ?? body?.image;
+      if (typeof image !== "string" || image.length === 0) {
+        throw new CloudAiError("The free AI service returned an empty image.", undefined, "empty");
+      }
+      return { imageBase64: image, mime: "image/jpeg" };
+    }
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.length === 0) {
+      throw new CloudAiError("The free AI service returned an empty image.", undefined, "empty");
+    }
+    return { imageBase64: Buffer.from(bytes).toString("base64"), mime: contentType.split(";")[0]?.trim() || "image/png" };
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 interface ChatCompletionMessage {

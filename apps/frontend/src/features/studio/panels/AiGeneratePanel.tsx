@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { Film, Image as ImageIcon } from "@/components/ui/icons";
-import { getPuter, PUTER_IMAGE_MODEL, puterErrorMessage } from "../../ai-generator/puter";
+import { getPuter, puterErrorMessage } from "../../ai-generator/puter";
 import { usePuterSdk } from "../../ai-generator/usePuterSdk";
 import { Button, Section } from "../controls";
 import { listProjectAssets } from "../mediaStore";
@@ -11,6 +11,7 @@ import type { ImportError } from "../useMediaAssets";
 import { aiEditStyleById, DEFAULT_AI_EDIT_STYLE_ID } from "../aiEditStyles";
 import {
   planImageDurationMs,
+  requestAiEditImage,
   requestAiEditPlan,
   segmentsOfTranscript,
   type AiEditPlanItem,
@@ -41,11 +42,14 @@ import { AiEditStyleChooser } from "./AiEditStyleChooser";
  * From there the panel runs the whole chain on its own: it listens to the
  * video in this tab (planning-only transcription, nothing saved as
  * captions), the free plan turns the transcript into per-segment prompts,
- * each visual generates with the visitor's OWN free Puter account
+ * each IMAGE generates on the server with the free FLUX model (no
+ * sign-in, no Puter — Puter's free allowance was spent on 2026-11-21),
+ * each VIDEO still generates with the visitor's own free Puter account
  * (User-Pays, never the owner's cost), and each one lands on the timeline
  * at its prompt's time. The plan is shown as it runs — nothing waits on a
  * review, and no step asks for another tap. A visual that fails is listed
- * with a retry; the rest carry on.
+ * with a retry; the rest carry on. A Puter sign-in is only ever asked for
+ * when a plan holds a video item.
  *
  * Images land as timed overlays, videos as B-roll segments, both through
  * the existing systems — so they show in the preview and burn into export
@@ -82,6 +86,8 @@ export interface AiGeneratePanelProps {
   onTranscribe?: () => void;
   /** Injected planner (default: the free server-side plan route). Tests pass a mock. */
   planRunner?: (req: AiEditPlanRequest) => Promise<{ plan: AiEditPlanItem[]; dropped: number }>;
+  /** Injected image generator (default: the free server-side FLUX route). Tests pass a mock. */
+  imageRunner?: (prompt: string) => Promise<{ imageDataUrl: string }>;
   /** Total video length in ms, when known (plan clamping). Falls back to the last transcript word. */
   durationMs?: number;
 }
@@ -127,6 +133,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
   transcript = { state: "idle", words: [] },
   onTranscribe,
   planRunner = requestAiEditPlan,
+  imageRunner = requestAiEditImage,
   durationMs,
 }) => {
   const { sdkStatus, signedIn, loadAttempt, signInError, retryLoad, signIn, refreshSignedIn, handleScriptLoad, handleScriptError } = usePuterSdk();
@@ -166,8 +173,9 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
 
   const copy = MODE_COPY[mode];
   const showSignIn = sdkStatus === "ready" && signedIn === false;
-  /** Generation needs the visitor's own free Puter account — upload, listen and plan run without it. */
-  const generationLocked = signedIn !== true;
+  /** Only VIDEO generation needs the visitor's Puter account — images run on the server. */
+  const planHasVideo = plan.some((it) => it.kind === "video");
+  const generationLocked = signedIn !== true && planHasVideo;
   const style = aiEditStyleById(styleId);
   const videoDurationMs = durationMs ?? (transcript.words.length > 0 ? Math.max(...transcript.words.map((w) => w.endMs)) : 0);
   const runActive = runPhase !== "idle" && runPhase !== "done";
@@ -237,22 +245,24 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     }
   }, []);
 
-  /** Generate one plan item's visual; returns the result, or throws with the message for that item. */
+  /** Generate one plan item's visual; returns the result, or throws with the message for that item.
+   * Images run on the server (free FLUX route, no sign-in); videos still
+   * need the visitor's Puter account (FLUX is image-only). */
   const generateItemResult = useCallback(async (item: AiEditPlanItem, runId: number) => {
-    const puter = getPuter();
-    if (!puter) throw new Error("The free generation service is not loaded yet.");
     const key = planKey(item);
     setItemStatus((prev) => ({ ...prev, [key]: "generating" }));
     setItemErrors((prev) => ({ ...prev, [key]: "" }));
     try {
       const fullPrompt = `${item.prompt}, ${style.promptSuffix}`;
       if (item.kind === "image") {
-        const image = await puter.ai.txt2img(fullPrompt, { model: PUTER_IMAGE_MODEL });
+        const { imageDataUrl } = await imageRunner(fullPrompt);
         if (runId !== runIdRef.current) throw new Error("__cancelled__");
-        if (!image?.src) throw new Error("No image came back. Try again.");
-        setItemResults((prev) => ({ ...prev, [key]: { mode: "image", src: image.src } }));
-        return { mode: "image" as AiGenerateMode, src: image.src };
+        if (!imageDataUrl) throw new Error("No image came back. Try again.");
+        setItemResults((prev) => ({ ...prev, [key]: { mode: "image", src: imageDataUrl } }));
+        return { mode: "image" as AiGenerateMode, src: imageDataUrl };
       }
+      const puter = getPuter();
+      if (!puter) throw new Error("The free generation service is not loaded yet.");
       const video = await puter.ai.txt2vid(fullPrompt, { seconds: AI_VIDEO_SECONDS, size: AI_VIDEO_SIZE });
       if (runId !== runIdRef.current) throw new Error("__cancelled__");
       if (!video?.src) throw new Error("No clip came back. Try again.");
@@ -268,7 +278,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     } finally {
       refreshSignedIn();
     }
-  }, [style, refreshSignedIn]);
+  }, [style, imageRunner, refreshSignedIn]);
 
   /** Import a generated file and place it on the timeline at a plan item's time. */
   const placeGenerated = useCallback(async (item: AiEditPlanItem, mode: AiGenerateMode, src: string, runId: number) => {
@@ -358,7 +368,9 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
       // throws first when it is empty), so "no clear speech" would be a
       // lie — the model answered but made nothing usable from them.
       if (items.length === 0) throw new Error("The free AI answered but made no visuals from this transcript. Try again.");
-      if (signedInRef.current !== true) {
+      // Images generate on the server with no sign-in; only a plan with
+      // a video item waits for the visitor's Puter sign-in.
+      if (items.some((it) => it.kind === "video") && signedInRef.current !== true) {
         setRunPhase("waiting-signin");
         await waitForSignIn(runId);
       }
@@ -381,12 +393,14 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     runIdRef.current = runId;
     setRunError("");
     try {
-      if (signedInRef.current !== true) {
+      const failed = plan.filter((it) => failedKeys.includes(planKey(it)));
+      // Only a failed video item needs the Puter sign-in; failed images
+      // retry on the server straight away.
+      if (failed.some((it) => it.kind === "video") && signedInRef.current !== true) {
         setRunPhase("waiting-signin");
         await waitForSignIn(runId);
       }
       setRunPhase("generating");
-      const failed = plan.filter((it) => failedKeys.includes(planKey(it)));
       setItemStatus((prev) => ({ ...prev, ...Object.fromEntries(failed.map((it) => [planKey(it), "queued" as ItemStatus])) }));
       await runItems(failed, runId);
       if (runId !== runIdRef.current) return;
@@ -405,8 +419,6 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
   }, []);
 
   const generate = useCallback(async () => {
-    const puter = getPuter();
-    if (!puter) return;
     const problem = validateAiGeneratePrompt(prompt);
     if (problem) {
       setValidation(problem);
@@ -420,13 +432,16 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     setBusy(true);
     try {
       if (mode === "image") {
-        const image = await puter.ai.txt2img(prompt.trim(), { model: PUTER_IMAGE_MODEL });
-        if (!image?.src) {
+        // Images run on the server — no Puter sign-in needed.
+        const { imageDataUrl } = await imageRunner(prompt.trim());
+        if (!imageDataUrl) {
           setError("No image came back. Try again.");
         } else {
-          setResult({ mode, src: image.src });
+          setResult({ mode, src: imageDataUrl });
         }
       } else {
+        const puter = getPuter();
+        if (!puter) return;
         const video = await puter.ai.txt2vid(prompt.trim(), { seconds: AI_VIDEO_SECONDS, size: AI_VIDEO_SIZE });
         if (!video?.src) {
           setError("No clip came back. Try again.");
@@ -440,7 +455,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
       setBusy(false);
       refreshSignedIn();
     }
-  }, [mode, prompt, refreshSignedIn]);
+  }, [mode, prompt, imageRunner, refreshSignedIn]);
 
   const addToTimeline = useCallback(async () => {
     if (!result || adding) return;
@@ -494,7 +509,7 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
     <div className="h-full overflow-y-auto">
       <Script key={loadAttempt} src="https://js.puter.com/v2/" strategy="afterInteractive" onLoad={handleScriptLoad} onError={handleScriptError} />
       <Section title="AI Edit" hint="Upload a video, pick a look — the visuals plan themselves, generate, and land on your timeline.">
-        {sdkStatus === "failed" ? (
+        {sdkStatus === "failed" && (mode === "video" || planHasVideo) ? (
           <div role="alert" className="rounded-lg border border-st-or/60 bg-st-or/15 px-3 py-2 text-sm text-st-text">
             <p>The free generation service could not be loaded — check your connection and try again.</p>
             <Button tone="ghost" onClick={retryLoad} className="mt-2">Try loading again</Button>
@@ -666,13 +681,13 @@ export const AiGeneratePanel: React.FC<AiGeneratePanelProps> = ({
                 <button
                   type="button"
                   onClick={() => void generate()}
-                  disabled={busy || adding || sdkStatus !== "ready" || signedIn !== true}
+                  disabled={busy || adding || (mode === "video" && (sdkStatus !== "ready" || signedIn !== true))}
                   className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-full bg-st-em px-6 py-3 font-sora text-[14px] font-bold text-[#0B1512] disabled:opacity-50"
                 >
                   {busy ? copy.waiting : copy.button}
                 </button>
-                {sdkStatus === "loading" ? <p className="mt-2 text-xs text-st-faint">Loading the free generation service…</p> : null}
-                {showSignIn && runPhase !== "waiting-signin" ? (
+                {mode === "video" && sdkStatus === "loading" ? <p className="mt-2 text-xs text-st-faint">Loading the free generation service…</p> : null}
+                {mode === "video" && showSignIn && runPhase !== "waiting-signin" ? (
                   <>
                     <p className="mt-2 text-xs text-st-faint">Sign in with your own free Puter account to generate — Captionit charges nothing.</p>
                     <button

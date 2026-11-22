@@ -4,6 +4,7 @@ import {
   extractPlanJson,
   parsePlannerResponse,
   planImageDurationMs,
+  requestAiEditImage,
   requestAiEditPlan,
   segmentsOfTranscript,
   type AiEditPlanClient,
@@ -137,6 +138,22 @@ describe("requestAiEditPlan", () => {
   it("throws a plain message when the free AI service is not switched on", async () => {
     const post = vi.fn(async () => ({ configured: false })) as unknown as AiEditPlanClient["post"];
     await expect(requestAiEditPlan(req, { post })).rejects.toThrow("not switched on");
+  });
+});
+
+describe("requestAiEditImage", () => {
+  it("posts the prompt to the app API (never raw fetch) and returns the data URL", async () => {
+    const post = vi.fn(async () => ({ configured: true, imageDataUrl: "data:image/jpeg;base64,AAA" })) as unknown as AiEditPlanClient["post"];
+    const out = await requestAiEditImage("a sunrise", { post });
+    expect(post).toHaveBeenCalledWith("/ai-edit/generate-image", expect.objectContaining({ json: { prompt: "a sunrise" } }));
+    expect(out.imageDataUrl).toBe("data:image/jpeg;base64,AAA");
+  });
+
+  it("throws a plain message when the free AI service is not switched on, or no image came back", async () => {
+    const off = vi.fn(async () => ({ configured: false })) as unknown as AiEditPlanClient["post"];
+    await expect(requestAiEditImage("a sunrise", { post: off })).rejects.toThrow("not switched on");
+    const empty = vi.fn(async () => ({ configured: true })) as unknown as AiEditPlanClient["post"];
+    await expect(requestAiEditImage("a sunrise", { post: empty })).rejects.toThrow("No image came back");
   });
 });
 

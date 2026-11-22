@@ -228,6 +228,27 @@ export async function requestAiEditPlan(
   return parsePlannerResponse(res.plan ?? [], { durationMs: req.durationMs });
 }
 
+/**
+ * Ask the server to draw one image. Same authed apiClient; the server
+ * route (`/api/v1/ai-edit/generate-image`) runs Cloudflare FLUX.1 schnell
+ * — no visitor sign-in, no Puter. Returns the image as a data URL, which
+ * the panel fetches and imports like any generated file. Throws a plain
+ * message when the service is not switched on or no image came back.
+ */
+export async function requestAiEditImage(
+  prompt: string,
+  client: AiEditPlanClient = apiClient,
+): Promise<{ imageDataUrl: string }> {
+  const res = await client.post<{ configured: boolean; imageDataUrl?: unknown }>(`/ai-edit/generate-image`, {
+    json: { prompt },
+  });
+  if (!res.configured) throw new Error("The free AI service is not switched on yet, so no image can be made.");
+  if (typeof res.imageDataUrl !== "string" || res.imageDataUrl.length === 0) {
+    throw new Error("No image came back. Try again.");
+  }
+  return { imageDataUrl: res.imageDataUrl };
+}
+
 /** The overlay length for a planned image: its planned span, capped at 10s so one image never hogs the timeline. */
 export function planImageDurationMs(item: AiEditPlanItem): number {
   return Math.min(Math.max(item.endMs - item.startMs, AI_EDIT_PLAN_MIN_MS), 10_000);

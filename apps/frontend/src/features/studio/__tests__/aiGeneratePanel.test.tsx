@@ -21,11 +21,9 @@ const mockSdk = {
 };
 vi.mock("../../ai-generator/usePuterSdk", () => ({ usePuterSdk: () => mockSdk }));
 
-const txt2img = vi.fn(async (_prompt: string) => ({ src: "https://example.invalid/gen.png" }));
 const txt2vid = vi.fn(async (_prompt: string, _opts: unknown) => ({ src: "https://example.invalid/gen.mp4" }));
 vi.mock("../../ai-generator/puter", () => ({
-  getPuter: () => ({ ai: { txt2img, txt2vid }, auth: { isSignedIn: () => mockSdk.signedIn } }),
-  PUTER_IMAGE_MODEL: "qwen/qwen-image",
+  getPuter: () => ({ ai: { txt2vid }, auth: { isSignedIn: () => mockSdk.signedIn } }),
   puterErrorMessage: (err: unknown) => (err instanceof Error ? err.message : "Puter failed."),
 }));
 
@@ -68,6 +66,7 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof AiGeneratePa
     transcript: READY_TRANSCRIPT,
     onTranscribe: vi.fn(),
     planRunner: vi.fn(async () => ({ plan: PLAN, dropped: 0 })),
+    imageRunner: vi.fn(async () => ({ imageDataUrl: "data:image/png;base64,AAA" })),
     durationMs: 20_000,
     ...overrides,
   };
@@ -113,7 +112,7 @@ describe("AiGeneratePanel — one tap runs the whole chain", () => {
     );
 
     await waitFor(() => expect(screen.getByText(/2 visuals on your timeline/)).toBeTruthy(), { timeout: 5000 });
-    expect(txt2img).toHaveBeenCalledWith(expect.stringContaining("a sunrise over hills"), { model: "qwen/qwen-image" });
+    expect(props.imageRunner).toHaveBeenCalledWith(expect.stringContaining("a sunrise over hills"));
     expect(txt2vid).toHaveBeenCalledWith(expect.stringContaining("a forest at dawn"), expect.anything());
     expect(props.onImportMedia).toHaveBeenCalledTimes(2);
     expect(props.onPlaceImageAt).toHaveBeenCalledWith({ id: "asset-1", name: expect.stringContaining("AI image") }, 0);
@@ -124,6 +123,20 @@ describe("AiGeneratePanel — one tap runs the whole chain", () => {
     vi.unstubAllGlobals();
   });
 
+  it("an image-only plan generates with no sign-in at all — only video waits for Puter", async () => {
+    mockSdk.signedIn = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, blob: async () => new Blob(["bytes"], { type: "image/png" }) })),
+    );
+    const { props } = renderPanel({ planRunner: vi.fn(async () => ({ plan: [PLAN[0]!], dropped: 0 })) });
+    fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
+    await waitFor(() => expect(screen.getByText(/1 visual on your timeline/)).toBeTruthy(), { timeout: 5000 });
+    expect(props.imageRunner).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Sign in with Puter" })).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it("listens and plans without sign-in, then waits for sign-in and resumes generating on its own", async () => {
     mockSdk.signedIn = false;
     vi.stubGlobal(
@@ -131,17 +144,18 @@ describe("AiGeneratePanel — one tap runs the whole chain", () => {
       vi.fn(async () => ({ ok: true, blob: async () => new Blob(["bytes"], { type: "image/png" }) })),
     );
     const { props, rerender } = renderPanel();
-    const imgCallsBefore = txt2img.mock.calls.length;
+    const imageRunnerMock = props.imageRunner as unknown as { mock: { calls: unknown[][] } };
+    const imgCallsBefore = imageRunnerMock.mock.calls.length;
     fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
     await waitFor(() => expect(screen.getByText("a sunrise over hills")).toBeTruthy(), { timeout: 5000 });
     expect(screen.getByRole("button", { name: "Sign in with Puter" })).toBeTruthy();
-    expect(txt2img.mock.calls.length).toBe(imgCallsBefore);
+    expect(imageRunnerMock.mock.calls.length).toBe(imgCallsBefore);
 
     mockSdk.signedIn = true;
     rerender(<AiGeneratePanel {...props} />);
     // the waiting chain notices the sign-in on the next poll and carries on by itself.
     await waitFor(() => expect(screen.getByText(/2 visuals on your timeline/)).toBeTruthy(), { timeout: 5000 });
-    expect(txt2img.mock.calls.length).toBe(imgCallsBefore + 1);
+    expect(imageRunnerMock.mock.calls.length).toBe(imgCallsBefore + 1);
     vi.unstubAllGlobals();
   });
 
@@ -169,12 +183,13 @@ describe("AiGeneratePanel — one tap runs the whole chain", () => {
       "fetch",
       vi.fn(async () => ({ ok: true, blob: async () => new Blob(["bytes"], { type: "image/png" }) })),
     );
-    txt2img.mockRejectedValueOnce(new Error("Puter failed."));
-    const { props } = renderPanel();
+    const imageRunner = vi.fn(async () => ({ imageDataUrl: "data:image/png;base64,AAA" }));
+    imageRunner.mockRejectedValueOnce(new Error("Image failed."));
+    const { props } = renderPanel({ imageRunner });
     fireEvent.click(screen.getByRole("button", { name: "Create visuals" }));
     await waitFor(() => expect(screen.getByText(/1 visual on your timeline — 1 failed/)).toBeTruthy(), { timeout: 5000 });
     expect(props.onInsertVideo).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/Puter failed/)).toBeTruthy();
+    expect(screen.getByText(/Image failed/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: "Retry 1 failed visual" }));
     await waitFor(() => expect(screen.getByText(/2 visuals on your timeline/)).toBeTruthy(), { timeout: 5000 });

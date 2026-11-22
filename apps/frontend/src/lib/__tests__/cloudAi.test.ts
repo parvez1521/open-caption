@@ -2,12 +2,17 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { CloudAiError, cloudAiConfig, cloudAiStatus, runCloudChat } from "../api/cloudAi";
+import { CloudAiError, cloudAiConfig, cloudAiStatus, cloudImageConfig, runCloudChat, runCloudImage } from "../api/cloudAi";
 
 const CONFIG = {
   apiKey: "cf_test_token",
   model: "@cf/openai/gpt-oss-120b",
   endpoint: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/v1/chat/completions",
+};
+
+const IMAGE_CONFIG = {
+  apiKey: "cf_test_token",
+  endpoint: "https://api.cloudflare.com/client/v4/accounts/test-acct/ai/run/@cf/black-forest-labs/flux-1-schnell",
 };
 
 const jsonResponse = (ok: boolean, status: number, body: unknown): Response =>
@@ -247,5 +252,76 @@ describe("runCloudChat", () => {
       reasoningContentType: "empty-string",
       reasoningType: "undefined",
     });
+  });
+});
+
+describe("cloudImageConfig + runCloudImage", () => {
+  it("builds the FLUX /ai/run endpoint from the same credentials", () => {
+    expect(cloudImageConfig({})).toBeNull();
+    expect(cloudImageConfig({ CLOUDFLARE_ACCOUNT_ID: "acct-1", CLOUDFLARE_API_KEY: "tok" })?.endpoint).toBe(
+      "https://api.cloudflare.com/client/v4/accounts/acct-1/ai/run/@cf/black-forest-labs/flux-1-schnell",
+    );
+  });
+
+  it("reads a JSON-wrapped base64 image", async () => {
+    const fetchImpl = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: async () => ({ result: { image: "aGVsbG8=" } }),
+      }) as unknown as Response) as unknown as typeof fetch;
+    const out = await runCloudImage("a cat", { config: IMAGE_CONFIG, fetchImpl });
+    expect(out).toEqual({ imageBase64: "aGVsbG8=", mime: "image/jpeg" });
+  });
+
+  it("reads raw image bytes and keeps their mime type", async () => {
+    const bytes = new TextEncoder().encode("fake-png-bytes");
+    const fetchImpl = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: { get: () => "image/png" },
+        arrayBuffer: async () => bytes.buffer,
+      }) as unknown as Response) as unknown as typeof fetch;
+    const out = await runCloudImage("a cat", { config: IMAGE_CONFIG, fetchImpl });
+    expect(out.mime).toBe("image/png");
+    expect(out.imageBase64).toBe(Buffer.from(bytes).toString("base64"));
+  });
+
+  it("maps an HTTP error to its status and kind", async () => {
+    const fetchImpl = (async () => jsonResponse(false, 410, {})) as unknown as typeof fetch;
+    await expect(runCloudImage("a cat", { config: IMAGE_CONFIG, fetchImpl })).rejects.toMatchObject({
+      status: 410,
+      kind: "http",
+    });
+  });
+
+  it("names a timeout instead of collapsing it into unknown", async () => {
+    const hanging = (async (_url: string, init?: RequestInit) => {
+      await new Promise<void>((_, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+      return jsonResponse(true, 200, {});
+    }) as unknown as typeof fetch;
+    await expect(runCloudImage("a cat", { config: IMAGE_CONFIG, fetchImpl: hanging, timeoutMs: 5 })).rejects.toMatchObject({
+      kind: "timeout",
+    });
+  });
+
+  it("calls an empty image empty, not a success", async () => {
+    const fetchImpl = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: async () => ({ result: { image: "" } }),
+      }) as unknown as Response) as unknown as typeof fetch;
+    await expect(runCloudImage("a cat", { config: IMAGE_CONFIG, fetchImpl })).rejects.toMatchObject({ kind: "empty" });
+  });
+
+  it("throws without configuration", async () => {
+    const fetchImpl = (async () => jsonResponse(true, 200, {})) as unknown as typeof fetch;
+    await expect(runCloudImage("a cat", { config: null, fetchImpl })).rejects.toBeInstanceOf(CloudAiError);
   });
 });
