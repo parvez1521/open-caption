@@ -98,7 +98,7 @@ beforeEach(() => {
 });
 
 describe("POST /ai-edit/plan", () => {
-  it("returns a validated plan and asks for a 1200-token cap, one 45s attempt (8 items fit)", async () => {
+  it("returns a validated plan and asks for a 2000-token cap, one 45s attempt (8 items fit)", async () => {
     const res = await ask(validBody);
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
@@ -108,14 +108,14 @@ describe("POST /ai-edit/plan", () => {
     expect(body.data.plan).toHaveLength(1);
     expect(body.data.plan[0]?.kind).toBe("image");
     expect(ai.calls).toHaveLength(1);
-    expect(ai.calls[0]?.opts).toMatchObject({ temperature: 0.4, maxTokens: 1200, timeoutMs: 45000, maxAttempts: 1 });
+    expect(ai.calls[0]?.opts).toMatchObject({ temperature: 0.4, maxTokens: 2000, timeoutMs: 45000, maxAttempts: 1 });
     expect(ai.calls[0]?.opts).not.toHaveProperty("responseFormat");
     // No model or provider name ever leaks into the prompt.
     expect(ai.calls[0]?.system).not.toMatch(/gpt|groq|whisper/i);
     expect(ai.calls[0]?.user).not.toMatch(/gpt|groq|whisper/i);
   });
 
-  it("logs the parse outcome on success (answer length, kept/dropped, 400-char preview)", async () => {
+  it("logs the parse outcome on success (answer length, kept/dropped, 400-char preview + 200-char tail)", async () => {
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
     try {
       const res = await ask(validBody);
@@ -131,10 +131,13 @@ describe("POST /ai-edit/plan", () => {
       expect(line.startsWith).toBe("[");
       expect(line.hasFence).toBe(false);
       expect(typeof line.answerLength).toBe("number");
-      // TEMPORARY diagnostic preview (see route comment): the first 400
-      // chars of the model's plan text, so the bullet format can be read.
+      // TEMPORARY diagnostic preview + tail (see route comment): the
+      // first 400 chars and last 200 chars of the model's plan text, so
+      // a truncated or malformed answer can be read from the log.
       expect(typeof line.preview).toBe("string");
       expect((line.preview as string).length).toBeLessThanOrEqual(400);
+      expect(typeof line.tail).toBe("string");
+      expect((line.tail as string).length).toBeLessThanOrEqual(200);
     } finally {
       infoSpy.mockRestore();
     }

@@ -58,12 +58,18 @@ import {
 /** A full plan is at most 8 items (aiEditPlanner.ts) with prompts up to 500
  *  chars each — the shared 700-token default would truncate it mid-JSON,
  *  so the planner asks for a larger cap (8 items x ~150 tokens).
- *  The cap used to be 12 items / 2000 tokens, but the live test project
- *  timed out twice at 25s per attempt on 2026-11-21 (two attempts, ~60s,
- *  "could not be reached") — a 2000-token reply does not finish inside the
- *  25s budget on the shared free tier. One 45s attempt for a shorter plan
- *  fits the route's serverless budget instead. */
-const PLAN_MAX_TOKENS = 1200;
+ *  The cap was cut to 1200 on 2026-11-21 because a 2000-token reply did
+ *  not finish inside the 25s budget on the shared free tier — but live on
+ *  2026-11-22 GPT-OSS answered in 14s/23s with the 1200 cap AND the
+ *  answers came back short (1018/1433 chars) with kept 0, dropped 0:
+ *  the JSON was cut off mid-item. GPT-OSS is a reasoning model, so the
+ *  token budget likely covers its hidden reasoning as well as the visible
+ *  answer — 1200 leaves too little for the JSON itself. The cap goes back
+ *  to 2000 (the budget of the owner's one successful GPT-OSS plan run,
+ *  2026-11-21 17:21 IST, 8 visuals) now that the route has one 45s
+ *  attempt. If the answer is still short, the tail in the success log
+ *  (below) will say whether it was cut off or malformed. */
+const PLAN_MAX_TOKENS = 2000;
 /** One long attempt, not two short ones: the retry would push the route
  *  past its serverless budget (see cloudAi.ts). */
 const PLAN_TIMEOUT_MS = 45_000;
@@ -155,13 +161,12 @@ export const POST = route(async (req: Request) => {
   // was unparseable (long answer, kept 0, dropped 0) or its items all
   // failed validation (dropped > 0, e.g. seconds instead of milliseconds,
   // overlapping spans, missing kind/prompt). The preview is the first 400
-  // characters of the model's own plan text (no transcript) — added after
-  // the 23:50 IST retest showed Gemma STILL answers with a Markdown bullet
-  // list (~4,200 chars, startsWith "*") even with response_format
-  // json_object, which the endpoint silently ignores for this model. The
-  // bullet format is the one thing left unseen, and a parser for it can
-  // only be written once it is known. TEMPORARY diagnostic: remove the
-  // preview once the bullet parser lands.
+  // characters of the model's own plan text (no transcript); the tail is
+  // the last 200 — together they name the failure: a tail cut off
+  // mid-string/mid-object means the token budget truncated the JSON,
+  // while a tail ending in `]}` means the JSON was complete but malformed
+  // inside. TEMPORARY diagnostics: remove preview + tail once plans parse
+  // reliably.
   const trimmed = answer.trim();
   console.info(
     JSON.stringify({
@@ -173,6 +178,7 @@ export const POST = route(async (req: Request) => {
       startsWith: trimmed.slice(0, 1),
       hasFence: answer.includes("```"),
       preview: trimmed.slice(0, 400),
+      tail: trimmed.slice(-200),
     }),
   );
   return ok({ configured: true as const, plan, dropped });
