@@ -5,6 +5,8 @@ import Link from "next/link";
 import { PLAN_PRICING, PLANS, pricingFor, type PlanId } from "@capseasy/shared";
 import { priceLabel, type DisplayCurrency } from "@/lib/billing/pricingDisplay";
 import StudioShell from "@/components/studio/StudioShell";
+import { EmptyState, ErrorState, SuccessState } from "@/components/ui/StateMessages";
+import { LEGAL } from "@/lib/legal";
 import { apiClient } from "@/services/api-client";
 import { normalizeCustomerPhone } from "@/lib/billing/customerPhone";
 import { isFreeLaunchWindow } from "@/lib/billing/freeLaunch";
@@ -87,10 +89,21 @@ export default function BillingPage() {
   const freeLaunch = isFreeLaunchWindow();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Payment return state (production-pages audit): after Cashfree sends the
+  // visitor back, the outcome comes from the server-side reconcile call
+  // only — the ?order_id in the URL is just a hint, never the verdict.
+  // Each kind renders its own banner with the exact outcome and next step.
+  const [paymentResult, setPaymentResult] = useState<
+    | { kind: "paid" | "failed" | "pending" | "unconfirmed"; payment: PaymentRow | null }
+    | null
+  >(null);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const reconciled = useRef(false);
+  // Kept so the pending state's "Check again" can re-run the same server
+  // reconcile after the ?order_id hint has been cleared from the URL.
+  const lastOrderId = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -107,29 +120,33 @@ export default function BillingPage() {
   }, [load]);
 
   // Returning from Cashfree: the ?order_id in the URL is only a hint — the
-  // reconcile call asks the server to confirm with Cashfree directly.
+  // reconcile call asks the server to confirm with Cashfree directly, and
+  // the banner below reports what the server said, not what the URL said.
+  const reconcile = useCallback(
+    async (orderId: string) => {
+      try {
+        const res = await apiClient.post<{ payment: PaymentRow }>("/billing/reconcile", { json: { orderId } });
+        setPaymentResult({
+          kind: res.payment.status === "paid" ? "paid" : res.payment.status === "failed" ? "failed" : "pending",
+          payment: res.payment,
+        });
+      } catch {
+        setPaymentResult({ kind: "unconfirmed", payment: null });
+      }
+      await load();
+    },
+    [load],
+  );
+
   useEffect(() => {
     if (reconciled.current) return;
     const orderId = new URLSearchParams(window.location.search).get("order_id");
     if (!orderId) return;
     reconciled.current = true;
-    void (async () => {
-      try {
-        const res = await apiClient.post<{ payment: PaymentRow }>("/billing/reconcile", { json: { orderId } });
-        setNotice(
-          res.payment.status === "paid"
-            ? "Payment confirmed — your new plan is active. Thank you!"
-            : res.payment.status === "failed"
-              ? "That payment didn't go through. No money was taken for a failed payment — you can try again below."
-              : "We're still confirming that payment with Cashfree. Refresh in a moment — your plan updates automatically once it's confirmed.",
-        );
-      } catch {
-        setNotice("We couldn't confirm that payment yet. If money left your account, your plan updates automatically via Cashfree's confirmation — check back in a few minutes.");
-      }
-      window.history.replaceState(null, "", window.location.pathname);
-      await load();
-    })();
-  }, [load]);
+    lastOrderId.current = orderId;
+    window.history.replaceState(null, "", window.location.pathname);
+    void reconcile(orderId);
+  }, [reconcile]);
 
   const buy = async (plan: PlanId) => {
     // Cashfree needs a mobile number to create the order — never start
@@ -229,6 +246,15 @@ export default function BillingPage() {
                     before buying a plan, so the plan attaches to an account you can sign back into.
                   </p>
                 ) : null}
+                <p className="mt-3 text-[13.5px] leading-relaxed text-sand-800">
+                  Passes cannot be cancelled — a pass simply expires
+                  {state.plan !== "free" && state.expiresAt ? <> on {fmtDate(state.expiresAt)}</> : " on its expiry date"}
+                  , and your account returns to Free. If you think you bought a pass twice by mistake, write to{" "}
+                  <a href={`mailto:${LEGAL.email}`} className="font-semibold text-ink underline">
+                    {LEGAL.email}
+                  </a>
+                  .
+                </p>
                 {!state.configured ? (
                   <p className="mt-3 rounded-lg border border-sand-200 bg-sand-50 px-4 py-3 text-[13px] leading-relaxed text-sand-700">
                     Payments aren&rsquo;t switched on yet — checkout opens as soon as the payment gateway is connected.
@@ -241,6 +267,46 @@ export default function BillingPage() {
                 ) : null}
               </div>
             </section>
+
+            {paymentResult ? (
+              <div className="mt-6">
+                {paymentResult.kind === "paid" && paymentResult.payment ? (
+                  <SuccessState
+                    title="Payment confirmed — your new plan is active. Thank you!"
+                    description={`${pricingFor((paymentResult.payment.plan as PlanId) in PLANS ? (paymentResult.payment.plan as PlanId) : "free").name} · ${fmtMoney(paymentResult.payment.amount, paymentResult.payment.currency)} · covers you until ${fmtDate(paymentResult.payment.period_end)}.`}
+                  />
+                ) : paymentResult.kind === "failed" ? (
+                  <ErrorState
+                    title="That payment didn't go through."
+                    description="No money was taken for a failed payment — you can try again below."
+                  />
+                ) : paymentResult.kind === "pending" ? (
+                  <div className="space-y-1 rounded-xl border border-sand-200 bg-sand-100 p-5" role="status">
+                    <p className="font-sora text-[14px] font-semibold text-ink">Payment started — we are still confirming it with Cashfree.</p>
+                    <p className="text-[13.5px] leading-relaxed text-sand-800">
+                      Your plan updates automatically once Cashfree reports back. This usually takes a few minutes — check back shortly, or try confirming again now.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (lastOrderId.current) void reconcile(lastOrderId.current);
+                        else void load();
+                      }}
+                      className="mt-2 rounded-full border border-sand-300 px-5 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer"
+                    >
+                      Check again
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1 rounded-xl border border-sand-200 bg-sand-100 p-5" role="status">
+                    <p className="font-sora text-[14px] font-semibold text-ink">We could not confirm that payment yet.</p>
+                    <p className="text-[13.5px] leading-relaxed text-sand-800">
+                      If money left your account, your plan updates automatically via Cashfree&rsquo;s confirmation — check back in a few minutes. If it still has not updated, write to {LEGAL.email}.
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : null}
 
             {notice ? (
               <p className="mt-6 rounded-xl border border-sand-200 bg-sand-100 p-5 text-[14px] leading-relaxed text-sand-800" role="status">
@@ -330,9 +396,10 @@ export default function BillingPage() {
             <section className="pt-10" aria-label="Payment history">
               <h2 className="font-sora text-[15px] font-bold text-ink">Payments</h2>
               {state.payments.length === 0 ? (
-                <p className="mt-4 rounded-xl border border-sand-200 bg-sand-100 p-5 text-[13.5px] text-sand-700">
-                  No payments yet. When you buy a plan, each payment and the period it covers will be listed here.
-                </p>
+                <EmptyState
+                  title="No payments yet."
+                  description="When you buy a plan, each payment and the period it covers will be listed here."
+                />
               ) : (
                 <div className="mt-4 overflow-x-auto rounded-xl border border-sand-200">
                   <table className="w-full min-w-[520px] text-left text-[13.5px]">

@@ -7,7 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import { exportsService } from "@/services/exports";
+import { ApiError } from "@/services/api-client";
 import StudioShell from "@/components/studio/StudioShell";
+import { EmptyState, ErrorState } from "@/components/ui/StateMessages";
 import { distinctExportKinds, exportDownloadState, exportStatusLabel, filterExports, type GlobalExport } from "@/lib/workspace/exports";
 
 const STATUS_FILTERS = ["ready", "expired", "queued", "rendering", "failed", "cancelled"] as const;
@@ -21,6 +23,7 @@ function fmtSize(bytes: number | null): string {
 
 function ExportRowView({ exp }: { exp: GlobalExport }) {
   const [busy, setBusy] = useState(false);
+  const [downloadError, setDownloadError] = useState<{ forbidden: boolean; message: string } | null>(null);
   // Honest re-download: rows store no signed URL — the server mints a fresh
   // 600s link per click while the export is ready and inside its retention
   // window. Past expiry there is nothing to fetch, so no button is shown.
@@ -29,11 +32,18 @@ function ExportRowView({ exp }: { exp: GlobalExport }) {
 
   const download = async () => {
     setBusy(true);
+    setDownloadError(null);
     try {
       const url = await exportsService.downloadUrl(exp.id);
       window.open(url, "_blank", "noopener");
-    } catch (err: any) {
-      window.alert(err?.message || "Couldn't get the download link. The export may have expired.");
+    } catch (err) {
+      // Permission errors get their own copy (sign in / create an account)
+      // instead of the generic failure text; nothing here uses window.alert.
+      if (err instanceof ApiError && err.code === "FORBIDDEN") {
+        setDownloadError({ forbidden: true, message: "Downloads need a signed-in account — guests cannot download exports." });
+      } else {
+        setDownloadError({ forbidden: false, message: err instanceof Error ? err.message : "Couldn't get the download link. The export may have expired." });
+      }
     } finally {
       setBusy(false);
     }
@@ -58,6 +68,16 @@ function ExportRowView({ exp }: { exp: GlobalExport }) {
       ) : (
         <span className="text-[12px] text-sand-600">{label === "failed" || label === "cancelled" ? "This export did not finish — export again from the project." : "Not ready yet."}</span>
       )}
+      {downloadError ? (
+        <p role="alert" className="w-full text-[12.5px] leading-relaxed text-obsidian">
+          {downloadError.message}{" "}
+          {downloadError.forbidden ? (
+            <Link href="/login?mode=signup" className="font-semibold underline">
+              Create a free account
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
     </li>
   );
 }
@@ -119,10 +139,7 @@ export default function ExportsPage() {
           {isLoading ? (
             <div className="h-40 rounded-xl bg-sand-100 animate-pulse" />
           ) : isError ? (
-            <div className="rounded-xl border border-orange-accent/60 bg-orange-accent/10 p-8 text-center space-y-3">
-              <p className="font-sora text-[14px] font-semibold text-obsidian">Couldn&apos;t load your exports.</p>
-              <button onClick={() => refetch()} className="rounded-full border border-orange-accent/60 px-5 py-2 font-sora text-[12px] font-semibold text-obsidian hover:bg-orange-accent/20 transition-colors cursor-pointer">Retry</button>
-            </div>
+            <ErrorState title="Couldn't load your exports." description="We couldn't reach Captionit just now. Check your connection, then try again." onRetry={() => void refetch()} />
           ) : exports.length === 0 ? (
             <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
               <p className="font-serif text-2xl font-semibold text-ink">No exports <em className="italic text-sand-600">yet.</em></p>
@@ -160,10 +177,12 @@ export default function ExportsPage() {
                 <span className="text-[12px] text-sand-600" role="status">{visible.length} of {exports.length} loaded exports{exports.length < totalExports ? ` (${totalExports} total)` : ""}</span>
               </div>
               {visible.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-12 text-center">
-                  <p className="font-sora text-[14px] font-semibold text-ink">No exports match these filters.</p>
-                  <button onClick={() => { setKindFilter(""); setStatusFilter(""); setFromFilter(""); setToFilter(""); }} className="mt-4 rounded-full border border-sand-300 px-5 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear filters</button>
-                </div>
+                <EmptyState
+                  title="No exports match these filters."
+                  action={
+                    <button onClick={() => { setKindFilter(""); setStatusFilter(""); setFromFilter(""); setToFilter(""); }} className="rounded-full border border-sand-300 px-5 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear filters</button>
+                  }
+                />
               ) : (
                 <>
                   <ul className="divide-y divide-sand-200 rounded-xl border border-sand-200 bg-white">

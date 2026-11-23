@@ -485,3 +485,22 @@ describe("SEO programme (2026-11-15)", () => {
     );
   });
 });
+
+describe("production-pages audit: new indexable paths", () => {
+  it("lists the public tool pages /face-swap and /image-editor in the sitemap", () => {
+    expect(INDEXABLE_PATHS).toContain("/face-swap");
+    expect(INDEXABLE_PATHS).toContain("/image-editor");
+    const urls = sitemap().map((e) => e.url);
+    expect(urls).toContain(`${SITE_URL}/face-swap`);
+    expect(urls).toContain(`${SITE_URL}/image-editor`);
+  });
+
+  it("lists the Security page in the sitemap via LEGAL_PAGES", () => {
+    expect(INDEXABLE_PATHS).toContain("/security");
+    expect(sitemap().map((e) => e.url)).toContain(`${SITE_URL}/security`);
+  });
+
+  it("does not put /faq in the sitemap: the audit asked for a linked help route, not a sitemap entry", () => {
+    expect(INDEXABLE_PATHS).not.toContain("/faq");
+  });
+});

@@ -118,6 +118,8 @@ export default async function PricingPage() {
           <p>
             Pay once and the higher limits apply to your account for 30 days. When the 30 days end your account
             returns to Free — nothing is charged again, and your projects are never deleted for dropping back.
+            Passes cannot be cancelled — a pass simply expires at the end of its 30 days. If you think you bought
+            a pass twice by mistake, write to us at the address below.
             Buying the same plan again while it&rsquo;s active adds 30 days to your current period; switching to a
             different plan starts a fresh 30 days on the new plan.
           </p>

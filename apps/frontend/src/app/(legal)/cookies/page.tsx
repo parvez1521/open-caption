@@ -2,16 +2,30 @@ import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { LegalDoc, Sec } from "@/components/legal/Doc";
+import { CookiePreferencesControl } from "@/components/ads/CookiePreferences";
 import { LEGAL } from "@/lib/legal";
 
 export const metadata: Metadata = pageMetadata({ title: "Cookie Policy", description: "The small amount of browser storage Captionit uses and why.", path: "/cookies" });
 
 const ITEMS: [string, string, string, string][] = [
   ["sb-…-auth-token", "Local storage", "Keeps you signed in (your session with our authentication provider).", "Until you sign out"],
+  ["ce:after-signin", "Local storage", "Remembers where to take you after you sign in.", "Until you sign in"],
+  ["ce:create-drafts", "Local storage", "Saves drafts from the text, image and video generators on this device.", "Until you clear it"],
+  ["ce:gif-attributions", "Local storage", "Keeps the attribution for GIF stickers you have added, so the credit stays with the project.", "Until you clear it"],
+  ["ce:guest-claim", "Local storage", "Marks a guest session that is being claimed by a signed-in account.", "Until the claim finishes"],
+  ["ce:had-account", "Local storage", "Remembers whether this browser has signed in before, so a returning visitor is not started as a guest.", "Until you clear it"],
+  ["ce:pixabay-api-key", "Local storage", "Your own Pixabay API key for stock video and audio search, stored only in this browser.", "Until you clear it"],
+  ["ce:speech-language", "Local storage", "Your preferred transcription language.", "Until you clear it"],
+  ["ce:tutorial-seen:v2", "Local storage", "Remembers that you have seen the first-visit tutorial, so it does not show again.", "Until you clear it"],
+  ["ce:webgpu-broken", "Local storage", "Remembers that WebGPU failed on this device, so the studio does not keep retrying it.", "Until you clear it"],
   ["ce_tl_mode, ce_tl_snap, ce_tl_ripple", "Local storage", "Remembers your timeline view (words or lines, snapping, linked moves).", "Until you clear it"],
   ["ce_intro", "Session storage", "Shows the landing-page intro animation once per visit.", "Until you close the tab"],
   ["captionit-ad-consent", "Local storage", "Remembers your advertising choice (Accept or Decline) so the banner does not ask again.", "Until you clear it"],
-  ["_ga, _ga_<id>", "Cookie (Google Analytics 4)", "Distinguishes visits for Google Analytics 4 — page visits, approximate location, device and browser. No video, audio or transcript data.", "Up to 2 years"],
+  ["oc:onboarding-answers, oc:onboarding-done", "Local storage", "Your answers to the two-question first-visit survey, and that you have finished it.", "Until you clear it"],
+  ["oc:ai-edit-project:<project>", "Local storage", "Where each project got to in the guided AI Edit flow, so you can pick it up again.", "Until you clear it"],
+  ["oc:project-mode:<project>", "Local storage", "How each project was started (guided AI Edit or manual editing).", "Until you clear it"],
+  ["captionseasy-videos (IndexedDB)", "IndexedDB", "Your video files and media-bin assets kept on this device for editing, so a project reopens with its video.", "Until you clear it"],
+  ["_ga, _ga_<id>", "Cookie (Google Analytics 4)", "Distinguishes visits for Google Analytics 4 — page visits, approximate location, device and browser. No video, audio or transcript data. Set only when Google Analytics 4 is configured for this deployment.", "Up to 2 years"],
 ];
 
 export default function CookiesPage() {
@@ -19,7 +33,7 @@ export default function CookiesPage() {
     <LegalDoc
       title="Cookie"
       accent="Policy"
-      intro={<>{LEGAL.product} itself stores only what the site needs to work: your sign-in session and a few editor preferences — no advertising or cross-site tracking cookies of our own. Analytics on this site (Vercel Analytics and Speed Insights) set no cookies; Google Analytics 4 does set cookies — see below. If advertising is ever enabled on the site, Google and its partners may set advertising cookies as described below.</>}
+      intro={<>{LEGAL.product} itself stores only what the site needs to work: your sign-in session and a few editor preferences — no advertising or cross-site tracking cookies of our own. Analytics on this site (Vercel Analytics and Speed Insights) set no cookies; Google Analytics 4 sets cookies only when it is configured for this deployment — see below. If advertising is ever enabled on the site, Google and its partners may set advertising cookies as described below.</>}
     >
       <Sec id="what" title="What we store">
         <div className="-mx-1 overflow-x-auto">
@@ -43,7 +57,7 @@ export default function CookiesPage() {
 
       <Sec id="analytics" title="Analytics">
         <p>Every page loads Vercel Analytics and Speed Insights, which record page visits and a few product events: a video added (with its language and length), captions ready or failed, and an export finished or failed (with its format, quality, resolution and frame rate). They never receive your video, audio or transcripts, and they set no cookies.</p>
-        <p>Google Analytics 4 also runs on every page. It records page visits with approximate location, device and browser, and sets the <code>_ga</code> and <code>_ga_&lt;id&gt;</code> cookies listed above, kept up to 2 years. It never receives your video, audio or transcripts. You can opt out with Google&rsquo;s <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noreferrer">Analytics opt-out add-on</a>.</p>
+        <p>Google Analytics 4 only runs when a measurement ID is configured for this deployment — no ID is hardcoded into the site, so while none is configured no GA4 code loads and no <code>_ga</code> cookies are set. If it is configured, it records page visits with approximate location, device and browser, and sets the <code>_ga</code> and <code>_ga_&lt;id&gt;</code> cookies listed above, kept up to 2 years. It never receives your video, audio or transcripts. You can opt out with Google&rsquo;s <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noreferrer">Analytics opt-out add-on</a>.</p>
       </Sec>
 
       <Sec id="ads" title="Advertising cookies (only if ads are enabled)">
@@ -57,6 +71,11 @@ export default function CookiesPage() {
 
       <Sec id="control" title="Your control">
         <p>You can clear site data in your browser settings at any time. Clearing it signs you out and resets the editor preferences and your advertising choice above; it does not delete your projects.</p>
+      </Sec>
+
+      <Sec id="change-choice" title="Change your advertising choice">
+        <p>You do not need to clear site data to change your advertising choice — change it here and the banner will follow the new choice on your next visit.</p>
+        <CookiePreferencesControl />
       </Sec>
     </LegalDoc>
   );

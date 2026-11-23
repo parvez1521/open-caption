@@ -929,6 +929,7 @@ const FOOTER_COLUMNS = [
       { label: "AI Generator", href: "/ai-generator" },
       { label: "Transcribe", href: "/transcribe" },
       { label: "Looks gallery", href: "/looks" },
+      { label: "Android app", href: "/downloads" },
       { label: "Precision controls", href: "/#control" },
     ],
   },
@@ -943,7 +944,7 @@ const FOOTER_COLUMNS = [
   {
     title: "Help",
     links: [
-      { label: "Frequently asked questions", href: "/#faq" },
+      { label: "Frequently asked questions", href: "/faq" },
       { label: "Project studio", href: "/dashboard" },
     ],
   },
@@ -956,6 +957,8 @@ const FOOTER_COLUMNS = [
       { label: "Terms of service", href: "/terms" },
       { label: "Privacy policy", href: "/privacy" },
       { label: "Cookie policy", href: "/cookies" },
+      { label: "Cookie preferences", href: "/cookies#change-choice" },
+      { label: "Security", href: "/security" },
       { label: "Acceptable use", href: "/acceptable-use" },
       { label: "Copyright & takedowns", href: "/copyright" },
       { label: "Subprocessors", href: "/subprocessors" },

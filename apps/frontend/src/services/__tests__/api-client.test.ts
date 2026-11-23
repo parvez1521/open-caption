@@ -70,7 +70,7 @@ describe("apiClient 401 → /login (C-07)", () => {
     h.session = { access_token: jwt({ sub: "user-1", exp: nowSec() - 10 }) };
     h.fetchImpl = async () => unauthorized();
     await expect(apiClient.get("/growth/posts")).rejects.toBeInstanceOf(ApiError);
-    expect(assign).toHaveBeenCalledWith("/login?redirect=%2Fgrowth");
+    expect(assign).toHaveBeenCalledWith("/login?redirect=%2Fgrowth&session=expired");
   });
 
   it("a 401 with a guest (anonymous) token does NOT redirect", async () => {

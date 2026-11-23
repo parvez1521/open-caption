@@ -97,7 +97,7 @@ export default function PrivacyPage() {
       </Sec>
 
       <Sec id="cookies" title="12. Cookies and local storage">
-        <p>We use only what is needed to keep you signed in and remember a few editor preferences. Our analytics (Vercel Analytics and Speed Insights) record page visits and a few product events without setting cookies. Google Analytics 4 also runs on this site: it records page visits with approximate location, device and browser, and sets the <code>_ga</code> and <code>_ga_&lt;id&gt;</code> cookies, kept up to 2 years. It never receives your videos, audio or transcripts. If advertising is enabled, Google and its partners may also set advertising cookies as described in section 8. See the <Link href="/cookies">Cookie Policy</Link>.</p>
+        <p>We use only what is needed to keep you signed in and remember a few editor preferences. Our analytics (Vercel Analytics and Speed Insights) record page visits and a few product events without setting cookies. Google Analytics 4 only runs when a measurement ID is configured for this deployment — no ID is hardcoded into the site, so while none is configured no GA4 code loads and no <code>_ga</code> cookies are set. If it is configured, it records page visits with approximate location, device and browser, and sets the <code>_ga</code> and <code>_ga_&lt;id&gt;</code> cookies, kept up to 2 years. It never receives your videos, audio or transcripts. If advertising is enabled, Google and its partners may also set advertising cookies as described in section 8. See the <Link href="/cookies">Cookie Policy</Link>.</p>
       </Sec>
 
       <Sec id="changes" title="13. Changes">

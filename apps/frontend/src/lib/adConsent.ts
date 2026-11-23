@@ -22,6 +22,24 @@ export const AD_CONSENT_KEY = "captionit-ad-consent";
 /** Fired on window whenever the visitor makes (or remakes) a choice. */
 export const AD_CONSENT_EVENT = "captionit:ad-consent";
 
+/**
+ * Fired on window when the visitor asks to change their choice (footer /
+ * Settings / Cookie Policy control). The banner re-opens on this event even
+ * when a choice is already stored, so the choice can change without
+ * clearing site data.
+ */
+export const AD_CONSENT_REOPEN_EVENT = "captionit:ad-consent-reopen";
+
+/** Ask the consent banner to re-open so the stored choice can be changed. */
+export function requestAdConsentReopen(): void {
+  try {
+    window.dispatchEvent(new Event(AD_CONSENT_REOPEN_EVENT));
+  } catch {
+    // No banner mounted (ads/analytics not configured): the Cookie Policy
+    // control is the fallback — it writes the same key directly.
+  }
+}
+
 export type AdConsentChoice = "accepted" | "declined";
 
 export function readAdConsent(): AdConsentChoice | null {

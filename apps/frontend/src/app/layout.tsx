@@ -11,6 +11,8 @@ import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { AdSenseLoader } from "@/components/ads/AdSenseLoader";
 import { GaLoader } from "@/components/ads/GaLoader";
 import { ConsentBanner } from "@/components/ads/ConsentBanner";
+import { MaintenancePage } from "@/components/maintenance/MaintenancePage";
+import { isMaintenanceMode } from "@/lib/maintenance";
 import "./globals.css";
 
 /**
@@ -121,11 +123,17 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <a href="#main-content" className="skip-link">Skip to main content</a>
-        <ServiceWorkerRegister />
-        <AdSenseLoader publisherId={adsenseId} />
-        <GaLoader measurementId={gaId} />
-        <ConsentBanner enabled={Boolean(adsenseId || gaId)} adsEnabled={Boolean(adsenseId)} analyticsEnabled={Boolean(gaId)} />
-        <QueryProvider>{children}</QueryProvider>
+        {isMaintenanceMode() ? (
+          <MaintenancePage />
+        ) : (
+          <>
+            <ServiceWorkerRegister />
+            <AdSenseLoader publisherId={adsenseId} />
+            <GaLoader measurementId={gaId} />
+            <ConsentBanner enabled={Boolean(adsenseId || gaId)} adsEnabled={Boolean(adsenseId)} analyticsEnabled={Boolean(gaId)} />
+            <QueryProvider>{children}</QueryProvider>
+          </>
+        )}
         <Analytics />
         <SpeedInsights />
       </body>

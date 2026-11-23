@@ -38,7 +38,10 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).repl
 // weakest-competition long-tail in the SERP research.
 // /ai-generator is the third (2026-11-17): a public text/image/video
 // generator powered by Puter.js, no login.
-export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/ai-generator", "/looks", "/pricing", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
+// /face-swap and /image-editor are public in-browser tools (face swap from
+// a live selfie; element-level image editing) — indexable like the other
+// tool pages.
+export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/ai-generator", "/looks", "/pricing", "/face-swap", "/image-editor", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
 
 /** App routes behind sign-in: never indexed (metadata noindex + robots disallow).
  *  Covers every (dashboard) route in the shell nav, plus the auth-flow helpers —

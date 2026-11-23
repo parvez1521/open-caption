@@ -14,6 +14,7 @@ import { AI_EDIT_PROJECT_TAG, createBlankAiEditProject, filterAiEditProjects, fi
 import { copyLocalVideo } from "@/features/upload/localVideos";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
 import { radioGroupKeyDown } from "@/lib/a11y/radioGroup";
+import { EmptyState, ErrorState } from "@/components/ui/StateMessages";
 import { useDialogEscapeAndTrap } from "@/features/studio/useDialogEscapeAndTrap";
 
 const STATUS_CHIP: Record<ProjectStatus, { label: string; cls: string; pulse?: boolean }> = {
@@ -356,11 +357,11 @@ export default function ProjectsList() {
         {isLoading ? (
           <ProjectCardsSkeleton />
         ) : isError ? (
-          <div className="rounded-xl border border-orange-accent/60 bg-orange-accent/10 p-8 text-center space-y-3">
-            <p className="font-sora text-[14px] font-semibold text-obsidian">Couldn&apos;t load your projects.</p>
-            <p className="text-[13px] text-obsidian">We couldn&apos;t reach Captionit just now. Check your connection, then try again.</p>
-            <button onClick={() => refetch()} className="rounded-full border border-orange-accent/60 px-5 py-2 font-sora text-[12px] font-semibold text-obsidian hover:bg-orange-accent/20 transition-colors cursor-pointer">Retry</button>
-          </div>
+          <ErrorState
+            title="Couldn't load your projects."
+            description="We couldn't reach Captionit just now. Check your connection, then try again."
+            onRetry={() => refetch()}
+          />
         ) : projects.length === 0 ? (
           <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-16 text-center">
             <p className="font-serif text-2xl font-semibold text-ink">Nothing here yet — <em className="italic text-sand-600">let&apos;s fix that.</em></p>
@@ -368,10 +369,10 @@ export default function ProjectsList() {
             <button onClick={() => setCreateOpen(true)} className="mt-7 rounded-full bg-ink px-7 py-3 font-sora text-[13px] font-semibold text-dune-white hover:bg-sand-800 transition-all cursor-pointer">Create your first project</button>
           </div>
         ) : visible.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-sand-300 bg-sand-50 px-8 py-12 text-center">
-            <p className="font-sora text-[14px] font-semibold text-ink">{query ? `No projects match “${query}” in this view.` : view === "archived" ? "No archived projects." : "Nothing in this view."}</p>
-            {query ? <button onClick={() => setQuery("")} className="mt-4 rounded-full border border-sand-300 px-5 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear search</button> : null}
-          </div>
+          <EmptyState
+            title={query ? `No projects match “${query}” in this view.` : view === "archived" ? "No archived projects." : "Nothing in this view."}
+            action={query ? <button onClick={() => setQuery("")} className="rounded-full border border-sand-300 px-5 py-2 font-sora text-[12px] font-semibold text-sand-800 hover:border-ink hover:text-ink transition-colors cursor-pointer">Clear search</button> : undefined}
+          />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

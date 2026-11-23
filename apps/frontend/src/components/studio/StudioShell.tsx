@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Logo } from "@/components/brand/Logo";
+import { OfflineBanner } from "@/components/ui/OfflineBanner";
 import { authService } from "@/services/auth";
 import { User } from "@/services/types";
 import { FEEDBACK_MAILTO } from "@/lib/legal";
@@ -151,6 +152,10 @@ export default function StudioShell({ children }: { children: React.ReactNode })
         </nav>
 
         <div className="mt-auto">
+          <Link href="/faq" className="mx-3 mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold text-sand-700 transition-colors hover:bg-sand-100 hover:text-ink">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M9.5 9a2.5 2.5 0 114.4 1.6c-.8.7-1.9 1.1-1.9 2.4" /><circle cx="12" cy="17" r="0.5" fill="currentColor" /></svg>
+            Help &amp; FAQ
+          </Link>
           <a href={FEEDBACK_MAILTO} className="mx-3 mb-3 flex items-center gap-3 rounded-lg px-3 py-2.5 font-sora text-[13px] font-semibold text-sand-700 transition-colors hover:bg-sand-100 hover:text-ink">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24" aria-hidden><path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v11H8l-4 4V5z" /></svg>
             Send feedback
@@ -210,7 +215,10 @@ export default function StudioShell({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Content */}
-      <main id="main-content" className="min-w-0 flex-1">{children}</main>
+      <main id="main-content" className="min-w-0 flex-1">
+        <OfflineBanner />
+        {children}
+      </main>
     </div>
   );
 }

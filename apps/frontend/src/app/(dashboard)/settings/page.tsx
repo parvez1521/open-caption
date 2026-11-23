@@ -7,6 +7,7 @@ import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
 import StudioShell from "@/components/studio/StudioShell";
 import EmailUpdatesSection from "@/components/settings/EmailUpdatesSection";
+import { CookiePreferencesControl } from "@/components/ads/CookiePreferences";
 import { PairedComputers } from "@/features/companion/PairedComputers";
 
 
@@ -182,6 +183,20 @@ export default function SettingsPage() {
             >
               Open billing
             </Link>
+          </div>
+        </section>
+
+        {/* Cookie preferences (production-pages audit): the advertising
+            choice from the consent banner, changeable here without clearing
+            site data. Full detail lives on the Cookie Policy page. */}
+        <section className="pt-10">
+          <h2 className="font-sora text-[15px] font-bold text-ink">Cookie preferences</h2>
+          <div className="mt-4 rounded-xl border border-sand-200 bg-sand-100 p-6">
+            <CookiePreferencesControl />
+            <p className="mt-4 text-[13px] leading-relaxed text-sand-700">
+              See the <Link href="/cookies" className="font-semibold text-ink underline">Cookie Policy</Link> for everything
+              stored in this browser and why.
+            </p>
           </div>
         </section>
 

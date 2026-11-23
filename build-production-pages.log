@@ -1,0 +1,174 @@
+$ next build
+▲ Next.js 16.4.5 (Turbopack)
+✓ Running next.config.ts took 3.0s
+- Experiments (use with caution):
+  · clientTraceMetadata
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 67s
+  Running next.config.js provided runAfterProductionCompile ...
+✓ Completed runAfterProductionCompile in 4.1s
+  Running TypeScript ...
+✓ Finished writing to filesystem cache in 12.1s
+  Finished TypeScript in 47s ...
+  Collecting page data using 3 workers ...
+Missing Supabase URL or Anon Key environment variables — auth will not work until these are set.
+Missing Supabase URL or Anon Key environment variables — auth will not work until these are set.
+Missing Supabase URL or Anon Key environment variables — auth will not work until these are set.
+  Generating static pages using 3 workers (0/144) ...
+Missing Supabase URL or Anon Key environment variables — auth will not work until these are set.
+Missing Supabase URL or Anon Key environment variables — auth will not work until these are set.
+Missing Supabase URL or Anon Key environment variables — auth will not work until these are set.
+  Generating static pages using 3 workers (36/144) 
+  Generating static pages using 3 workers (72/144) 
+  Generating static pages using 3 workers (108/144) 
+✓ Generating static pages using 3 workers (144/144) in 6.8s
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /about
+├ ○ /acceptable-use
+├ ƒ /ads.txt
+├ ○ /ai-clipper
+├ ○ /ai-generator
+├ ○ /analytics
+├ ○ /analyzer
+├ ƒ /api/cron/cleanup
+├ ƒ /api/v1/admin/subscribers
+├ ƒ /api/v1/ai-edit/generate-image
+├ ƒ /api/v1/ai-edit/plan
+├ ƒ /api/v1/billing/checkout
+├ ƒ /api/v1/billing/me
+├ ƒ /api/v1/billing/reconcile
+├ ƒ /api/v1/billing/video-quota
+├ ƒ /api/v1/billing/webhook
+├ ƒ /api/v1/brand
+├ ƒ /api/v1/brand/profiles
+├ ƒ /api/v1/brand/profiles/[id]
+├ ƒ /api/v1/brand/profiles/[id]/activate
+├ ƒ /api/v1/clipper/highlights
+├ ƒ /api/v1/content
+├ ƒ /api/v1/content/[id]
+├ ƒ /api/v1/content/threads
+├ ƒ /api/v1/content/threads/[id]
+├ ƒ /api/v1/content/threads/[id]/messages
+├ ƒ /api/v1/create/generate
+├ ƒ /api/v1/device/approve
+├ ƒ /api/v1/device/setup
+├ ƒ /api/v1/device/start
+├ ƒ /api/v1/device/status
+├ ƒ /api/v1/device/token
+├ ƒ /api/v1/exports
+├ ƒ /api/v1/exports/[id]/download
+├ ƒ /api/v1/growth/chat
+├ ƒ /api/v1/growth/competitors
+├ ƒ /api/v1/growth/competitors/[id]
+├ ƒ /api/v1/growth/connect/[platform]/callback
+├ ƒ /api/v1/growth/connect/[platform]/disconnect
+├ ƒ /api/v1/growth/connect/[platform]/start
+├ ƒ /api/v1/growth/connect/[platform]/sync
+├ ƒ /api/v1/growth/connections
+├ ƒ /api/v1/growth/posts
+├ ƒ /api/v1/growth/posts/[id]
+├ ƒ /api/v1/growth/posts/import
+├ ƒ /api/v1/guest/claim
+├ ƒ /api/v1/jobs/[id]/browser
+├ ƒ /api/v1/jobs/[id]/cancel
+├ ƒ /api/v1/jobs/[id]/retry
+├ ƒ /api/v1/looks
+├ ƒ /api/v1/looks/[id]
+├ ƒ /api/v1/marketing/capture
+├ ƒ /api/v1/marketing/preference
+├ ƒ /api/v1/projects
+├ ƒ /api/v1/projects/[id]
+├ ƒ /api/v1/projects/[id]/archive
+├ ƒ /api/v1/projects/[id]/clips
+├ ƒ /api/v1/projects/[id]/document
+├ ƒ /api/v1/projects/[id]/duplicate
+├ ƒ /api/v1/projects/[id]/exports
+├ ƒ /api/v1/projects/[id]/exports/record
+├ ƒ /api/v1/projects/[id]/exports/reserve
+├ ƒ /api/v1/projects/[id]/studio
+├ ƒ /api/v1/projects/[id]/transcribe
+├ ƒ /api/v1/projects/[id]/translations
+├ ƒ /api/v1/projects/[id]/unarchive
+├ ƒ /api/v1/projects/[id]/videos
+├ ƒ /api/v1/transcribe/correct
+├ ƒ /api/v1/videos/[id]/complete
+├ ƒ /api/v1/videos/[id]/replace-footage
+├ ƒ /api/v1/videos/[id]/sync
+├ ƒ /api/v1/videos/[id]/sync/confirm
+├ ƒ /api/v1/worker/heartbeat
+├ ƒ /api/v1/worker/jobs/[id]/complete
+├ ƒ /api/v1/worker/jobs/[id]/fail
+├ ƒ /api/v1/worker/jobs/[id]/progress
+├ ƒ /api/v1/worker/jobs/[id]/urls
+├ ƒ /api/v1/worker/jobs/claim
+├ ƒ /api/v1/workers
+├ ƒ /api/v1/workers/[id]
+├ ○ /apple-icon.png
+├ ○ /auto-caption-generator
+├ ○ /auto-captions-for-reels
+├ ○ /brand
+├ ○ /captions
+├ ○ /clipper
+├ ○ /cookies
+├ ○ /copyright
+├ ○ /create
+├ ○ /create/chat
+├ ○ /credits
+├ ○ /dashboard
+├ ○ /downloads
+├ ○ /editor
+├ ○ /exports
+├ ○ /face-swap
+├ ○ /faq
+├ ○ /forgot-password
+├ ○ /growth
+├ ƒ /health
+├ ƒ /health/ready
+├ ○ /icon.svg
+├ ○ /image-editor
+├ ƒ /install.ps1
+├ ƒ /install.sh
+├ ○ /library
+├ ○ /login
+├ ○ /looks
+├ ○ /maintenance
+├ ○ /manifest.webmanifest
+├ ○ /motion
+├   /motion/[templateId]
+│ ├ ● /motion/subscribe-pill
+│ ├ ● /motion/subscribe-banner
+│ ├ ● /motion/follow-banner
+│ └ ● [+47 more paths]
+├ ○ /onboarding
+├ ○ /opengraph-image.jpg
+├ ○ /pair
+├ ○ /planner
+├ ƒ /pricing
+├ ○ /privacy
+├ ƒ /projects/[id]
+├ ƒ /projects/[id]/settings
+├ ○ /prompter
+├ ○ /reset-password
+├ ○ /robots.txt
+├ ○ /security
+├ ○ /settings
+├ ○ /settings/billing
+├ ○ /sitemap.xml
+├ ○ /start
+├ ○ /subprocessors
+├ ○ /terms
+├ ○ /transcribe
+└ ○ /twitter-image.jpg
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses generateStaticParams)
+ƒ  (Dynamic)  server-rendered on demand
+

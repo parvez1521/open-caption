@@ -130,7 +130,11 @@ describe("billing page Cashfree SDK checkout", () => {
     checkoutMock.mockResolvedValue({ redirect: true });
     await startCheckout();
     await waitFor(() => expect(checkoutMock).toHaveBeenCalled());
-    expect(screen.queryByRole("status")).toBeNull();
+    // The only status on the page is the payments empty state — no checkout
+    // notice was shown.
+    const statuses = screen.queryAllByRole("status");
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toHaveTextContent("No payments yet.");
   });
 });
 

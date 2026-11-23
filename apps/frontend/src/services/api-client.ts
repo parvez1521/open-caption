@@ -73,7 +73,11 @@ function redirectToLoginForExpiredSession(token: string | null): void {
   if (!isSignInAgainToken(token)) return;
   if (window.location.pathname === "/login") return;
   try {
-    window.location.assign(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+    // session=expired tells /login to show "Your session expired — sign in
+    // again" instead of a bare sign-in form; redirect= keeps the safe
+    // return path (the login page only ever redirects to /start or the
+    // stored after-sign-in target).
+    window.location.assign(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}&session=expired`);
   } catch {
     // Navigation that cannot happen leaves the ApiError to the caller.
   }

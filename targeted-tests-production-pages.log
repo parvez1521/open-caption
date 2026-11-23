@@ -1,0 +1,118 @@
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.9 [39m[90m/home/hatch/workspace/oc-production-pages-2026-11-23/apps/frontend[39m
+
+ [32m✓[39m src/app/faq/__tests__/page.test.tsx [2m([22m[2m3 tests[22m[2m)[22m[33m 777[2mms[22m[39m
+     [33m[2m✓[22m[39m renders all 8 questions and answers from faqs.ts [33m 679[2mms[22m[39m
+ [32m✓[39m src/app/(dashboard)/settings/billing/__tests__/page.test.tsx [2m([22m[2m7 tests[22m[2m)[22m[33m 1528[2mms[22m[39m
+     [33m[2m✓[22m[39m shows the server's Cashfree error instead of a generic message [33m 1021[2mms[22m[39m
+ [32m✓[39m src/app/__tests__/forbidden.test.tsx [2m([22m[2m1 test[22m[2m)[22m[33m 605[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the 403 state [33m 601[2mms[22m[39m
+ [32m✓[39m src/components/ui/__tests__/stateMessages.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 876[2mms[22m[39m
+     [33m[2m✓[22m[39m renders the title and description with status semantics [33m 508[2mms[22m[39m
+[90mstderr[2m | src/components/workspace/__tests__/projectsListAiEdit.test.tsx[2m > [22m[2mProjectsList — AI Edit separation[2m > [22m[2m'New AI Edit project' creates a blank AI-Edit project, tags it on the server, and opens its timeline
+[22m[39mAn update to ProjectsList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ProjectsList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/components/workspace/__tests__/projectsListAiEdit.test.tsx[2m > [22m[2mProjectsList — AI Edit separation[2m > [22m[2m'New blank project' creates a blank AI-Edit project and opens its timeline
+[22m[39mAn update to ProjectsList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ProjectsList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/components/workspace/__tests__/projectsListAiEdit.test.tsx[2m > [22m[2mProjectsList — AI Edit separation[2m > [22m[2mthe normal create flow is unchanged
+[22m[39mAn update to ProjectsList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ProjectsList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ProjectsList inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/components/workspace/__tests__/projectsListAiEdit.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 2310[2mms[22m[39m
+     [33m[2m✓[22m[39m caption list hides AI-Edit projects; the AI Edit section lists only them [33m 806[2mms[22m[39m
+     [33m[2m✓[22m[39m the AI Edit section always renders — even with zero AI-Edit projects — with the workflow and a first-class button [33m 313[2mms[22m[39m
+     [33m[2m✓[22m[39m 'New AI Edit project' creates a blank AI-Edit project, tags it on the server, and opens its timeline [33m 365[2mms[22m[39m
+     [33m[2m✓[22m[39m 'New blank project' creates a blank AI-Edit project and opens its timeline [33m 371[2mms[22m[39m
+     [33m[2m✓[22m[39m the normal create flow is unchanged [33m 321[2mms[22m[39m
+ [32m✓[39m src/components/ui/__tests__/offlineBanner.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 484[2mms[22m[39m
+     [33m[2m✓[22m[39m appears on the offline event and disappears on the online event [33m 410[2mms[22m[39m
+ [32m✓[39m src/components/ads/__tests__/cookiePreferences.test.tsx [2m([22m[2m6 tests[22m[2m)[22m[33m 784[2mms[22m[39m
+     [33m[2m✓[22m[39m Allow persists accepted and shows the current choice [33m 406[2mms[22m[39m
+ [32m✓[39m src/app/(dashboard)/settings/billing/__tests__/paymentResult.test.tsx [2m([22m[2m5 tests[22m[2m)[22m[33m 1469[2mms[22m[39m
+     [33m[2m✓[22m[39m shows an explicit success state from a paid reconcile (plan, amount, covers-until) [33m 397[2mms[22m[39m
+     [33m[2m✓[22m[39m shows a still-confirming state for a created payment, with a reconcile retry [33m 809[2mms[22m[39m
+ [32m✓[39m src/app/(legal)/security/__tests__/page.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 702[2mms[22m[39m
+     [33m[2m✓[22m[39m states the measures from Privacy §10 and the disclosure contact [33m 690[2mms[22m[39m
+ [32m✓[39m src/components/ads/__tests__/consent.test.tsx [2m([22m[2m21 tests[22m[2m)[22m[33m 1196[2mms[22m[39m
+     [33m[2m✓[22m[39m asks once when no choice is stored [33m 415[2mms[22m[39m
+ [32m✓[39m src/app/login/__tests__/sessionExpired.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 685[2mms[22m[39m
+     [33m[2m✓[22m[39m shows no expired-session notice on a plain visit [33m 468[2mms[22m[39m
+ [32m✓[39m src/app/downloads/__tests__/page.test.tsx [2m([22m[2m2 tests[22m[2m)[22m[33m 584[2mms[22m[39m
+     [33m[2m✓[22m[39m links the real APK with its size from disk [33m 503[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/seo.test.ts [2m([22m[2m50 tests[22m[2m)[22m[32m 99[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/maintenance.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m src/lib/__tests__/legal.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m src/services/__tests__/api-client.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m16 passed[39m[22m[90m (16)[39m
+[2m      Tests [22m [1m[32m129 passed[39m[22m[90m (129)[39m
+[2m   Start at [22m 19:47:24
+[2m   Duration [22m 31.09s[2m (transform 8.57s, setup 3.80s, import 16.61s, tests 12.17s, environment 41.74s)[22m
+

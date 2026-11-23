@@ -41,3 +41,52 @@ describe("terms page — cloud-backup disclosure (MA-A6-003)", () => {
     expect(terms).toContain("cloud storage");
   });
 });
+
+describe("legal nav (production-pages audit)", () => {
+  it("lists the Security page alongside the other legal pages", async () => {
+    const { LEGAL_PAGES } = await import("../legal");
+    expect(LEGAL_PAGES.map((p) => p.href)).toContain("/security");
+    expect(LEGAL_PAGES.map((p) => p.href)).toContain("/cookies");
+  });
+});
+
+describe("GA4 wording (production-pages audit)", () => {
+  it("states GA4 runs only when configured — never as a deployed fact", () => {
+    const privacy = readFileSync(path.resolve(__dirname, "../../app/(legal)/privacy/page.tsx"), "utf8");
+    const cookies = readFileSync(path.resolve(__dirname, "../../app/(legal)/cookies/page.tsx"), "utf8");
+    for (const page of [privacy, cookies]) {
+      expect(page).toContain("only runs when a measurement ID is configured");
+      expect(page).not.toContain("also runs on this site");
+      expect(page).not.toContain("also runs on every page");
+    }
+  });
+
+  it("completes the Cookie Policy storage table with the keys used in code", () => {
+    const cookies = readFileSync(path.resolve(__dirname, "../../app/(legal)/cookies/page.tsx"), "utf8");
+    for (const key of [
+      "ce:after-signin",
+      "ce:create-drafts",
+      "ce:gif-attributions",
+      "ce:guest-claim",
+      "ce:had-account",
+      "ce:pixabay-api-key",
+      "ce:speech-language",
+      "ce:tutorial-seen:v2",
+      "ce:webgpu-broken",
+      "oc:onboarding-answers",
+      "oc:onboarding-done",
+      "oc:ai-edit-project:",
+      "oc:project-mode:",
+      "captionseasy-videos",
+    ]) {
+      expect(cookies).toContain(key);
+    }
+  });
+
+  it("lists Puter, Pixabay, Openverse, DiceBear and Instagram/YouTube as subprocessors", () => {
+    const sub = readFileSync(path.resolve(__dirname, "../../app/(legal)/subprocessors/page.tsx"), "utf8");
+    for (const name of ["Puter", "Pixabay", "Openverse", "DiceBear", "Instagram / YouTube"]) {
+      expect(sub).toContain(name);
+    }
+  });
+});

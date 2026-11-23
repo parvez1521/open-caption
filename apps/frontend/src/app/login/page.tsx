@@ -48,6 +48,9 @@ export default function LoginPage() {
   // /start sends people here with ?mode=signup when a guest session could not be started:
   // the page must then speak as sign-up, not sign-in (the param used to be ignored entirely)
   const [signupIntent, setSignupIntent] = useState(false);
+  // An expired session sends people here with ?session=expired (see
+  // services/api-client.ts): say so plainly instead of a bare sign-in form.
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -126,6 +129,7 @@ export default function LoginPage() {
     // a page that sent them here (e.g. a project link) is where they continue after signing in
     setAfterSignIn(q.get("redirect"));
     if (q.get("mode") === "signup") setSignupIntent(true);
+    if (q.get("session") === "expired") setSessionExpired(true);
     // arriving with an email means "I already have an email account": open the email form, filled in
     const e = q.get("email");
     if (e) {
@@ -193,6 +197,11 @@ export default function LoginPage() {
   // The old OAuth button (fallback): shown while GIS is still loading and whenever
   // GIS is unavailable. The GIS container sits above it and replaces it once Google's
   // own button renders — an empty container takes no space, so nothing shifts.
+  const sessionExpiredNotice = sessionExpired ? (
+    <p role="status" className="rounded-xl border border-orange-accent/60 bg-orange-accent/10 px-4 py-3 text-[13.5px] leading-relaxed text-sand-800">
+      Your session expired — sign in again to continue where you left off.
+    </p>
+  ) : null;
   const googleButton = (
     <>
       <div ref={gisContainerRef} className="w-full" />
@@ -227,6 +236,7 @@ export default function LoginPage() {
         subtitle={<p className="text-[13.5px] text-sand-600">Accounts are coming soon — no sign-up needed to make captions.</p>}
       >
         <div className="space-y-4">
+          {sessionExpiredNotice}
           <Link
             href="/start"
             className="block w-full rounded-xl bg-[#FFFFEB] py-3 px-3 text-center font-semibold text-[14px] text-[#141412] shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)] transition duration-150 hover:bg-[#E4E4D6]"
@@ -255,6 +265,7 @@ export default function LoginPage() {
         }
       >
         <div className="space-y-4">
+          {sessionExpiredNotice}
           {error && <ErrorNote>{error}</ErrorNote>}
           {googleButton}
           <p className="text-center text-[12px] text-sand-500">
@@ -279,6 +290,7 @@ export default function LoginPage() {
       subtitle={<p className="text-[13.5px] text-sand-600">For accounts made with an email and password.</p>}
     >
       <div className="space-y-4">
+        {sessionExpiredNotice}
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4" noValidate>

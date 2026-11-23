@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, ShieldCheck } from "@/components/ui/icons";
-import { readAdConsent, writeAdConsent, type AdConsentChoice } from "@/lib/adConsent";
+import { readAdConsent, writeAdConsent, AD_CONSENT_REOPEN_EVENT, type AdConsentChoice } from "@/lib/adConsent";
 import { useDialogEscapeAndTrap } from "@/features/studio/useDialogEscapeAndTrap";
 
 /**
@@ -29,6 +29,16 @@ export function ConsentBanner({ enabled, adsEnabled = true, analyticsEnabled = f
   useEffect(() => {
     if (!enabled) return;
     setVisible(readAdConsent() === null);
+  }, [enabled]);
+
+  // A stored choice can be changed without clearing site data: the footer,
+  // Settings and Cookie Policy controls dispatch the reopen event and the
+  // banner asks again.
+  useEffect(() => {
+    if (!enabled) return;
+    const reopen = () => setVisible(true);
+    window.addEventListener(AD_CONSENT_REOPEN_EVENT, reopen);
+    return () => window.removeEventListener(AD_CONSENT_REOPEN_EVENT, reopen);
   }, [enabled]);
 
   if (!enabled || !visible) return null;

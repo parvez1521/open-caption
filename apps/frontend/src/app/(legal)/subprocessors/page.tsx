@@ -14,6 +14,11 @@ const ROWS: [string, string, string, string][] = [
   ["Hugging Face", "Speech and translation model downloads to your browser", "Your browser contacts Hugging Face to download the model files (about 90 MB per speech model). No audio, video or transcript is sent to Hugging Face.", "Global"],
   ["Sentry", "Error reporting", "Error reports when something goes wrong: the error message, where it happened, browser and device details, and, for a video that could not be read, its format, size and duration. Never the video itself, your audio or your captions. A session that hits an error may also include a screen recording, with video and images blocked.", "United States"],
   ["Cashfree", "Payment processing for paid plans", "Payment details you enter on Cashfree's checkout, order status (card data is handled by Cashfree, never by us)", "India"],
+  ["Puter", "AI generation on the AI Generator page and in AI Edit, paid from the visitor's own free Puter account (user-pays: Captionit charges nothing and stores nothing for it)", "The prompt text you write and the images or video generated from it, sent to Puter under your own Puter account from your browser", "Global"],
+  ["Pixabay", "Stock video and audio search in the Studio and Clipper, from your browser, using a key you provide", "Search terms and your Pixabay API key, which is stored only in your browser and sent to Pixabay with each search", "Global"],
+  ["Openverse", "GIF sticker search in the Studio, from your browser", "Search terms sent to Openverse; the GIF you pick is downloaded to your browser", "Global"],
+  ["DiceBear", "Fallback profile pictures, generated from your name when no photo is set", "Your name, sent as the image seed when your avatar is requested", "Global"],
+  ["Instagram / YouTube", "Growth Studio account connections: syncing your posts for analytics and the Growth Coach", "Your connected account identity and the posts synced from it, only after you connect the account", "Global"],
 ];
 
 export default function SubprocessorsPage() {

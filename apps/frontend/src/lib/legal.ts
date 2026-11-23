@@ -35,5 +35,6 @@ export const LEGAL_PAGES = [
   { href: "/acceptable-use", title: "Acceptable Use" },
   { href: "/copyright", title: "Copyright & Takedowns" },
   { href: "/subprocessors", title: "Subprocessors" },
+  { href: "/security", title: "Security" },
   { href: "/credits", title: "Credits & Licences" },
 ] as const;
