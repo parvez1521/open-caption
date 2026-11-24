@@ -858,6 +858,13 @@ export const ProjectSettingsSchema = z.object({
   minCardMs: z.number().min(200).max(2000).default(900),
   gapBehavior: z.enum(["hold", "clear"]).default("hold"),
   syncOffsetMs: z.number().min(-1000).max(1000).default(0),
+  /**
+   * Strict sync (opt-in, off by default): words reveal exactly when they are spoken
+   (revealMs = startMs, no early reveal) and cards end with their last word — no holdMs,
+   no read floor, no hold-bridging across gaps. For comparing perceived sync against the
+   default early-reveal + linger behaviour; the default stays unchanged.
+   */
+  strictSync: z.boolean().default(false),
   removeFillers: z.boolean().default(false),
   fillerList: z.array(z.string()).default([]),
   profanity: z.enum(["off", "mask", "emoji", "hide"]).default("off"),

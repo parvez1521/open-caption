@@ -166,6 +166,26 @@ describe("derivePages", () => {
     expect(clear[0]!.endMs).toBeLessThan(1000);
   });
 
+  it("strictSync: cards end with the last word — no hold, no read floor, no hold-bridging", () => {
+    const words = [mk("a", 0, 200), mk("b", 1000, 1200)];
+    const base = settings({ maxWordsPerCard: 1, gapBehavior: "hold", holdMs: 500 });
+    // default: the hold bridges the gap, so the first card runs to the next word
+    expect(derivePages(docOf(words), base)[0]!.endMs).toBe(1000);
+    const strict = derivePages(docOf(words), settings({ maxWordsPerCard: 1, gapBehavior: "hold", holdMs: 500, strictSync: true }));
+    expect(strict[0]!.endMs).toBe(200);
+    expect(strict[1]!.endMs).toBe(1200);
+    for (let i = 0; i < strict.length - 1; i++) expect(strict[i]!.endMs).toBeLessThanOrEqual(strict[i + 1]!.startMs);
+    expect(strict.every((p) => p.endMs > p.startMs)).toBe(true);
+  });
+
+  it("strictSync: every word reveals exactly when spoken, never early", () => {
+    const pages = derivePages(docOf(ws), settings());
+    // default reveals "there" early (150 ms, before it is spoken at 300 ms)
+    expect(pages[0]!.words[1]!.revealMs).toBeLessThan(300);
+    const strict = derivePages(docOf(ws), settings({ strictSync: true }));
+    for (const p of strict) for (const wd of p.words) expect(wd.revealMs).toBe(wd.startMs);
+  });
+
   it("does not bridge the hold across a manual break", () => {
     const words = [mk("a", 0, 200), mk("b", 1000, 1200)];
     const pages = derivePages(docOf(words, { manualBreaks: ["b1000"] }), settings({ maxWordsPerCard: 1, gapBehavior: "hold", holdMs: 100 }));

@@ -238,8 +238,8 @@ async function runWindow(audio: Float32Array, w: PackedWindow, language: string 
     words.push({ text: c.text, startMs: toOriginalSeconds(w, a) * 1000, endMs: toOriginalSeconds(w, end) * 1000 });
   }
   // Whisper's word times lag the sound (DTW over cross-attention: starts 160–290 ms late on the
-  // measured test clip): anchor each word's edges to the speech burst it belongs to.
-  // Mid-burst words keep Whisper's times — see refineWordTimings in speech.ts.
+  // measured test clip): anchor each word's edges to the speech burst it belongs to, and shift
+  // mid-burst words by the calibrated bias (see refineWordTimings in speech.ts).
   return dropRepeatedRuns(refineWordTimings(words, audio));
 }
 

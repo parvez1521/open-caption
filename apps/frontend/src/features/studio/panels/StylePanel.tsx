@@ -289,6 +289,7 @@ export const SettingsPanel: React.FC<SettingsProps> = ({ settings, patch, layout
         <Slider label="Minimum card time" value={settings.minCardMs} min={200} max={2000} step={50} unit=" ms" onChange={(v) => patch({ minCardMs: v })} />
         <Select label="During silence" value={settings.gapBehavior} options={[{ value: "hold", label: "Keep last card" }, { value: "clear", label: "Clear screen" }]} onChange={(v) => patch({ gapBehavior: v as ProjectSettings["gapBehavior"] })} />
         <Slider label="Sync offset" value={settings.syncOffsetMs} min={-1000} max={1000} step={10} unit=" ms" onChange={(v) => patch({ syncOffsetMs: v })} />
+        <Toggle label="Strict sync" hint="Words appear exactly when spoken and cards leave with the last word — no early reveal, no linger. For checking sync against the voiceover." checked={settings.strictSync} onChange={(v) => patch({ strictSync: v })} />
       </Section>
       <Section title="Clean-up">
         <Toggle label="Remove filler words" hint="um, uh, hmm…" checked={settings.removeFillers} onChange={(v) => patch({ removeFillers: v })} />

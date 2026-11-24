@@ -39,3 +39,9 @@ apps/launch-video/
 .agents/
 skills-lock.json
 .mcp.json
+
+# caption-accuracy measurement (one-off runner + model cache, never commit)
+caption-accuracy-evalset/.cache/
+caption-accuracy-evalset/runner/node_modules/
+caption-accuracy-evalset/runner/package-lock.json
+caption-accuracy-evalset/runner/pnpm-lock.yaml

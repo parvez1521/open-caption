@@ -248,13 +248,15 @@ describe("refineWordTimings — anchor Whisper's times to the speech bursts", ()
     expect(out[1]).toMatchObject({ startMs: 1660, endMs: 2440 });
   });
 
-  it("leaves words in the middle of one continuous burst alone", () => {
+  it("shifts a word in the middle of one continuous burst by the calibrated bias", () => {
     const audio = clip([["speech", 3]]);
     const out = refineWordTimings([w("a", 200, 600), w("b", 700, 1200), w("c", 2000, 2600)], audio);
-    // only the first word's start may move (to the burst onset) and only the last word's end
-    // (here 400 ms short of the burst end: too far, so it stays) — the middle word is untouched
+    // the first word's start still snaps to the burst onset and the last word's end still stays
+    // (400 ms short of the burst end: too far to snap) — but the middle word no longer keeps
+    // Whisper's times untouched: the DTW bias pulls its start 200 ms earlier (clamped at the
+    // previous word's end, 600) and pushes its end 100 ms later (1300).
     expect(out[0]).toMatchObject({ startMs: 0, endMs: 600 });
-    expect(out[1]).toMatchObject({ startMs: 700, endMs: 1200 });
+    expect(out[1]).toMatchObject({ startMs: 600, endMs: 1300 });
     expect(out[2]).toMatchObject({ startMs: 2000, endMs: 2600 });
   });
 

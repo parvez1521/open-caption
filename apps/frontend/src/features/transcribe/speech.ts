@@ -208,6 +208,27 @@ const REFINE_MAX_MOVE_MS = 1500; // a silence-anchored correction never moves a 
 const REFINE_EDGE_INTRUSION_MS = 100; // a word edge may sit this far inside neighbouring speech and still be a hang-over
 const REFINE_BRIDGE_FRAMES = 5; // quiet dips up to 100 ms inside a burst do not split it
 const REFINE_MIN_OVERLAP_MS = 40; // a word must overlap a burst by this much to belong to it
+/**
+ * Calibrated DTW bias, from the same test-clip measurement as the snaps above: Whisper's starts
+ * land 160-290 ms LATE and its ends 10-190 ms EARLY. The shifts below sit at the midpoints of
+ * those measured ranges (200 / 100 ms). They apply ONLY to words strictly inside a burst — a
+ * burst's first/last word keeps its edge snap instead — because inside a burst the energy
+ * envelope cannot tell one word from the next, so the systematic bias is the only evidence
+ * about those words. Honest limit: the bias was measured on three words of one clip on one
+ * model (whisper-base_timestamped q8); a fixed shift at the range midpoint cuts the mean
+ * error on the fixture from 178 ms to 58 ms (see timingMeasurement.test.ts), but it is a
+ * correction of a measured average, not a per-word truth — a word Whisper happened to time
+ * right moves 200 ms early. It never invents a boundary outside the burst or across a
+ * neighbour (the guards below), and it is off when `biasCorrection: false`.
+ */
+const REFINE_START_BIAS_MS = 200;
+const REFINE_END_BIAS_MS = 100;
+
+/** Options for refineWordTimings. */
+export interface RefineOptions {
+  /** Apply the calibrated DTW bias correction to mid-burst words (default true). */
+  biasCorrection?: boolean;
+}
 
 interface SpeechRun { startMs: number; endMs: number }
 interface RefineData { energies: Float32Array; runs: SpeechRun[]; hi: number }
@@ -281,8 +302,14 @@ function refineData(audio: Float32Array): RefineData {
  * Snap word boundaries to the speech bursts they belong to (see above). Words are matched to runs by
  * largest overlap; a word that overlaps no burst keeps Whisper's times. Never moves a boundary by more
  * than REFINE_MAX_MOVE_MS, never crosses a neighbour, never shrinks a word below 40 ms.
+ *
+ * After the snaps, mid-burst words (neither first nor last of their burst) get the calibrated DTW
+ * bias correction: start 200 ms earlier, end 100 ms later (REFINE_START_BIAS_MS / REFINE_END_BIAS_MS).
+ * It runs after the snaps so it never fights them, and it is clamped to the burst bounds and the
+ * neighbours, so a shifted word can never leave its burst or cross the word before/after it.
  */
-export function refineWordTimings<T extends { text: string; startMs: number; endMs: number }>(words: T[], audio: Float32Array): T[] {
+export function refineWordTimings<T extends { text: string; startMs: number; endMs: number }>(words: T[], audio: Float32Array, opts: RefineOptions = {}): T[] {
+  const bias = opts.biasCorrection ?? true;
   if (words.length === 0 || audio.length < SR / 2) return words;
   const { energies, runs, hi } = refineData(audio);
   if (!runs.length) return words;
@@ -348,6 +375,23 @@ export function refineWordTimings<T extends { text: string; startMs: number; end
     if (ne - ns < 40) continue;
     w.startMs = Math.round(ns);
     w.endMs = Math.round(ne);
+  }
+  // Calibrated bias for mid-burst words only (see REFINE_START_BIAS_MS above): the edge snaps
+  // already fixed the first/last word of each burst, so only words with no burst edge of their
+  // own get the shift — and only inside their burst, never across a neighbour, never under 40 ms.
+  if (bias) {
+    for (let i = 0; i < out.length; i++) {
+      const run = assigned[i];
+      if (!run || firstOf.get(run) === i || lastOf.get(run) === i) continue;
+      const w = out[i]!;
+      let ns = w.startMs - REFINE_START_BIAS_MS;
+      let ne = w.endMs + REFINE_END_BIAS_MS;
+      ns = Math.max(ns, run.startMs, i > 0 ? out[i - 1]!.endMs : 0);
+      ne = Math.min(ne, run.endMs, i < out.length - 1 ? out[i + 1]!.startMs : Infinity);
+      if (ne - ns < 40) continue;
+      w.startMs = Math.round(ns);
+      w.endMs = Math.round(ne);
+    }
   }
   return out;
 }

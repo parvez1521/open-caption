@@ -149,16 +149,20 @@ export function derivePages(doc: CaptionDoc, settings: ProjectSettings, opts: De
     // cards so short ones stay readable, but after a split / delete / trim the user
     // is the authority: a long card's read floor (first word + readMs) can run far
     // past the trimmed end and keep the caption on screen through the emptied gap.
-    let end = nextStartsManual
+    // Strict sync is the same rule for EVERY card, not just manual breaks: the card
+    // ends with its last word, no holdMs, no read floor, no hold-bridging.
+    let end = settings.strictSync || nextStartsManual
       ? last.endMs
       : Math.max(last.endMs + settings.holdMs, first.startMs + readMs(g));
-    if (settings.gapBehavior === "hold" && !nextStartsManual && nextStart != null && nextStart - last.endMs <= bridge) end = Math.max(end, nextStart);
+    if (settings.gapBehavior === "hold" && !settings.strictSync && !nextStartsManual && nextStart != null && nextStart - last.endMs <= bridge) end = Math.max(end, nextStart);
     if (nextStart != null) end = Math.min(end, nextStart);
     end = Math.max(end, Math.min(last.endMs, nextStart ?? last.endMs), first.startMs + 1);
 
     const meta = doc.cards[first.id];
     const heroIndex = pickHeroIndex(g);
-    const shownWords = withReveal(g, first.startMs, end);
+    // Strict sync: every word reveals exactly when spoken (revealMs = startMs) — no early
+    // reveal schedule. The highlight already follows startMs, so nothing else changes.
+    const shownWords = settings.strictSync ? g.map((w) => ({ ...w, revealMs: w.startMs })) : withReveal(g, first.startMs, end);
     return {
       id: first.id,
       index: i,
