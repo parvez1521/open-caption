@@ -78,7 +78,7 @@ type Mocks = {
   onSeek: ReturnType<typeof vi.fn<(ms: number) => void>>;
 };
 
-const renderTimeline = (selectedCardIds: Set<string>, selectedWordIds: Set<string> = new Set()) => {
+const renderTimeline = (selectedCardIds: Set<string>, selectedWordIds: Set<string> = new Set(), opts: { multiSelectArmed?: boolean } = {}) => {
   const mocks: Mocks = {
     onWordSelectionChange: vi.fn<(ids: Set<string>) => void>(),
     onCardSelectionChange: vi.fn<(ids: Set<string>) => void>(),
@@ -100,6 +100,7 @@ const renderTimeline = (selectedCardIds: Set<string>, selectedWordIds: Set<strin
       onWordSelectionChange={mocks.onWordSelectionChange}
       selectedCardIds={selectedCardIds}
       onCardSelectionChange={mocks.onCardSelectionChange}
+      multiSelectArmed={opts.multiSelectArmed ?? false}
       onShiftWords={vi.fn()}
       onRetimeRun={vi.fn()}
       onRename={vi.fn()}
@@ -253,5 +254,91 @@ describe("timeline card multi-select — word mode is untouched", () => {
     fireEvent.pointerDown(block, { button: 0, shiftKey: true, clientX: 10 });
     expect(mocks.onWordSelectionChange).toHaveBeenCalledWith(new Set(["w2"]));
     expect(mocks.onCardSelectionChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("timeline card multi-select — armed multi mode (owner 2026-11-25)", () => {
+  it("one selected card shows the toolbar count (singular)", () => {
+    renderTimeline(new Set(["p1"]));
+    expect(screen.getByText("1 card selected — drag a caption to move only it")).toBeTruthy();
+  });
+
+  it("armed in word mode, empty-space drag marquees cards instead of scrubbing", async () => {
+    localStorage.setItem("ce_tl_mode", "word");
+    const { mocks } = renderTimeline(new Set(), new Set(), { multiSelectArmed: true });
+    const row = blockOf("such").parentElement!;
+    const pxPerMs = pxPerMsOf(blockOf("bolun"), 820);
+    // drag from 900 ms to 1100 ms: only the second card (w3 "bolun" 820–1200)
+    fireEvent.pointerDown(row, { button: 0, clientX: 900 * pxPerMs });
+    fireEvent.pointerMove(row, { clientX: 1100 * pxPerMs });
+    expect(screen.getByTestId("timeline-marquee")).toBeTruthy();
+    fireEvent.pointerUp(row, { clientX: 1100 * pxPerMs });
+    expect(mocks.onCardSelectionChange).toHaveBeenCalledWith(new Set(["p2"]));
+    // scrubs seek on the next animation frame: wait past it, still no seek
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mocks.onSeek).not.toHaveBeenCalled();
+  });
+
+  it("armed in word mode, each drag selects exactly the dragged set (replaces, never adds)", () => {
+    localStorage.setItem("ce_tl_mode", "word");
+    const { mocks } = renderTimeline(new Set(["p1"]), new Set(), { multiSelectArmed: true });
+    const row = blockOf("such").parentElement!;
+    const pxPerMs = pxPerMsOf(blockOf("bolun"), 820);
+    // drag across only the second card: the old p1 selection is replaced, not kept
+    fireEvent.pointerDown(row, { button: 0, clientX: 900 * pxPerMs });
+    fireEvent.pointerMove(row, { clientX: 1100 * pxPerMs });
+    fireEvent.pointerUp(row, { clientX: 1100 * pxPerMs });
+    expect(mocks.onCardSelectionChange).toHaveBeenCalledWith(new Set(["p2"]));
+  });
+
+  it("armed in word mode, a drag over a middle word still selects its card", () => {
+    localStorage.setItem("ce_tl_mode", "word");
+    const { mocks } = renderTimeline(new Set(), new Set(), { multiSelectArmed: true });
+    const row = blockOf("such").parentElement!;
+    const pxPerMs = pxPerMsOf(blockOf("bolun"), 820);
+    // drag from 500 ms to 700 ms: only w2 "such" (420–800), a middle word of card p1
+    fireEvent.pointerDown(row, { button: 0, clientX: 500 * pxPerMs });
+    fireEvent.pointerMove(row, { clientX: 700 * pxPerMs });
+    fireEvent.pointerUp(row, { clientX: 700 * pxPerMs });
+    expect(mocks.onCardSelectionChange).toHaveBeenCalledWith(new Set(["p1"]));
+  });
+
+  it("armed, a plain click on empty space neither seeks nor clears the selection", async () => {
+    localStorage.setItem("ce_tl_mode", "word");
+    const { mocks } = renderTimeline(new Set(["p1"]), new Set(), { multiSelectArmed: true });
+    const row = blockOf("such").parentElement!;
+    const pxPerMs = pxPerMsOf(blockOf("bolun"), 820);
+    fireEvent.pointerDown(row, { button: 0, clientX: 500 * pxPerMs });
+    fireEvent.pointerUp(row, { clientX: 500 * pxPerMs });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mocks.onSeek).not.toHaveBeenCalled();
+    expect(mocks.onCardSelectionChange).not.toHaveBeenCalled();
+  });
+
+  it("armed, the toolbar says multi-select is on", () => {
+    renderTimeline(new Set(), new Set(), { multiSelectArmed: true });
+    expect(screen.getByText(/Multi-select on/)).toBeTruthy();
+  });
+
+  it("unarmed in word mode, empty-space drag still scrubs (no card selection)", async () => {
+    localStorage.setItem("ce_tl_mode", "word");
+    const { mocks } = renderTimeline(new Set());
+    const row = blockOf("such").parentElement!;
+    const pxPerMs = pxPerMsOf(blockOf("bolun"), 820);
+    fireEvent.pointerDown(row, { button: 0, clientX: 100 * pxPerMs });
+    fireEvent.pointerMove(row, { clientX: 1000 * pxPerMs });
+    fireEvent.pointerUp(row, { clientX: 1000 * pxPerMs });
+    expect(mocks.onCardSelectionChange).not.toHaveBeenCalled();
+    // scrubs seek on the next animation frame
+    await new Promise((r) => setTimeout(r, 50));
+    expect(mocks.onSeek).toHaveBeenCalled();
+  });
+
+  it("in word mode, word blocks of a selected card are highlighted too", () => {
+    localStorage.setItem("ce_tl_mode", "word");
+    renderTimeline(new Set(["p1"]));
+    expect(blockOf("Par").getAttribute("data-card-selected")).toBe("true");
+    expect(blockOf("such").getAttribute("data-card-selected")).toBe("true");
+    expect(blockOf("bolun").getAttribute("data-card-selected")).toBeNull();
   });
 });

@@ -8,10 +8,12 @@ import { layoutBox, scaleOf, type Canvas } from "@capseasy/templates";
  * DEFAULT (owner 2026-11-16, second correction): moving a caption moves ALL
  * of them — the drag writes the GLOBAL style.position, never an override, so
  * a new user is never confused by one caption moving and the rest staying.
- * Per-card overrides are the SELECTIVE mechanism only: when 2+ caption cards
- * are picked on the timeline (line mode), a drag writes the same override
- * onto just those cards; every other card keeps its position. Exactly one
- * card picked still counts as "no multi-selection" and moves globally.
+ * Per-card overrides are the SELECTIVE mechanism only: when ANY caption
+ * cards are picked (Select All, multi drag-select, or Shift-click on the
+ * timeline), a drag writes the same override onto just those cards; every
+ * other card keeps its position. (Owner 2026-11-25: the old "2+ cards"
+ * threshold is gone — exactly one picked card moves on its own now, and an
+ * empty selection is the only thing that moves globally.)
  *
  * Storage: the override lives on the card in the project doc
  * (`doc.cards[firstWordId].position`, via the engine's setCardPosition) — the
@@ -199,6 +201,26 @@ export function clearAllCardPositions(doc: CaptionDoc): CaptionDoc {
   let out = doc;
   for (const [firstWordId, card] of Object.entries(doc.cards)) {
     if (card?.position == null) continue;
+    out = setCardPosition(out, firstWordId, null);
+  }
+  return out;
+}
+
+/**
+ * Scoped reset (owner 2026-11-25): clear the overrides of the SELECTED
+ * cards only, so all of them follow the global style position again, while
+ * every unselected card keeps its override. A pure doc transform: one s.edit
+ * call is one undo step. Returns the SAME doc reference when no selected card
+ * has an override to clear, so a no-op click records no undo step.
+ */
+export function clearSelectedCardPositions(doc: CaptionDoc, pages: Page[], selectedPageIds: ReadonlySet<string>): CaptionDoc {
+  if (selectedPageIds.size === 0) return doc;
+  let out = doc;
+  for (const page of pages) {
+    if (!selectedPageIds.has(page.id)) continue;
+    const firstWordId = page.words[0]?.id;
+    if (!firstWordId) continue;
+    if (out.cards[firstWordId]?.position == null) continue;
     out = setCardPosition(out, firstWordId, null);
   }
   return out;

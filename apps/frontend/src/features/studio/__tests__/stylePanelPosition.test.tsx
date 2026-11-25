@@ -111,3 +111,50 @@ describe("StylePanel — Case (text case)", () => {
     expect(next.casing).toBe("smallcaps");
   });
 });
+
+describe("StylePanel — Apply / Reset follow the card selection (owner 2026-11-25)", () => {
+  it("with cards selected the buttons say so and Apply explains the scope", () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <StylePanel
+          style={defaultStyle()}
+          patch={() => {}}
+          lookName="Test look"
+          onOpenLooks={() => {}}
+          currentCardPosition={{ x: 0.5, y: 0.2 }}
+          hasPositionOverrides
+          selectedCardCount={2}
+          selectedHasPositionOverrides
+          onApplyPositionToAll={() => {}}
+          onResetAllPositions={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Apply to selected captions" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Reset selected positions" })).toBeTruthy();
+    expect(screen.getByText("Apply copies this card's position to the selected captions only.")).toBeTruthy();
+  });
+
+  it("with cards selected but none overridden, Reset selected is disabled", () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <StylePanel
+          style={defaultStyle()}
+          patch={() => {}}
+          lookName="Test look"
+          onOpenLooks={() => {}}
+          currentCardPosition={{ x: 0.5, y: 0.2 }}
+          hasPositionOverrides
+          selectedCardCount={1}
+          selectedHasPositionOverrides={false}
+          onApplyPositionToAll={() => {}}
+          onResetAllPositions={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole("button", { name: "Reset selected positions" })).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button", { name: "Apply to selected captions" })).toHaveProperty("disabled", false);
+  });
+});

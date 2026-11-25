@@ -47,6 +47,13 @@ interface Props {
    */
   selectedCardIds?: Set<string>;
   onCardSelectionChange?: (ids: Set<string>) => void;
+  /**
+   * Multi mode (owner 2026-11-25): armed from the Captions panel — while
+   * armed, empty-space drags on the captions track marquee-select cards in
+   * BOTH word and line mode instead of scrubbing/seeking. Block presses are
+   * untouched: they capture the pointer first (drag-select / retime).
+   */
+  multiSelectArmed?: boolean;
   /** commit a retime of the whole word selection, once, on pointer up (shiftWordsByIds in StudioPage) */
   onShiftWords: (ids: string[], deltaMs: number) => void;
   /** commit new timing for a run of words (one word, or a whole line), once, on pointer up */
@@ -163,7 +170,7 @@ const pref = <T extends string>(k: string, fallback: T): T => {
 const save = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
 
 /** Editor timeline: one captions track (as words or as lines), video, audio. Drag to move, drag edges to retime. */
-export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fps = 30, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, selectedCardIds = EMPTY_SET, onCardSelectionChange = () => {}, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedJoinClipId = null, onSelectJoin, onDropTransition, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
+export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fps = 30, getTimeMs, playing = false, videoId, videoUrl, videoAspect = 16 / 9, selectedId, selectedWordIds, onWordSelectionChange, selectedCardIds = EMPTY_SET, onCardSelectionChange = () => {}, multiSelectArmed = false, onShiftWords, peaks, waveState, onSeek, onSelect, onRetimeRun, onRename, onAddWord, onSplit, onJoin, onJoinNext, onOpenSettings, extraTools, composition, selectedOverlayId, onSelectOverlay, onMoveOverlay, onSplitAtPlayhead, editorComp, selectedVideoClipId, onSelectVideoClip, selectedJoinClipId = null, onSelectJoin, onDropTransition, selectedMarkerId, onSelectMarker, onTrimVideoEdge, onTrimOverlayClip, onTrackPatch, onOverlayTrackPatch, onDropAsset, segmentAssetUrls, segmentAssetNames, audioTracks: audioTracksProp, audioClips: audioClipsProp, selectedAudioClipId, onSelectAudioClip, onMoveAudioClip, onTrimAudioClip }) => {
   const total = Math.max(1000, durationMs);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
@@ -412,19 +419,24 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
     return t;
   };
   /**
-   * Multi-select of caption cards (owner 2026-11-16, Premiere-style): in LINE
-   * mode the user picks cards for a selective position move. A block's card
-   * is its page — found by the block's first word id, so the mapping holds
-   * whether the block came from the composition clips or the pages fallback.
+   * A block's card is its page — found by ANY word id in the block, so the
+   * mapping holds whether the block came from the composition clips or the
+   * pages fallback, and whether it is a whole line or a single word (in word
+   * mode only the card's first word would match a first-word lookup, and a
+   * marquee over a middle word would miss its card entirely).
    */
-  const cardPageId = (b: Block): string | null => pages.find((p) => p.words[0]?.id === b.firstId)?.id ?? null;
+  const cardPageId = (b: Block): string | null => pages.find((p) => b.wordIds.some((id) => p.words.some((w) => w.id === id)))?.id ?? null;
   /** a plain click (on a card, or on empty track space) clears the card selection — back to the global move */
   const clearCardSelection = () => {
     if (mode === "line" && selectedCardIds.size > 0) onCardSelectionChange(new Set());
   };
-  /** Marquee select on the captions track (line mode only): drag on empty track
-   *  space draws a rectangle across card blocks, Premiere-style. A press that
-   *  never moves is a plain click — it seeks, like the old scrub did. */
+  /** Marquee select on the captions track: drag on empty track space draws
+   *  a rectangle across card blocks, Premiere-style. Line mode always
+   *  marquees; word mode only while multi mode is armed (otherwise empty
+   *  space scrubs, as before). A press that never moves is a plain click —
+   *  it seeks, like the old scrub did — except while armed, when a plain
+   *  click does nothing (no seek, no clear): the pick stays put until Esc
+   *  or the button disarms it. */
   const marqueeRef = useRef<{ startX: number; startMs: number; s: number; e: number; active: boolean } | null>(null);
   const [marquee, setMarquee] = useState<{ s: number; e: number } | null>(null);
   const msAtPointer = (el: HTMLElement, clientX: number) => {
@@ -459,11 +471,12 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
         setMarquee(null);
         // swallow the click that follows a marquee drag (it must not deselect the word)
         suppressClickRef.current = true;
-      } else {
+      } else if (!multiSelectArmed) {
         // plain click on empty space: seek, and clear the card selection
         onSeek(m.startMs);
         clearCardSelection();
       }
+      // armed plain click: nothing — the pick stays put
       if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
     },
     onPointerCancel: () => { marqueeRef.current = null; setMarquee(null); },
@@ -873,11 +886,17 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
             </button>
           ))}
         </div>
-        {mode === "line" && selectedCardIds.size >= 2 ? (
+        {selectedCardIds.size >= 1 ? (
           <>
             {sep}
-            <span className="shrink-0 rounded-md bg-st-raised px-2 py-1 font-semibold text-st-text">{selectedCardIds.size} cards selected — drag a caption to move only them</span>
+            <span className="shrink-0 rounded-md bg-st-raised px-2 py-1 font-semibold text-st-text">{selectedCardIds.size === 1 ? "1 card selected — drag a caption to move only it" : `${selectedCardIds.size} cards selected — drag a caption to move only them`}</span>
             <button type="button" onClick={() => onCardSelectionChange(new Set())} aria-label="Clear card selection" className="shrink-0 rounded-md border border-st-line bg-st-panel px-2 py-1 font-semibold text-st-muted hover:text-st-text">Clear</button>
+          </>
+        ) : null}
+        {multiSelectArmed ? (
+          <>
+            {sep}
+            <span className="shrink-0 rounded-md bg-st-raised px-2 py-1 font-semibold text-st-text">Multi-select on — drag across the captions track to pick captions (Esc to exit)</span>
           </>
         ) : null}
         {sep}
@@ -975,7 +994,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
           </div>
 
           {/* captions: words or lines */}
-          <div className={`${trackRow} ${tracks.captions.visible ? "" : "opacity-40"}`} {...(mode === "line" ? marqueeScrub : scrub)} onClick={() => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } onSelect(null); }}>
+          <div className={`${trackRow} ${tracks.captions.visible ? "" : "opacity-40"}`} {...(multiSelectArmed || mode === "line" ? marqueeScrub : scrub)} onClick={() => { if (suppressClickRef.current) { suppressClickRef.current = false; return; } onSelect(null); }}>
             {marquee ? (
               <div aria-hidden data-testid="timeline-marquee" className="pointer-events-none absolute inset-y-1 z-10 rounded border border-[#FFA946] bg-[#FFA946]/15" style={{ left: x(marquee.s), width: Math.max(2, x(marquee.e) - x(marquee.s)) }} />
             ) : null}
@@ -984,7 +1003,7 @@ export const Timeline: React.FC<Props> = ({ pages, words, durationMs, timeMs, fp
               const groupOffsetPx = drag?.group && b.wordIds.some((id) => selectedWordIds.has(id)) ? drag.dxMs * pxPerMs : 0;
               const wpx = Math.max(3, x(live.e) - x(live.s) - 1);
               const cardId = cardPageId(b);
-              const cardSelected = mode === "line" && cardId !== null && selectedCardIds.has(cardId);
+              const cardSelected = cardId !== null && selectedCardIds.has(cardId);
               return (
                 <div
                   key={b.key}

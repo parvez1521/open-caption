@@ -6,14 +6,14 @@ import { CaptionDocSchema, defaultStyle, ProjectSettingsSchema } from "@capseasy
 import StudioPage from "../StudioPage";
 
 /**
- * Caption multi-select (owner 2026-11-16, second correction): the DEFAULT is
- * the old behaviour — moving a caption moves ALL of them (the global
+ * Caption multi-select (owner 2026-11-25, supersedes 2026-11-16): the DEFAULT
+ * is the old behaviour — moving a caption moves ALL of them (the global
  * style.position), so a new user is never confused by one caption moving and
- * the rest staying. Only when 2+ cards are picked on the timeline does a
- * drag write per-card overrides to just those cards. Exactly one card picked
- * still moves globally. While a selective drag moves cards the playhead card
- * is NOT in, a ghost shows the dragged spot — the playhead caption must never
- * visibly move and then snap back.
+ * the rest staying. When ANY cards are picked on the timeline (Select All,
+ * multi drag-select, or Shift-click), a drag writes per-card overrides to
+ * just those cards. Empty selection = global move. While a selective drag
+ * moves cards the playhead card is NOT in, a ghost shows the dragged spot —
+ * the playhead caption must never visibly move and then snap back.
  *
  * Drives the real StudioPage with a mocked useStudio (same pattern as
  * captionSectionSwitch.test.tsx) and stubbed heavy leaves — the StudioPlayer
@@ -260,7 +260,7 @@ async function mountStudio(studio: typeof baseStudio = baseStudio) {
   return utils;
 }
 
-describe("StudioPage — caption multi-select (owner 2026-11-16)", () => {
+describe("StudioPage — caption multi-select (owner 2026-11-25)", () => {
   it("with no card selection a drag moves the GLOBAL position (patchStyle), no override written", async () => {
     const { unmount } = await mountStudio();
     try {
@@ -274,13 +274,38 @@ describe("StudioPage — caption multi-select (owner 2026-11-16)", () => {
     }
   });
 
-  it("with exactly one card selected a drag still moves globally", async () => {
+  it("with exactly one card selected a drag writes an override to ONLY that card", async () => {
     const { unmount } = await mountStudio();
     try {
       fireEvent.click(screen.getByRole("button", { name: "select-card-2" }));
       fireEvent.click(screen.getByRole("button", { name: "player-move" }));
-      expect(patchStyle).toHaveBeenCalledTimes(1);
-      expect(edit).not.toHaveBeenCalled();
+      expect(patchStyle).not.toHaveBeenCalled();
+      expect(edit).toHaveBeenCalledTimes(1);
+      const fn = edit.mock.calls[0]![0] as (d: typeof doc) => typeof doc;
+      const next = fn(doc);
+      // page 2 starts at w3 — only it moved; pages 1 (w1) and 3 (w5) untouched
+      expect(next.cards.w3?.position).toEqual({ x: 0.5, y: 0.2 });
+      expect(next.cards.w1?.position ?? null).toBeNull();
+      expect(next.cards.w5?.position ?? null).toBeNull();
+      expect(() => CaptionDocSchema.parse(next)).not.toThrow();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("with exactly one card selected a grip nudge shifts ONLY that card", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "select-card-2" }));
+      fireEvent.click(screen.getByRole("button", { name: "player-nudge-up" }));
+      expect(patchStyle).not.toHaveBeenCalled();
+      expect(edit).toHaveBeenCalledTimes(1);
+      const fn = edit.mock.calls[0]![0] as (d: typeof doc) => typeof doc;
+      const next = fn(doc);
+      // a nudge from the global 0.72 by -0.01 writes an override at 0.71 on w3 only
+      expect(next.cards.w3?.position).toEqual({ x: 0.5, y: 0.71 });
+      expect(next.cards.w1?.position ?? null).toBeNull();
+      expect(next.cards.w5?.position ?? null).toBeNull();
     } finally {
       unmount();
     }
@@ -386,6 +411,199 @@ describe("StudioPage — caption multi-select (owner 2026-11-16)", () => {
       expect(nextStyle.position).toEqual({ x: 0.5, y: 0.71 });
       const nextDoc = (edit.mock.calls[0]![0] as (d: typeof overriddenDoc) => typeof overriddenDoc)(overriddenDoc);
       expect(nextDoc.cards.w1?.position).toEqual({ x: 0.5, y: 0.79 });
+    } finally {
+      unmount();
+    }
+  });
+});
+
+// doc with overrides on the first AND last cards: Reset-scoping proves the
+// unselected card (w5) keeps its override while a selected one (w1) clears.
+const overriddenBothEndsDoc = CaptionDocSchema.parse({
+  version: 2,
+  language: "en",
+  words: [
+    { id: "w1", text: "Dulha", startMs: 0, endMs: 400 },
+    { id: "w2", text: "Dulhan?", startMs: 420, endMs: 800 },
+    { id: "w3", text: "hota", startMs: 820, endMs: 1200 },
+    { id: "w4", text: "hai?", startMs: 1220, endMs: 1600 },
+    { id: "w5", text: "aur", startMs: 1620, endMs: 2000 },
+    { id: "w6", text: "kya?", startMs: 2020, endMs: 2400 },
+  ],
+  cards: { w1: { position: { x: 0.5, y: 0.8 } }, w5: { position: { x: 0.5, y: 0.3 } } },
+});
+
+describe("StudioPage — Esc clears the card selection (owner 2026-11-25)", () => {
+  it("Esc clears the selection, so the next drag moves globally again", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "select-cards-1-2" }));
+      fireEvent.keyDown(window, { key: "Escape" });
+      fireEvent.click(screen.getByRole("button", { name: "player-move" }));
+      expect(patchStyle).toHaveBeenCalledTimes(1);
+      expect(edit).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("Esc does nothing while a modal dialog is open", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "select-cards-1-2" }));
+      const dialog = document.createElement("div");
+      dialog.setAttribute("role", "dialog");
+      document.body.appendChild(dialog);
+      try {
+        fireEvent.keyDown(window, { key: "Escape" });
+      } finally {
+        dialog.remove();
+      }
+      fireEvent.click(screen.getByRole("button", { name: "player-move" }));
+      expect(patchStyle).not.toHaveBeenCalled();
+      expect(edit).toHaveBeenCalledTimes(1);
+      const fn = edit.mock.calls[0]![0] as (d: typeof doc) => typeof doc;
+      const next = fn(doc);
+      expect(next.cards.w1?.position).toEqual({ x: 0.5, y: 0.2 });
+      expect(next.cards.w3?.position).toEqual({ x: 0.5, y: 0.2 });
+      expect(next.cards.w5?.position ?? null).toBeNull();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("Esc while typing in a field does not clear the selection", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "select-cards-1-2" }));
+      const find = screen.getByLabelText("Find");
+      fireEvent.keyDown(find, { key: "Escape" });
+      fireEvent.click(screen.getByRole("button", { name: "player-move" }));
+      expect(patchStyle).not.toHaveBeenCalled();
+      expect(edit).toHaveBeenCalledTimes(1);
+    } finally {
+      unmount();
+    }
+  });
+
+  it("Esc disarms multi mode and clears the selection in one press", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      const multi = screen.getByRole("button", { name: "Multiple captions" });
+      fireEvent.click(multi);
+      expect(multi.getAttribute("aria-pressed")).toBe("true");
+      fireEvent.click(screen.getByRole("button", { name: "select-cards-1-2" }));
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.getByRole("button", { name: "Multiple captions" }).getAttribute("aria-pressed")).toBe("false");
+      fireEvent.click(screen.getByRole("button", { name: "player-move" }));
+      expect(patchStyle).toHaveBeenCalledTimes(1);
+      expect(edit).not.toHaveBeenCalled();
+    } finally {
+      unmount();
+    }
+  });
+});
+
+describe("StudioPage — Apply / Reset respect the card selection (owner 2026-11-25)", () => {
+  it("with cards selected, Apply copies the current position onto ONLY those cards", async () => {
+    const { unmount } = await mountStudio({ ...baseStudio, doc: overriddenDoc });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "select-cards-1-2" }));
+      fireEvent.click(screen.getByRole("button", { name: "Style" }));
+      fireEvent.click(screen.getByRole("button", { name: "Apply to selected captions" }));
+      expect(edit).toHaveBeenCalledTimes(1);
+      const fn = edit.mock.calls[0]![0] as (d: typeof overriddenDoc) => typeof overriddenDoc;
+      const next = fn(overriddenDoc);
+      // current card (page 1) sits at its 0.8 override; page 2 copies it, page 3 untouched
+      expect(next.cards.w1?.position).toEqual({ x: 0.5, y: 0.8 });
+      expect(next.cards.w3?.position).toEqual({ x: 0.5, y: 0.8 });
+      expect(next.cards.w5?.position ?? null).toBeNull();
+      expect(() => CaptionDocSchema.parse(next)).not.toThrow();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("with cards selected, Reset clears overrides on ONLY those cards", async () => {
+    const { unmount } = await mountStudio({ ...baseStudio, doc: overriddenBothEndsDoc });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "select-cards-1-2" }));
+      fireEvent.click(screen.getByRole("button", { name: "Style" }));
+      fireEvent.click(screen.getByRole("button", { name: "Reset selected positions" }));
+      expect(edit).toHaveBeenCalledTimes(1);
+      const fn = edit.mock.calls[0]![0] as (d: typeof overriddenBothEndsDoc) => typeof overriddenBothEndsDoc;
+      const next = fn(overriddenBothEndsDoc);
+      expect(next.cards.w1?.position ?? null).toBeNull();
+      // w5 was never selected: its override survives the scoped reset
+      expect(next.cards.w5?.position).toEqual({ x: 0.5, y: 0.3 });
+      expect(() => CaptionDocSchema.parse(next)).not.toThrow();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("with no selection, Apply and Reset keep today's all-cards behaviour", async () => {
+    const { unmount } = await mountStudio({ ...baseStudio, doc: overriddenDoc });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "Style" }));
+      fireEvent.click(screen.getByRole("button", { name: "Apply to all captions" }));
+      expect(edit).toHaveBeenCalledTimes(1);
+      const applyFn = edit.mock.calls[0]![0] as (d: typeof overriddenDoc) => typeof overriddenDoc;
+      const applied = applyFn(overriddenDoc);
+      expect(applied.cards.w3?.position).toEqual({ x: 0.5, y: 0.8 });
+      expect(applied.cards.w5?.position).toEqual({ x: 0.5, y: 0.8 });
+      edit.mockClear();
+      fireEvent.click(screen.getByRole("button", { name: "Reset all positions" }));
+      expect(edit).toHaveBeenCalledTimes(1);
+      const resetFn = edit.mock.calls[0]![0] as (d: typeof overriddenDoc) => typeof overriddenDoc;
+      const reset = resetFn(applied);
+      expect(reset.cards.w1?.position ?? null).toBeNull();
+      expect(reset.cards.w3?.position ?? null).toBeNull();
+      expect(reset.cards.w5?.position ?? null).toBeNull();
+    } finally {
+      unmount();
+    }
+  });
+});
+
+describe("StudioPage — positioning walkthrough (owner 2026-11-25)", () => {
+  it("the tour appears after captions land when the v3 flag is unset", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      expect(window.localStorage.getItem("ce:tutorial-seen:v3")).toBeNull();
+      expect(await screen.findByRole("dialog", { name: "Studio tour" }, { timeout: 5000 })).toBeTruthy();
+    } finally {
+      unmount();
+    }
+  });
+
+  it("Skip marks the v3 flag seen and the tour never blocks the editor after", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      await screen.findByRole("dialog", { name: "Studio tour" }, { timeout: 5000 });
+      fireEvent.click(screen.getByRole("button", { name: "Skip tour" }));
+      expect(window.localStorage.getItem("ce:tutorial-seen:v3")).toBe("1");
+      expect(screen.queryByRole("dialog", { name: "Studio tour" })).toBeNull();
+      // the editor still works: a drag moves the global position
+      fireEvent.click(screen.getByRole("button", { name: "player-move" }));
+      expect(patchStyle).toHaveBeenCalledTimes(1);
+    } finally {
+      unmount();
+    }
+  });
+
+  it("replay opens the tour despite the seen flag", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      await screen.findByRole("dialog", { name: "Studio tour" }, { timeout: 5000 });
+      fireEvent.click(screen.getByRole("button", { name: "Skip tour" }));
+      expect(window.localStorage.getItem("ce:tutorial-seen:v3")).toBe("1");
+      fireEvent.click(screen.getByRole("button", { name: "How to position captions" }));
+      expect(await screen.findByRole("dialog", { name: "Studio tour" }, { timeout: 5000 })).toBeTruthy();
+      // Esc dismisses the replayed tour immediately and keeps the flag set
+      fireEvent.keyDown(window, { key: "Escape" });
+      expect(screen.queryByRole("dialog", { name: "Studio tour" })).toBeNull();
+      expect(window.localStorage.getItem("ce:tutorial-seen:v3")).toBe("1");
     } finally {
       unmount();
     }

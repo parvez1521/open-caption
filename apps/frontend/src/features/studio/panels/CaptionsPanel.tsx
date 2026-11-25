@@ -42,6 +42,24 @@ interface Props {
    * so a "locked" captions track could still be edited from here.
    */
   locked?: boolean;
+  /**
+   * Card selection (owner 2026-11-25): the picked caption CARDS (page ids)
+   * a position move applies to — owned by StudioPage, like selectedWordIds.
+   * Empty = the global move. The buttons below live in this panel's sticky
+   * bottom bar (the selection home) so they are reachable whenever captions
+   * exist, not only while words are selected.
+   */
+  selectedCardIds?: Set<string>;
+  /** select every caption card (Select All) */
+  onSelectAllCards?: () => void;
+  /** multi mode armed: empty-space drags on the timeline marquee-select cards */
+  multiSelectArmed?: boolean;
+  /** arm / disarm multi mode */
+  onToggleMultiSelect?: () => void;
+  /** clear the card selection */
+  onClearCardSelection?: () => void;
+  /** replay the positioning walkthrough (opens the tour despite the seen flag) */
+  onReplayTutorial?: () => void;
 }
 
 /**
@@ -112,7 +130,7 @@ const SelectedWordEditor: React.FC<{
   );
 };
 
-export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, heroSupported, selectedWordIds, onWordSelectionChange, locked = false, onGenerateCaptions, generateBusy = false, generateProgress = 0, generateNote = null }) => {
+export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, timeMs, selectedId, onSelect, onSeek, edit: editProp, heroSupported, selectedWordIds, onWordSelectionChange, locked = false, onGenerateCaptions, generateBusy = false, generateProgress = 0, generateNote = null, selectedCardIds = new Set(), onSelectAllCards, multiSelectArmed = false, onToggleMultiSelect, onClearCardSelection, onReplayTutorial }) => {
   // The lock guard lives at this ONE chokepoint: every edit this panel makes
   // goes through `edit`, so wrapping it here blocks them all at once — no call
   // site can forget the check.
@@ -402,23 +420,53 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
         </div>
       ) : null}
 
-      {selIds.length > 0 ? (
+      {selIds.length > 0 || pages.length > 0 ? (
         <div className="sticky bottom-0 border-t border-st-line bg-st-panel p-3 shadow-[0_-8px_20px_-14px_rgba(0,0,0,0.4)]" role="group" aria-label="Selected words actions">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold text-st-text">
-              {selIds.length} word{selIds.length === 1 ? "" : "s"} selected
-              {dragDeltaMs !== null ? <span className="ml-2 font-mono text-st-em">{formatDelta(dragDeltaMs)}</span> : null}
-            </p>
-            <button onClick={() => onWordSelectionChange(new Set())} className="text-xs font-medium text-st-muted hover:text-st-text">Clear</button>
-          </div>
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {[-500, -100, 100, 500].map((ms) => (
-              <Button key={ms} disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => { const ids = selIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
-                {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
-              </Button>
-            ))}
-            <Button tone="danger" disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => { const ids = selIds; edit((d) => deleteWordsByIds(d, ids)); onWordSelectionChange(new Set()); onSelect(null); }}>Delete selected</Button>
-          </div>
+          {selIds.length > 0 ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-st-text">
+                  {selIds.length} word{selIds.length === 1 ? "" : "s"} selected
+                  {dragDeltaMs !== null ? <span className="ml-2 font-mono text-st-em">{formatDelta(dragDeltaMs)}</span> : null}
+                </p>
+                <button onClick={() => onWordSelectionChange(new Set())} className="text-xs font-medium text-st-muted hover:text-st-text">Clear</button>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {[-500, -100, 100, 500].map((ms) => (
+                  <Button key={ms} disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => { const ids = selIds; edit((d) => shiftWordsByIds(d, ids, ms)); }}>
+                    {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
+                  </Button>
+                ))}
+                <Button tone="danger" disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => { const ids = selIds; edit((d) => deleteWordsByIds(d, ids)); onWordSelectionChange(new Set()); onSelect(null); }}>Delete selected</Button>
+              </div>
+            </>
+          ) : null}
+          {pages.length > 0 ? (
+            <div className={`${selIds.length > 0 ? "mt-3 border-t border-st-line pt-3" : ""}`}>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button data-tour="select-all-captions" aria-pressed={pages.length > 0 && selectedCardIds.size === pages.length} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => onSelectAllCards?.()}>
+                  Select all captions
+                </Button>
+                <Button data-tour="multi-select-captions" aria-pressed={multiSelectArmed} tone={multiSelectArmed ? "primary" : undefined} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => onToggleMultiSelect?.()}>
+                  Multiple captions
+                </Button>
+                {selectedCardIds.size > 0 ? (
+                  <>
+                    <span className="text-xs font-semibold text-st-text">
+                      {selectedCardIds.size} caption{selectedCardIds.size === 1 ? "" : "s"} selected
+                    </span>
+                    <button onClick={() => onClearCardSelection?.()} aria-label="Clear card selection" className="text-xs font-medium text-st-muted hover:text-st-text">Clear</button>
+                  </>
+                ) : null}
+                {onReplayTutorial ? (
+                  <button onClick={() => onReplayTutorial()} className="ml-auto text-xs font-medium text-st-muted hover:text-st-text">How to position captions</button>
+                ) : null}
+              </div>
+              <p className="mt-1.5 text-xs text-st-faint">
+                {multiSelectArmed ? "Multi-select on: drag across the timeline to pick captions. Esc exits." : "Pick captions, then drag one on the video to move only the picked ones."}
+              </p>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

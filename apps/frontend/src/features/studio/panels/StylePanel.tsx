@@ -27,10 +27,14 @@ interface StyleProps {
   currentCardPosition?: { x: number; y: number } | null;
   /** true when any card has a position override — false disables "Reset all positions" */
   hasPositionOverrides?: boolean;
-  /** copy the current card's position onto every card (one undo step) */
+  /** copy the current card's position onto every card (one undo step) — or onto just the selected cards when any are picked */
   onApplyPositionToAll?: () => void;
-  /** clear every card's override so all follow the global position (one undo step) */
+  /** clear every card's override so all follow the global position (one undo step) — or just the selected cards' when any are picked */
   onResetAllPositions?: () => void;
+  /** how many caption cards are picked right now (0 = none): the Apply / Reset labels say who they act on */
+  selectedCardCount?: number;
+  /** true when at least one picked card has a position override — false disables "Reset selected positions" */
+  selectedHasPositionOverrides?: boolean;
   /**
    * Delta rule (owner 2026-11-16): the Vertical/Horizontal sliders are
    * global moves, so they take a function updater for the position — the
@@ -46,7 +50,7 @@ interface StyleProps {
  * Every control here is shown only when the current template honours it (`controlVisible`, shared with
  * packages/templates/src/controls.test.tsx, which proves each visible control changes the rendered video).
  */
-export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpenLooks, currentCardPosition = null, hasPositionOverrides = false, onApplyPositionToAll, onResetAllPositions, onGlobalPositionChange }) => {
+export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpenLooks, currentCardPosition = null, hasPositionOverrides = false, onApplyPositionToAll, onResetAllPositions, onGlobalPositionChange, selectedCardCount = 0, selectedHasPositionOverrides = false }) => {
   // a global position move: the caller applies the delta to the global
   // position and shifts every overridden card by the same delta (one undo
   // step); without a caller, patch style.position directly
@@ -200,10 +204,10 @@ export const StylePanel: React.FC<StyleProps> = ({ style, patch, lookName, onOpe
         <Slider label="Vertical" value={Math.round(style.position.y * 100)} min={5} max={95} unit="%" onChange={(v) => movePosition((pos) => ({ ...pos, y: v / 100 }))} />
         <Slider label="Horizontal" value={Math.round(style.position.x * 100)} min={5} max={95} unit="%" onChange={(v) => movePosition((pos) => ({ ...pos, x: v / 100 }))} />
         <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={!currentCardPosition} onClick={onApplyPositionToAll} className="rounded-md bg-st-raised px-2.5 py-2 text-xs hover:bg-st-hover disabled:opacity-50 lg:py-1">Apply to all captions</button>
-          <button type="button" disabled={!hasPositionOverrides} onClick={onResetAllPositions} className="rounded-md bg-st-raised px-2.5 py-2 text-xs hover:bg-st-hover disabled:opacity-50 lg:py-1">Reset all positions</button>
+          <button type="button" disabled={!currentCardPosition} onClick={onApplyPositionToAll} className="rounded-md bg-st-raised px-2.5 py-2 text-xs hover:bg-st-hover disabled:opacity-50 lg:py-1">{selectedCardCount > 0 ? "Apply to selected captions" : "Apply to all captions"}</button>
+          <button type="button" disabled={selectedCardCount > 0 ? !selectedHasPositionOverrides : !hasPositionOverrides} onClick={onResetAllPositions} className="rounded-md bg-st-raised px-2.5 py-2 text-xs hover:bg-st-hover disabled:opacity-50 lg:py-1">{selectedCardCount > 0 ? "Reset selected positions" : "Reset all positions"}</button>
         </div>
-        <p className="text-xs text-st-faint">Apply copies this card's position to every caption.</p>
+        <p className="text-xs text-st-faint">{selectedCardCount > 0 ? "Apply copies this card's position to the selected captions only." : "Apply copies this card's position to every caption."}</p>
         <Slider label="Max width" value={Math.round(style.maxWidth * 100)} min={30} max={100} unit="%" onChange={(v) => patch((s) => ({ ...s, maxWidth: v / 100 }))} />
         <Slider label="Rotation" value={style.rotation} min={-15} max={15} step={0.5} unit="°" onChange={(v) => patch((s) => ({ ...s, rotation: v }))} />
       </Section>

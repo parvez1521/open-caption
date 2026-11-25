@@ -7,6 +7,7 @@ import {
   clampCaptionPosition,
   clearAllCardPositions,
   clearCurrentCardPosition,
+  clearSelectedCardPositions,
   effectiveCardPosition,
   fractionFromPointer,
   setCurrentCardPosition,
@@ -270,5 +271,43 @@ describe("fractionFromPointer — pointer to frame fractions", () => {
   it("converts client coords with the frame rect", () => {
     const rect = { left: 100, top: 50, width: 400, height: 800 } as DOMRect;
     expect(fractionFromPointer(300, 450, rect)).toEqual({ x: 0.5, y: 0.5 });
+  });
+});
+
+describe("clearSelectedCardPositions — Reset applies to the selection only (owner 2026-11-25)", () => {
+  it("clears overrides on selected cards and leaves unselected overrides alone", () => {
+    const words = [mkWord("w1", "hi", 0, 400), mkWord("w2", "yo", 420, 800), mkWord("w3", "hey", 820, 1200)];
+    const pages = [pageOf(words.slice(0, 1), null, "p1"), pageOf(words.slice(1, 2), null, "p2"), pageOf(words.slice(2), null, "p3")];
+    const doc = docWith(words, {
+      w1: { position: { x: 0.5, y: 0.2 } },
+      w2: { position: { x: 0.5, y: 0.3 } },
+      w3: { position: { x: 0.5, y: 0.4 } },
+    });
+    const cleared = clearSelectedCardPositions(doc, pages, new Set(["p1", "p2"]));
+    expect(cleared.cards.w1?.position ?? null).toBeNull();
+    expect(cleared.cards.w2?.position ?? null).toBeNull();
+    expect(cleared.cards.w3?.position).toEqual({ x: 0.5, y: 0.4 });
+    expect(() => CaptionDocSchema.parse(cleared)).not.toThrow();
+  });
+
+  it("is a no-op (same doc) when no selected card has an override", () => {
+    const words = [mkWord("w1", "hi", 0, 400)];
+    const pages = [pageOf(words, null, "p1")];
+    const doc = docWith(words);
+    expect(clearSelectedCardPositions(doc, pages, new Set(["p1"]))).toBe(doc);
+    expect(clearSelectedCardPositions(doc, pages, new Set())).toBe(doc);
+  });
+});
+
+describe("setSelectedCardsPosition — a single selected card moves on its own (owner 2026-11-25)", () => {
+  it("one selected card gets the override; the rest keep the global position", () => {
+    const words = [mkWord("w1", "hi", 0, 400), mkWord("w2", "yo", 420, 800), mkWord("w3", "hey", 820, 1200)];
+    const pages = [pageOf(words.slice(0, 1), null, "p1"), pageOf(words.slice(1, 2), null, "p2"), pageOf(words.slice(2), null, "p3")];
+    const doc = docWith(words);
+    const next = setSelectedCardsPosition(doc, pages, style, new Set(["p2"]), { x: 0.5, y: 0.2 });
+    expect(next.cards.w2?.position).toEqual({ x: 0.5, y: 0.2 });
+    expect(next.cards.w1?.position ?? null).toBeNull();
+    expect(next.cards.w3?.position ?? null).toBeNull();
+    expect(() => CaptionDocSchema.parse(next)).not.toThrow();
   });
 });

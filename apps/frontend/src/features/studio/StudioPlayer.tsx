@@ -21,7 +21,7 @@ interface Props {
    * Caption position (owner 2026-11-16): `position` is the CURRENT card's
    * effective position (its override, else the global style position).
    * onMovePosition moves ALL captions together by default (the global
-   * style.position) — only when 2+ cards are picked on the timeline does
+   * style.position) — only when cards are picked on the timeline does
    * StudioPage write per-card overrides to just those cards. `captionBox` is
    * that card's caption box as frame fractions (centre + size): dragging the
    * caption text itself moves it. Null when no card is on screen — nothing
@@ -62,6 +62,8 @@ interface Props {
    * The play/pause toggle below still runs, so tap-to-play is unchanged.
    */
   onCaptionTap?: () => void;
+  /** true when the card at the playhead is in the card selection: the caption hitbox is ringed */
+  currentCardSelected?: boolean;
   onTime: (ms: number) => void;
   onPlayingChange?: (playing: boolean) => void;
   /** phones: the Player's own controls would cover the captions, so a compact transport sits under the video
@@ -78,7 +80,7 @@ interface Props {
 const clamp = (v: number) => Math.min(0.95, Math.max(0.05, v));
 
 /** The same CaptionedVideo composition that renders the export, plus a drag handle to place the captions. */
-export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, onPositionDragStart, onNudgePosition, captionBox = null, showPositionGrip = true, onCaptionTap, onPositionDragEnd, dragGhost = null, dragGhostText = "", dragGhostFontPx, onTime, onPlayingChange, compact = false, platform, stageOverlay }, ref) {
+export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({ input, width, height, fps, durationMs, position, onMovePosition, onPositionDragStart, onNudgePosition, captionBox = null, showPositionGrip = true, onCaptionTap, onPositionDragEnd, dragGhost = null, dragGhostText = "", dragGhostFontPx, onTime, onPlayingChange, compact = false, platform, stageOverlay, currentCardSelected = false }, ref) {
   const innerRef = useRef<PlayerRef | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -187,7 +189,8 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
             role="button"
             aria-label="Caption (drag to move)"
             data-testid="caption-position-hitbox"
-            className="absolute z-[6] touch-none"
+            data-card-selected={currentCardSelected || undefined}
+            className={`absolute z-[6] touch-none ${currentCardSelected ? "rounded-lg ring-2 ring-[#FFA946]" : ""}`}
             style={{ left: `${captionBox.x * 100}%`, top: `${captionBox.y * 100}%`, width: `${captionBox.w * 100}%`, height: `${captionBox.h * 100}%`, transform: "translate(-50%, -50%)", cursor: "grab" }}
             onPointerDown={(e) => {
               try {
@@ -265,6 +268,7 @@ export const StudioPlayer = forwardRef<PlayerRef, Props>(function StudioPlayer({
           role="slider"
           aria-label="Caption position (drag)"
           aria-valuenow={Math.round(position.y * 100)}
+          data-tour="move-caption"
           tabIndex={0}
           title={compact ? "Drag up or down to move the captions" : "Drag to move the captions"}
           className={compact

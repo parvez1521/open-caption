@@ -75,7 +75,7 @@ import { currentUserIsGuest, signInExistingWithGoogle, takeIdentityExistsError }
 import { useWaveform, PEAKS_PER_SECOND } from "./useWaveform";
 import { applyAutoZooms, generateAutoZoomPlan, type AutoZoomIntensity } from "./autoZooms";
 import { toComposition } from "./composition";
-import { captionBoxFractions, captionFontPx, clampCaptionPosition, effectiveCardPosition, setSelectedCardsPosition, shiftCardPositionsByGlobalDelta, shiftSelectedCardsByDelta, applyPositionToAllCards, clearAllCardPositions } from "./captionPosition";
+import { captionBoxFractions, captionFontPx, clampCaptionPosition, clearSelectedCardPositions, effectiveCardPosition, setSelectedCardsPosition, shiftCardPositionsByGlobalDelta, shiftSelectedCardsByDelta, applyPositionToAllCards, clearAllCardPositions } from "./captionPosition";
 import { buildEditorComposition, projectComposition, type EditorComposition } from "./compositionDoc";
 import {
   addMarker, addSegmentEffect, addSegmentKeyframe, applyContentEffect, applyDocEffect,
@@ -369,12 +369,24 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const [selectedWordIds, setSelectedWordIds] = useState<Set<string>>(new Set());
   /**
    * Multi-select of caption CARDS (page ids, picked on the timeline in line
-   * mode) — for position only, separate from selectedWordIds, which is for
-   * retiming. Empty (or exactly one) = the global behaviour: a drag moves
-   * style.position, so ALL captions move together. 2+ = only those cards
-   * move, as per-card overrides. Switching word/line mode keeps it.
+   * mode, or by Select All / multi drag-select) — for position only,
+   * separate from selectedWordIds, which is for retiming. Empty = the global
+   * behaviour: a drag moves style.position, so ALL captions move together.
+   * Any non-empty selection = only those cards move, as per-card overrides
+   * (owner 2026-11-25: the old "2+ cards" threshold is gone — exactly one
+   * picked card moves on its own now). Switching word/line mode keeps it.
    */
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
+  /**
+   * Multi mode (owner 2026-11-25): armed from the Captions panel's
+   * "Multiple captions" button — while armed, empty-space drags on the
+   * timeline marquee-select cards in BOTH word and line mode instead of
+   * scrubbing. Esc or a re-tap disarms it (and Esc clears the pick too).
+   */
+  const [multiSelectArmed, setMultiSelectArmed] = useState(false);
+  const selectAllCards = () => setSelectedCardIds(new Set(pages.map((p) => p.id)));
+  const clearCardSelection = () => setSelectedCardIds(new Set());
+  const toggleMultiSelect = () => setMultiSelectArmed((v) => !v);
   /**
    * Live drag ghost: while a selective drag moves cards the playhead card is
    * NOT in, the caption under the pointer cannot move on screen (it must not
@@ -556,14 +568,15 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const wave = useWaveform(video?.id, video?.url, video?.size);
   const pages = useMemo(() => (doc && style && fontsReady ? computePages(doc, settings, style, canvas) : []), [doc, style, settings, canvas, fontsReady, fontEpoch]);
   const currentPage = pages.find((p) => timeMs >= p.startMs && timeMs < p.endMs) ?? null;
-  // Caption position (owner 2026-11-16, third correction): the DEFAULT is the
-  // old behaviour — a drag moves the GLOBAL style.position, so all captions
-  // move together and a new user is never confused by one caption moving and
-  // the rest staying. Only when 2+ cards are picked on the timeline does a
-  // drag write per-card overrides to just those cards (same absolute position
-  // on each, one undo step for the whole drag, same coalesce pattern as the
-  // old per-card move). Exactly one card picked still counts as "no
-  // multi-selection" and moves globally.
+  // Caption position (owner 2026-11-16, third correction; selection rule
+  // updated owner 2026-11-25): the DEFAULT is the old behaviour — a drag
+  // moves the GLOBAL style.position, so all captions move together and a new
+  // user is never confused by one caption moving and the rest staying. When
+  // ANY cards are picked (Select All, multi drag-select, Shift-click), a
+  // drag writes per-card overrides to just those cards (same absolute
+  // position on each, one undo step for the whole drag, same coalesce
+  // pattern as the old per-card move). Empty selection is the only thing
+  // that moves globally.
   //
   // DELTA RULE: a global move moves EVERYTHING together. Cards that already
   // have an override do NOT stay behind — they shift by the same delta as
@@ -583,7 +596,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // the "caption-position:global" coalesce key, so the whole move — style
   // plus every shifted override — is ONE undo step. The Style panel
   // sliders stay global always and go through the same applyGlobalMove.
-  // The grip arrow keys are nudges (one step, relative): with 2+ cards
+  // The grip arrow keys are nudges (one step, relative): with any cards
   // picked they shift just those cards by the step
   // (shiftSelectedCardsByDelta), else they are a global move by the step.
   const currentCardPosition = currentPage && style ? effectiveCardPosition(currentPage, style) : null;
@@ -612,7 +625,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   }, [s, style]);
   const moveCaptionPosition = useCallback((p: { x: number; y: number }) => {
     if (!style) return;
-    if (selectedCardIds.size >= 2) {
+    if (selectedCardIds.size >= 1) {
       if (!s.doc) return;
       const next = clampCaptionPosition(p);
       s.edit((d) => setSelectedCardsPosition(d, pages, style, selectedCardIds, next), { coalesceKey: `card-position:multi:${[...selectedCardIds].sort().join(",")}` });
@@ -635,7 +648,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   }, [s, style, pages, selectedCardIds, currentPage, currentCardPosition, applyGlobalMove]);
   const nudgeCaptionPosition = useCallback((d: { dx: number; dy: number }) => {
     if (!style || (d.dx === 0 && d.dy === 0)) return;
-    if (selectedCardIds.size >= 2) {
+    if (selectedCardIds.size >= 1) {
       if (!s.doc) return;
       s.edit((dd) => shiftSelectedCardsByDelta(dd, pages, style, selectedCardIds, d), { coalesceKey: `card-position:multi:${[...selectedCardIds].sort().join(",")}` });
       return;
@@ -646,18 +659,31 @@ export default function StudioPage({ projectId }: { projectId: string }) {
     dragPointerRef.current = null;
     setDragGhost(null);
   }, []);
-  // Bulk caption position (owner 2026-11-16): the Style panel's Position
-  // section is the "all captions" home. "Apply to all" copies the current
-  // card's effective position onto every card; "Reset all" clears every
-  // override so all cards follow the global style position again. Both go
-  // through s.edit as one undo step, like every other caption edit.
+  // Bulk caption position (owner 2026-11-16; scoped owner 2026-11-25): the
+  // Style panel's Position section is the "all captions" home. With NO card
+  // selection, "Apply to all" copies the current card's effective position
+  // onto every card and "Reset all" clears every override so all cards
+  // follow the global style position again. With cards picked, BOTH act on
+  // the selection only — Apply copies onto just the picked cards, Reset
+  // clears just the picked cards' overrides — and unpicked cards are never
+  // touched. Both go through s.edit as one undo step, like every other
+  // caption edit. The global Style sliders stay global always (they set
+  // style.position for cards without overrides) — never selection-scoped.
   const applyPositionToAll = useCallback(() => {
     if (!style || !currentCardPosition) return;
+    if (selectedCardIds.size >= 1) {
+      s.edit((d) => setSelectedCardsPosition(d, pages, style, selectedCardIds, currentCardPosition));
+      return;
+    }
     s.edit((d) => applyPositionToAllCards(d, pages, style, currentCardPosition));
-  }, [s, pages, style, currentCardPosition]);
+  }, [s, pages, style, currentCardPosition, selectedCardIds]);
   const resetAllPositions = useCallback(() => {
+    if (selectedCardIds.size >= 1) {
+      s.edit((d) => clearSelectedCardPositions(d, pages, selectedCardIds));
+      return;
+    }
     s.edit((d) => clearAllCardPositions(d));
-  }, [s]);
+  }, [s, pages, selectedCardIds]);
   const selected = doc?.words.find((w) => w.id === selectedId) ?? null;
 
   const seek = useCallback((ms: number) => {
@@ -1326,11 +1352,19 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         const ids = [...selectedWordIds];
         s.edit((d) => shiftWordsByIds(d, ids, delta));
       }
+      // Esc clears the caption-card pick (and disarms multi mode if armed).
+      // A different key from the ←/→ retime nudge above, so the two never
+      // collide; typing (e.g. the pinned word editor's own Esc) is excluded,
+      // and the modal guard at the top means Esc never fires behind a dialog.
+      else if (e.key === "Escape" && !typing && !mod && !e.altKey) {
+        if (multiSelectArmed) setMultiSelectArmed(false);
+        if (selectedCardIds.size > 0) setSelectedCardIds(new Set());
+      }
       else if (e.code === "Space" && !typing) { e.preventDefault(); playerRef.current?.toggle(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [s, selectedWordIds]);
+  }, [s, selectedWordIds, selectedCardIds, multiSelectArmed]);
 
   // Esc closes the shortcuts help dialog
   useEffect(() => {
@@ -1618,6 +1652,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         dragGhost={dragGhost}
         dragGhostText={currentPage ? currentPage.words.map((w) => w.text).join(" ") : ""}
         dragGhostFontPx={style ? captionFontPx(style, canvas) : undefined}
+        currentCardSelected={currentPage != null && selectedCardIds.has(currentPage.id)}
         onTime={setTimeMs}
         onPlayingChange={setPlaying}
         compact={!desktop}
@@ -1684,7 +1719,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const captions = doc && style ? (
     <div data-tour="captions" className="flex h-full min-h-0 flex-col">
       <div className={`min-h-0 flex-1 ${live || generatingEmpty ? "pointer-events-none" : ""}`} title={live ? "You can edit the words when the captions are finished" : undefined}>
-        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWordFromUserClick} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} onGenerateCaptions={doc.words.length === 0 && video && !videoGone ? () => void generateCaptions() : undefined} generateBusy={generatingEmpty} generateProgress={liveView?.progress ?? 0} generateNote={genCapNote} />
+        <CaptionsPanel doc={doc} pages={pages} currentPageId={currentPage?.id ?? null} timeMs={timeMs} selectedId={selectedId} onSelect={selectWordFromUserClick} onSeek={seek} edit={s.edit} heroSupported={heroSupported} selectedWordIds={selectedWordIds} onWordSelectionChange={handleWordSelectionChange} locked={editorComp?.trackState.captions.locked ?? false} onGenerateCaptions={doc.words.length === 0 && video && !videoGone ? () => void generateCaptions() : undefined} generateBusy={generatingEmpty} generateProgress={liveView?.progress ?? 0} generateNote={genCapNote} selectedCardIds={selectedCardIds} onSelectAllCards={selectAllCards} multiSelectArmed={multiSelectArmed} onToggleMultiSelect={toggleMultiSelect} onClearCardSelection={clearCardSelection} onReplayTutorial={() => setShowTour(true)} />
       </div>
       {live && liveView ? (
         // the captions that haven't been written yet: shimmering placeholders with the time left
@@ -1815,7 +1850,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const renderPanel = (t: PanelId) =>
     t === "captions" ? captions
     : style ? (
-      t === "style" ? <StylePanel style={style} patch={s.patchStyle} onGlobalPositionChange={(fn) => applyGlobalMove(fn)} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} currentCardPosition={currentCardPosition} hasPositionOverrides={pages.some((p) => p.position != null)} onApplyPositionToAll={applyPositionToAll} onResetAllPositions={resetAllPositions} />
+      t === "style" ? <StylePanel style={style} patch={s.patchStyle} onGlobalPositionChange={(fn) => applyGlobalMove(fn)} lookName={s.lookId?.startsWith("user:") ? "My saved template" : getLook(s.lookId)?.name ?? null} onOpenLooks={() => setSection("templates")} currentCardPosition={currentCardPosition} hasPositionOverrides={pages.some((p) => p.position != null)} onApplyPositionToAll={applyPositionToAll} onResetAllPositions={resetAllPositions} selectedCardCount={selectedCardIds.size} selectedHasPositionOverrides={pages.some((p) => selectedCardIds.has(p.id) && p.position != null)} />
       : t === "templates" ? <LooksPanel currentLookId={s.lookId} onChoose={s.chooseLook} currentStyle={style} currentSettings={settings} />
       : t === "media" ? <MediaPanel video={{ filename: data.video?.filename ?? null, size: data.video?.size ?? null, width, height, fps, durationMs }} composition={composition} onRelink={device.attach} assets={mediaBin.assets} importing={mediaBin.importing} onImport={mediaBin.importFiles} onDeleteAsset={mediaBin.remove} onPlaceImage={placeImage} />
       : t === "sfx" ? <SoundEffectsPanel projectId={projectId} onAdded={() => void mediaBin.refresh()} />
@@ -1964,6 +1999,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
       onWordSelectionChange={handleWordSelectionChange}
       selectedCardIds={selectedCardIds}
       onCardSelectionChange={setSelectedCardIds}
+      multiSelectArmed={multiSelectArmed}
       onShiftWords={(ids, deltaMs) => { if (!captionsLockedRef.current) s.edit((d) => shiftWordsByIds(d, ids, deltaMs)); }}
       onRetimeRun={(a, b, st, en, ripple) => { if (!captionsLockedRef.current) s.edit((d) => retimeRunGiveWay(d, a, b, st, en, ripple)); }}
       onRename={(id, text) => { if (!captionsLockedRef.current) s.edit((d) => setWordText(d, id, text)); }}
