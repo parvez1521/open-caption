@@ -10,6 +10,7 @@ import { LoadingMark } from "@/components/brand/LoadingMark";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { studioService } from "@/services/studio";
 import { setProjectMode, START_DOORS, type ProjectStartMode } from "@/features/studio/projectMode";
+import { AI_EDIT_ENABLED } from "@/features/studio/aiEditEnabled";
 import { AI_EDIT_PROJECT_TAG, createBlankAiEditProject, filterAiEditProjects, filterCaptionProjects } from "@/features/studio/aiEditFlow";
 import { copyLocalVideo } from "@/features/upload/localVideos";
 import { countByView, distinctFolders, distinctTags, filterProjects, type ProjectView } from "@/lib/workspace/projects-filter";
@@ -262,10 +263,18 @@ export default function ProjectsList() {
   // AI Edit projects live apart from caption projects: the caption list
   // (counts, folders, tags, visible cards) never shows them, and the AI
   // Edit section below lists only them.
-  const captionProjects = filterCaptionProjects(projects);
-  const aiEditProjects = filterAiEditProjects(projects);
+  // HIDDEN (owner order 2026-11-25): while AI_EDIT_ENABLED is false the
+  // AI Edit section is gone, so its projects list WITH the caption
+  // projects instead — an existing AI-Edit project must stay reachable
+  // and open in the Studio like any other project. Nothing is untagged.
+  const captionProjects = AI_EDIT_ENABLED ? filterCaptionProjects(projects) : projects;
+  const aiEditProjects = AI_EDIT_ENABLED ? filterAiEditProjects(projects) : [];
   const folders = distinctFolders(captionProjects);
-  const allTags = distinctTags(captionProjects);
+  // the flag tag is a system flag, never a user tag: it never shows in
+  // the tag filter (nor as a card chip, filtered in ProjectCard above).
+  // While AI Edit is hidden its projects list here, so without this their
+  // tag would leak into the filter as a visible option.
+  const allTags = distinctTags(captionProjects).filter((t) => t !== AI_EDIT_PROJECT_TAG);
 
   const openOrgEditor = (project: Project) => {
     setMenuFor(null);
@@ -421,7 +430,9 @@ export default function ProjectsList() {
         )}
       </div>
       {/* AI Edit always has a home here — even with zero AI-Edit projects,
-          so the workflow is visible instead of buried in the create modal. */}
+          so the workflow is visible instead of buried in the create modal.
+          Hidden while AI_EDIT_ENABLED is false (owner order 2026-11-25). */}
+      {AI_EDIT_ENABLED ? (
       <section aria-label="AI Edit projects" className="pt-8">
         <h2 className="font-sora text-[15px] font-bold text-ink">AI Edit</h2>
         <p className="mt-1 text-[13px] text-sand-600">Start blank, upload a video, plan visuals from what is said, and generate them with Puter. No captions, no transcription.</p>
@@ -459,6 +470,7 @@ export default function ProjectsList() {
           <p className="pt-4 text-[13px] text-sand-600">No AI Edit projects yet.</p>
         )}
       </section>
+      ) : null}
       {/* Create modal */}
       {createOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-[2px] p-4" onClick={() => !creating && setCreateOpen(false)}>
@@ -489,11 +501,14 @@ export default function ProjectsList() {
                 <button type="submit" disabled={creating || !newTitle.trim()} className="rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "Create project"}</button>
               </div>
             </form>
+            {/* Hidden while AI_EDIT_ENABLED is false (owner order 2026-11-25). */}
+            {AI_EDIT_ENABLED ? (
             <div className="mt-5 border-t border-sand-200 pt-5">
               <p className="font-sora text-[13px] font-semibold text-ink">AI Edit</p>
               <p className="mt-1 text-[13px] leading-relaxed text-sand-700">Start blank — upload a video, plan visuals from what is said, and generate them. No captions, no transcription.</p>
               <button type="button" onClick={() => void handleCreateAiEdit()} disabled={creating} className="mt-3 rounded-full bg-ink px-6 py-2.5 font-sora text-[12px] font-semibold text-dune-white hover:bg-sand-800 disabled:opacity-60 transition-all cursor-pointer">{creating ? "Creating…" : "New blank project"}</button>
             </div>
+            ) : null}
           </div>
         </div>
       )}

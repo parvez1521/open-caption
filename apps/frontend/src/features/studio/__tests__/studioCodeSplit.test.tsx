@@ -279,14 +279,17 @@ describe("StudioPage code-split leaves (CAP-P01 / CAP-P02)", () => {
     }
   });
 
-  it("the Generate Image/Video rail section loads on demand for AI-Edit projects", async () => {
+  it("the Generate Image/Video rail section is hidden while AI Edit is off", async () => {
+    // Owner order 2026-11-25: the rail entry is filtered out while
+    // AI_EDIT_ENABLED is false, so the panel never loads — even for a
+    // blank AI-Edit project, which opens on Captions instead.
     window.history.pushState({}, "", "/projects/p1");
     window.localStorage.setItem("oc:ai-edit-project:p1", "1");
     studioState.current = makeStudio();
     const { unmount } = renderStudio();
     try {
+      expect(screen.queryByRole("button", { name: "Generate Image/Video" })).toBeNull();
       expect(screen.queryByText("ai-generate-panel")).toBeNull();
-      expect(await screen.findByText("ai-generate-panel")).toBeTruthy();
     } finally {
       unmount();
     }

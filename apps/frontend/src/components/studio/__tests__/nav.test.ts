@@ -21,10 +21,13 @@ describe("shell nav config", () => {
     // removed here on purpose; re-add the entry in nav.ts AND its row here to restore one.
     // Owner order 2026-11-15 additionally removed Clipper from the editor rail
     // (StudioPage) and the /about feature list, so no surface links to it at all.
+    // Hidden for now (owner order 2026-11-25): AI Edit (/editor) is out of the
+    // nav while AI_EDIT_ENABLED is false — flag-gated in nav.ts, not deleted.
+    // To restore it, flip the flag in features/studio/aiEditEnabled.ts AND
+    // re-add its row below.
     expect(NAV_ITEMS.map((i) => [i.group, i.label, i.href])).toEqual([
       ["primary", "Dashboard", "/dashboard"],
       ["primary", "Caption Studio", "/captions"],
-      ["primary", "AI Edit", "/editor"],
       ["primary", "Motion Studio", "/motion"],
       ["primary", "Growth Studio", "/growth"],
       ["primary", "Content Planner", "/planner"],
@@ -47,6 +50,16 @@ describe("shell nav config", () => {
       expect(item.id).not.toMatch(/clipper/i);
       expect(item.label).not.toMatch(/clipper/i);
       expect(item.href).not.toMatch(/clipper/i);
+    }
+  });
+
+  it("no nav entry mentions AI Edit (owner order 2026-11-25)", () => {
+    // AI Edit is hidden from the shell nav while AI_EDIT_ENABLED is false:
+    // no id, label or href in the nav may name it (nor /editor).
+    for (const item of NAV_ITEMS) {
+      expect(item.id).not.toMatch(/ai.?edit/i);
+      expect(item.label).not.toMatch(/ai.?edit/i);
+      expect(item.href).not.toBe("/editor");
     }
   });
 
@@ -93,9 +106,15 @@ describe("isNavActive", () => {
     expect(isNavActive("/dashboard", byId("library"))).toBe(false);
   });
 
-  it("keeps AI Edit active on per-project editor routes", () => {
-    expect(isNavActive("/projects/abc-123", byId("editor"))).toBe(true);
+  it("no nav entry claims the per-project editor routes while AI Edit is hidden", () => {
+    // The AI Edit entry used to stay active on /projects/<id>; with the entry
+    // hidden, no nav item may claim those routes (and /editor has no entry).
+    for (const item of NAV_ITEMS) {
+      expect(item.activeMatch).not.toContain("/projects");
+      expect(item.href).not.toBe("/editor");
+    }
     expect(isNavActive("/projects/abc-123", byId("captions"))).toBe(false);
+    expect(isNavActive("/editor", byId("captions"))).toBe(false);
   });
 
   it("is segment-aware, not a raw string prefix", () => {

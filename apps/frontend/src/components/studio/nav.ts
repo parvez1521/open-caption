@@ -16,10 +16,18 @@
  * and unlinked. To restore one, re-add its entry below (and its row in the nav test's
  * pinned IA list); nothing else needs to change.
  *
+ * Hidden for now (owner order 2026-11-25): AI Edit (/editor) is NOT listed
+ * here while AI_EDIT_ENABLED is false (features/studio/aiEditEnabled.ts) —
+ * its route stays live but redirects to /dashboard, and the entry comes
+ * back with a single flag flip (plus its row in the nav test's pinned IA
+ * list). The per-project editor itself (/projects/[id]) is unaffected.
+ *
  * Owner order 2026-11-15: Clipper is additionally gone from the editor itself —
  * the left-rail "Clipper" tab and its launch card were removed from StudioPage,
  * so no surface in the app links to /clipper or /ai-clipper any more.
  */
+
+import { AI_EDIT_ENABLED } from "@/features/studio/aiEditEnabled";
 
 export type NavGroupId = "primary" | "supporting";
 
@@ -41,7 +49,8 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-export const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = (
+  [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", group: "primary", activeMatch: ["/dashboard"] },
   { id: "captions", label: "Caption Studio", href: "/captions", group: "primary", activeMatch: ["/captions"] },
   // The editor itself is per-project at /projects/[id], so the editor entry stays active there too.
@@ -55,7 +64,8 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "transcribe", label: "Transcribe", href: "/transcribe", group: "supporting", activeMatch: ["/transcribe"] },
   { id: "exports", label: "Export History", href: "/exports", group: "supporting", activeMatch: ["/exports"] },
   { id: "settings", label: "Settings", href: "/settings", group: "supporting", activeMatch: ["/settings"] },
-];
+  ] as NavItem[]
+).filter((i) => AI_EDIT_ENABLED || i.id !== "editor");
 
 export const NAV_GROUPS: NavGroup[] = [
   { id: "primary", heading: null, items: NAV_ITEMS.filter((i) => i.group === "primary") },

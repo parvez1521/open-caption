@@ -19,8 +19,10 @@ vi.setConfig({ testTimeout: 15_000 });
  * - dropping a transition on a cut applies it there;
  * - refused applies surface a message instead of silently doing nothing;
  * - the Graphics tab renders the new graphics panel;
- * - a blank AI-Edit project opens on the Generate Image/Video section with
- *   no caption session, and caption projects keep today's defaults.
+ * - a blank AI-Edit project opens on Captions like any other project
+ *   (AI Edit hidden, owner order 2026-11-25): no Generate Image/Video
+ *   section, no auto-open and no caption session started for it either —
+ *   and caption projects keep today's defaults.
  *
  * Drives the real StudioPage with a mocked useStudio (same pattern as
  * studioFirstLoad / captionSectionSwitch) and stubbed heavy leaves; the
@@ -580,30 +582,29 @@ describe("transitionApplyBlocker — no-op reasons", () => {
   });
 });
 
-describe("StudioPage phase 2 — blank AI-Edit projects", () => {
-  it("blank AI-Edit project: upload opens through the editor door, no caption session", () => {
+describe("StudioPage phase 2 — AI Edit hidden: blank AI-Edit projects open on Captions", () => {
+  it("blank AI-Edit project: upload opens through the captions door, no caption session", () => {
     window.history.pushState({}, "", "/projects/p1");
     window.localStorage.setItem("oc:ai-edit-project:p1", "1");
     studioState.current = makeStudio(twoClipSettings, null);
     const { unmount } = renderStudio();
     try {
-      expect((screen.getByRole("radio", { name: "Normal Editor" }) as HTMLButtonElement).getAttribute("aria-checked")).toBe("true");
-      expect(screen.queryByRole("radio", { name: "Captions" })?.getAttribute("aria-checked")).toBe("false");
+      expect((screen.getByRole("radio", { name: "Captions" }) as HTMLButtonElement).getAttribute("aria-checked")).toBe("true");
+      expect(screen.queryByRole("radio", { name: "Normal Editor" })?.getAttribute("aria-checked")).toBe("false");
+      expect(screen.queryByRole("button", { name: "Generate Image/Video" })).toBeNull();
       expect(startSession).not.toHaveBeenCalled();
     } finally {
       unmount();
     }
   });
 
-  it("blank AI-Edit project with no editor: the AI Edit panel sits beside the stage, first step ready", () => {
+  it("blank AI-Edit project with no editor: no AI Edit panel beside the stage", () => {
     window.history.pushState({}, "", "/projects/p1");
     window.localStorage.setItem("oc:ai-edit-project:p1", "1");
     studioState.current = makeStudio(twoClipSettings, null);
     const { unmount } = renderStudio();
     try {
-      expect(screen.getByText("ai-generate-panel")).toBeTruthy();
-      expect(screen.getByText("hasVideo:false")).toBeTruthy();
-      expect(screen.getByText("transcript:idle")).toBeTruthy();
+      expect(screen.queryByText("ai-generate-panel")).toBeNull();
       expect(screen.getByRole("button", { name: "Choose a video" })).toBeTruthy();
       expect(startSession).not.toHaveBeenCalled();
     } finally {
@@ -611,38 +612,34 @@ describe("StudioPage phase 2 — blank AI-Edit projects", () => {
     }
   });
 
-  it("server-tagged AI-Edit project opens on Generate Image/Video with no local flag", async () => {
+  it("server-tagged AI-Edit project opens on Captions with no local flag", async () => {
     window.history.pushState({}, "", "/projects/p1");
-    // no localStorage flag on this device — the "ai-edit" tag alone must do it
+    // no localStorage flag on this device — the tag alone used to do it;
+    // hidden, the project opens on Captions like any other project
     studioState.current = {
       ...makeStudio(twoClipSettings),
       data: { ...loadedData, project: { ...loadedData.project, tags: ["ai-edit"] } },
     };
     const { unmount } = renderStudio();
     try {
-      const gen = screen.getByRole("button", { name: "Generate Image/Video" });
-      expect(gen.getAttribute("aria-pressed")).toBe("true");
-      expect(await screen.findByText("ai-generate-panel")).toBeTruthy();
+      expect((screen.getByRole("button", { name: "Captions" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
+      expect(screen.queryByRole("button", { name: "Generate Image/Video" })).toBeNull();
+      expect(screen.queryByText("ai-generate-panel")).toBeNull();
       expect(startSession).not.toHaveBeenCalled();
     } finally {
       unmount();
     }
   });
 
-  it("AI-Edit project with an editor opens on Generate Image/Video, transcript idle", async () => {
+  it("AI-Edit project with an editor opens on Captions", async () => {
     window.history.pushState({}, "", "/projects/p1");
     window.localStorage.setItem("oc:ai-edit-project:p1", "1");
     studioState.current = makeStudio(twoClipSettings);
     const { unmount } = renderStudio();
     try {
-      const gen = screen.getByRole("button", { name: "Generate Image/Video" });
-      expect(gen.getAttribute("aria-pressed")).toBe("true");
-      expect(await screen.findByText("ai-generate-panel")).toBeTruthy();
-      expect(screen.getByText("transcript:idle")).toBeTruthy();
-      expect(startSession).not.toHaveBeenCalled();
-      // no video on this device: transcribing reports it instead of starting anything
-      fireEvent.click(screen.getByRole("button", { name: "ai-transcribe" }));
-      expect(await screen.findByText("transcript:error")).toBeTruthy();
+      expect((screen.getByRole("button", { name: "Captions" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
+      expect(screen.queryByRole("button", { name: "Generate Image/Video" })).toBeNull();
+      expect(screen.queryByText("ai-generate-panel")).toBeNull();
       expect(startSession).not.toHaveBeenCalled();
     } finally {
       unmount();
@@ -655,7 +652,7 @@ describe("StudioPage phase 2 — blank AI-Edit projects", () => {
     const { unmount } = renderStudio();
     try {
       expect((screen.getByRole("button", { name: "Captions" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("true");
-      expect((screen.getByRole("button", { name: "Generate Image/Video" }) as HTMLButtonElement).getAttribute("aria-pressed")).toBe("false");
+      expect(screen.queryByRole("button", { name: "Generate Image/Video" })).toBeNull();
     } finally {
       unmount();
     }

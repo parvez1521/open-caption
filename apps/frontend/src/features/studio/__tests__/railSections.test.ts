@@ -7,6 +7,13 @@ import { RAIL_SECTIONS } from "../StudioPage";
  * Clipper engine and the ClipperLaunchCard component stay live but unlinked;
  * to restore the tab, re-add its entry in RAIL_SECTIONS and its branch in
  * StudioPage's panel registry — nothing else needs to change.
+ *
+ * Owner order 2026-11-25: AI Edit is hidden the same way — the
+ * "Generate Image/Video" rail section is filtered out of RAIL_SECTIONS
+ * while AI_EDIT_ENABLED is false. The AiGeneratePanel file, its panel
+ * branch in StudioPage and the AI Edit API routes stay intact; to restore
+ * the tab, flip the flag in features/studio/aiEditEnabled.ts and re-add
+ * the label pin below.
  */
 describe("editor left rail", () => {
   it("lists no Clipper section", () => {
@@ -26,8 +33,10 @@ describe("editor left rail", () => {
     }
   });
 
-  it("labels the Puter generator 'Generate Image/Video'", () => {
-    const gen = RAIL_SECTIONS.find((s) => s.id === "aiedit");
-    expect(gen?.label).toBe("Generate Image/Video");
+  it("lists no AI Edit section (owner order 2026-11-25)", () => {
+    expect(RAIL_SECTIONS.map((s) => s.id)).not.toContain("aiedit");
+    for (const section of RAIL_SECTIONS) {
+      expect(section.label).not.toMatch(/generate image\/video/i);
+    }
   });
 });

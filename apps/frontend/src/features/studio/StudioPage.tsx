@@ -97,6 +97,7 @@ import { prepareVideo, type PreparedVideo } from "@/features/upload/prepareVideo
 import { resolveUploadOutcome } from "./footageSwap";
 import { listProjectAssets, saveAsset } from "./mediaStore";
 import { hasAiEditTag, isAiEditProject } from "./aiEditFlow";
+import { AI_EDIT_ENABLED } from "./aiEditEnabled";
 import { uploadFirstAiEditVideo } from "./aiEditUpload";
 import { transcribeVideoForPlanning } from "./aiEditTranscribe";
 import type { ImportError } from "./useMediaAssets";
@@ -132,7 +133,7 @@ const railIcon = (children: React.ReactNode) => (
 );
 
 /** The left-rail sections. Exported for the rail pin in __tests__/railSections.test.ts. */
-export const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?: "templates" | "style" }[] = [
+const ALL_RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode; tour?: "templates" | "style" }[] = [
   { id: "media", label: "Media", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M3 16l5-4 4 3 3-2 6 5" /></>) },
   { id: "aiedit", label: "Generate Image/Video", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor" stroke="none" /></>) },
   { id: "captions", label: "Captions", icon: railIcon(<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 10h6M7 14h10" /></>) },
@@ -145,6 +146,15 @@ export const RAIL_SECTIONS: { id: PanelId; label: string; icon: React.ReactNode;
   { id: "sfx", label: "Sound FX", icon: railIcon(<><path d="M9 18.5V7l10-2v10.5" /><circle cx="6.5" cy="18.5" r="2.5" /><circle cx="16.5" cy="15.5" r="2.5" /></>) },
   { id: "timing", label: "Timing", icon: railIcon(<><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3.5 2" /></>) },
 ];
+
+/**
+ * Hidden while AI_EDIT_ENABLED is false (owner order 2026-11-25): the
+ * "Generate Image/Video" entry is filtered out of the exported rail, so
+ * neither the desktop rail nor the phone bottom bar renders it. The panel
+ * branch below and the panel file stay intact; flip the flag to restore it.
+ */
+export const RAIL_SECTIONS: typeof ALL_RAIL_SECTIONS =
+  AI_EDIT_ENABLED ? ALL_RAIL_SECTIONS : ALL_RAIL_SECTIONS.filter((s) => s.id !== "aiedit");
 
 /**
  * Right-side options (desktop): the vertical side rail beside the panel
@@ -272,8 +282,10 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   const docForTour = s.doc;
   useEffect(() => {
     if (tourCheckedRef.current) return;
-    // a blank AI-Edit project never gets the captions tutorial
-    if (isAiEditProject(projectId)) { tourCheckedRef.current = true; return; }
+    // a blank AI-Edit project never gets the captions tutorial — while
+    // AI Edit is hidden it opens on Captions like any other project, so
+    // the skip below only applies when the flag is on
+    if (AI_EDIT_ENABLED && isAiEditProject(projectId)) { tourCheckedRef.current = true; return; }
     const landed = phase === "saved" || (docForTour != null && docForTour.words.length > 0);
     if (!landed) return;
     tourCheckedRef.current = true;
@@ -302,13 +314,16 @@ export default function StudioPage({ projectId }: { projectId: string }) {
 
   // A blank AI-Edit project opens on its own rail section (never the
   // captions section, and no caption session or tutorial is started for it).
-  const [section, setSection] = useState<PanelId>(() => (isAiEditProject(projectId) ? "aiedit" : "captions"));
+  // Hidden while AI_EDIT_ENABLED is false (owner order 2026-11-25): it
+  // opens on Captions like any other project.
+  const [section, setSection] = useState<PanelId>(() => (AI_EDIT_ENABLED && isAiEditProject(projectId) ? "aiedit" : "captions"));
   // A project tagged AI-Edit on another device has no local flag here, so
   // the section above starts on captions — land it on the AI Edit rail
   // once the Studio data loads. Once only, so a deliberate switch away is
   // never yanked back.
   const aiEditRailAppliedRef = useRef<string | null>(null);
   useEffect(() => {
+    if (!AI_EDIT_ENABLED) return;
     if (aiEditRailAppliedRef.current === projectId) return;
     if (!data?.project?.tags || !hasAiEditTag(data.project.tags)) return;
     if (isAiEditProject(projectId)) return;
@@ -318,7 +333,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // Package 2 item G — the door this project started through (?mode= wins, then the
   // device record, then the captions default). Persisted the moment it's known/chosen.
   const [startMode, setStartMode] = useState<ProjectStartMode>(() => (typeof window !== "undefined" ? modeFromSearch(window.location.search) : null) ?? projectModeOf(projectId));
-  useEffect(() => { if (!isAiEditProject(projectId)) setProjectMode(projectId, startMode); }, [projectId, startMode]);
+  useEffect(() => { if (!AI_EDIT_ENABLED || !isAiEditProject(projectId)) setProjectMode(projectId, startMode); }, [projectId, startMode]);
   // A ?look= deep link (the /looks gallery, via /start) applies that look to
   // this project exactly once, after the studio state has loaded — then the
   // param is stripped from the URL so a refresh doesn't re-apply it. Unknown
@@ -1523,7 +1538,9 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // start a caption session, so it always opens through the editor door.
   // The local flag OR the server tag marks it — a project tagged on
   // another device is AI Edit here too.
-  const isAiEdit = isAiEditProject(projectId) || hasAiEditTag(data?.project?.tags);
+  // Hidden while AI_EDIT_ENABLED is false (owner order 2026-11-25): the
+  // project opens on Captions like any other project instead.
+  const isAiEdit = AI_EDIT_ENABLED && (isAiEditProject(projectId) || hasAiEditTag(data?.project?.tags));
   // the project's video isn't on this device (another device, cleared storage): add a video and caption it afresh
   const videoGone = !noVideoYet && device.status === "missing";
   const hasEditor = Boolean(doc && style && input) && !videoGone;
@@ -1896,7 +1913,7 @@ export default function StudioPage({ projectId }: { projectId: string }) {
         />
       ) : null)
       : t === "translate" ? (doc ? <TranslatePanel projectId={projectId} doc={doc} settings={settings} patch={s.patchSettings} translations={translations} onTranslated={(lang, tdoc) => setTranslations((prev) => ({ ...prev, [lang]: tdoc }))} /> : null)
-      : t === "aiedit" ? (
+      : t === "aiedit" && AI_EDIT_ENABLED ? (
         <AiGeneratePanel
           projectId={projectId}
           getTimeMs={getPlayerMs}

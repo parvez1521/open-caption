@@ -63,4 +63,13 @@ describe("StudioPage — the AI Edit preview is gone and exports stay committed-
     expect(src).not.toContain("aiEditIntroSeen");
     expect(src).not.toContain("markAiEditIntroSeen");
   });
+  it("the Generate Image/Video panel branch and the auto-open are gated on AI_EDIT_ENABLED (owner order 2026-11-25)", () => {
+    // Hidden, not deleted: the panel file, its branch and the auto-open for
+    // blank / server-tagged projects all stay in the source, but none of
+    // them can run while the flag is false. Flipping the flag restores them.
+    expect(src).toContain("AI_EDIT_ENABLED");
+    expect(src).toContain('t === "aiedit" && AI_EDIT_ENABLED');
+    expect(src).toContain("AI_EDIT_ENABLED && isAiEditProject(projectId)");
+    expect(src).toContain("AI_EDIT_ENABLED && (isAiEditProject(projectId)");
+  });
 });

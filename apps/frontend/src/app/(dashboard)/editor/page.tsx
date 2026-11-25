@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, redirect } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { authService } from "@/services/auth";
 import { isSupabaseConfigured } from "@/services/auth/supabaseClient";
@@ -10,6 +10,7 @@ import { projectsService } from "@/services/projects";
 import StudioShell from "@/components/studio/StudioShell";
 import { ProjectCardsSkeleton } from "@/components/brand/Skeletons";
 import { useBrandNav } from "@/components/brand/BrandNav";
+import { AI_EDIT_ENABLED } from "@/features/studio/aiEditEnabled";
 import { createBlankAiEditProject } from "@/features/studio/aiEditFlow";
 
 /**
@@ -23,8 +24,16 @@ import { createBlankAiEditProject } from "@/features/studio/aiEditFlow";
  * prompts → Puter generate → add to timeline) lives. It used to live
  * only on the Dashboard, so opening AI Edit from the sidebar showed
  * nothing but old projects.
+ *
+ * HIDDEN (owner order 2026-11-25): while AI_EDIT_ENABLED is false this
+ * page redirects to /dashboard instead of rendering — the Dashboard lists
+ * every project, so no project access is lost. The page below stays
+ * intact; flipping the flag restores this front door as-is.
  */
 export default function VideoEditorPage() {
+  // The flag is a module constant that never changes at runtime, so this
+  // early redirect cannot reorder the hooks below it.
+  if (!AI_EDIT_ENABLED) redirect("/dashboard");
   const router = useRouter();
   const nav = useBrandNav();
   const [signedIn, setSignedIn] = useState(false);

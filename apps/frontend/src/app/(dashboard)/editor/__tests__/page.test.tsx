@@ -1,18 +1,27 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 /**
- * AI Edit front door (/editor): the page must offer starting a NEW AI Edit
- * right here — not just list old projects. The "New AI Edit project"
- * button used to live only on the Dashboard, so opening AI Edit from the
- * sidebar showed nothing but the project list (owner report 2026-11-20).
- * Clicking it creates a blank AI-Edit project and opens its Studio, where
- * the guided 5-step panel lives.
+ * AI Edit front door (/editor) — HIDDEN (owner order 2026-11-25): while
+ * AI_EDIT_ENABLED is false the page redirects to /dashboard instead of
+ * rendering. The Dashboard lists every project, so no project access is
+ * lost, and the old page body stays intact below the redirect — flipping
+ * the flag in features/studio/aiEditEnabled.ts restores this front door.
+ * To restore the old pins, flip the flag and re-add the "New AI Edit
+ * project" tests that used to live here.
  */
 
 const nav = vi.hoisted(() => ({ go: vi.fn(), busy: vi.fn(() => vi.fn()) }));
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+const redirectMock = vi.hoisted(() =>
+  vi.fn(() => {
+    throw new Error("NEXT_REDIRECT:/dashboard");
+  }),
+);
 const queryState = vi.hoisted(() => ({
   data: { projects: [] as Array<{ id: string; title: string; created_at: string }> },
   isLoading: false,
@@ -24,7 +33,7 @@ const projectsService = vi.hoisted(() => ({
   updateProjectOrg: vi.fn(async () => ({})),
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, redirect: redirectMock }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
     <a href={href} {...rest}>
@@ -55,6 +64,8 @@ vi.mock("@/services/projects", () => ({ projectsService }));
 
 import VideoEditorPage from "../page";
 
+const here = path.dirname(fileURLToPath(import.meta.url));
+
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
@@ -63,36 +74,24 @@ beforeEach(() => {
   queryState.isError = false;
 });
 
-describe("AI Edit front door", () => {
-  it("with zero projects the empty state offers a New AI Edit project, not just Captions", () => {
-    render(<VideoEditorPage />);
-    expect(screen.getAllByRole("button", { name: "New AI Edit project" }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /go to Captions/i })).toBeTruthy();
+describe("AI Edit front door — hidden", () => {
+  it("redirects to /dashboard instead of rendering", () => {
+    // React re-attempts the throwing render, so the mock may be called
+    // more than once — the pin is the destination, not the call count.
+    expect(() => render(<VideoEditorPage />)).toThrow("NEXT_REDIRECT");
+    expect(redirectMock).toHaveBeenCalledWith("/dashboard");
   });
 
-  it("with existing projects the header still offers a New AI Edit project", () => {
-    queryState.data = {
-      projects: [{ id: "p1", title: "Goibibo part 2", created_at: "2026-11-18T00:00:00.000Z" }],
-    };
-    render(<VideoEditorPage />);
-    expect(screen.getByRole("button", { name: "New AI Edit project" })).toBeTruthy();
-    // the title shows twice: Continue editing + the All projects grid
-    expect(screen.getAllByText("Goibibo part 2")).toHaveLength(2);
+  it("renders nothing of the old front door — no New AI Edit button", () => {
+    // The redirect throws during render, so the page body never mounts.
+    expect(() => render(<VideoEditorPage />)).toThrow("NEXT_REDIRECT");
+    expect(screen.queryByRole("button", { name: "New AI Edit project" })).toBeNull();
   });
 
-  it("clicking it creates a blank AI-Edit project and opens its Studio", async () => {
-    render(<VideoEditorPage />);
-    fireEvent.click(screen.getAllByRole("button", { name: "New AI Edit project" })[0]);
-    await waitFor(() => expect(projectsService.createProject).toHaveBeenCalledWith("Untitled AI Edit"));
-    expect(projectsService.updateProjectOrg).toHaveBeenCalledWith("new-ai-edit-id", { tags: ["ai-edit"] });
-    expect(nav.go).toHaveBeenCalledWith("/projects/new-ai-edit-id", "Opening your AI Edit project");
-  });
-
-  it("a failed creation shows the error instead of navigating anywhere", async () => {
-    projectsService.createProject.mockRejectedValueOnce(new Error("network down"));
-    render(<VideoEditorPage />);
-    fireEvent.click(screen.getAllByRole("button", { name: "New AI Edit project" })[0]);
-    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("network down"));
-    expect(nav.go).not.toHaveBeenCalled();
+  it("the old page body stays in the file behind the flag (source pin)", () => {
+    const src = readFileSync(path.join(here, "../page.tsx"), "utf8");
+    expect(src).toContain('if (!AI_EDIT_ENABLED) redirect("/dashboard")');
+    expect(src).toContain("createBlankAiEditProject");
+    expect(src).toContain("New AI Edit project");
   });
 });
