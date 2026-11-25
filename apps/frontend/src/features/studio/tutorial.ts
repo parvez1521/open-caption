@@ -9,6 +9,11 @@
 // existing users (v2 holders have the old flag, never this one).
 export const TUTORIAL_SEEN_KEY = "ce:tutorial-seen:v3";
 
+// Permanent opt-out (owner 2026-11-25): "Never show again" on the tour's
+// final step. A separate key from the versioned seen flag, so it survives
+// seen-flag bumps (v4 would re-show to everyone except never-opted-out users).
+export const TUTORIAL_NEVER_KEY = "ce:tutorial-never-show";
+
 export interface TutorialStep {
   id: string;
   /** value of the `data-tour` attribute on the studio element this step highlights */
@@ -84,10 +89,25 @@ const defaultStorage = (): StorageLike | null => {
   }
 };
 
+/**
+ * Should the auto tour start? Pure gate so it can be unit-tested: the tour
+ * belongs to the editing room, never the upload screen (owner 2026-11-25) —
+ * it starts only once a video is actually on this device (videoReady) AND
+ * captions have landed (the session just saved, or an adopted document
+ * already has words). A saved document alone must not start it while the
+ * upload option is showing (video gone / being replaced / still uploading).
+ */
+export function shouldStartTutorial(opts: { phase?: string | null; hasWords: boolean; videoReady: boolean }): boolean {
+  if (!opts.videoReady) return false;
+  return opts.phase === "saved" || opts.hasWords;
+}
+
 /** True when the tour has never been finished or skipped on this browser. */
 export function shouldShowTutorial(storage: StorageLike | null = defaultStorage()): boolean {
   if (!storage) return false;
   try {
+    // the permanent opt-out wins over everything, including version bumps
+    if (storage.getItem(TUTORIAL_NEVER_KEY) != null) return false;
     return storage.getItem(TUTORIAL_SEEN_KEY) == null;
   } catch {
     return false;
@@ -99,6 +119,26 @@ export function markTutorialSeen(storage: StorageLike | null = defaultStorage())
   if (!storage) return;
   try {
     storage.setItem(TUTORIAL_SEEN_KEY, "1");
+  } catch {
+    // storage unavailable (private mode quota etc.): the tour simply may show again next time
+  }
+}
+
+/** True when the user permanently opted out via "Never show again". */
+export function tutorialNeverShown(storage: StorageLike | null = defaultStorage()): boolean {
+  if (!storage) return false;
+  try {
+    return storage.getItem(TUTORIAL_NEVER_KEY) != null;
+  } catch {
+    return false;
+  }
+}
+
+/** Record the permanent opt-out, so the auto tour never starts again. */
+export function markTutorialNever(storage: StorageLike | null = defaultStorage()): void {
+  if (!storage) return;
+  try {
+    storage.setItem(TUTORIAL_NEVER_KEY, "1");
   } catch {
     // storage unavailable (private mode quota etc.): the tour simply may show again next time
   }

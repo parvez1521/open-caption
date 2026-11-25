@@ -141,6 +141,15 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
   const [replace, setReplace] = useState("");
   const [showHidden, setShowHidden] = useState(false);
   const [shiftSec, setShiftSec] = useState("");
+  /**
+   * Mobile space (owner 2026-11-25): on a phone the panel is only ~350px tall
+   * and Find / Replace / Import / Shift-all together eat ~210px, so the word
+   * list was squeezed to a sliver (0–30px). Find / Replace / Import hide
+   * behind this toggle below the desktop breakpoint (default closed) so the
+   * words get room; Shift-all stays visible (tour anchor + core action).
+   * CSS-only hiding keeps the inputs in the DOM (tests + find state intact).
+   */
+  const [showSearchTools, setShowSearchTools] = useState(false);
 
   // the flat visible word order (page order) — drag ranges are computed over this, across cards
   const flatIds = useMemo(() => pages.flatMap((p) => p.words.map((w) => w.id)), [pages]);
@@ -268,64 +277,77 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
           Captions track is locked — unlock it from the timeline to edit the words. You can still select and play.
         </p>
       ) : null}
-      <div className="space-y-2 border-b border-st-line p-3">
-        <div className="flex gap-2">
-          <input value={find} disabled={locked} onChange={(e) => setFind(e.target.value)} placeholder="Find" aria-label="Find" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
-          <input value={replace} disabled={locked} onChange={(e) => setReplace(e.target.value)} placeholder="Replace with" aria-label="Replace with" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
-        </div>
-        <div className="flex gap-2">
-          <label className="ml-auto inline-flex cursor-pointer items-center rounded-lg border border-st-line bg-st-panel px-3 py-1 text-xs font-medium text-st-text hover:bg-st-hover" title="Replace the captions with an .srt or .vtt file (you can undo)">
-            Import SRT / VTT
-            <input
-              type="file"
-              accept=".srt,.vtt,text/vtt,application/x-subrip"
-              hidden
-              disabled={locked}
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (!f) return;
-                const imported = importSubtitles(await f.text(), doc.language);
-                if (imported.words.length === 0) return void window.alert("No captions were found in that file.");
-                edit((d) => ({ ...imported, language: d.language, direction: d.direction }));
-              }}
-            />
-          </label>
-        </div>
-        {find ? (
-          <div className="flex items-center justify-between text-xs text-st-muted">
-            <span>{matchIds.size} match{matchIds.size === 1 ? "" : "es"}</span>
-            <Button disabled={locked || matchIds.size === 0} onClick={() => { edit((d) => findReplace(d, find, replace).doc); setFind(""); setReplace(""); }} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']">
-              Replace all
-            </Button>
-          </div>
-        ) : null}
-        {doc.words.length > 0 ? (
-          <div data-tour="shift-all" className="space-y-1.5 rounded-xl border border-st-em/60 bg-st-em/10 p-2.5">
-            <p className="text-xs font-semibold text-st-text">Shift all captions</p>
-            <div className="flex flex-wrap gap-1.5">
-              {[-1000, -500, -100, 100, 500, 1000].map((ms) => (
-                <Button key={ms} disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => edit((d) => shiftAllWords(d, ms))}>
-                  {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
-                </Button>
-              ))}
+      <div className="border-b border-st-line">
+        <button
+          type="button"
+          onClick={() => setShowSearchTools((v) => !v)}
+          aria-expanded={showSearchTools}
+          className="flex w-full items-center justify-between px-3 py-2 text-xs font-medium text-st-muted hover:text-st-text lg:hidden"
+        >
+          Search & import
+          <span aria-hidden>{showSearchTools ? "▾" : "▸"}</span>
+        </button>
+        <div className="space-y-2 p-3">
+          <div data-testid="search-tools" className={showSearchTools ? "space-y-2" : "space-y-2 max-lg:hidden"}>
+            <div className="flex gap-2">
+              <input value={find} disabled={locked} onChange={(e) => setFind(e.target.value)} placeholder="Find" aria-label="Find" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
+              <input value={replace} disabled={locked} onChange={(e) => setReplace(e.target.value)} placeholder="Replace with" aria-label="Replace with" className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40 disabled:opacity-50" />
             </div>
             <div className="flex gap-2">
-              <input
-                type="number"
-                step="0.1"
-                disabled={locked}
-                value={shiftSec}
-                onChange={(e) => setShiftSec(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") applyShiftInput(); }}
-                placeholder="Seconds (+ later, − earlier)"
-                aria-label="Shift all captions by this many seconds"
-                className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
-              />
-              <Button disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={applyShiftInput}>Apply shift</Button>
+              <label className="ml-auto inline-flex cursor-pointer items-center rounded-lg border border-st-line bg-st-panel px-3 py-1 text-xs font-medium text-st-text hover:bg-st-hover" title="Replace the captions with an .srt or .vtt file (you can undo)">
+                Import SRT / VTT
+                <input
+                  type="file"
+                  accept=".srt,.vtt,text/vtt,application/x-subrip"
+                  hidden
+                  disabled={locked}
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    const imported = importSubtitles(await f.text(), doc.language);
+                    if (imported.words.length === 0) return void window.alert("No captions were found in that file.");
+                    edit((d) => ({ ...imported, language: d.language, direction: d.direction }));
+                  }}
+                />
+              </label>
             </div>
+            {find ? (
+              <div className="flex items-center justify-between text-xs text-st-muted">
+                <span>{matchIds.size} match{matchIds.size === 1 ? "" : "es"}</span>
+                <Button disabled={locked || matchIds.size === 0} onClick={() => { edit((d) => findReplace(d, find, replace).doc); setFind(""); setReplace(""); }} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']">
+                  Replace all
+                </Button>
+              </div>
+            ) : null}
           </div>
-        ) : null}
+          {doc.words.length > 0 ? (
+            <div data-tour="shift-all" className="space-y-1.5 rounded-xl border border-st-em/60 bg-st-em/10 p-2.5">
+              <p className="text-xs font-semibold text-st-text">Shift all captions</p>
+              <div className="flex flex-wrap gap-1.5">
+                {[-1000, -500, -100, 100, 500, 1000].map((ms) => (
+                  <Button key={ms} disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={() => edit((d) => shiftAllWords(d, ms))}>
+                    {ms > 0 ? "+" : "−"}{Math.abs(ms) / 1000}s
+                  </Button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  step="0.1"
+                  disabled={locked}
+                  value={shiftSec}
+                  onChange={(e) => setShiftSec(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") applyShiftInput(); }}
+                  placeholder="Seconds (+ later, − earlier)"
+                  aria-label="Shift all captions by this many seconds"
+                  className="min-w-0 flex-1 rounded-md border border-st-line bg-st-panel px-2 py-1.5 text-sm outline-none focus:border-st-ink/40"
+                />
+                <Button disabled={locked} className="relative !py-1 text-xs before:absolute before:-inset-y-2.5 before:content-['']" onClick={applyShiftInput}>Apply shift</Button>
+              </div>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {pages.length > 0 ? (
@@ -421,7 +443,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
       ) : null}
 
       {selIds.length > 0 || pages.length > 0 ? (
-        <div className="sticky bottom-0 border-t border-st-line bg-st-panel p-3 shadow-[0_-8px_20px_-14px_rgba(0,0,0,0.4)]" role="group" aria-label="Selected words actions">
+        <div className="sticky bottom-0 border-t border-st-line bg-st-panel p-3 shadow-[0_-8px_20px_-14px_rgba(0,0,0,0.4)] max-lg:px-3 max-lg:py-2" role="group" aria-label="Selected words actions">
           {selIds.length > 0 ? (
             <>
               <div className="flex items-center justify-between gap-2">
@@ -462,7 +484,7 @@ export const CaptionsPanel: React.FC<Props> = ({ doc, pages, currentPageId, time
                   <button onClick={() => onReplayTutorial()} className="ml-auto text-xs font-medium text-st-muted hover:text-st-text">How to position captions</button>
                 ) : null}
               </div>
-              <p className="mt-1.5 text-xs text-st-faint">
+              <p className="mt-1.5 text-xs text-st-faint max-lg:hidden">
                 {multiSelectArmed ? "Multi-select on: drag across the timeline to pick captions. Esc exits." : "Pick captions, then drag one on the video to move only the picked ones."}
               </p>
             </div>

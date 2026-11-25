@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  TUTORIAL_NEVER_KEY,
   TUTORIAL_SEEN_KEY,
   TUTORIAL_STEPS,
   isFirstStep,
   isLastStep,
+  markTutorialNever,
   markTutorialSeen,
   shouldShowTutorial,
+  shouldStartTutorial,
   stepIndexAfter,
+  tutorialNeverShown,
 } from "../tutorial";
 
 const fakeStorage = (initial: Record<string, string> = {}) => {
@@ -35,6 +39,60 @@ describe("tutorial seen flag", () => {
   it("is safe without storage (SSR / blocked localStorage)", () => {
     expect(shouldShowTutorial(null)).toBe(false);
     expect(() => markTutorialSeen(null)).not.toThrow();
+    expect(tutorialNeverShown(null)).toBe(false);
+    expect(() => markTutorialNever(null)).not.toThrow();
+    expect(shouldStartTutorial({ phase: "saved", hasWords: true, videoReady: false })).toBe(false);
+  });
+});
+
+describe("tutorial start gate (owner 2026-11-25: never on the upload screen)", () => {
+  it("never starts while no video is on this device, even with captions saved", () => {
+    expect(shouldStartTutorial({ phase: "saved", hasWords: true, videoReady: false })).toBe(false);
+    expect(shouldStartTutorial({ phase: "running", hasWords: true, videoReady: false })).toBe(false);
+    expect(shouldStartTutorial({ phase: undefined, hasWords: true, videoReady: false })).toBe(false);
+  });
+
+  it("starts once a video is ready and captions have landed", () => {
+    expect(shouldStartTutorial({ phase: "saved", hasWords: false, videoReady: true })).toBe(true);
+    expect(shouldStartTutorial({ phase: "running", hasWords: true, videoReady: true })).toBe(true);
+    expect(shouldStartTutorial({ phase: undefined, hasWords: true, videoReady: true })).toBe(true);
+  });
+
+  it("does not start with a video but no captions yet", () => {
+    expect(shouldStartTutorial({ phase: "running", hasWords: false, videoReady: true })).toBe(false);
+    expect(shouldStartTutorial({ phase: undefined, hasWords: false, videoReady: true })).toBe(false);
+  });
+});
+
+describe("tutorial never-show opt-out (owner 2026-11-25)", () => {
+  it("the never flag suppresses the tour even when the seen flag is unset", () => {
+    expect(shouldShowTutorial(fakeStorage({ [TUTORIAL_NEVER_KEY]: "1" }))).toBe(false);
+    expect(tutorialNeverShown(fakeStorage({ [TUTORIAL_NEVER_KEY]: "1" }))).toBe(true);
+    expect(tutorialNeverShown(fakeStorage())).toBe(false);
+    expect(TUTORIAL_NEVER_KEY).toBe("ce:tutorial-never-show");
+  });
+
+  it("marking never sets only the never key, and it survives a seen-flag bump", () => {
+    const s = fakeStorage();
+    markTutorialNever(s);
+    expect(s.map.get(TUTORIAL_NEVER_KEY)).toBe("1");
+    expect(s.map.get(TUTORIAL_SEEN_KEY)).toBeUndefined();
+    expect(shouldShowTutorial(s)).toBe(false);
+    // a future seen-flag version (v4) would re-show everyone else — never users stay out
+    expect(shouldShowTutorial(fakeStorage({ [TUTORIAL_NEVER_KEY]: "1" }))).toBe(false);
+  });
+
+  it("marking seen does not set the never flag", () => {
+    const s = fakeStorage();
+    markTutorialSeen(s);
+    expect(s.map.get(TUTORIAL_NEVER_KEY)).toBeUndefined();
+    expect(tutorialNeverShown(s)).toBe(false);
+  });
+
+  it("the final step is still the export step, so the opt-out sits on Export", () => {
+    const last = TUTORIAL_STEPS[TUTORIAL_STEPS.length - 1]!;
+    expect(last.id).toBe("export");
+    expect(last.anchor).toBe("export");
   });
 });
 

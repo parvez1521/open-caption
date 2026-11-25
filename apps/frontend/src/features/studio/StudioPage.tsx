@@ -118,7 +118,7 @@ import { muxMixedAudioIntoMp4 } from "./audio/exportMix";
 import { useAudioPreview } from "./useAudioPreview";
 import { useStudio, type SaveState } from "./useStudio";
 import { TutorialTour } from "./TutorialTour";
-import { shouldShowTutorial } from "./tutorial";
+import { shouldShowTutorial, shouldStartTutorial } from "./tutorial";
 
 /**
  * Left-rail tool sections (owner correction #3, full-studio brief §7 layout, first instalment).
@@ -276,23 +276,6 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   useEffect(() => {
     if (phase === "saved" || phase === "failed" || phase === "stopped" || phase === "detached") void refetchStudio();
   }, [phase, refetchStudio]);
-  // first-run mini tutorial: the first time generated captions land (the session's "saved" transition,
-  // or the first adopted document with words) and the seen flag is unset, start the tour after a beat
-  const tourCheckedRef = useRef(false);
-  const docForTour = s.doc;
-  useEffect(() => {
-    if (tourCheckedRef.current) return;
-    // a blank AI-Edit project never gets the captions tutorial — while
-    // AI Edit is hidden it opens on Captions like any other project, so
-    // the skip below only applies when the flag is on
-    if (AI_EDIT_ENABLED && isAiEditProject(projectId)) { tourCheckedRef.current = true; return; }
-    const landed = phase === "saved" || (docForTour != null && docForTour.words.length > 0);
-    if (!landed) return;
-    tourCheckedRef.current = true;
-    if (!shouldShowTutorial()) return;
-    const t = setTimeout(() => setShowTour(true), 900);
-    return () => clearTimeout(t);
-  }, [phase, docForTour]);
   const desktop = useIsDesktop();
   // MA-A3-003: the phone bottom bar scrolls sideways — track whether there is
   // more to scroll so the edge fades can say so.
@@ -533,6 +516,27 @@ export default function StudioPage({ projectId }: { projectId: string }) {
   // "captions only": this browser can't show the picture, so nothing is played (the captions still work)
   const captionsOnly = data?.video?.previewMode === "captions-only";
   const video = device.video && captionsOnly ? { ...device.video, url: null } : device.video;
+  // first-run mini tutorial: the first time generated captions land (the session's "saved" transition,
+  // or the first adopted document with words) and the seen flag is unset, start the tour after a beat.
+  // It belongs to the editing room, never the upload screen (owner 2026-11-25): the old trigger fired
+  // on mount for any project whose saved document already had words — including while the stage still
+  // showed the upload option (video gone from this device, or being replaced). So wait until a video
+  // is actually on this device before even checking whether captions landed.
+  const videoReadyForTour = video != null && video.status !== "uploading" && device.status === "ready" && !replacing;
+  const tourCheckedRef = useRef(false);
+  const docForTour = s.doc;
+  useEffect(() => {
+    if (tourCheckedRef.current) return;
+    // a blank AI-Edit project never gets the captions tutorial — while
+    // AI Edit is hidden it opens on Captions like any other project, so
+    // the skip below only applies when the flag is on
+    if (AI_EDIT_ENABLED && isAiEditProject(projectId)) { tourCheckedRef.current = true; return; }
+    if (!shouldStartTutorial({ phase, hasWords: (docForTour?.words.length ?? 0) > 0, videoReady: videoReadyForTour })) return;
+    tourCheckedRef.current = true;
+    if (!shouldShowTutorial()) return;
+    const t = setTimeout(() => setShowTour(true), 900);
+    return () => clearTimeout(t);
+  }, [phase, docForTour, videoReadyForTour]);
   // export copy for a video the browser plays but can't read frame by frame: made after the captions are in
   const compat = useCompatCopy(data?.video?.id ?? null, !!data?.video?.needsCompat && !captionsOnly, !!s.doc);
   const width = video?.width || 1080;

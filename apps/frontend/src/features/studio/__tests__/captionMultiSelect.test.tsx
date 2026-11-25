@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CaptionDocSchema, defaultStyle, ProjectSettingsSchema } from "@capseasy/shared";
 import StudioPage from "../StudioPage";
 
@@ -567,6 +567,32 @@ describe("StudioPage — Apply / Reset respect the card selection (owner 2026-11
 });
 
 describe("StudioPage — positioning walkthrough (owner 2026-11-25)", () => {
+  // the tour only starts once a video is actually on this device (owner
+  // 2026-11-25: never on the upload screen) — mount these tests with a ready
+  // video; the rest of the file keeps the video-less mock, where the tour
+  // must stay silent. Restored after each test.
+  const readyDeviceVideo = {
+    video: {
+      id: "v1",
+      url: "https://example.test/v.mp4",
+      width: 1080,
+      height: 1920,
+      fps: 30,
+      durationMs: 10000,
+      status: "ready",
+      local: false,
+    },
+    status: "ready",
+    attach: () => {},
+  };
+  const noDeviceVideo = stable.deviceVideo;
+  beforeEach(() => {
+    stable.deviceVideo = readyDeviceVideo as unknown as typeof stable.deviceVideo;
+  });
+  afterEach(() => {
+    stable.deviceVideo = noDeviceVideo;
+  });
+
   it("the tour appears after captions land when the v3 flag is unset", async () => {
     const { unmount } = await mountStudio();
     try {
@@ -604,6 +630,21 @@ describe("StudioPage — positioning walkthrough (owner 2026-11-25)", () => {
       fireEvent.keyDown(window, { key: "Escape" });
       expect(screen.queryByRole("dialog", { name: "Studio tour" })).toBeNull();
       expect(window.localStorage.getItem("ce:tutorial-seen:v3")).toBe("1");
+    } finally {
+      unmount();
+    }
+  });
+});
+
+describe("StudioPage — walkthrough stays silent without a video (owner 2026-11-25)", () => {
+  it("no tour appears while the upload screen would be showing (no video on this device)", async () => {
+    const { unmount } = await mountStudio();
+    try {
+      expect(window.localStorage.getItem("ce:tutorial-seen:v3")).toBeNull();
+      // the tour fires 900ms after captions land when a video is ready; with
+      // no video on this device it must never appear — wait past the timer
+      await new Promise((r) => setTimeout(r, 1500));
+      expect(screen.queryByRole("dialog", { name: "Studio tour" })).toBeNull();
     } finally {
       unmount();
     }

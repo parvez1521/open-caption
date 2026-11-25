@@ -3,7 +3,7 @@
 // Slice 1 (2026-11-09): first-run coach-mark tour — see tutorial.ts for the steps and seen-flag helpers.
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { TUTORIAL_STEPS, isFirstStep, isLastStep, markTutorialSeen, stepIndexAfter } from "./tutorial";
+import { TUTORIAL_STEPS, isFirstStep, isLastStep, markTutorialNever, markTutorialSeen, stepIndexAfter } from "./tutorial";
 import { useDialogEscapeAndTrap } from "./useDialogEscapeAndTrap";
 
 /**
@@ -34,6 +34,14 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     markTutorialSeen();
     onClose();
   }, [onClose]);
+
+  // permanent opt-out (owner 2026-11-25): offered only on the final (export)
+  // step, so a user who walks the tour once can silence it for good. Skip /
+  // Esc still only mark this version seen (finish), never the opt-out.
+  const neverAgain = useCallback(() => {
+    markTutorialNever();
+    finish();
+  }, [finish]);
 
   // MA-A5-004: the shared trap (Escape + Tab trap + focus in/out) replaces
   // the tour's own Escape-only listener — focus moves into the tour card on
@@ -130,6 +138,11 @@ export const TutorialTour: React.FC<{ onClose: () => void }> = ({ onClose }) => 
             </button>
           )}
         </div>
+        {isLastStep(index) ? (
+          <button type="button" onClick={neverAgain} className="mt-3 w-full text-center text-xs font-medium text-[#FFFFEB]/50 transition hover:text-[#FFFFEB]">
+            Never show again
+          </button>
+        ) : null}
       </div>
     </div>
   );
