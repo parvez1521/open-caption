@@ -500,7 +500,21 @@ describe("production-pages audit: new indexable paths", () => {
     expect(sitemap().map((e) => e.url)).toContain(`${SITE_URL}/security`);
   });
 
-  it("does not put /faq in the sitemap: the audit asked for a linked help route, not a sitemap entry", () => {
-    expect(INDEXABLE_PATHS).not.toContain("/faq");
+  it("lists /faq and /downloads in the sitemap (2026-11-27 GSC fix: live since 2026-11-23 but undiscovered)", () => {
+    expect(INDEXABLE_PATHS).toContain("/faq");
+    expect(INDEXABLE_PATHS).toContain("/downloads");
+    const entries = sitemap();
+    const urls = entries.map((e) => e.url);
+    expect(urls).toContain(`${SITE_URL}/faq`);
+    expect(urls).toContain(`${SITE_URL}/downloads`);
+    // Like the other legal pages: yearly change frequency, priority 0.3.
+    for (const path of ["/faq", "/downloads"]) {
+      expect(entries.find((e) => e.url === `${SITE_URL}${path}`)).toMatchObject({ changeFrequency: "yearly", priority: 0.3 });
+    }
+  });
+
+  it("keeps /maintenance out of the sitemap: it is noindex, and a noindex URL does not belong in a sitemap", () => {
+    expect(INDEXABLE_PATHS).not.toContain("/maintenance");
+    expect(sitemap().map((e) => e.url)).not.toContain(`${SITE_URL}/maintenance`);
   });
 });

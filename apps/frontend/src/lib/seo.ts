@@ -41,7 +41,12 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL || PRODUCTION_URL).repl
 // /face-swap and /image-editor are public in-browser tools (face swap from
 // a live selfie; element-level image editing) — indexable like the other
 // tool pages.
-export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/ai-generator", "/looks", "/pricing", "/face-swap", "/image-editor", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
+// /faq and /downloads are public pages live since 2026-11-23 (production-pages
+// audit) but were missing from the sitemap until the 2026-11-27 GSC fix —
+// Google had not discovered them. /maintenance stays out deliberately: it
+// is noindex (maintenance/page.tsx), and a noindex URL does not belong in
+// a sitemap.
+export const INDEXABLE_PATHS = ["/", "/auto-caption-generator", "/auto-captions-for-reels", "/ai-generator", "/looks", "/pricing", "/face-swap", "/image-editor", "/faq", "/downloads", ...LEGAL_PAGES.map((p) => p.href as string)] as const;
 
 /** App routes behind sign-in: never indexed (metadata noindex + robots disallow).
  *  Covers every (dashboard) route in the shell nav, plus the auth-flow helpers —
