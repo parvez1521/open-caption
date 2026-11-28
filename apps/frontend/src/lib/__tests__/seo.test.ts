@@ -8,6 +8,8 @@ import {
   gaMeasurementId,
   googleSiteVerification,
   adsensePublisherId,
+  posthogApiHost,
+  posthogApiKey,
   pageMetadata,
   productJsonLd,
   softwareApplicationJsonLd,
@@ -210,6 +212,38 @@ describe("gaMeasurementId (GA4 loader gate)", () => {
   it("returns the id once a valid one is configured", () => {
     vi.stubEnv("NEXT_PUBLIC_GA_MEASUREMENT_ID", "G-ABC123DEF4");
     expect(gaMeasurementId()).toBe("G-ABC123DEF4");
+  });
+});
+
+describe("posthogApiKey (PostHog loader gate)", () => {
+  it("is undefined while the env var is unset or malformed — no PostHog code ships", () => {
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "");
+    expect(posthogApiKey()).toBeUndefined();
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "G-ABC123DEF4");
+    expect(posthogApiKey()).toBeUndefined();
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_");
+    expect(posthogApiKey()).toBeUndefined();
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_abc-def");
+    expect(posthogApiKey()).toBeUndefined();
+  });
+
+  it("returns the key once a valid one is configured", () => {
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_KEY", "phc_ABC123def456");
+    expect(posthogApiKey()).toBe("phc_ABC123def456");
+  });
+});
+
+describe("posthogApiHost (PostHog host)", () => {
+  it("defaults to the US Cloud host while the env var is unset or malformed", () => {
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "");
+    expect(posthogApiHost()).toBe("https://us.i.posthog.com");
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "not-a-url");
+    expect(posthogApiHost()).toBe("https://us.i.posthog.com");
+  });
+
+  it("returns the configured host once a valid one is set", () => {
+    vi.stubEnv("NEXT_PUBLIC_POSTHOG_HOST", "https://eu.i.posthog.com");
+    expect(posthogApiHost()).toBe("https://eu.i.posthog.com");
   });
 });
 

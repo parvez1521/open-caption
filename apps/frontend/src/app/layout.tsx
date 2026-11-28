@@ -4,12 +4,13 @@ import QueryProvider from "@/providers/QueryProvider";
 import { introScript } from "@/components/home/intro";
 import { authReturnScript } from "@/lib/authReturn";
 import { BRAND_DESCRIPTION, BRAND_NAME, BRAND_TAGLINE, BRAND_TITLE } from "@/lib/brand";
-import { DEFAULT_OPENGRAPH_IMAGES, DEFAULT_TWITTER_IMAGES, SITE_URL, adsensePublisherId, gaMeasurementId, googleSiteVerification } from "@/lib/seo";
+import { DEFAULT_OPENGRAPH_IMAGES, DEFAULT_TWITTER_IMAGES, SITE_URL, adsensePublisherId, gaMeasurementId, googleSiteVerification, posthogApiHost, posthogApiKey } from "@/lib/seo";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { AdSenseLoader } from "@/components/ads/AdSenseLoader";
 import { GaLoader } from "@/components/ads/GaLoader";
+import { PostHogLoader } from "@/components/ads/PostHogLoader";
 import { ConsentBanner } from "@/components/ads/ConsentBanner";
 import { MaintenancePage } from "@/components/maintenance/MaintenancePage";
 import { isMaintenanceMode } from "@/lib/maintenance";
@@ -60,6 +61,15 @@ const adsenseId = adsensePublisherId();
 // consent. No id exists yet and none is hardcoded; no env, zero analytics
 // code.
 const gaId = gaMeasurementId();
+
+// PostHog: same env gate as GA4 — the loader renders ONLY when
+// NEXT_PUBLIC_POSTHOG_KEY holds a valid phc_ key (see lib/seo.ts).
+// It is a client component (components/ads/PostHogLoader.tsx) that
+// dynamically imports posthog-js only after the visitor accepts in the
+// consent banner — the same single choice that gates AdSense and GA4.
+// No key is hardcoded; no env, zero PostHog code.
+const posthogKey = posthogApiKey();
+const posthogHost = posthogApiHost();
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: BRAND_TITLE, template: `%s · ${BRAND_NAME}` },
@@ -130,7 +140,8 @@ export default function RootLayout({
             <ServiceWorkerRegister />
             <AdSenseLoader publisherId={adsenseId} />
             <GaLoader measurementId={gaId} />
-            <ConsentBanner enabled={Boolean(adsenseId || gaId)} adsEnabled={Boolean(adsenseId)} analyticsEnabled={Boolean(gaId)} />
+            <PostHogLoader apiKey={posthogKey} apiHost={posthogHost} />
+            <ConsentBanner enabled={Boolean(adsenseId || gaId || posthogKey)} adsEnabled={Boolean(adsenseId)} analyticsEnabled={Boolean(gaId || posthogKey)} />
             <QueryProvider>{children}</QueryProvider>
           </>
         )}

@@ -1,11 +1,15 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AdSenseLoader } from "../AdSenseLoader";
 import { GaLoader } from "../GaLoader";
+import { PostHogLoader } from "../PostHogLoader";
 import { ConsentBanner } from "../ConsentBanner";
 import { AD_CONSENT_KEY, readAdConsent } from "@/lib/adConsent";
+
+const posthogInitMock = vi.hoisted(() => vi.fn());
+vi.mock("posthog-js", () => ({ default: { init: posthogInitMock } }));
 
 /**
  * A-13 (2026-11-15): first-party ad consent.
@@ -15,12 +19,21 @@ import { AD_CONSENT_KEY, readAdConsent } from "@/lib/adConsent";
  * - GA4 is gated on the same choice (CAP-S07, r3): the GaLoader injects
  *   gtag only after Accept, and the banner asks whenever either is
  *   configured. No analytics code loads before consent.
+ * - PostHog is gated the same way (2026-11-28): the PostHogLoader
+ *   dynamically imports posthog-js only after Accept, and the banner
+ *   copy names PostHog alongside Google when it is configured.
  */
 
 const PUB_ID = "pub-1234567890123456";
 const ADSENSE_SRC = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-${PUB_ID}`;
 const GA_ID = "G-TEST123456";
 const GTAG_SRC = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+const PH_HOST = "https://us.i.posthog.com";
+// Distinct keys per init-asserting test: the loader's module-level guard
+// initialises once per key, so sharing one key across tests would hide
+// a missing init in a later test.
+const PH_KEY_A = "phc_TESTKEYA123";
+const PH_KEY_B = "phc_TESTKEYB123";
 
 function gtagScript(): HTMLScriptElement | null {
   return document.querySelector('script[src^="https://www.googletagmanager.com/gtag/js"]');
@@ -36,6 +49,7 @@ function adsenseScript(): HTMLScriptElement | null {
 
 beforeEach(() => {
   window.localStorage.clear();
+  posthogInitMock.mockClear();
 });
 
 afterEach(() => {
@@ -88,13 +102,13 @@ describe("ConsentBanner", () => {
   it("names analytics only when no ads are configured", () => {
     render(<ConsentBanner enabled adsEnabled={false} analyticsEnabled />);
     expect(screen.getByRole("dialog", { name: "Analytics consent" })).toBeInTheDocument();
-    expect(screen.getByText("Help improve Captionit by allowing anonymous usage analytics from Google?")).toBeInTheDocument();
+    expect(screen.getByText("Help improve Captionit by allowing anonymous usage analytics from Google and PostHog?")).toBeInTheDocument();
   });
 
   it("names both ads and analytics when both are configured", () => {
     render(<ConsentBanner enabled adsEnabled analyticsEnabled />);
     expect(screen.getByRole("dialog", { name: "Advertising consent" })).toBeInTheDocument();
-    expect(screen.getByText("Ads keep Captionit free. Allow personalised ads and anonymous usage analytics from Google?")).toBeInTheDocument();
+    expect(screen.getByText("Ads keep Captionit free. Allow personalised ads and anonymous usage analytics from Google and PostHog?")).toBeInTheDocument();
   });
 });
 
@@ -200,7 +214,63 @@ describe("GaLoader — gated on the same consent (CAP-S07)", () => {
   });
 });
 
-describe("GA4 is gated on consent (CAP-S07)", () => {
+describe("PostHogLoader — gated on the same consent", () => {
+  it("loads nothing with no stored choice", async () => {
+    render(<PostHogLoader apiKey={PH_KEY_A} apiHost={PH_HOST} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(posthogInitMock).not.toHaveBeenCalled();
+  });
+
+  it("loads nothing after Decline", async () => {
+    window.localStorage.setItem(AD_CONSENT_KEY, "declined");
+    render(<PostHogLoader apiKey={PH_KEY_A} apiHost={PH_HOST} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(posthogInitMock).not.toHaveBeenCalled();
+  });
+
+  it("initialises when consent was already accepted", async () => {
+    window.localStorage.setItem(AD_CONSENT_KEY, "accepted");
+    render(<PostHogLoader apiKey={PH_KEY_A} apiHost={PH_HOST} />);
+    await waitFor(() =>
+      expect(posthogInitMock).toHaveBeenCalledWith(PH_KEY_A, { api_host: PH_HOST, capture_pageview: true }),
+    );
+  });
+
+  it("initialises when the visitor accepts in the same session", async () => {
+    render(
+      <>
+        <PostHogLoader apiKey={PH_KEY_B} apiHost={PH_HOST} />
+        <ConsentBanner enabled />
+      </>,
+    );
+    expect(posthogInitMock).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Accept" }));
+    await waitFor(() =>
+      expect(posthogInitMock).toHaveBeenCalledWith(PH_KEY_B, { api_host: PH_HOST, capture_pageview: true }),
+    );
+  });
+
+  it("still loads nothing when the visitor declines in the same session", async () => {
+    render(
+      <>
+        <PostHogLoader apiKey={PH_KEY_A} apiHost={PH_HOST} />
+        <ConsentBanner enabled />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Decline" }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(posthogInitMock).not.toHaveBeenCalled();
+  });
+
+  it("loads nothing without an api key, even after Accept", async () => {
+    window.localStorage.setItem(AD_CONSENT_KEY, "accepted");
+    render(<PostHogLoader apiKey={undefined} apiHost={PH_HOST} />);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(posthogInitMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("GA4 and PostHog are gated on consent (CAP-S07)", () => {
   it("the root layout ships no GA4 tag in <head> — it renders the gated loader", () => {
     // Source pins use process.cwd() (not import.meta.url: vitest serves
     // some test modules over http:, where fileURLToPath throws).
@@ -210,11 +280,14 @@ describe("GA4 is gated on consent (CAP-S07)", () => {
     const head = layout.slice(layout.indexOf("<head>"), layout.indexOf("</head>"));
     expect(head).not.toContain("googletagmanager");
     expect(head).not.toContain("gtag");
-    // The gated loader + the banner (enabled whenever either is
+    expect(head).not.toContain("posthog");
+    // The gated loaders + the banner (enabled whenever any is
     // configured) live in <body> instead.
     expect(layout).toContain("<GaLoader");
     expect(layout).toContain("measurementId={gaId}");
-    expect(layout).toContain("enabled={Boolean(adsenseId || gaId)}");
+    expect(layout).toContain("<PostHogLoader");
+    expect(layout).toContain("apiKey={posthogKey}");
+    expect(layout).toContain("enabled={Boolean(adsenseId || gaId || posthogKey)}");
     expect(layout).not.toContain("pagead2.googlesyndication.com");
   });
 

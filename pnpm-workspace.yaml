@@ -9,6 +9,7 @@ allowBuilds:
   onnxruntime-node: false
   protobufjs: false
   tesseract.js: true
+  core-js: false
 
 # @huggingface/transformers' browser bundle imports 'onnxruntime-common'
 # directly, but pnpm does not link it next to transformers — the build can

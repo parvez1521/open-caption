@@ -129,6 +129,28 @@ export function gaMeasurementId(): string | undefined {
 }
 
 /**
+ * The PostHog project API key ("phc_...") — read from
+ * NEXT_PUBLIC_POSTHOG_KEY. Returns undefined while unset or malformed,
+ * and the PostHog loader in the root layout renders only when this
+ * returns a value, so a deployment without the env var loads zero
+ * PostHog code. No key is hardcoded anywhere: none exists yet.
+ */
+export function posthogApiKey(): string | undefined {
+  const value = process.env.NEXT_PUBLIC_POSTHOG_KEY?.trim();
+  return value && /^phc_[A-Za-z0-9]+$/.test(value) ? value : undefined;
+}
+
+/**
+ * The PostHog host — read from NEXT_PUBLIC_POSTHOG_HOST, defaulting to
+ * the US Cloud host (and falling back to it when malformed). The loader
+ * passes this to posthog.init as api_host.
+ */
+export function posthogApiHost(): string {
+  const value = process.env.NEXT_PUBLIC_POSTHOG_HOST?.trim();
+  return value && /^https?:\/\/.+/.test(value) ? value : "https://us.i.posthog.com";
+}
+
+/**
  * Metadata for one route. Indexable pages get a canonical URL plus matching
  * Open Graph / Twitter cards; app pages get robots noindex instead (a
  * canonical on a noindex page would contradict it, so it is omitted).

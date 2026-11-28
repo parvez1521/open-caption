@@ -104,6 +104,9 @@ importers:
       onnxruntime-web:
         specifier: 1.31.0-dev.20260914-8d85527a0
         version: 1.31.0-dev.20260914-8d85527a0
+      posthog-js:
+        specifier: ^1.455.4
+        version: 1.455.4(@types/react@19.2.17)(react@19.2.4)
       react:
         specifier: 19.2.4
         version: 19.2.4
@@ -237,7 +240,7 @@ importers:
         version: link:../caption-engine
       '@remotion/bundler':
         specifier: 4.0.484
-        version: 4.0.484(@swc/helpers@0.5.23)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 4.0.484(@swc/helpers@0.5.23)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/google-fonts':
         specifier: 4.0.484
         version: 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -420,13 +423,13 @@ importers:
         version: link:../caption-engine
       '@remotion/bundler':
         specifier: 4.0.484
-        version: 4.0.484(@swc/helpers@0.5.23)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 4.0.484(@swc/helpers@0.5.23)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/captions':
         specifier: 4.0.484
         version: 4.0.484
       '@remotion/cli':
         specifier: 4.0.484
-        version: 4.0.484(@swc/helpers@0.5.23)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        version: 4.0.484(@swc/helpers@0.5.23)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/layout-utils':
         specifier: 4.0.484
         version: 4.0.484
@@ -1556,6 +1559,15 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
+  '@posthog/browser-common@0.14.2':
+    resolution: {integrity: sha512-oqDCqFYG9R4ydOwA8qaC8yGERxXCW7Ar5U1WjGZ+wFbI6pHFVty67h0Jq7+3Svd3XfH8zGQh1Ib8eDcXSYo9mw==}
+
+  '@posthog/core@1.69.2':
+    resolution: {integrity: sha512-toMfPKklwLW+a4ZY3/EzM3GNMVXmk2ylGb8NPJXRH4igXMoI8wgNL2jqXOiglWAXqFBLZGYFN1oQx6LVmUTxTg==}
+
+  '@posthog/types@1.427.2':
+    resolution: {integrity: sha512-86GJtdFt7zkk6tDpCFKfxyTtuXyLpiWPmTn5nlLDGlxGeky4s4l2fiWSRvYi6Lfn5MRrjiHE24RgKR4A75K+xA==}
+
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
 
@@ -2367,6 +2379,9 @@ packages:
   '@types/three@0.186.0':
     resolution: {integrity: sha512-mxYSBpDC+D0pLfSP6sW4WZTcT+nrtmZcimMqnVmy36Hte3XpeYSrvgg4TRdaM1GemGog1AWzI5qL2VoIfMXbJQ==}
 
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
+
   '@types/webxr@0.5.24':
     resolution: {integrity: sha512-h8fgEd/DpoS9CBrjEQXR+dIDraopAEfu4wYVNY2tEPwk60stPWhvZMf4Foo5FakuQ7HFZoa8WceaWFervK2Ovg==}
 
@@ -2991,6 +3006,9 @@ packages:
   convert-source-map@2.0.0:
     resolution: {integrity: sha512-Kvp459HrV2FEJ1CAsi1Ku+MY3kasH19TFykTz2xWmMeq6bk2NU3XXvfJ+Q61m0xktWwt+1HSYf3JZsTms3aRJg==}
 
+  core-js@3.51.0:
+    resolution: {integrity: sha512-7bDKx/5jm5MxzsXxc93g6Z2+4ZsuT/MddrfRmTDJNAkWsYWHU8EVNEsBiIEWnMAMCHMmRfUEjkuo3jeNBOIHRw==}
+
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
@@ -3104,6 +3122,9 @@ packages:
 
   dom-accessibility-api@0.6.3:
     resolution: {integrity: sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==}
+
+  dompurify@3.5.0:
+    resolution: {integrity: sha512-LYC0ZkE8P1V42JsRYTwMdme/2ET8SpOc5AA2eOFjP/IadvRd2fwiT4TVz5vkfy0XUx12aS2UaRkTnfVPNOv9vw==}
 
   dotenv@17.3.1:
     resolution: {integrity: sha512-IO8C/dzEb6O3F9/twg6ZLXz164a2fhTnEWb95H23Dm4OuN+92NmEAlTrupP9VW6Jm3sO26tQlqyvyi4CsnY9GA==}
@@ -3394,6 +3415,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.4.9:
+    resolution: {integrity: sha512-zdxgIEddhfsyCaWpJ2SdXEP8ZMrKJ6+5jl4OupODcywU0IhRk6gdXuVGcPICyfx2H97hVK7xmJtRLPjkxAX8Vw==}
 
   fflate@0.8.3:
     resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
@@ -4315,6 +4339,25 @@ packages:
     resolution: {integrity: sha512-g50586zr4bZmwFiTlflMu8E0bDTb5I5gertgwAKmsdUlTQIhZtunzUlD1WSzwcVWPoAVpsrA6vlfCD7oXvRwgg==}
     engines: {node: ^10 || ^12 || >=14}
 
+  posthog-js@1.455.4:
+    resolution: {integrity: sha512-CTuF1QH/Xa2hBjrfH7YABVE+vrB5u9WaFR1hicJ5bPJvRZZFSgyyNoQULGY+8cSVNqcDQIE6O31+b1Iwyd9++w==}
+    peerDependencies:
+      '@types/react': '>=16.8.0'
+      react: '>=16.8.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
+
+  preact@10.29.8:
+    resolution: {integrity: sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==}
+    peerDependencies:
+      preact-render-to-string: '>=5'
+    peerDependenciesMeta:
+      preact-render-to-string:
+        optional: true
+
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -4360,6 +4403,9 @@ packages:
   puppeteer-core@24.43.1:
     resolution: {integrity: sha512-T5ScUMAsmhdNbgDR41AGESYeS6V9MSgetkSnVhhW+gXvzC42VesKCn5ld87gAZDJ6vLHL9GkRvY9WtQWSnwFbw==}
     engines: {node: '>=18'}
+
+  query-selector-shadow-dom@1.0.1:
+    resolution: {integrity: sha512-lT5yCqEBgfoMYpf3F2xQRK7zEr1rhIIZuceDK6+xRkJQ4NMbHTwXqk4NkwDwQMNqXgG9r9fyHnzwNVs6zV5KRw==}
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
@@ -5005,6 +5051,9 @@ packages:
 
   wavesurfer.js@7.12.8:
     resolution: {integrity: sha512-G3nxzcC4X+ZWrLtcIV17kCWHVq3ysJCS4dS0YkGKILrQ2esAb8cScw965zKNKYxUvpiZsPK93KLWgWTYdIBQiw==}
+
+  web-vitals@6.2.1:
+    resolution: {integrity: sha512-rLcLXA2sx6+9dE88NHFubwTtGxpK4yYBLj6qHPdFoCaLr0cXGb4efOqtKLlm4loGA4OEKHIQKMKzZkKyOh5ctw==}
 
   web-vitals@6.2.2:
     resolution: {integrity: sha512-oto5x6dLEgrRqfcWed+pZEUb2q6ikbFmqF54CRDhI/QGbn+qxC49b4C4OkbH+kb9C3a8shpFD3SgR9kRcs80ZQ==}
@@ -5913,6 +5962,21 @@ snapshots:
     dependencies:
       playwright: 1.65.0
 
+  '@posthog/browser-common@0.14.2':
+    dependencies:
+      '@posthog/core': 1.69.2
+      '@posthog/types': 1.427.2
+      dompurify: 3.5.0
+      preact: 10.29.8
+    transitivePeerDependencies:
+      - preact-render-to-string
+
+  '@posthog/core@1.69.2':
+    dependencies:
+      '@posthog/types': 1.427.2
+
+  '@posthog/types@1.427.2': {}
+
   '@protobufjs/aspromise@1.1.2': {}
 
   '@protobufjs/base64@1.1.2': {}
@@ -6025,14 +6089,14 @@ snapshots:
 
   '@remotion/captions@4.0.484': {}
 
-  '@remotion/cli@4.0.484(@swc/helpers@0.5.23)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@remotion/cli@4.0.484(@swc/helpers@0.5.23)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
-      '@remotion/bundler': 4.0.484(@swc/helpers@0.5.23)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@remotion/bundler': 4.0.484(@swc/helpers@0.5.23)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/media-utils': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/player': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/renderer': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/studio': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
-      '@remotion/studio-server': 4.0.484(@swc/helpers@0.5.23)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@remotion/studio-server': 4.0.484(@swc/helpers@0.5.23)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/studio-shared': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       dotenv: 17.3.1
       minimist: 1.2.6
@@ -6157,11 +6221,11 @@ snapshots:
 
   '@remotion/streaming@4.0.484': {}
 
-  '@remotion/studio-server@4.0.484(@swc/helpers@0.5.23)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
+  '@remotion/studio-server@4.0.484(@swc/helpers@0.5.23)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)':
     dependencies:
       '@babel/parser': 7.24.1
       '@babel/types': 7.24.0
-      '@remotion/bundler': 4.0.484(@swc/helpers@0.5.23)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@remotion/bundler': 4.0.484(@swc/helpers@0.5.23)(postcss@8.5.15)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/renderer': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       '@remotion/studio-shared': 4.0.484(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       memfs: 3.4.3
@@ -6788,6 +6852,9 @@ snapshots:
       fflate: 0.8.3
       meshoptimizer: 1.1.1
 
+  '@types/trusted-types@2.0.7':
+    optional: true
+
   '@types/webxr@0.5.24': {}
 
   '@types/yauzl@2.10.3':
@@ -7368,6 +7435,8 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
+  core-js@3.51.0: {}
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -7487,6 +7556,10 @@ snapshots:
   dom-accessibility-api@0.5.16: {}
 
   dom-accessibility-api@0.6.3: {}
+
+  dompurify@3.5.0:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   dotenv@17.3.1: {}
 
@@ -7956,6 +8029,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
+
+  fflate@0.4.9: {}
 
   fflate@0.8.3: {}
 
@@ -8850,6 +8925,26 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
+  posthog-js@1.455.4(@types/react@19.2.17)(react@19.2.4):
+    dependencies:
+      '@posthog/browser-common': 0.14.2
+      '@posthog/core': 1.69.2
+      '@posthog/types': 1.427.2
+      core-js: 3.51.0
+      dompurify: 3.5.0
+      fflate: 0.4.9
+      preact: 10.29.8
+      query-selector-shadow-dom: 1.0.1
+      web-vitals: 6.2.2
+      web-vitals-soft-navs: web-vitals@6.2.1
+    optionalDependencies:
+      '@types/react': 19.2.17
+      react: 19.2.4
+    transitivePeerDependencies:
+      - preact-render-to-string
+
+  preact@10.29.8: {}
+
   prelude-ls@1.2.1: {}
 
   prettier@3.8.1: {}
@@ -8925,6 +9020,8 @@ snapshots:
       - react-native-b4a
       - supports-color
       - utf-8-validate
+
+  query-selector-shadow-dom@1.0.1: {}
 
   queue-microtask@1.2.3: {}
 
@@ -9698,6 +9795,8 @@ snapshots:
       graceful-fs: 4.2.11
 
   wavesurfer.js@7.12.8: {}
+
+  web-vitals@6.2.1: {}
 
   web-vitals@6.2.2: {}
 
