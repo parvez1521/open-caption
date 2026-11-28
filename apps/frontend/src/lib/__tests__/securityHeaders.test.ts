@@ -171,6 +171,7 @@ describe("securityHeaders", () => {
     );
     expect(gaLoader).toContain("https://www.googletagmanager.com/gtag/js?id=");
     expect(layout).not.toContain("https://www.googletagmanager.com/gtag/js?id=");
+
     // A-13 (2026-11-15): the AdSense script tag left the layout — the
     // server cannot know the stored consent choice, so the loader
     // (components/ads/AdSenseLoader.tsx) injects the script only after
@@ -195,6 +196,25 @@ describe("securityHeaders", () => {
     expect(directive("frame-src")).not.toContain("googlesyndication");
     expect(directive("frame-src")).not.toContain("google-analytics");
   });
+  it("allows PostHog beacons (2026-11-28 CSP fix)", () => {
+    // The PostHogLoader (components/ads/PostHogLoader.tsx) dynamically
+    // imports posthog-js after consent and posthog.init() sends /decide +
+    // /capture + /batch to the configured api_host (lib/seo.ts
+    // posthogApiHost(), default https://us.i.posthog.com). The live site
+    // proved the gap the same way GA4 did on 2026-11-15: the loader ran,
+    // the chunk loaded, the key was in the HTML, ingest worked by direct
+    // POST — but three consented visits sent zero $pageview because
+    // connect-src did not list the host.
+    expect(directive("connect-src")).toContain("https://us.i.posthog.com");
+    // Regression: the allowed host must be the host the loader actually
+    // talks to — a mismatch is exactly the failure above.
+    const seo = readFileSync(
+      fileURLToPath(new URL("../seo.ts", import.meta.url)),
+      "utf8",
+    );
+    expect(seo).toContain("https://us.i.posthog.com");
+  });
+
 
   it("lets the Teleprompter recorder use this origin's camera/mic (deep-audit B1)", () => {
     const pp = securityHeaders.find((h) => h.key === "Permissions-Policy")?.value ?? "";

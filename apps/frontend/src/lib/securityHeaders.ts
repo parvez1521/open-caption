@@ -54,6 +54,13 @@
  *   hosts (googleads.g.doubleclick.net, tpc.googlesyndication.com) are
  *   deliberately NOT allowlisted — add them to img-src/connect-src/frame-src
  *   when ad slots ship.
+ * - PostHog (2026-11-28): PostHogLoader dynamically imports posthog-js
+ *   after consent; posthog.init() sends /decide + /capture + /batch to the
+ *   configured api_host (lib/seo.ts posthogApiHost(), default
+ *   https://us.i.posthog.com) — that host must be in connect-src, or the
+ *   loader runs, the chunk loads, and zero events ever arrive (the same
+ *   silent failure as GA4 on 2026-11-15, found again on 2026-11-28:
+ *   three consented visits, no $pageview, ingest proven by direct POST).
  * - Puter.js AI Generator (2026-11-17, /ai-generator): the page loads the
  *   SDK from js.puter.com (script-src). The shipped bundle
  *   (https://js.puter.com/v2/, fetched 2026-11-17) names its own origins:
@@ -194,6 +201,14 @@ export function buildContentSecurityPolicy(isDev: boolean): string {
         // (2026-11-15).
         "https://www.google-analytics.com",
         "https://*.google-analytics.com",
+        // PostHog (2026-11-28): the PostHogLoader client component
+        // dynamically imports posthog-js after consent and posthog.init()
+        // sends /decide + /capture + /batch to the configured api_host
+        // (lib/seo.ts posthogApiHost(), default https://us.i.posthog.com).
+        // Without this host the loader runs and the chunk loads, but the
+        // browser blocks every request — zero events ever arrive, exactly
+        // the 2026-11-15 GA4 failure. The host must match the api_host.
+        "https://us.i.posthog.com",
         // Puter.js AI Generator: the SDK's API origin. Evidence: the
         // shipped https://js.puter.com/v2/ bundle (fetched 2026-11-17)
         // sets defaultAPIOrigin to https://api.puter.com and every AI
